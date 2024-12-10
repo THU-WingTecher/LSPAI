@@ -2,17 +2,21 @@
 
 This is the README for your extension "llm-lsp-ut". After writing up a brief description, we recommend including the following sections.
 
-## Features
+## Language Server SetUp
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+1. Install the language server by installing vscode extension.
+2. Activate semantic tokenizer by adding the following to your settings.
+   - Go language[[!gopls](https://github.com/golang/vscode-go/wiki/settings)] : add below to your settings.json, which can be accessed by pressing `Ctrl + ,` and then clicking on the `{}` icon on the top right corner.
+	```json
+    "gopls": {
+		"ui.semanticTokens": true,
+	}
+    ```
+    - Java language : add below to your settings.json, which can be accessed by pressing `Ctrl + ,` and then clicking on the `{}` icon on the top right corner.
 
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
 
 ## Requirements
+
 
 If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
