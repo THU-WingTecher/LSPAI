@@ -60,18 +60,8 @@ export function activate(context: vscode.ExtensionContext) {
 		// 获取光标位置
 		const position = editor.selection.active;
 		const functionSymbol = getFunctionSymbol(symbols, position)!;
-		const allDefMap = new Map<string, vscode.Location | null>();
 		console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
-		await extractUseDefInfo(editor, functionSymbol, allDefMap);
-
-		// Debug collected allDefMap
-		for (const [word, location] of allDefMap) {
-			if (location) {
-				const sourceCode = await getSourceCodeFromProvidedDefinition({ range: location.range, uri: location.uri });
-				console.log(`Source code for ${word} at ${location.uri.toString()}:`, sourceCode);
-			}
-		}
-
+		const DefUseMap = await extractUseDefInfo(editor, functionSymbol);
 
 		let functionName: string | null = null;
 		if (!functionSymbol || !isFunctionSymbol(functionSymbol)) {
@@ -111,76 +101,24 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable2);
 }
 
-async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, allDefMap: Map<string, vscode.Location | null>) {
-	// const alltokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
-	// 	'vscode.provideDocumentSemanticTokens',
-	// 	editor.document.uri,
-	// );
-	const decodedTokens = getDecodedTokens(editor, functionSymbol);
+async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol) {
 
-	// if (decodedTokens) {
-		
-	// 	for (let i = 0; i < tokens.data.length; i ++) {
-	// 		const start = tokens.data[i];
-	// 		const length = tokens.data[i + 1];
-	// 		const tokenType = tokens.data[i + 2];
-	// 		const range = new vscode.Range(
-	// 			editor.document.positionAt(start),
-	// 			editor.document.positionAt(start + length)
-	// 		);
-	// 		const word = editor.document.getText(range);
-	// 		const position = new vscode.Position(range.start.line, range.start.character);
-	// 		const definition = await vscode.commands.executeCommand<Array<vscode.Location>>(
-	// 			'vscode.executeDefinitionProvider',
-	// 			editor.document.uri,
-	// 			position
-	// 		);
+	const decodedTokens = await getDecodedTokens(editor, functionSymbol);
 
-	// 		if (definition && definition.length > 0) {
-	// 			allDefMap.set(word, definition[0] || null);
-	// 		}
-	// 	}
-	// }
-
-	for (let start = functionSymbol.range.start.line; start <= functionSymbol.range.end.line; start++) { // enumerate each line
-		let startChar = 0;
-		while (startChar < editor.document.lineAt(start).text.length) { //enumerate each colum
-			const lineText = editor.document.lineAt(start).text;
-			let length = 0;
-			let prev_defined: vscode.Location[] = [];
-			let lastRange: vscode.Range | null = null;
-			while (startChar + length <= lineText.length) {
-				const end = startChar + length;
-				const testrange = new vscode.Range(start, end, start, end + 0);
-				const range = new vscode.Range(start, startChar, start, end);
-				const position = new vscode.Position(testrange.start.line, testrange.start.character);
-				const word = editor.document.getText(testrange);
-				const definition = await vscode.commands.executeCommand<Array<vscode.Location>>(
-					'vscode.executeDefinitionProvider',
-					editor.document.uri,
-					position
-				);
-				if (definition && definition.length === 0) {
-					break;
-				}
-				if (definition && prev_defined.length > 0 && !prev_defined.some(def => def.range.isEqual(definition[0].range))) {
-					break;
-				}
-				prev_defined = definition;
-				lastRange = range;
-				length++;
-			}
-
-			if (!prev_defined || prev_defined.length === 0) {
-				startChar++;
-				continue;
-			}
-			if (lastRange) {
-				allDefMap.set(editor.document.getText(lastRange), prev_defined[0] || null);
-				startChar = lastRange.end.character + 1;
-			} else {
-				startChar++;
-			}
+	if (decodedTokens) {
+		for (const token of decodedTokens) {
+			const startPos = new vscode.Position(token.line, token.startChar);
+			const endPos = new vscode.Position(token.line, token.startChar + token.length);
+			const range = new vscode.Range(startPos, endPos);
+			const word = editor.document.getText(range);
+			const definition = await vscode.commands.executeCommand<Array<vscode.Location>>(
+				'vscode.executeDefinitionProvider',
+				editor.document.uri,
+				startPos
+			);
+			token.word = word;
+			token.definition = definition;
+			console.log('Decoded token:', token);
 		}
 	}
 }
