@@ -267,25 +267,25 @@ async function generateTestCode(editor: vscode.TextEditor, functionSymbol: vscod
 	);
 
 	const textCode = editor.document.getText(functionSymbol.range);
-	const proxy = "http://166.111.83.92:12333";
-	process.env.http_proxy = proxy;
-	process.env.https_proxy = proxy;
-	process.env.HTTP_PROXY = proxy;
-	process.env.HTTPS_PROXY = proxy;
-	process.env.OPENAI_PROXY_URL = proxy;
+	// const proxy = "";
+	// process.env.http_proxy = proxy;
+	// process.env.https_proxy = proxy;
+	// process.env.HTTP_PROXY = proxy;
+	// process.env.HTTPS_PROXY = proxy;
+	// process.env.OPENAI_PROXY_URL = proxy;
 	// const response2 = await axios.get('https://www.google.com');
 	// console.log(response2.data);
 
-	console.log('1');
-	const llm = new ChatOpenAI(
-		{
-			model: "gpt-4o-mini",
-			apiKey: "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"
-		}
-	);
-	console.log('2');
-	const chain = prompt.pipe(llm);
-	console.log('3');
+	// console.log('1');
+	// const llm = new ChatOpenAI(
+	// 	{
+	// 		model: "gpt-4o-mini",
+	// 		apiKey: ""
+	// 	}
+	// );
+	// console.log('2');
+	// const chain = prompt.pipe(llm);
+	// console.log('3');
 
 	const promptContent = await prompt.format({ language: languageId, code: textCode, functionName: functionSymbol.name });
 	console.log('Generated prompt:', promptContent);
