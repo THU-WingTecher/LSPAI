@@ -10,7 +10,7 @@ import { OpenAI } from "openai";
 import axios from 'axios';
 import http from 'http';
 import { HttpsProxyAgent } from 'https-proxy-agent';
-import { getDecodedTokens } from './token';
+import { getDecodedTokens, DecodedToken } from './token';
 
 
 // This method is called when your extension is activated
@@ -56,7 +56,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const allUseMap = new Map<String, Array<vscode.Location>>();
+		// const allUseMap = new Map<String, Array<vscode.Location>>();
 		// 获取光标位置
 		const position = editor.selection.active;
 		const functionSymbol = getFunctionSymbol(symbols, position)!;
@@ -75,6 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// }
 		functionName = functionSymbol.name;
 		console.log('Function Symbol:', functionSymbol);
+		console.log("DefUse Map length:", DefUseMap.length);
 
 		// 获取该函数内所有变量的use-def信息
 		// const [useMap, defMap] = await getUseDefInfo(editor.document, functionSymbol);
@@ -101,7 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable2);
 }
 
-async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol) {
+async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]>  {
 
 	const decodedTokens = await getDecodedTokens(editor, functionSymbol);
 
@@ -121,6 +122,7 @@ async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vsco
 			console.log('Decoded token:', token);
 		}
 	}
+	return decodedTokens;
 }
 
 function isValidFunctionSymbol(functionSymbol: vscode.DocumentSymbol): boolean {
