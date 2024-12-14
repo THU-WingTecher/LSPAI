@@ -1,20 +1,20 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import { assert } from 'console';
 import * as vscode from 'vscode';
 
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { ChatOpenAI } from "@langchain/openai";
-import { OpenAI } from "openai";
-
-import axios from 'axios';
-import http from 'http';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import { getDecodedTokens, DecodedToken } from './token';
-
+import { invokeLLM, genPrompt, isBaseline } from './generate';
+import { getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol } from './utils';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
+const TEST_PATH = "/vscode-llm-ut/experiments/commons-cli/results/";
+const SRC = '/vscode-llm-ut/experiments/commons-cli/src/main/';
+const MODEL = "gpt-4o-mini";
+const GENMETHODS = [`naive_${MODEL}`, MODEL];
+
 export function activate(context: vscode.ExtensionContext) {
 	let config = vscode.workspace.getConfiguration();
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
@@ -27,12 +27,14 @@ export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('llm-lsp-ut.helloWorld', () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
+		experiment_java()
 		vscode.window.showInformationMessage('Hello World from llm-lsp-ut!');
 	});
 
 	context.subscriptions.push(disposable);
 
 	console.log("!!", vscode.commands.getCommands());
+
 
 	const disposable2 = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
 		const editor = vscode.window.activeTextEditor;
@@ -41,56 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		// 获取当前使用的编程语言
-		const languageId = editor.document.languageId;
-		console.log('Language ID:', languageId);
-
-		// 获取符号信息
-		const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-			'vscode.executeDocumentSymbolProvider',
-			editor.document.uri
-		);
-
-		if (!symbols) {
-			vscode.window.showErrorMessage('No symbols found!');
-			return;
-		}
-
-		// const allUseMap = new Map<String, Array<vscode.Location>>();
-		// 获取光标位置
-		const position = editor.selection.active;
-		const functionSymbol = getFunctionSymbol(symbols, position)!;
-		console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
-		const DefUseMap = await extractUseDefInfo(editor, functionSymbol);
-
-		let functionName: string | null = null;
-		if (!functionSymbol || !isFunctionSymbol(functionSymbol)) {
-			vscode.window.showErrorMessage('No valid function symbol found!');
-			// functionName = await getFunctionNameWithLSP(editor, position);
-		}
-		// 	functionName = functionSymbol.name;
-		// }
-		// if (!functionName) {
-		// 	return;
-		// }
-		functionName = functionSymbol.name;
-		console.log('Function Symbol:', functionSymbol);
-		console.log("DefUse Map length:", DefUseMap.length);
-
-		// 获取该函数内所有变量的use-def信息
-		// const [useMap, defMap] = await getUseDefInfo(editor.document, functionSymbol);
-		// const parameters = findParametersOfFunction(defMap);
-		// console.log('Function Parfameters:', parameters);
-
-		console.log('Function definition:', functionSymbol.detail);
-
-
-		if (!isValidFunctionSymbol(functionSymbol)) {
-			return;
-		};
-
-		// 使用 LLM 生成单元测试
-		const testCode = await generateTestCode(editor, functionSymbol, languageId);
+		const testCode = await generateUnitTestForSelctedRange(editor);
 
 		// // 弹出窗口显示生成的单元测试代码
 		// const testDocument = await vscode.workspace.openTextDocument({ content: testCode, language: languageId });
@@ -100,6 +53,164 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable2);
+}
+
+
+
+async function experiment_java() : Promise<any> {
+
+	function findJavaFiles(folderPath: string, javaFiles: string[] = []) {
+		fs.readdirSync(folderPath).forEach(file => {
+			const fullPath = path.join(folderPath, file);
+			if (fs.statSync(fullPath).isDirectory()) {
+				findJavaFiles(fullPath, javaFiles); // Recursively search in subdirectory
+			} else if (file.endsWith('.java')) {
+				javaFiles.push(fullPath);
+			}
+		});
+	}
+	const javaFiles: string[] = [];
+	findJavaFiles(SRC, javaFiles);
+
+	// console.log(javaFiles);
+
+	for (const filePath of javaFiles) {
+		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+		const symbols = await getAllSymbols(document.uri);
+		for (const symbol of symbols) {
+			if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
+				const curDocument = await vscode.workspace.openTextDocument(document.uri);
+				const editor = await vscode.window.showTextDocument(curDocument);
+				for (const method of GENMETHODS){
+					const folderPath = `${TEST_PATH}${method}`;
+					const fileName = getUniqueFileName(folderPath, `${symbol.name}Test.java`);
+					const testCode = await generateUnitTestForAFunction(editor, symbol, fileName, method);
+					if (testCode) {
+						await saveGeneratedCodeToFolder(testCode, folderPath, fileName);
+					}
+				}
+			}
+		}
+	}
+}
+
+async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+	const allSymbols: vscode.DocumentSymbol[] = [];
+	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+		'vscode.executeDocumentSymbolProvider',
+		uri
+	);
+
+	function collectSymbols(symbols: vscode.DocumentSymbol[]) {
+		for (const symbol of symbols) {
+			allSymbols.push(symbol);
+			if (symbol.children.length > 0) {
+				collectSymbols(symbol.children);
+			}
+		}
+	}
+
+	if (symbols) {
+		collectSymbols(symbols);
+	}
+
+	return allSymbols;
+}
+async function saveGeneratedCodeToFolder(code: string, folderPath: string, fileName: string): Promise<void> {
+	// Ensure the fileName contains only word characters and numbers
+
+	const uri = vscode.Uri.file(`${folderPath}/${fileName}`);
+	const workspaceEdit = new vscode.WorkspaceEdit();
+	workspaceEdit.createFile(uri, { overwrite: false });
+
+	if (!fs.existsSync(folderPath)) {
+		fs.mkdirSync(folderPath, { recursive: true });
+	}
+
+	await vscode.workspace.applyEdit(workspaceEdit);
+	const document = await vscode.workspace.openTextDocument(uri);
+	const edit = new vscode.WorkspaceEdit();
+	edit.insert(uri, new vscode.Position(0, 0), code);
+	await vscode.workspace.applyEdit(edit);
+	await vscode.window.showTextDocument(document);
+	const result = await document.save();
+	if (!result) {
+		vscode.window.showErrorMessage(`Failed to save generated code to ${uri.fsPath}! `);
+	} else {
+		vscode.window.showInformationMessage(`Generated code saved to ${uri.fsPath}`);
+	}
+}
+
+function getUniqueFileName(folderPath: string, fileName: string): string {
+	let counter = 1;
+	let newFileName = fileName.replace(/(\.\w+)$/, `_${counter}$1`);
+	while (fs.existsSync(`${folderPath}/${newFileName}`)) {
+		newFileName = fileName.replace(/(\.\w+)$/, `_${counter}$1`);
+		counter++;
+	}
+	newFileName = newFileName.replace(/[^\w\d.]/g, '');
+	return newFileName;
+}
+
+async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, fileName: string, method: string): Promise<string | null> {
+	
+	// 获取当前使用的编程语言
+	const languageId = editor.document.languageId;
+	console.log('Language ID:', languageId);
+	let DefUseMap: DecodedToken[] = [];
+	if (!isBaseline(method)) {
+		console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
+		DefUseMap = await extractUseDefInfo(editor, functionSymbol);
+		console.log("DefUse Map length:", DefUseMap.length);
+	} else {
+		console.log("Baseline method");
+	}
+	let functionName: string | null = null;
+	if (!functionSymbol || !isFunctionSymbol(functionSymbol)) {
+		vscode.window.showErrorMessage('No valid function symbol found!');
+		// functionName = await getFunctionNameWithLSP(editor, position);
+	}
+
+	functionName = functionSymbol.name;
+	console.log('Function Symbol:', functionSymbol);
+	console.log('Function definition:', functionSymbol.detail);
+
+	if (!isValidFunctionSymbol(functionSymbol)) {
+		return null;
+	};
+
+	// 使用 LLM 生成单元测试
+	const promptObj = await genPrompt(editor, functionSymbol, DefUseMap, languageId, fileName, method);
+	const testCode = await invokeLLM(method, promptObj);
+
+	return testCode;
+}
+
+async function generateUnitTestForSelctedRange(editor: vscode.TextEditor): Promise<string | null> {
+	
+
+		// 获取符号信息
+		const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+			'vscode.executeDocumentSymbolProvider',
+			editor.document.uri
+		);
+
+		if (!symbols) {
+			vscode.window.showErrorMessage('No symbols found!');
+			return null;
+		}
+
+		// const allUseMap = new Map<String, Array<vscode.Location>>();
+		// 获取光标位置
+		const position = editor.selection.active;
+		const functionSymbol = getFunctionSymbol(symbols, position)!;
+		const fileName = getUniqueFileName(TEST_PATH, `${functionSymbol.name}Test.java`);
+		const testCode = await generateUnitTestForAFunction(editor, functionSymbol, fileName, GENMETHODS[1]);
+		if (!testCode) {
+			vscode.window.showErrorMessage('Failed to generate unit test!');
+			return null;
+		}
+		return testCode;
 }
 
 async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]>  {
@@ -125,183 +236,6 @@ async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vsco
 	return decodedTokens;
 }
 
-function isValidFunctionSymbol(functionSymbol: vscode.DocumentSymbol): boolean {
-	if (!functionSymbol.name) {
-		vscode.window.showErrorMessage('Function symbol has no name!');
-		return false;
-	}
-	if (!functionSymbol.range) {
-		vscode.window.showErrorMessage('Function symbol has no range!');
-		return false;
-	}
-	return true;
-}
 
-async function getSourceCodeFromProvidedDefinition(value: { range: vscode.Range, uri: vscode.Uri }): Promise<string> {
-	const document = await vscode.workspace.openTextDocument(value.uri);
-	// 获取符号信息
-	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-		'vscode.executeDocumentSymbolProvider',
-		value.uri
-	);
-	const symbol = getFunctionSymbol(symbols, value.range.start);
-	if (!symbol) {
-		return '';
-	}
-	return document.getText(symbol.range)
-}
-
-// type UseMap = Map<vscode.DocumentSymbol, Array<vscode.Location>>;
-// type DefMap = Map<vscode.DocumentSymbol, vscode.Location | null>;
-
-// return the use-def information of every variable in the function
-// async function getUseDefInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): Promise<[UseMap, DefMap]> {
-// 	const useMap = new Map<vscode.DocumentSymbol, Array<vscode.Location>>();
-// 	const defMap = new Map<vscode.DocumentSymbol, vscode.Location | null>();
-
-
-// 	for (const child of functionSymbol.children) {
-// 		console.log('Child kind:', child.kind);
-// 		if (child.kind === vscode.SymbolKind.Variable) {
-// 			console.log('Function: ', functionSymbol.name, 'Variable: ', child.name);
-
-// 			const childPosition = new vscode.Position(child.range.start.line, child.range.start.character);
-// 			const references = await vscode.commands.executeCommand<vscode.Location[]>(
-// 				'vscode.executeReferenceProvider',
-// 				document.uri,
-// 				childPosition
-// 			);
-// 			if (references) {
-// 				useMap.set(child, references);
-// 			} else {
-// 				useMap.set(child, []);
-// 			}
-
-// 			const definition = await vscode.commands.executeCommand<vscode.Location>(
-// 				'vscode.executeDefinitionProvider',
-// 				document.uri,
-// 				childPosition
-// 			);
-// 			if (definition) {
-// 				defMap.set(child, definition);
-// 			} else {
-// 				defMap.set(child, null);
-// 			}
-// 		}
-// 	}
-// 	return [useMap, defMap];
-// }
-
-function getFunctionSymbol(symbols: vscode.DocumentSymbol[], functionPosition: vscode.Position): vscode.DocumentSymbol | null {
-	for (const symbol of symbols) {
-		if (symbol.children.length > 0) {
-			const innerSymbol = getFunctionSymbol(symbol.children, functionPosition);
-			if (innerSymbol) {
-				return innerSymbol;
-			}
-		}
-		if (symbol.range.contains(functionPosition)) {
-			return symbol;
-		}
-	}
-	return null;
-}
-
-async function getFunctionNameWithLSP(editor: vscode.TextEditor, position: vscode.Position): Promise<string | null> {
-		// 调用内置 LSP 客户端，获取光标下的定义
-		const definitions = await vscode.commands.executeCommand<vscode.Location[] | vscode.LocationLink[]>(
-			'vscode.executeDefinitionProvider',
-			editor.document.uri,
-			position
-		);
-
-		if (!definitions || definitions.length === 0) {
-			vscode.window.showErrorMessage('No function definition found!');
-			return null;
-		}
-		if (definitions.length > 1) {
-			vscode.window.showErrorMessage('Multiple function definitions found!');
-			return null;
-		}
-		assert(definitions.length === 1);
-
-		var functionNameRange = null;
-		if ((definitions[0] as vscode.Location).range !== undefined) {
-			functionNameRange = (definitions[0] as vscode.Location).range;
-		} else if ((definitions[0] as vscode.LocationLink).targetRange !== undefined) {
-			functionNameRange = (definitions[0] as vscode.LocationLink).targetSelectionRange;
-		} else {
-			vscode.window.showErrorMessage('No function range found!');
-			return null;
-		}
-
-		// 获取函数签名等信息
-		return editor.document.getText(functionNameRange);
-}
-
-function isFunctionSymbol(symbol: vscode.DocumentSymbol): boolean {
-	return symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method;
-}
-
-// function findParametersOfFunction(defMap: DefMap): Array<vscode.DocumentSymbol> {
-// 	const parameters: Array<vscode.DocumentSymbol> = [];
-// 	for (const [symbol, definition] of defMap) {
-// 		if (definition === null) {
-// 			parameters.push(symbol);
-// 		}
-// 	}
-// 	return parameters;
-// }
-
-async function generateTestCode(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, languageId: String): Promise<string> {
-	// LLM生成单元测试代码
-
-	const prompt = ChatPromptTemplate.fromTemplate(
-		`
-			Given the following {language} code:
-			{code}
-			
-			Generate a unit test for the function "{functionName}" in {language}. 
-			Make sure to follow best practices for writing unit tests. You should only generate the test code and neccessary code comment without any other word. You should not wrap the code in a markdown code block.
-		`
-	);
-
-	const textCode = editor.document.getText(functionSymbol.range);
-	// const proxy = "";
-	// process.env.http_proxy = proxy;
-	// process.env.https_proxy = proxy;
-	// process.env.HTTP_PROXY = proxy;
-	// process.env.HTTPS_PROXY = proxy;
-	// process.env.OPENAI_PROXY_URL = proxy;
-	// const response2 = await axios.get('https://www.google.com');
-	// console.log(response2.data);
-
-	// console.log('1');
-	// const llm = new ChatOpenAI(
-	// 	{
-	// 		model: "gpt-4o-mini",
-	// 		apiKey: ""
-	// 	}
-	// );
-	// console.log('2');
-	// const chain = prompt.pipe(llm);
-	// console.log('3');
-
-	const promptContent = await prompt.format({ language: languageId, code: textCode, functionName: functionSymbol.name });
-	console.log('Generated prompt:', promptContent);
-
-	return "!!";
-	// try {
-	// 	const response = await chain.invoke({ language: languageId, code: textCode, functionName: functionSymbol.name }); 
-	// 	console.log('4');
-	// 	const result = response.content;
-	// 	// console.log('Generated test code:', result);
-	// 	return result as string;
-	// } catch (e) {
-	// 	console.log(e);
-	// 	return "!!";
-	// }
-
-}
 // This method is called when your extension is deactivated
 export function deactivate() { }
