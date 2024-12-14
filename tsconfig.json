@@ -1,12 +1,21 @@
 {
 	"compilerOptions": {
-		"module": "Node16",
+		"module": "commonjs",
 		"target": "ES2022",
 		"outDir": "out",
 		"lib": [
 			"ES2022"
 		],
+		"moduleResolution": "node",
 		"sourceMap": true,
+		"baseUrl": ".",
+		"paths": {
+			"vscode": [
+			  "node_modules/@types/vscode"
+			],
+			"*": ["node_modules/*"]
+		},
+		"types": ["node", "mocha"],
 		"rootDir": "src",
 		"strict": true,   /* enable all strict type-checking options */
 		/* Additional Checks */
