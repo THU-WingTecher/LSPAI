@@ -63,8 +63,8 @@ export async function genPrompt(editor: vscode.TextEditor, functionSymbol: vscod
 	console.log("System Prompt:", systemPromptText);
 	console.log("Prompt:", prompt);
 	return Promise.resolve([
-		{ role: "system", content: systemPromptText},
-		{ role: "user", content: prompt }
+		{ "role": "system", "content": systemPromptText},
+		{ "role": "user", "content": prompt }
 	]);
 }
 
@@ -91,12 +91,12 @@ async function callOpenAi(method: string, promptObj: any): Promise<string> {
 	// const response2 = await axios.get('https://www.google.com');
 	// console.log(response2.data);
 	const openai = new OpenAI({
-		apiKey: "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",
+		apiKey: "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",
 		httpAgent: new HttpsProxyAgent(proxy),
 	});
 
 	try {
-		const response = await openai.chat.completions.create({
+				const response = await openai.chat.completions.create({
 				model: modelName,
 				messages: promptObj
 			});
