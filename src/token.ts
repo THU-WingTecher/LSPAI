@@ -175,7 +175,7 @@ function getLineContextFromToken(editor: vscode.TextEditor, token: DecodedToken)
 }
 
 
-async function getSourceFromDefinition(token: DecodedToken): Promise<string | null> {
+export async function getSourceFromDefinition(token: DecodedToken): Promise<string | null> {
     const definitions = token.definition;
 
     if (definitions && definitions.length > 0) {
@@ -198,6 +198,13 @@ async function getSourceFromDefinition(token: DecodedToken): Promise<string | nu
 
     return null;
 }
+// export function getTokensByContext(tokens: DecodedToken[], type: string): DecodedToken[] {
+    
+//     return tokens
+//         .map(token => token.type === type ? token : null)
+//         .filter((token): token is DecodedToken => token !== null);
+// }
+
 export function getTokensByType(tokens: DecodedToken[], type: string): DecodedToken[] {
     return tokens
         .map(token => token.type === type ? token : null)

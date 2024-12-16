@@ -16,6 +16,56 @@ export function getFunctionSymbol(symbols: vscode.DocumentSymbol[], functionPosi
 	return null;
 }
 
+export function getFunctionSymbolWithItsParents(symbols: vscode.DocumentSymbol[], functionPosition: vscode.Position): vscode.DocumentSymbol[] {
+    const result: vscode.DocumentSymbol[] = [];
+
+    function findSymbolWithParents(symbols: vscode.DocumentSymbol[], functionPosition: vscode.Position, parents: vscode.DocumentSymbol[]): boolean {
+        for (const symbol of symbols) {
+            const currentParents = [...parents, symbol];
+            if (symbol.children.length > 0) {
+                if (findSymbolWithParents(symbol.children, functionPosition, currentParents)) {
+                    return true;
+                }
+            }
+            if (symbol.range.contains(functionPosition)) {
+                result.push(...currentParents);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    findSymbolWithParents(symbols, functionPosition, []);
+    return result;
+}
+
+export async function getHover(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): Promise<vscode.Hover | undefined> {
+    const hover = await vscode.commands.executeCommand<vscode.Hover[]>(
+        'vscode.executeHoverProvider',
+        document.uri,
+        symbol.selectionRange.start
+    );
+    if (hover && hover.length > 0) {
+        return hover[0];
+}
+}
+
+export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): string {
+    let detail = symbol.name;
+    if (symbol.kind === vscode.SymbolKind.Class) {
+        // class
+        detail = document.lineAt(symbol.selectionRange.start.line).text;
+    } else if (symbol.kind === vscode.SymbolKind.Method || symbol.kind === vscode.SymbolKind.Function) {
+        detail = symbol.name;
+        detail += symbol.detail ? ' ' + symbol.detail : '';
+    } else if (symbol.kind === vscode.SymbolKind.Property || symbol.kind === vscode.SymbolKind.Field) {
+        detail = document.lineAt(symbol.selectionRange.start.line).text;
+    } else {
+        detail = document.lineAt(symbol.selectionRange.start.line).text;
+    }
+    return detail;
+}
+
 
 export function isValidFunctionSymbol(functionSymbol: vscode.DocumentSymbol): boolean {
 	if (!functionSymbol.name) {
