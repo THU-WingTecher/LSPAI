@@ -9,7 +9,7 @@ import http from 'http';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { DecodedToken, createSystemPromptWithDefUseMap } from "./token";
 import { deprecate } from "util";
-import {getDependentContext} from "./retrieve";
+import {getDependentContext, DpendenceAnalysisResult} from "./retrieve";
 
 const BASELINE = "naive";
 export function isBaseline(method: string): boolean {
@@ -42,27 +42,83 @@ function createPromptTemplate(language: string, code: string, functionName: stri
     `;
 }
 
+function ChatUnitTestSystemPrompt(language: string): string {
+    return `
+Please help me generate a whole ${language} Unit test for a focal method.
+I will provide the following information of the focal method:
+1. Required dependencies to import.
+2. The focal class signature.
+3. Source code of the focal method.
+4. Signatures of other methods and fields in the class.
+I will provide following brief information if the focal method has dependencies:
+1. Signatures of dependent classes.
+2. Signatures of dependent methods and fields in the dependent classes.
+I need you to create a whole unit test, ensuring optimal branch and line coverage. Compile without errors. No additional explanations required.
+    `;
+}
+
 function createSystemPromptInstruction(defUseMapString: string): string {
     return `
+	
 		#### Guidelines for Generating Unit Tests
 		1. When generating Unit test of the code, if there is unseen field, method, or variable, Please find the related source code from the following list and use it to generate the unit test.
 		${defUseMapString}
     `;
 }
 
+// function DependentClassesPrompt(defUseMapString: string): string {
+// 	// System prompt from ChatUnitTest
+//     return `
+// 	The brief information of dependent class `` is :
+
+// 		#### Guidelines for Generating Unit Tests
+// 		1. When generating Unit test of the code, if there is unseen field, method, or variable, Please find the related source code from the following list and use it to generate the unit test.
+// 		${defUseMapString}
+//     `;
+// }
+function ChatUnitTestOurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string): string {
+    return `
+	The focal method is \`${functionName}\` in the \`${class_name}\`,
+	${functionContext}.
+
+	The source code of the focal method is:
+	\`\`\`
+	${code}
+	\`\`\`
+
+	${dependentContext}
+    `;
+}
+
+function ChatUnitTestBaseUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string): string {
+    return `
+	The focal method is \`${functionName}\`.
+	The source code of the focal method is:
+	\`\`\`
+	${code}
+	\`\`\`
+    `;
+}
+
 export async function genPrompt(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, DefUseMap: DecodedToken[], languageId: string, fileName: string, method: string): Promise<any> {
-	let systemPromptText = "";
+	let mainFunctionDependencies = "";
+	let dependentContext = "";
+	let mainfunctionParent = "";
+	let prompt = "";
+	const systemPromptText = ChatUnitTestSystemPrompt(languageId);
+	const textCode = editor.document.getText(functionSymbol.range);
 
 	if (!isBaseline(method)) {
-		
-		const DependenciesInformation = getDependentContext(editor, DefUseMap, functionSymbol);
+		const DependenciesInformation: DpendenceAnalysisResult = await getDependentContext(editor, DefUseMap, functionSymbol);
+		dependentContext = DependenciesInformation.dependencies;
+		mainFunctionDependencies = DependenciesInformation.mainFunctionDependencies;
+		mainfunctionParent = DependenciesInformation.mainfunctionParent;
+		prompt = ChatUnitTestOurUserPrompt( textCode, mainFunctionDependencies, functionSymbol.name, mainfunctionParent, dependentContext);
 
-		const systemPrompt = await createSystemPromptWithDefUseMap(editor, DefUseMap);
-		systemPromptText = createSystemPromptInstruction(systemPrompt.join('\n'));
-		console.log(systemPromptText);
+	} else {
+		prompt = ChatUnitTestBaseUserPrompt(textCode, mainFunctionDependencies, functionSymbol.name, mainfunctionParent, dependentContext);
 	}
-	const textCode = editor.document.getText(functionSymbol.range);
-	const prompt = createPromptTemplate(languageId, textCode, functionSymbol.name, fileName);
+	
 	console.log("System Prompt:", systemPromptText);
 	console.log("Prompt:", prompt);
 	return Promise.resolve([

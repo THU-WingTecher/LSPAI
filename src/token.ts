@@ -116,6 +116,9 @@ async function decodeSemanticTokens(data: number[], tokensLegend: vscode.Semanti
     return decodedTokens;
 }
 
+export function getSymbolKindString(value: number): string | undefined {
+    return vscode.SymbolKind[value];
+}
 
 // Decode the tokens
 // const decodedTokens = decodeSemanticTokens(encodedTokens, tokensLegend);

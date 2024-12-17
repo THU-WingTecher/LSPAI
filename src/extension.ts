@@ -8,12 +8,13 @@ import { getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunction
 import { classifyTokenByUri, processAndGenerateHierarchy, summarizeClass } from './retrieve';
 import * as fs from 'fs';
 import * as path from 'path';
+import { METHODS } from 'http';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 const TEST_PATH = "/vscode-llm-ut/experiments/commons-cli/results/";
 const SRC = '/vscode-llm-ut/experiments/commons-cli/src/main/';
-const MODEL = "llama3-70b" // gpt-4o-mini"; // llama3-70b
+const MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
 const GENMETHODS = [`naive_${MODEL}`, MODEL];
 
 export function activate(context: vscode.ExtensionContext) {
@@ -55,8 +56,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable2);
 }
-
-
 
 async function experiment_java() : Promise<any> {
 
@@ -192,10 +191,29 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 	};
 
 	// 使用 LLM 生成单元测试
+	let testCode = "";
 	const promptObj = await genPrompt(editor, functionSymbol, DefUseMap, languageId, fileName, method);
-	const testCode = await invokeLLM(method, promptObj);
-
+	testCode = await invokeLLM(method, promptObj);
+	testCode = parseCode(testCode);
+	console.log('Generated Final test code:', testCode);
 	return testCode;
+}
+
+function parseCode(response: string): string {
+    // Regular expression to match code block wrapped by triple backticks, optional `~~`, and language tag
+    const regex = /```(?:\w+)?(?:~~)?\s*([\s\S]*?)\s*```/;
+
+    // Match the response against the regular expression
+    const match = response.match(regex);
+
+    // If a match is found, return the extracted code; otherwise, return null
+    if (match) {
+        return match[1].trim(); // match[1] contains the code inside the backticks
+    }
+
+    // If no code block is found, return null
+    console.error("No code block found in the response!");
+	return ""
 }
 
 async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Promise<string | null> {
@@ -224,18 +242,21 @@ async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Prom
 			console.log(targetCodeContextString);
 		}
 
-	
-		const parHoverInfo = await vscode.commands.executeCommand<vscode.Hover[]>('vscode.executeHoverProvider', editor.document.uri, functionSymbolWithParents[0].range.start);
+		const folderPath = `${TEST_PATH}${GENMETHODS[1]}`;
 
 		const functionSymbol = getFunctionSymbol(symbols, position)!;
 
-
 		const fileName = getUniqueFileName(TEST_PATH, `${functionSymbol.name}Test.java`);
+
 		const testCode = await generateUnitTestForAFunction(editor, functionSymbol, fileName, GENMETHODS[1]);
+		if (testCode) {
+			await saveGeneratedCodeToFolder(testCode, folderPath, fileName);
+		}
 		if (!testCode) {
 			vscode.window.showErrorMessage('Failed to generate unit test!');
 			return null;
 		}
+
 		return testCode;
 }
 
