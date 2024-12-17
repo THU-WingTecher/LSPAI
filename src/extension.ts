@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { getDecodedTokens, DecodedToken, getSourceFromDefinition } from './token';
 import { invokeLLM, genPrompt, isBaseline } from './generate';
 import { getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail } from './utils';
+import { classifyTokenByUri, processAndGenerateHierarchy, summarizeClass } from './retrieve';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -43,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const testCode = await generateUnitTestForSelctedRange(editor);
+		const testCode = await generateUnitTestForSelectedRange(editor);
 
 		// // 弹出窗口显示生成的单元测试代码
 		// const testDocument = await vscode.workspace.openTextDocument({ content: testCode, language: languageId });
@@ -150,16 +151,6 @@ function getUniqueFileName(folderPath: string, fileName: string): string {
 	return newFileName;
 }
 
-function getImportStatement(document: vscode.TextDocument): string {
-	let allImportStatements = "";
-	const documentText = document.getText();
-	const packageStatement = documentText.match(/package\s+.*;/);
-	const importStatements = documentText.match(/import\s+.*;/g);
-	allImportStatements += packageStatement ? packageStatement[0] + '\n' : '';
-	allImportStatements += importStatements ? importStatements.join('\n') + '\n' : '';
-	return allImportStatements;
-}
-
 // async function getSummarizedContext(editor: vscode.TextEditor, functionSymbol: vscode.Position): Promise<string> {
 // 	let res = "";
 // 	const importStatements = getImportStatement(editor);
@@ -171,57 +162,7 @@ function getImportStatement(document: vscode.TextDocument): string {
 
 // }
 
-async function summarizeClass(document: vscode.TextDocument, classSymbol: vscode.DocumentSymbol): Promise<string> {
-	let result = "";
-	const children = classSymbol.children;
-	const importStatements = getImportStatement(document);
-	result += importStatements + '\n';
-	result += getSymbolDetail(document, classSymbol) + '\n';
-	for (const child of children) {
-		const methodDetail = getSymbolDetail(document, child);
-		result += methodDetail + '\n';
-	}
-	return result;
-}
 
-async function followSymbolDataFlowAndCollectDependency(editor: vscode.TextEditor, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol, targetToken: DecodedToken): Promise<DecodedToken[]> {
-	const collectedDependencies: DecodedToken[] = [];
-	for (const token of DefUseMap) {
-		if (token.line === targetToken.line) {
-			collectedDependencies.push(token);
-		}
-		// if (token.modifiers && token.modifier.includes(targetSymbol.name)) {
-		// 	collectedDependencies.push(token);
-		// }
-	}
-	return collectedDependencies;
-}
-async function getMethodOrFunctionsParamTokens(editor: vscode.TextEditor, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
-	
-	const functionSignature = functionSymbol.name;
-	const methodOrFunctionParamTokens: DecodedToken[] = [];
-
-	for (const token of DefUseMap) {
-		if (functionSignature.includes(token.word) && token.type === 'parameter') {
-			methodOrFunctionParamTokens.push(token);
-		}
-	}
-	return methodOrFunctionParamTokens;
-}
-async function getDependentContext(editor: vscode.TextEditor, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol): Promise<string> {
-	let result = "";
-	const methodOrFunctionParamTokens = await getMethodOrFunctionsParamTokens(editor, DefUseMap, functionSymbol)
-	for (const token of methodOrFunctionParamTokens){
-		const dependencies = await followSymbolDataFlowAndCollectDependency(editor, DefUseMap, functionSymbol, token)
-		for (const dep of dependencies) {
-			const summarizedSourceOfDependencies = await getSourceFromDefinition(dep);
-			if (summarizedSourceOfDependencies) {
-				result += summarizedSourceOfDependencies + '\n';
-			}
-		}
-	}
-	return result;
-}
 
 async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, fileName: string, method: string): Promise<string | null> {
 	
@@ -233,7 +174,6 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 		console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
 		DefUseMap = await extractUseDefInfo(editor, functionSymbol);
 		console.log("DefUse Map length:", DefUseMap.length);
-		getDependentContext(editor, DefUseMap, functionSymbol);
 	} else {
 		console.log("Baseline method");
 	}
@@ -258,7 +198,7 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 	return testCode;
 }
 
-async function generateUnitTestForSelctedRange(editor: vscode.TextEditor): Promise<string | null> {
+async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Promise<string | null> {
 
 		// 获取符号信息
 		const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
@@ -286,7 +226,6 @@ async function generateUnitTestForSelctedRange(editor: vscode.TextEditor): Promi
 
 	
 		const parHoverInfo = await vscode.commands.executeCommand<vscode.Hover[]>('vscode.executeHoverProvider', editor.document.uri, functionSymbolWithParents[0].range.start);
-		const importStatements = getImportStatement(editor.document);
 
 		const functionSymbol = getFunctionSymbol(symbols, position)!;
 

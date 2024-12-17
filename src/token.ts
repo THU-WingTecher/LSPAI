@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { getFunctionSymbol, isValidFunctionSymbol } from './utils';
 
 export interface DecodedToken {
+    id: string;
     word: string;
     line: number;
     startChar: number;
@@ -101,6 +102,7 @@ async function decodeSemanticTokens(data: number[], tokensLegend: vscode.Semanti
 
         // Append decoded token
         decodedTokens.push({
+            id: `${currentLine}:${currentChar}`,
             word: "",
             line: currentLine,
             startChar: currentChar,

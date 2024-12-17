@@ -1,5 +1,61 @@
 import * as vscode from 'vscode';
 import { assert } from 'console';
+import { getpackageStatement } from './retrieve';
+
+// patterns.ts
+
+export interface LanguagePatterns {
+    [language: string]: string[];
+}
+
+export const languageStandardPatterns: LanguagePatterns = {
+    java: [
+        '/java.',
+        '/javax.',
+        '/javafx.',
+        '/jdk.',
+        '/sun.',
+        'src.zip'
+    ],
+    python: [
+        '/lib/python',
+        '/site-packages/',
+        '/python3.',
+        '/dist-packages/'
+    ],
+    typescript: [
+        '/node_modules/',
+        '/typescript/',
+        '/@types/'
+    ],
+    go: [
+        '/pkg/',
+        '/src/',
+        '/vendor/'
+    ],
+    // Add more languages and their patterns here
+};
+
+
+/**
+ * Checks if a given URI corresponds to a standard class/module based on the programming language.
+ * @param uri - The URI to check.
+ * @param language - The programming language identifier (e.g., 'java', 'python').
+ * @returns A boolean indicating whether the URI is a standard class/module.
+ */
+export function isStandardClass(uri: string, language: string): boolean {
+    const decodedUri = decodeURIComponent(uri);
+    
+    const patterns: string[] | undefined = languageStandardPatterns[language.toLowerCase()];
+    
+    if (!patterns) {
+        console.warn(`No standard patterns defined for language: ${language}`);
+        return false;
+    }
+    
+    return patterns.some(pattern => decodedUri.includes(pattern));
+}
+
 
 export function getFunctionSymbol(symbols: vscode.DocumentSymbol[], functionPosition: vscode.Position): vscode.DocumentSymbol | null {
 	for (const symbol of symbols) {
@@ -50,20 +106,79 @@ export async function getHover(document: vscode.TextDocument, symbol: vscode.Doc
 }
 }
 
+/**
+ * Retrieves summarized information of a given symbol.
+ * For classes, includes constructor information.
+ * @param document - The text document containing the symbol.
+ * @param symbol - The DocumentSymbol to summarize.
+ * @returns A string summarizing the symbol's details.
+ */
 export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): string {
-    let detail = symbol.name;
+    let detail = '';
+
     if (symbol.kind === vscode.SymbolKind.Class) {
-        // class
-        detail = document.lineAt(symbol.selectionRange.start.line).text;
+        // Retrieve the line text where the class is defined
+        const packageStatement = getpackageStatement(document);
+        detail += packageStatement ? packageStatement[0] + '\n' : '';
+        detail += document.lineAt(symbol.selectionRange.start.line).text.trim();
+
+        // Initialize an array to hold constructor details
+        const constructorsInfo: string[] = [];
+
+        // Check if the class has children symbols
+        if (symbol.children && symbol.children.length > 0) {
+            // Iterate over the children to find constructors
+            for (const childSymbol of symbol.children) {
+                if (childSymbol.kind === vscode.SymbolKind.Constructor) {
+                    // Extract constructor details
+                    const constructorDetail = getConstructorDetail(document, childSymbol);
+                    if (constructorDetail) {
+                        constructorsInfo.push(constructorDetail);
+                    }
+                }
+            }
+        }
+
+        // Append constructor information if available
+        if (constructorsInfo.length > 0) {
+            detail += '\n  Constructors:\n';
+            for (const constructorInfo of constructorsInfo) {
+                detail += `    ${constructorInfo}\n`;
+            }
+        }
+
     } else if (symbol.kind === vscode.SymbolKind.Method || symbol.kind === vscode.SymbolKind.Function) {
+        // For methods and functions, include name and detail (e.g., parameters)
         detail = symbol.name;
-        detail += symbol.detail ? ' ' + symbol.detail : '';
+        if (symbol.detail) {
+            detail += ` ${symbol.detail}`;
+        }
+
     } else if (symbol.kind === vscode.SymbolKind.Property || symbol.kind === vscode.SymbolKind.Field) {
-        detail = document.lineAt(symbol.selectionRange.start.line).text;
+        // For properties and fields, retrieve the line text
+        detail = document.lineAt(symbol.selectionRange.start.line).text.trim();
+
     } else {
-        detail = document.lineAt(symbol.selectionRange.start.line).text;
+        // For other symbol kinds, retrieve the line text
+        detail = document.lineAt(symbol.selectionRange.start.line).text.trim();
     }
+
     return detail;
+}
+
+/**
+ * Extracts detailed information for a constructor symbol.
+ * @param document - The text document containing the constructor.
+ * @param constructorSymbol - The Constructor DocumentSymbol.
+ * @returns A string detailing the constructor's signature.
+ */
+function getConstructorDetail(document: vscode.TextDocument, constructorSymbol: vscode.DocumentSymbol): string | null {
+    // Retrieve the line text where the constructor is defined
+    if (constructorSymbol.name){
+        return constructorSymbol.name;
+    } else {
+        return document.lineAt(constructorSymbol.selectionRange.start.line).text.trim();
+    }
 }
 
 

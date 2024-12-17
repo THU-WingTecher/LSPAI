@@ -9,7 +9,7 @@ import http from 'http';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { DecodedToken, createSystemPromptWithDefUseMap } from "./token";
 import { deprecate } from "util";
-
+import {getDependentContext} from "./retrieve";
 
 const BASELINE = "naive";
 export function isBaseline(method: string): boolean {
@@ -54,6 +54,9 @@ export async function genPrompt(editor: vscode.TextEditor, functionSymbol: vscod
 	let systemPromptText = "";
 
 	if (!isBaseline(method)) {
+		
+		const DependenciesInformation = getDependentContext(editor, DefUseMap, functionSymbol);
+
 		const systemPrompt = await createSystemPromptWithDefUseMap(editor, DefUseMap);
 		systemPromptText = createSystemPromptInstruction(systemPrompt.join('\n'));
 		console.log(systemPromptText);
