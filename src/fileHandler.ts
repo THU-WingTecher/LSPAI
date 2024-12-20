@@ -12,8 +12,9 @@ export function writeCodeToTempFile(code: string, extension: string = 'ts'): str
     return tempFilePath;
 }
 
-export async function updateOriginalFile(uri: Uri, newCode: string): Promise<void> {
+export async function updateOriginalFile(filePath: string, newCode: string): Promise<void> {
     const edit = new WorkspaceEdit();
+    const uri = vscode.Uri.file(filePath);
     const document = await workspace.openTextDocument(uri);
     const fullRange = new vscode.Range(
         document.positionAt(0),

@@ -57,6 +57,23 @@ export function isStandardClass(uri: string, language: string): boolean {
 }
 
 
+export function parseCode(response: string): string {
+    // Regular expression to match code block wrapped by triple backticks, optional `~~`, and language tag
+    const regex = /```(?:\w+)?(?:~~)?\s*([\s\S]*?)\s*```/;
+
+    // Match the response against the regular expression
+    const match = response.match(regex);
+
+    // If a match is found, return the extracted code; otherwise, return null
+    if (match) {
+        return match[1].trim(); // match[1] contains the code inside the backticks
+    }
+
+    // If no code block is found, return null
+    console.error("No code block found in the response!");
+    return ""
+}
+
 export function getFunctionSymbol(symbols: vscode.DocumentSymbol[], functionPosition: vscode.Position): vscode.DocumentSymbol | null {
 	for (const symbol of symbols) {
 		if (symbol.children.length > 0) {

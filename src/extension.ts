@@ -3,12 +3,13 @@
 import * as vscode from 'vscode';
 
 import { getDecodedTokens, DecodedToken, getSourceFromDefinition } from './token';
-import { invokeLLM, genPrompt, isBaseline } from './generate';
-import { getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail } from './utils';
+import { invokeLLM, genPrompt, isBaseline, collectInfo } from './generate';
+import { getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
 import { classifyTokenByUri, processAndGenerateHierarchy, summarizeClass } from './retrieve';
+import { getDiagnosticsForFilePath } from './diagnostic';
 import * as fs from 'fs';
 import * as path from 'path';
-import { METHODS } from 'http';
+import { fixDiagnostics } from './codeFixer';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -44,7 +45,6 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.showErrorMessage('No active editor!');
 			return;
 		}
-
 		const testCode = await generateUnitTestForSelectedRange(editor);
 
 		// // 弹出窗口显示生成的单元测试代码
@@ -81,17 +81,22 @@ async function experiment_java() : Promise<any> {
 				const editor = await vscode.window.showTextDocument(curDocument);
 				for (const method of GENMETHODS){
 					const folderPath = `${TEST_PATH}${method}`;
-					const fileName = getUniqueFileName(folderPath, `${symbol.name}Test.java`);
-					const testCode = await generateUnitTestForAFunction(editor, symbol, fileName, method);
-					if (testCode) {
-						await saveGeneratedCodeToFolder(testCode, folderPath, fileName);
-					}
+					const fileSig = genFileNameWithGivenSymbol(document, symbol);
+					const fileName = getUniqueFileName(folderPath, `${fileSig}Test.java`);
+					await generateUnitTestForAFunction(editor, symbol, fileName, method);
 				}
 			}
 		}
 	}
 }
 
+function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): string {
+
+	const fileName = document.fileName.split('/').pop()!.replace(/\.\w+$/, '');
+	const funcName = document.getText(symbol.selectionRange);
+	const finalName = `${fileName}_${funcName}`;
+	return finalName
+}
 async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
 	const allSymbols: vscode.DocumentSymbol[] = [];
 	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
@@ -114,13 +119,13 @@ async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> 
 
 	return allSymbols;
 }
-async function saveGeneratedCodeToFolder(code: string, folderPath: string, fileName: string): Promise<void> {
+async function saveGeneratedCodeToFolder(code: string, fileName: string): Promise<void> {
 	// Ensure the fileName contains only word characters and numbers
 
-	const uri = vscode.Uri.file(`${folderPath}/${fileName}`);
+	const uri = vscode.Uri.file(fileName);
 	const workspaceEdit = new vscode.WorkspaceEdit();
 	workspaceEdit.createFile(uri, { overwrite: false });
-
+	const folderPath = path.dirname(fileName);
 	if (!fs.existsSync(folderPath)) {
 		fs.mkdirSync(folderPath, { recursive: true });
 	}
@@ -131,12 +136,14 @@ async function saveGeneratedCodeToFolder(code: string, folderPath: string, fileN
 	edit.insert(uri, new vscode.Position(0, 0), code);
 	await vscode.workspace.applyEdit(edit);
 	await vscode.window.showTextDocument(document);
-	const result = await document.save();
-	if (!result) {
-		vscode.window.showErrorMessage(`Failed to save generated code to ${uri.fsPath}! `);
-	} else {
-		vscode.window.showInformationMessage(`Generated code saved to ${uri.fsPath}`);
-	}
+    const result = await document.save();
+    console.log(`Save result: ${result}`);
+
+    if (!result) {
+        vscode.window.showErrorMessage(`Failed to save generated code to ${uri.fsPath}! `);
+    } else {
+        vscode.window.showInformationMessage(`Generated code saved to ${uri.fsPath}`);
+    }
 }
 
 function getUniqueFileName(folderPath: string, fileName: string): string {
@@ -147,7 +154,7 @@ function getUniqueFileName(folderPath: string, fileName: string): string {
 		counter++;
 	}
 	newFileName = newFileName.replace(/[^\w\d.]/g, '');
-	return newFileName;
+	return `${folderPath}/${newFileName}`;
 }
 
 // async function getSummarizedContext(editor: vscode.TextEditor, functionSymbol: vscode.Position): Promise<string> {
@@ -163,7 +170,7 @@ function getUniqueFileName(folderPath: string, fileName: string): string {
 
 
 
-async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, fileName: string, method: string): Promise<string | null> {
+async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, fileName: string, method: string): Promise<void> {
 	
 	// 获取当前使用的编程语言
 	const languageId = editor.document.languageId;
@@ -176,7 +183,7 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 	} else {
 		console.log("Baseline method");
 	}
-	let functionName: string | null = null;
+	let functionName: string | null = null; 
 	if (!functionSymbol || !isFunctionSymbol(functionSymbol)) {
 		vscode.window.showErrorMessage('No valid function symbol found!');
 		// functionName = await getFunctionNameWithLSP(editor, position);
@@ -187,36 +194,27 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 	console.log('Function definition:', functionSymbol.detail);
 
 	if (!isValidFunctionSymbol(functionSymbol)) {
-		return null;
+		return;
 	};
 
 	// 使用 LLM 生成单元测试
 	let testCode = "";
-	const promptObj = await genPrompt(editor, functionSymbol, DefUseMap, languageId, fileName, method);
+	const collectedData = await collectInfo(editor, functionSymbol, DefUseMap, languageId, fileName, method);
+	const promptObj = await genPrompt(collectedData, method);
 	testCode = await invokeLLM(method, promptObj);
 	testCode = parseCode(testCode);
 	console.log('Generated Final test code:', testCode);
-	return testCode;
+	if (testCode) {
+		await saveGeneratedCodeToFolder(testCode, fileName);
+		fixDiagnostics(fileName, method, testCode, collectedData.functionSymbol.name, collectedData.mainfunctionParent, collectedData.SourceCode);
+	}
+	if (!testCode) {
+		vscode.window.showErrorMessage('Failed to generate unit test!');
+		return;
+	}
 }
 
-function parseCode(response: string): string {
-    // Regular expression to match code block wrapped by triple backticks, optional `~~`, and language tag
-    const regex = /```(?:\w+)?(?:~~)?\s*([\s\S]*?)\s*```/;
-
-    // Match the response against the regular expression
-    const match = response.match(regex);
-
-    // If a match is found, return the extracted code; otherwise, return null
-    if (match) {
-        return match[1].trim(); // match[1] contains the code inside the backticks
-    }
-
-    // If no code block is found, return null
-    console.error("No code block found in the response!");
-	return ""
-}
-
-async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Promise<string | null> {
+async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Promise<void> {
 
 		// 获取符号信息
 		const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
@@ -226,7 +224,7 @@ async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Prom
 
 		if (!symbols) {
 			vscode.window.showErrorMessage('No symbols found!');
-			return null;
+			return;
 		}
 
 		// const allUseMap = new Map<String, Array<vscode.Location>>();
@@ -241,23 +239,14 @@ async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Prom
 			targetCodeContextString = `${parent} { ${children} }`;
 			console.log(targetCodeContextString);
 		}
-
 		const folderPath = `${TEST_PATH}${GENMETHODS[1]}`;
-
+		
 		const functionSymbol = getFunctionSymbol(symbols, position)!;
+		
+		const fileSig = genFileNameWithGivenSymbol(editor.document, functionSymbol);
+		const fileName = getUniqueFileName(folderPath, `${fileSig}Test.java`);
+		await generateUnitTestForAFunction(editor, functionSymbol, fileName, GENMETHODS[1]);
 
-		const fileName = getUniqueFileName(TEST_PATH, `${functionSymbol.name}Test.java`);
-
-		const testCode = await generateUnitTestForAFunction(editor, functionSymbol, fileName, GENMETHODS[1]);
-		if (testCode) {
-			await saveGeneratedCodeToFolder(testCode, folderPath, fileName);
-		}
-		if (!testCode) {
-			vscode.window.showErrorMessage('Failed to generate unit test!');
-			return null;
-		}
-
-		return testCode;
 }
 
 async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]>  {

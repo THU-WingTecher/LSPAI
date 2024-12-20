@@ -1,48 +1,70 @@
 // diagnostic.ts
 import * as vscode from 'vscode';
 
-export enum DiagnosticSeverity {
-    Error = 1,
-    Warning,
-    Information,
-    Hint
-}
 
 export enum DiagnosticTag {
     Unnecessary = 1,
     Deprecated
 }
 
-export function organizeAndExtractDiagnostics(diagnostics: vscode.Diagnostic[]): string[] {
+export function getSeverityString(severity: vscode.DiagnosticSeverity): string {
+    switch (severity) {
+        case vscode.DiagnosticSeverity.Error:
+            return "Error";
+        case vscode.DiagnosticSeverity.Warning:
+            return "Warning";
+        case vscode.DiagnosticSeverity.Information:
+            return "Information";
+        case vscode.DiagnosticSeverity.Hint:
+            return "Hint";
+        default:
+            return "Unknown";
+    }
+}
+
+export async function getDiagnosticsForFilePath(filePath: string): Promise<vscode.Diagnostic[]> {
+    const uri = vscode.Uri.file(filePath);
+    const document = await vscode.workspace.openTextDocument(uri);
+    const text = document.getText();
+    return getDiagnosticsForUri(uri);
+}
+async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
+    return new Promise((resolve, reject) => {
+        // Get initial diagnostics
+        let diagnostics: vscode.Diagnostic[] = vscode.languages.getDiagnostics(uri);
+        console.log('Initial diagnostics:', diagnostics);
+
+        // Set up a listener for diagnostics changes
+        const diagnosticsChangedDisposable = vscode.languages.onDidChangeDiagnostics((event) => {
+            console.log('Diagnostics changed event triggered');
+
+            // Check if diagnostics for the saved file have changed
+            diagnostics = vscode.languages.getDiagnostics(uri);
+            console.log('Updated diagnostics:', diagnostics);
+
+            diagnosticsChangedDisposable.dispose();  // Stop listening once we get the diagnostics
+            console.log('Disposed diagnostics change listener');
+
+            // Resolve the promise with the updated diagnostics
+            resolve(diagnostics);
+        });
+
+        console.log('Waiting for diagnostics to be updated...');
+    });
+}
+
+export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vscode.Diagnostic[]): Promise<string[]> {
     // Sort diagnostics by severity (Error > Warning > Information > Hint)
-    const sortedDiagnostics = diagnostics.sort((a, b) => a.severity - b.severity);
-
+    const document = await vscode.workspace.openTextDocument(uri);
+    const sortedDiagnostics = vscodeDiagnostics.filter(diag => diag.severity === vscode.DiagnosticSeverity.Error);
+    
     // Extract relevant information for each diagnostic to create prompts
-    const prompts: string[] = sortedDiagnostics.map((diag, index) => {
-        return `Diagnostic ${index + 1}:
-Severity: ${DiagnosticSeverity[diag.severity]}
-Message: ${diag.message}
-Range: Line ${diag.range.start.line}, Character ${diag.range.start.character} to Line ${diag.range.end.line}, Character ${diag.range.end.character}
-Source: ${diag.source || 'Unknown'}
-${diag.code ? `Code: ${typeof diag.code === 'object' ? diag.code.value : diag.code}` : ''}
-`;
+    const diagnosticMessages: string[] = sortedDiagnostics.map((diag, index) => {
+        return `${getSeverityString(diag.severity)} in ${document.getText(diag.range)}[Line ${diag.range.start.line}] : ${diag.message}`;
     });
-
-    return prompts;
+    return diagnosticMessages;
 }
 
-export function getDiagnosticsForUri(uri: vscode.Uri): vscode.Diagnostic[] {
-    const vscodeDiagnostics = vscode.languages.getDiagnostics(uri);
-    // Map VSCode Diagnostic to your Diagnostic class if needed
-    const diagnostics = vscodeDiagnostics.map(vsDiag => {
-        const diag = new vscode.Diagnostic(vsDiag.range, vsDiag.message, vsDiag.severity);
-        diag.source = vsDiag.source;
-        diag.code = vsDiag.code;
-        // Add more mappings if necessary
-        return diag;
-    });
-    return diagnostics;
-}
 // const OPENAI_API_KEY = 'YOUR_OPENAI_API_KEY'; // Replace with your OpenAI API key
 // const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
