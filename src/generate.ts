@@ -47,8 +47,6 @@ export async function collectInfo(editor: vscode.TextEditor, functionSymbol: vsc
 	let mainfunctionParent = "";
 	const textCode = editor.document.getText(functionSymbol.range);
 	const packageStatement = getpackageStatement(editor.document);
-	// const fileNameParts = fileName.split('/');
-	// fileName = fileNameParts[fileNameParts.length - 1].split('.')[0];
 
 	if (!isBaseline(method)) {
 		const DependenciesInformation: DpendenceAnalysisResult = await getDependentContext(editor, DefUseMap, functionSymbol);
@@ -88,6 +86,7 @@ export async function genPrompt(data: collectInfo, method: string): Promise<any>
 	}
 	
 	console.log("System Prompt:", systemPromptText);
+	console.log("User Prompt:", prompt);
 	const chatMessages: ChatMessage[] = [
 		{ role: "system", content: systemPromptText },
 		{ role: "user", content: prompt }
@@ -95,23 +94,22 @@ export async function genPrompt(data: collectInfo, method: string): Promise<any>
 
 	const promptObj: Prompt = { messages: chatMessages };
 
-	console.log("Prompt:", promptObj);
 	return Promise.resolve(promptObj.messages);
 }
 
-export async function invokeLLM(method: string, promptObj: any): Promise<string> {
+export async function invokeLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	// LLM生成单元测试代码
 	if (isOpenAi(method)) {
-		return callOpenAi(method, promptObj);
+		return callOpenAi(method, promptObj, logObj);
 	} else if(isLlama(method)) {
-		return callLocalLLM(method, promptObj);
+		return callLocalLLM(method, promptObj, logObj);
 	} else {
 		vscode.window.showErrorMessage('wrong model name!')
 		return "";
 	}
 }
 
-async function callOpenAi(method: string, promptObj: any): Promise<string> {
+async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<string> {
 	const proxy = "http://166.111.83.92:12333";
 	const modelName = getModelName(method);
 	process.env.http_proxy = proxy;
@@ -124,14 +122,18 @@ async function callOpenAi(method: string, promptObj: any): Promise<string> {
 		apiKey: "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",
 		httpAgent: new HttpsProxyAgent(proxy),
 	});
-
 	try {
 		const response = await openai.chat.completions.create({
 			model: modelName,
 			messages: promptObj
 		});
 		const result = response.choices[0].message.content!;
+		const tokenUsage = response.usage!.total_tokens;
+		logObj.tokenUsage = tokenUsage;
+		logObj.result = result;
+		logObj.prompt = promptObj[1].content;
 		console.log('Generated test code:', result);
+		console.log('Token usage:', tokenUsage);
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);
@@ -139,7 +141,7 @@ async function callOpenAi(method: string, promptObj: any): Promise<string> {
 	}
 }
 
-async function callLocalLLM(method: string, promptObj: any): Promise<string> {
+async function callLocalLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	const modelName = getModelName(method);
 	const url = "http://192.168.6.7:12512/api/chat";
 	const headers = {
@@ -164,6 +166,11 @@ async function callLocalLLM(method: string, promptObj: any): Promise<string> {
 
 	const result = await response.json();
 	const content = (result as any).message.content;
+    // Assuming the response contains 'usage' data with token usage
+    const tokenUsage = (result as any).usage.total_tokens || 0;
+    logObj.tokenUsage = tokenUsage;
+    logObj.result = result;
+    logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
 	console.log("Response content:", content);
 	return content;
 	} catch (error) {

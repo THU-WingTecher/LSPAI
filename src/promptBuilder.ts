@@ -58,7 +58,13 @@ I need you to create a whole unit test, ensuring optimal branch and line coverag
 // }
 export function JavaUnitTestTemplate(FileName: string, packageString: string): string {
     return `
+    Based on the provided information, you need to generate a unit test using Junit5, and Mock3 following below format:
+    \`\`\`
     package ${packageString}
+    import org.junit.jupiter.api.BeforeEach;
+    import org.junit.jupiter.api.Test;
+    import static org.mockito.Mockito.*;
+    import static org.junit.jupiter.api.Assertions.*;
 
     {Replace With Needed Imports}
 
@@ -72,16 +78,16 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
         {Write your test function here}
 
     }
+    \`\`\`
     `;
 }
+
 export function ChatUnitTestOurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
     return `
     The focal method is \`${functionName}\` in the \`${class_name}\`,
     ${functionContext}. 
-    Based on the provided information, you need to generate a unit test following below format:
-    \`\`\`
+    
     ${JavaUnitTestTemplate(FileName, packageString)}
-    \`\`\`
 
     The source code of the focal method is:
     \`\`\`

@@ -12,7 +12,75 @@ export interface DecodedToken {
     definition: vscode.Location[];
 }
 
-export async function getDecodedTokens(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
+export async function extractRangeTokensFromAllTokens(editor: vscode.TextEditor, startPosition: vscode.Position, endPosition: vscode.Position): Promise<DecodedToken[]>  {
+
+    const start = editor.document.offsetAt(startPosition);
+    const end = editor.document.offsetAt(endPosition);
+    const alltokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+        'vscode.provideDocumentSemanticTokens',
+        editor.document.uri,
+    );
+    if (alltokens) {
+    const filteredTokens = {
+        resultId: alltokens.resultId,
+        data: [] as number[],
+        };
+        let currentLine = 0;
+        let currentChar = 0;
+        let savedLine = 0;
+        let savedChar = 0;
+        for (let i = 0; i < alltokens.data.length; i += 5) {
+            // Update position
+            const deltaLine = alltokens.data[i];
+            const deltaStart = alltokens.data[i + 1];
+            const length = alltokens.data[i + 2];
+            currentLine += deltaLine;
+            currentChar = deltaLine > 0 ? deltaStart : currentChar + deltaStart;
+
+            const tokenStart = editor.document.offsetAt(new vscode.Position(currentLine, currentChar));
+            const tokenEnd = tokenStart + length;
+
+            if (tokenStart < start) {
+                savedLine = currentLine;
+                savedChar = currentChar;
+            } else if (tokenStart >= start && tokenEnd <= end) {
+                filteredTokens.data.push(alltokens.data[i], alltokens.data[i + 1], alltokens.data[i + 2], alltokens.data[i + 3], alltokens.data[i + 4]);
+            } else { // tokenStart >= end
+                break;
+            }
+
+        }
+
+        const tokensLegend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
+            'vscode.provideDocumentSemanticTokensLegend',
+            editor.document.uri,
+        );
+        return decodeSemanticTokens(filteredTokens.data, tokensLegend, savedLine, savedChar);
+    }
+    return [];
+}
+
+export async function getDecodedTokensFromRange(editor: vscode.TextEditor, startPosition: vscode.Position, endPosition: vscode.Position): Promise<DecodedToken[]> {
+    const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+        'vscode.provideDocumentRangeSemanticTokens',
+        editor.document.uri,
+        new vscode.Range(startPosition, endPosition),
+    );
+    const tokensLegend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
+        'vscode.provideDocumentRangeSemanticTokensLegend',
+        editor.document.uri,
+        new vscode.Range(startPosition, endPosition),
+    );
+    if (!tokens) {
+        return await extractRangeTokensFromAllTokens(editor, startPosition, endPosition);
+    } else { 
+        return decodeSemanticTokens(Array.from(tokens.data), tokensLegend);
+    }
+    vscode.window.showErrorMessage('Failed to get semantic tokens');
+    return [];
+}
+
+export async function getDecodedTokensFromSybol(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
     const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
         'vscode.provideDocumentRangeSemanticTokens',
         editor.document.uri,
@@ -24,54 +92,110 @@ export async function getDecodedTokens(editor: vscode.TextEditor, functionSymbol
         functionSymbol.range,
     );
     if (!tokens) {
-        const alltokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
-            'vscode.provideDocumentSemanticTokens',
-            editor.document.uri,
-        );
-        if (alltokens) {
-            const start = editor.document.offsetAt(functionSymbol.range.start);
-            const end = editor.document.offsetAt(functionSymbol.range.end);
-            const filteredTokens = {
-            resultId: alltokens.resultId,
-            data: [] as number[],
-            };
-            let currentLine = 0;
-            let currentChar = 0;
-            let savedLine = 0;
-            let savedChar = 0;
-            for (let i = 0; i < alltokens.data.length; i += 5) {
-                // Update position
-                const deltaLine = alltokens.data[i];
-                const deltaStart = alltokens.data[i + 1];
-                const length = alltokens.data[i + 2];
-                currentLine += deltaLine;
-                currentChar = deltaLine > 0 ? deltaStart : currentChar + deltaStart;
-
-                const tokenStart = editor.document.offsetAt(new vscode.Position(currentLine, currentChar));
-                const tokenEnd = tokenStart + length;
-
-                if (tokenStart < start) {
-                    savedLine = currentLine;
-                    savedChar = currentChar;
-                } else if (tokenStart >= start && tokenEnd <= end) {
-                    filteredTokens.data.push(alltokens.data[i], alltokens.data[i + 1], alltokens.data[i + 2], alltokens.data[i + 3], alltokens.data[i + 4]);
-                } else { // tokenStart >= end
-                    break;
-                }
-
-            }
-
-            const tokensLegend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
-                'vscode.provideDocumentSemanticTokensLegend',
-                editor.document.uri,
-            );
-            return decodeSemanticTokens(filteredTokens.data, tokensLegend, savedLine, savedChar);
-        } 
+        return await extractRangeTokensFromAllTokens(editor, functionSymbol.range.start, functionSymbol.range.end);
     } else { 
         return decodeSemanticTokens(Array.from(tokens.data), tokensLegend);
     }
     vscode.window.showErrorMessage('Failed to get semantic tokens');
     return [];
+}
+
+export async function getDecodedTokensFromLine(editor: vscode.TextEditor, lineNumber: number): Promise<DecodedToken[]> {
+    // Define the range for the entire line
+    const line = editor.document.lineAt(lineNumber);
+    const range = new vscode.Range(line.range.start, line.range.end);
+    const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+        'vscode.provideDocumentRangeSemanticTokens',
+        editor.document.uri,
+        range,
+    );
+    const tokensLegend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
+        'vscode.provideDocumentRangeSemanticTokensLegend',
+        editor.document.uri,
+        range,
+    );
+    if (!tokens) {
+        return await extractRangeTokensFromAllTokens(editor, range.start, range.end);
+    } else { 
+        return decodeSemanticTokens(Array.from(tokens.data), tokensLegend);
+    }
+    vscode.window.showErrorMessage('Failed to get semantic tokens');
+    return [];
+}
+
+// export async function getDecodedTokensForLine(editor: vscode.TextEditor, lineNumber: number): Promise<DecodedToken[]> {
+//     if (!editor || !editor.document) {
+//         vscode.window.showErrorMessage('Invalid editor or document.');
+//         return [];
+//     }
+
+//     const document = editor.document;
+
+//     if (lineNumber < 0 || lineNumber >= document.lineCount) {
+//         vscode.window.showErrorMessage('Line number out of range.');
+//         return [];
+//     }
+
+//     // Define the range for the entire line
+//     const line = document.lineAt(lineNumber);
+//     const range = new vscode.Range(line.range.start, line.range.end);
+
+//     try {
+//         // Retrieve semantic tokens for the specified range
+//         const tokens: vscode.SemanticTokens | undefined = await vscode.commands.executeCommand(
+//             'vscode.provideDocumentRangeSemanticTokens',
+//             document.uri,
+//             range
+//         );
+
+//         // Retrieve the semantic tokens legend
+//         const tokensLegend: vscode.SemanticTokensLegend | undefined = await vscode.commands.executeCommand(
+//             'vscode.provideDocumentRangeSemanticTokensLegend',
+//             document.uri,
+//             range
+//         );
+
+//         if (!tokens || !tokensLegend) {
+//             vscode.window.showErrorMessage('Failed to retrieve semantic tokens or legend.');
+//             return [];
+//         }
+
+//         // Decode the semantic tokens
+//         const decodedTokens = await decodeSemanticTokens(Array.from(tokens.data), tokensLegend, lineNumber);
+//         const decodedTokensWithDefUse = await retrieveDef(editor, decodedTokens);
+//         return decodedTokensWithDefUse;
+//     } catch (error) {
+//         console.error('Error retrieving semantic tokens:', error);
+//         vscode.window.showErrorMessage('An error occurred while retrieving semantic tokens.');
+//         return [];
+//     }
+// }
+
+
+export async function retrieveDef(editor: vscode.TextEditor, decodedTokens : DecodedToken[]): Promise<DecodedToken[]>  {
+
+	if (decodedTokens) {
+		for (const token of decodedTokens) {
+			const startPos = new vscode.Position(token.line, token.startChar);
+			const endPos = new vscode.Position(token.line, token.startChar + token.length);
+			const range = new vscode.Range(startPos, endPos);
+			const word = editor.document.getText(range);
+			const definition = await vscode.commands.executeCommand<Array<vscode.Location>>(
+				'vscode.executeDefinitionProvider',
+				editor.document.uri,
+				startPos
+			);
+			token.word = word;
+			token.definition = definition;
+			console.log('Decoded token:', token);
+		}
+	}
+	return decodedTokens;
+}
+
+export async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]>  {
+	const decodedTokens = await getDecodedTokensFromSybol(editor, functionSymbol);
+	return retrieveDef(editor, decodedTokens);
 }
 
 async function decodeSemanticTokens(data: number[], tokensLegend: vscode.SemanticTokensLegend, initialLine: number = 0, initialChar: number = 0): Promise<DecodedToken[]> {

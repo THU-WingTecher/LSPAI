@@ -14,8 +14,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "llm-lsp-ut.helloWorld",
-        "title": "Hello World"
+        "command": "llm-lsp-ut.JavaExperiment",
+        "title": "JavaExperiment"
+      },
+      {
+        "command": "llm-lsp-ut.GoExperiment",
+        "title": "GoExperiment"
       },
       {
         "command": "extension.generateUnitTest",

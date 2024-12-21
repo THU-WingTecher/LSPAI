@@ -272,9 +272,8 @@ export async function classifyTokenByUri(editor: vscode.TextEditor, DefUseMap: D
  * @param DefUseMap - An array of Tokens representing definitions and usages.
  * @returns An array of ParentDefinition objects without redundancies.
  */
-async function constructSymbolRelationShip(
+export async function constructSymbolRelationShip(
     tokenMap: Map<string, DecodedToken[]>,
-    DefUseMap: DecodedToken[]
 ): Promise<ParentDefinition[]> {
     // Initialize an array to hold all ParentDefinitions
     const parentToChildrenMap: ParentDefinition[] = [];
@@ -360,6 +359,41 @@ export interface DpendenceAnalysisResult {
     mainFunctionDependencies: string;
     mainfunctionParent: string; // Replace with the actual type
 }
+    /**
+     * Recursively processes a ParentDefinition and its children to build the hierarchy string.
+     * 
+     * @param def - The current ParentDefinition to process.
+     * @param indent - The current indentation level for formatting.
+     * @returns A string representing the processed hierarchy.
+     */
+export async function processParentDefinition(def: ParentDefinition, indent: string = '', context: string = "dependent"): Promise<string> {
+    try {
+        // Open the document containing the symbol
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(def.uri));
+        
+        // Retrieve detailed information about the parent symbol
+        const parentDetail = await getSymbolDetail(document, def.parent);
+        const packagOrName = getPackageOrUri(document, def.parent);
+        const symboltype = getSymbolKindString(def.parent.kind);
+        // Prepend the descriptive sentence
+        let result = '';
+        if (indent === '') {
+            result += `${indent}The brief information of dependent ${symboltype} \`${packagOrName}\` is \n${indent}${parentDetail}\n`;
+        } else {
+            result += `${indent}${parentDetail}\n`;
+        }
+        // Iterate through each child ParentDefinition
+        for (const childDef of def.children) {
+            // Recursively process the child definitions with increased indentation
+            result += await processParentDefinition(childDef, indent + '  ');
+        }
+
+        return result;
+    } catch (error) {
+        console.error(`Error processing symbol ${def.parent.name} in ${def.uri}:`, error);
+        return `${indent}The brief information of dependent class \`${def.parent.name}\` is \n${indent}${def.parent.name} (Error retrieving details)\n`;
+    }
+}
 
 /**
  * Processes class definitions and generates a formatted hierarchy string with detailed information.
@@ -374,47 +408,13 @@ export async function processAndGenerateHierarchy(
     DefUseMap: DecodedToken[]
 ): Promise<DpendenceAnalysisResult> {
     // Retrieve all definitions
-    const allDef: ParentDefinition[] = await constructSymbolRelationShip(tokenMap, DefUseMap);
+    const allDef: ParentDefinition[] = await constructSymbolRelationShip(tokenMap);
     let mainFunctionDependencies = "";
     let mainfunctionParent = "";
     // Initialize an empty string to build the hierarchy
     let dependencies = '';
 
-    /**
-     * Recursively processes a ParentDefinition and its children to build the hierarchy string.
-     * 
-     * @param def - The current ParentDefinition to process.
-     * @param indent - The current indentation level for formatting.
-     * @returns A string representing the processed hierarchy.
-     */
-    async function processParentDefinition(def: ParentDefinition, indent: string = '', context: string = "dependent"): Promise<string> {
-        try {
-            // Open the document containing the symbol
-            const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(def.uri));
-            
-            // Retrieve detailed information about the parent symbol
-            const parentDetail = await getSymbolDetail(document, def.parent);
-            const packagOrName = getPackageOrUri(document, def.parent);
-            const symboltype = getSymbolKindString(def.parent.kind);
-            // Prepend the descriptive sentence
-            let result = '';
-            if (indent === '') {
-                result += `${indent}The brief information of dependent ${symboltype} \`${packagOrName}\` is \n${indent}${parentDetail}\n`;
-            } else {
-                result += `${indent}${parentDetail}\n`;
-            }
-            // Iterate through each child ParentDefinition
-            for (const childDef of def.children) {
-                // Recursively process the child definitions with increased indentation
-                result += await processParentDefinition(childDef, indent + '  ');
-            }
 
-            return result;
-        } catch (error) {
-            console.error(`Error processing symbol ${def.parent.name} in ${def.uri}:`, error);
-            return `${indent}The brief information of dependent class \`${def.parent.name}\` is \n${indent}${def.parent.name} (Error retrieving details)\n`;
-        }
-    }
 
     // Process each top-level ParentDefinition
     for (const def of allDef) {
