@@ -21,12 +21,6 @@ The error messages are:
 ${diagnosticMessages}
 \`\`\`
 
-The unit test is testing the method \`${method_sig}\` in the class \`${class_name}\`,
-the source code of the method under test and its class is:
-\`\`\`
-${testcode}
-\`\`\`
-
 Please fix the error and return the whole fixed unit test. No explanation is needed. Wrap the code in a code block.
 `;
 }
@@ -63,20 +57,13 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
     package ${packageString}
     import org.junit.jupiter.api.BeforeEach;
     import org.junit.jupiter.api.Test;
-    import static org.mockito.Mockito.*;
     import static org.junit.jupiter.api.Assertions.*;
 
     {Replace With Needed Imports}
 
     public class ${FileName} {
-        
-        @BeforeEach
-        public void setUp() {
-            // Write your setup code here
-        }
-
+        {Replace with needed fields}
         {Write your test function here}
-
     }
     \`\`\`
     `;

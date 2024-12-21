@@ -10,13 +10,8 @@ suite('Extension Test Suite', () => {
     vscode.window.showInformationMessage('All tests done!');
   });
 
-  test('Sample tes1', () => {
+  test('Sample test', () => {
     assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-    assert.strictEqual(-1, [1, 2, 3].indexOf(0));
-  });
-
-  test('Sample tes2', () => {
-    assert.strictEqual(-1, [1, 2, 3].indexOf(10));
     assert.strictEqual(-1, [1, 2, 3].indexOf(0));
   });
 });

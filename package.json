@@ -56,6 +56,10 @@
     "typescript": "^5.6.3"
   },
   "dependencies": {
-    "https-proxy-agent": "^7.0.5"
+    "@langchain/core": "^0.3.26",
+    "@langchain/openai": "^0.3.16",
+    "https-proxy-agent": "^7.0.5",
+    "lru-cache": "^10.1.0",
+    "openai": "^4.77.0"
   }
 }

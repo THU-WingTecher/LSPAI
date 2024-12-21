@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import {DecodedToken, getDecodedTokensFromLine, getDecodedTokensFromRange, retrieveDef} from './token';
 import {getSymbolDetail} from './utils';
 import {processParentDefinition, constructSymbolRelationShip, classifyTokenByUri} from './retrieve';
+import { isBaseline } from './generate';
 export enum DiagnosticTag {
     Unnecessary = 1,
     Deprecated
@@ -100,7 +101,7 @@ async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[
 //     return diagnosticMessages;
 // }
 
-export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vscode.Diagnostic[]): Promise<string[]> {
+export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vscode.Diagnostic[], method: string): Promise<string[]> {
     // Open the document
     const document = await vscode.workspace.openTextDocument(uri);
 
@@ -131,16 +132,15 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
     const tokenMap = await classifyTokenByUri(editor, dependencyTokens);
         
     // Retrieve symbol details for each token
-    const symbolMaps = await constructSymbolRelationShip(tokenMap);
-    let dependencies = "";
-    for (const def of symbolMaps) {
-        const currDependencies = await processParentDefinition(def);
-        dependencies += currDependencies;
+    if (!isBaseline(method)) {
+        const symbolMaps = await constructSymbolRelationShip(tokenMap);
+        let dependencies = "";
+        for (const def of symbolMaps) {
+            const currDependencies = await processParentDefinition(def);
+            dependencies += currDependencies;
+        }
+        diagnosticMessages.push(dependencies);
     }
-    // Construct the diagnostic message
-    
-    // Combine diagnostic message with symbol details
-    diagnosticMessages.push(dependencies);
     console.log(diagnosticMessages);
     return diagnosticMessages;
 }

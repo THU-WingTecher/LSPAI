@@ -13,12 +13,12 @@ import {updateOriginalFile } from './fileHandler';
 import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-const WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
-const SRC = `${WORKSPACE}src/main/`;
-const TEST_PATH = `${WORKSPACE}results_test/`;
-const EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
-const MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
-const GENMETHODS = [`naive_${MODEL}`, MODEL];
+let WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
+let SRC = `${WORKSPACE}src/main/`;
+let TEST_PATH = `${WORKSPACE}results_test/`;
+let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+let MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
+let GENMETHODS = [`naive_${MODEL}`, MODEL];
 const MAX_ROUNDS = 5;
 export function activate(context: vscode.ExtensionContext) {
 	let config = vscode.workspace.getConfiguration();
@@ -29,7 +29,21 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('llm-lsp-ut.JavaExperiment', () => {
+	const disposable_exp = vscode.commands.registerCommand('llm-lsp-ut.JavaExperiment', () => {
+		// The code you place here will be executed every time your command is executed
+		// Display a message box to the user
+		vscode.window.showInformationMessage('JavaExperiment!');
+		const language = "java";
+		WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
+		SRC = `${WORKSPACE}src/main/`;
+		TEST_PATH = `${WORKSPACE}results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
+		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		experiment(language)
+		
+	});
+	context.subscriptions.push(disposable_exp);
+
+	const disposable = vscode.commands.registerCommand('llm-lsp-ut.JavaExperimentTest', () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		console.log(`Testing the folder of ${SRC}`);
@@ -98,6 +112,12 @@ function getLanguageSuffix(language: string): string {
 }
 
 async function experiment(language: string) : Promise<any> {
+	console.log(`Testing the folder of ${SRC}`);
+	console.log(`saving the result to ${TEST_PATH}`);
+	console.log(`Model: ${MODEL}`);
+	console.log(`Methods: ${GENMETHODS}`);
+	console.log(`Max Rounds: ${MAX_ROUNDS}`);
+	console.log(`Experiment Log Folder: ${EXP_LOG_FOLDER}`);
 	const suffix = getLanguageSuffix(language); 
 
 	function findFiles(folderPath: string, Files: string[] = []) {
@@ -124,39 +144,6 @@ async function experiment(language: string) : Promise<any> {
 					const folderPath = `${TEST_PATH}${method}`;
 					const fileSig = genFileNameWithGivenSymbol(document, symbol);
 					const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
-					await generateUnitTestForAFunction(editor, symbol, fileName, method);
-				}
-			}
-		}
-	}
-}
-
-async function experiment_java() : Promise<any> {
-
-	function findJavaFiles(folderPath: string, javaFiles: string[] = []) {
-		fs.readdirSync(folderPath).forEach(file => {
-			const fullPath = path.join(folderPath, file);
-			if (fs.statSync(fullPath).isDirectory()) {
-				findJavaFiles(fullPath, javaFiles); // Recursively search in subdirectory
-			} else if (file.endsWith('.java')) {
-				javaFiles.push(fullPath);
-			}
-		});
-	}
-	const javaFiles: string[] = [];
-	findJavaFiles(SRC, javaFiles);
-
-	for (const filePath of javaFiles) {
-		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-		const symbols = await getAllSymbols(document.uri);
-		for (const symbol of symbols) {
-			if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-				const curDocument = await vscode.workspace.openTextDocument(document.uri);
-				const editor = await vscode.window.showTextDocument(curDocument);
-				for (const method of GENMETHODS){
-					const folderPath = `${TEST_PATH}${method}`;
-					const fileSig = genFileNameWithGivenSymbol(document, symbol);
-					const fileName = getUniqueFileName(folderPath, `${fileSig}Test.java`);
 					await generateUnitTestForAFunction(editor, symbol, fileName, method);
 				}
 			}
@@ -322,8 +309,9 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 		while (round < MAX_ROUNDS && diagnostics.length > 0) {
 			round++;
 			console.log(`\n--- Round ${round} ---`);
-	
-			const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(fullFileName), diagnostics);
+			const testCodeFromFile = fs.readFileSync(fullFileName, 'utf8');
+			testCode = testCodeFromFile;
+			const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(fullFileName), diagnostics, method);
 			const diagnosticPrompts = constructDiagnosticPrompt(testCode, diagnosticMessages.join('\n'), collectedData.functionSymbol.name, collectedData.mainfunctionParent, collectedData.SourceCode)
 			console.log('Constructed Diagnostic Prompts:', diagnosticPrompts);
 			const chatMessages: ChatMessage[] = [

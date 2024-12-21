@@ -245,7 +245,7 @@ function mapFilteredSymbols(
     return parentDefinitions;
 }
 
-export async function classifyTokenByUri(editor: vscode.TextEditor, DefUseMap: DecodedToken[]): Promise<any> {
+export async function classifyTokenByUri(editor: vscode.TextEditor, DefUseMap: DecodedToken[]): Promise<Map<string, DecodedToken[]>> {
     // Get all definitions from DefUseMap, but we retreive the method and definition together
     // Define the structure for ParentDefinition
     const tokenMap = new Map<string, DecodedToken[]>();
@@ -305,7 +305,12 @@ export async function constructSymbolRelationShip(
         const outerSymbols = await getOuterSymbols(documentUri);
 
         // Map the filtered symbols to ParentDefinition objects
-        const mapped = mapFilteredSymbols(outerSymbols, symbolsNotMapped, uri);
+        let mapped : ParentDefinition[] = [];
+        try {
+            mapped = mapFilteredSymbols(outerSymbols, symbolsNotMapped, uri);
+        } catch {
+            console.error(`Error mapping symbols for URI ${uri}`);
+        }
 
         // Add the mapped ParentDefinitions to the main array
         parentToChildrenMap.push(...mapped);
