@@ -129,17 +129,21 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
         const diagnosticMessage = `${getSeverityString(diag.severity)} in ${document.getText(diag.range)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
         diagnosticMessages.push(diagnosticMessage);
     }
-    const tokenMap = await classifyTokenByUri(editor, dependencyTokens);
-        
-    // Retrieve symbol details for each token
-    if (!isBaseline(method)) {
-        const symbolMaps = await constructSymbolRelationShip(tokenMap);
-        let dependencies = "";
-        for (const def of symbolMaps) {
-            const currDependencies = await processParentDefinition(def);
-            dependencies += currDependencies;
+    try {
+        const tokenMap = await classifyTokenByUri(editor, dependencyTokens);
+            
+        // Retrieve symbol details for each token
+        if (!isBaseline(method)) {
+            const symbolMaps = await constructSymbolRelationShip(tokenMap);
+            let dependencies = "";
+            for (const def of symbolMaps) {
+                const currDependencies = await processParentDefinition(def);
+                dependencies += currDependencies;
+            }
+            diagnosticMessages.push(dependencies);
         }
-        diagnosticMessages.push(dependencies);
+    } catch (error) {
+        console.error('Error processing diagnostics:', error);
     }
     console.log(diagnosticMessages);
     return diagnosticMessages;

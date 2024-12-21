@@ -72,6 +72,8 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
 export function ChatUnitTestOurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
     return `
     The focal method is \`${functionName}\` in the \`${class_name}\`,
+    Based on the provided information, you need to generate a unit test following below format:
+
     ${functionContext}. 
     
     ${JavaUnitTestTemplate(FileName, packageString)}
