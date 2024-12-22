@@ -7,10 +7,11 @@ import * as path from 'path';
 import { DecodedToken, extractUseDefInfo } from './token';
 import { invokeLLM, genPrompt, isBaseline, collectInfo } from './generate';
 import { getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
-import { classifyTokenByUri, processAndGenerateHierarchy, summarizeClass } from './retrieve';
+import { classifyTokenByUri, getpackageStatement, summarizeClass } from './retrieve';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
 import {updateOriginalFile } from './fileHandler';
 import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
+import { getPackedSettings } from 'http2';
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 let WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
@@ -142,7 +143,7 @@ async function experiment(language: string) : Promise<any> {
 				const editor = await vscode.window.showTextDocument(curDocument);
 				for (const method of GENMETHODS){
 					const folderPath = `${TEST_PATH}${method}`;
-					const fileSig = genFileNameWithGivenSymbol(document, symbol);
+					const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
 					const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
 					await generateUnitTestForAFunction(editor, symbol, fileName, method);
 				}
@@ -151,12 +152,18 @@ async function experiment(language: string) : Promise<any> {
 	}
 }
 
-function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): string {
-
+function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
 	const fileName = document.fileName.split('/').pop()!.replace(/\.\w+$/, '');
 	const funcName = document.getText(symbol.selectionRange);
 	const finalName = `${fileName}_${funcName}`;
-	return finalName
+	if (language === 'java') {
+		const packageStatements = getpackageStatement(document)
+		const packageStatement = packageStatements ? packageStatements[0] : '';
+		const packageFolder = packageStatement.replace(";","").split(' ')[1].replace(/\./g, '/');
+		return `${packageFolder}/${finalName}`;
+	} else {
+		return finalName;
+	}
 }
 
 async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
@@ -209,16 +216,23 @@ async function saveGeneratedCodeToFolder(code: string, fileName: string): Promis
 }
 
 function getUniqueFileName(folderPath: string, fileName: string): string {
-	let counter = 1;
-	let newFileName = fileName.replace(/(\.\w+)$/, `_${counter}$1`);
-	while (fs.existsSync(`${folderPath}/${newFileName}`)) {
-		newFileName = fileName.replace(/(\.\w+)$/, `_${counter}$1`);
-		counter++;
-	}
-	newFileName = newFileName.replace(/[^\w\d.]/g, '');
-	return `${folderPath}/${newFileName}`;
-}
+    let counter = 1;
+    
+    // Find the part before 'Test.' and the 'Test.${suffix}' part
+    const baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+    const suffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
 
+    // Initial new file name with counter right before Test.${suffix}
+    let newFileName = `${baseName}${counter}${suffix}`;
+    
+    // Check if the file exists, and increment the counter if it does
+    while (fs.existsSync(`${folderPath}/${newFileName}`)) {
+        counter++;
+        newFileName = `${baseName}${counter}${suffix}`;
+    }
+
+    return `${folderPath}/${newFileName}`;
+}
 // async function getSummarizedContext(editor: vscode.TextEditor, functionSymbol: vscode.Position): Promise<string> {
 // 	let res = "";
 // 	const importStatements = getImportStatement(editor);
@@ -445,7 +459,7 @@ async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Prom
 		
 		const functionSymbol = getFunctionSymbol(symbols, position)!;
 		
-		const fileSig = genFileNameWithGivenSymbol(editor.document, functionSymbol);
+		const fileSig = genFileNameWithGivenSymbol(editor.document, functionSymbol, editor.document.languageId);
 		const fileName = getUniqueFileName(folderPath, `${fileSig}Test.java`);
 		await generateUnitTestForAFunction(editor, functionSymbol, fileName, GENMETHODS[1]);
 

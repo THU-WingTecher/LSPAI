@@ -371,13 +371,13 @@ export interface DpendenceAnalysisResult {
      * @param indent - The current indentation level for formatting.
      * @returns A string representing the processed hierarchy.
      */
-export async function processParentDefinition(def: ParentDefinition, indent: string = '', context: string = "dependent"): Promise<string> {
+export async function processParentDefinition(def: ParentDefinition, indent: string = '', context: string = "dependent", getFullInfo: boolean = false): Promise<string> {
     try {
         // Open the document containing the symbol
         const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(def.uri));
         
         // Retrieve detailed information about the parent symbol
-        const parentDetail = await getSymbolDetail(document, def.parent);
+        const parentDetail = await getSymbolDetail(document, def.parent, getFullInfo);
         const packagOrName = getPackageOrUri(document, def.parent);
         const symboltype = getSymbolKindString(def.parent.kind);
         // Prepend the descriptive sentence
@@ -390,7 +390,7 @@ export async function processParentDefinition(def: ParentDefinition, indent: str
         // Iterate through each child ParentDefinition
         for (const childDef of def.children) {
             // Recursively process the child definitions with increased indentation
-            result += await processParentDefinition(childDef, indent + '  ');
+            result += await processParentDefinition(childDef, indent + '  ', context);
         }
 
         return result;

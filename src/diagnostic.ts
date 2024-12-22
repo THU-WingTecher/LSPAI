@@ -135,9 +135,9 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
         // Retrieve symbol details for each token
         if (!isBaseline(method)) {
             const symbolMaps = await constructSymbolRelationShip(tokenMap);
-            let dependencies = "";
+            let dependencies = "```\nRefer below information and fix the error\n```";
             for (const def of symbolMaps) {
-                const currDependencies = await processParentDefinition(def);
+                const currDependencies = await processParentDefinition(def, '', "dependent", true);
                 dependencies += currDependencies;
             }
             diagnosticMessages.push(dependencies);

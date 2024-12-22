@@ -119,7 +119,7 @@ async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<
 	process.env.OPENAI_PROXY_URL = proxy;
 
 	const openai = new OpenAI({
-		apiKey: "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",
+		apiKey: "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",
 		httpAgent: new HttpsProxyAgent(proxy),
 	});
 	try {

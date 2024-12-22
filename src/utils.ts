@@ -130,9 +130,11 @@ export async function getHover(document: vscode.TextDocument, symbol: vscode.Doc
  * @param symbol - The DocumentSymbol to summarize.
  * @returns A string summarizing the symbol's details.
  */
-export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): string {
+export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, getFullInfo: boolean = false): string {
     let detail = '';
-
+    if (getFullInfo) {
+        return document.getText(symbol.range);
+    }
     if (symbol.kind === vscode.SymbolKind.Class) {
         // Retrieve the line text where the class is defined
         const packageStatement = getpackageStatement(document);
