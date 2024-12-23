@@ -12,6 +12,7 @@ import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
 import {updateOriginalFile } from './fileHandler';
 import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
 import { getPackedSettings } from 'http2';
+import { error } from 'console';
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 let WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
@@ -366,6 +367,10 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 			let aiResponse: string;
 			let fixlogObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: MODEL};
 			const fixStartTime = Date.now();
+			if (!diagnosticMessages.length) {
+				error('No diagnostic messages found!');
+			}
+
 			try {
 				aiResponse = await invokeLLM(method, promptObj.messages, fixlogObj);
 				expData.push({llmInfo: fixlogObj, process: `FixWithLLM_${round}`, time: (Date.now() - fixStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: diagnosticMessages.join('\n')});
@@ -375,7 +380,7 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 					console.warn('Token limit exceeded, continuing...');
 					expData.push({llmInfo: logObj, process: "TokenLimitation", time: (Date.now() - startLLMTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 				} else {
-					throw error;
+					expData.push({llmInfo: logObj, process: "UnknownError", time: (Date.now() - startLLMTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 				}
 				continue;
 			}

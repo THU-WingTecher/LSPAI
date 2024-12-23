@@ -131,7 +131,7 @@ async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<
 	process.env.HTTP_PROXY = proxy;
 	process.env.HTTPS_PROXY = proxy;
 	process.env.OPENAI_PROXY_URL = proxy;
-
+	logObj.prompt = promptObj[1].content;
 	const openai = new OpenAI({
 		apiKey: "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",
 		httpAgent: new HttpsProxyAgent(proxy),
@@ -145,7 +145,6 @@ async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<
 		const tokenUsage = response.usage!.total_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
-		logObj.prompt = promptObj[1].content;
 		console.log('Generated test code:', result);
 		console.log('Token usage:', tokenUsage);
 		return result;
@@ -157,6 +156,7 @@ async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<
 
 async function callLocalLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	const modelName = getModelName(method);
+	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
 	const url = "http://192.168.6.7:12512/api/chat";
 	const headers = {
 	  "Content-Type": "application/json",
@@ -184,7 +184,6 @@ async function callLocalLLM(method: string, promptObj: any, logObj: any): Promis
     const tokenUsage = (result as any).usage.total_tokens || 0;
     logObj.tokenUsage = tokenUsage;
     logObj.result = result;
-    logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
 	console.log("Response content:", content);
 	return content;
 	} catch (error) {

@@ -16,10 +16,7 @@ The unit test is:
 ${unit_test}
 \`\`\`
 
-The error messages are:
-\`\`\`
 ${diagnosticMessages}
-\`\`\`
 
 Please fix the error and return the whole fixed unit test. No explanation is needed. Wrap the code in a code block.
 `;
@@ -36,7 +33,7 @@ I will provide the following information of the focal method:
 I will provide following brief information if the focal method has dependencies:
 1. Signatures of dependent classes.
 2. Signatures of dependent methods and fields in the dependent classes.
-I need you to create a whole unit test, ensuring optimal branch and line coverage. Compile without errors. No additional explanations required.
+I need you to create a whole unit test, ensuring optimal branch and line coverage. Compile WITHOUT errors. No additional explanations required.
     `;
 }
 
@@ -55,10 +52,6 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
     Based on the provided information, you need to generate a unit test using Junit5, and Mock3 following below format:
     \`\`\`
     package ${packageString}
-    import org.junit.jupiter.api.BeforeEach;
-    import org.junit.jupiter.api.Test;
-    import static org.junit.jupiter.api.Assertions.*;
-
     {Replace With Needed Imports}
 
     public class ${FileName} {

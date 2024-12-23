@@ -137,7 +137,7 @@ export async function getDependentContext(
     const dependenciesArray = dependenciesArrays.flat();
 
     // Classify tokens by URI and generate the hierarchy
-    const tokenMap = await classifyTokenByUri(editor, dependenciesArray);
+    const tokenMap = await classifyTokenByUri(editor.document, dependenciesArray);
     const result = await processAndGenerateHierarchy(functionSymbol, tokenMap, DefUseMap);
 
     return result;
@@ -245,14 +245,14 @@ function mapFilteredSymbols(
     return parentDefinitions;
 }
 
-export async function classifyTokenByUri(editor: vscode.TextEditor, DefUseMap: DecodedToken[]): Promise<Map<string, DecodedToken[]>> {
+export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMap: DecodedToken[]): Promise<Map<string, DecodedToken[]>> {
     // Get all definitions from DefUseMap, but we retreive the method and definition together
     // Define the structure for ParentDefinition
     const tokenMap = new Map<string, DecodedToken[]>();
 
     for (const token of DefUseMap) {
         const uri = token.definition?.[0]?.uri.toString();
-        if (uri && !isStandardClass(uri, editor.document.languageId)) {
+        if (uri && !isStandardClass(uri, document.languageId)) {
             if (!tokenMap.has(uri)) {
                 tokenMap.set(uri, []);
             }

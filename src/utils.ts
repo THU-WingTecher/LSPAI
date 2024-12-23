@@ -139,18 +139,22 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
         // Retrieve the line text where the class is defined
         const packageStatement = getpackageStatement(document);
         detail += packageStatement ? packageStatement[0] + '\n' : '';
-        detail += document.lineAt(symbol.selectionRange.start.line).text.trim();
+        detail += document.lineAt(symbol.selectionRange.start.line).text.trim() + '\n';
 
         // Initialize an array to hold constructor details
         const constructorsInfo: string[] = [];
         const fieldsInfo: string[] = [];
-
+        let classDetail = '';
         // Check if the class has children symbols
         if (symbol.children && symbol.children.length > 0) {
             // Iterate over the children to find constructors
             for (const childSymbol of symbol.children) {
+                if (!isPublic(childSymbol, document)) {
+                    continue;
+                }
                 if (childSymbol.kind === vscode.SymbolKind.Constructor) {
                     // Extract constructor details
+
                     const constructorDetail = getConstructorDetail(document, childSymbol);
                     if (constructorDetail) {
                         constructorsInfo.push(constructorDetail);
@@ -162,6 +166,10 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
                     if (fieldDetail) {
                         fieldsInfo.push(fieldDetail);
                     }
+                }
+                if (childSymbol.kind === vscode.SymbolKind.Class) {
+                    // Extract constructor details
+                    classDetail = getSymbolDetail(document, childSymbol);
                 }
             }
         }
@@ -181,6 +189,11 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
                 detail += `    ${constructorInfo}\n`;
             }
         }
+
+        if (classDetail) {
+                detail += `    ${classDetail}\n`;
+            }
+        
 
     } else if (symbol.kind === vscode.SymbolKind.Method || symbol.kind === vscode.SymbolKind.Function) {
         // For methods and functions, include name and detail (e.g., parameters)
@@ -342,3 +355,8 @@ export function isFunctionSymbol(symbol: vscode.DocumentSymbol): boolean {
 // 	return parameters;
 // }
 
+
+function isPublic(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): boolean {
+    const funcDefinition = document.lineAt(symbol.selectionRange.start.line).text;
+    return funcDefinition.includes('public') || false;
+}

@@ -118,15 +118,14 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
     // Open the document
     const document = await vscode.workspace.openTextDocument(uri);
 
-    // Attempt to find an active editor for the document
-    const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString());
+    // // Attempt to find an active editor for the document
 
-    // Close the editor if found
+    // // Close the editor if found
 
-    if (!editor) {
-        vscode.window.showErrorMessage('No active editor found for the given URI.');
-        return [];
-    }
+    // if (!editor) {
+    //     vscode.window.showErrorMessage('No active editor found for the given URI.');
+    //     return [];
+    // }
 
     // Filter diagnostics by severity (Error > Warning > Information > Hint)
     const sortedDiagnostics = vscodeDiagnostics.filter(diag => diag.severity === vscode.DiagnosticSeverity.Error);
@@ -135,22 +134,23 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
 
     // Process each diagnostic separately
     const diagnosticMessages: string[] = [];
+    diagnosticMessages.push('The error messages are:\n \`\`\`');
     const dependencyTokens: DecodedToken[] = [];
     for (const diag of sortedDiagnostics) {
         // Retrieve decoded tokens for the specific line
-        const decodedTokens = await getDecodedTokensFromLine(editor, diag.range.start.line);
-        await retrieveDef(editor, decodedTokens);
+        const decodedTokens = await getDecodedTokensFromLine(document, diag.range.start.line);
+        await retrieveDef(document, decodedTokens);
         dependencyTokens.push(...decodedTokens);
         const diagnosticMessage = `${getSeverityString(diag.severity)} in ${document.getText(diag.range)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
         diagnosticMessages.push(diagnosticMessage);
     }
     try {
-        const tokenMap = await classifyTokenByUri(editor, dependencyTokens);
+        const tokenMap = await classifyTokenByUri(document, dependencyTokens);
             
         // Retrieve symbol details for each token
         if (!isBaseline(method)) {
             const symbolMaps = await constructSymbolRelationShip(tokenMap);
-            let dependencies = "```\nRefer below information and fix the error\n```";
+            let dependencies = "\`\`\`\nRefer below information and fix the error\n\`\`\`";
             for (const def of symbolMaps) {
                 const currDependencies = await processParentDefinition(def, '', "dependent", true);
                 dependencies += currDependencies;
@@ -160,8 +160,9 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
     } catch (error) {
         console.error('Error processing diagnostics:', error);
     }
+    diagnosticMessages.push('\`\`\`');
     console.log(diagnosticMessages);
-    await closeActiveEditor(editor);
+    // await closeActiveEditor(editor);
     return diagnosticMessages;
 }
 
