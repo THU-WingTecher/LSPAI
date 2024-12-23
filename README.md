@@ -17,6 +17,15 @@ This is the README for your extension "llm-lsp-ut". After writing up a brief des
 
 ## Requirements
 
+## Dependency Setting
+
+1. Manual settings
+    - Java Code Coverage Collect
+        1. First, compile the target project, and locate compiled .class files under target/classes directory.
+        2. Run the pre-built script `java_coverage.bash` with giving the root directory of the target project and save directory of generated unit tests.
+        ```bash
+        bash java_coverage.bash /vscode-llm-ut/experiments/commons-cli /vscode-llm-ut/temp/results_12_22_2024__20_46_22/naive_gpt-4o-mini
+        ```
 
 If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
