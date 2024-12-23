@@ -10,6 +10,8 @@ import { DecodedToken, createSystemPromptWithDefUseMap } from "./token";
 import {getpackageStatement, getDependentContext, DpendenceAnalysisResult} from "./retrieve";
 import {ChatMessage, Prompt} from "./promptBuilder";
 
+const TOKENTHRESHOLD = 2000; // Define your token threshold here
+
 interface collectInfo {
 	dependentContext: string;
 	mainFunctionDependencies: string;
@@ -97,8 +99,20 @@ export async function genPrompt(data: collectInfo, method: string): Promise<any>
 	return Promise.resolve(promptObj.messages);
 }
 
+export class TokenLimitExceededError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "TokenLimitExceededError";
+	}
+}
+
 export async function invokeLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	// LLM生成单元测试代码
+	const messageTokens = promptObj[1].content.split(/\s+/).length
+
+	if (messageTokens > TOKENTHRESHOLD) {
+		throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
+	}
 	if (isOpenAi(method)) {
 		return callOpenAi(method, promptObj, logObj);
 	} else if(isLlama(method)) {

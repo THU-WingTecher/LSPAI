@@ -5,8 +5,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { DecodedToken, extractUseDefInfo } from './token';
-import { invokeLLM, genPrompt, isBaseline, collectInfo } from './generate';
-import { getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
+import { invokeLLM, genPrompt, isBaseline, collectInfo, TokenLimitExceededError } from './generate';
+import { closeActiveEditor, getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
 import { classifyTokenByUri, getpackageStatement, summarizeClass } from './retrieve';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
 import {updateOriginalFile } from './fileHandler';
@@ -19,7 +19,8 @@ let SRC = `${WORKSPACE}src/main/`;
 let TEST_PATH = `${WORKSPACE}results_test/`;
 let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 let MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
-let GENMETHODS = [`naive_${MODEL}`, MODEL];
+let GENMETHODS = [MODEL, `naive_${MODEL}`];
+// let GENMETHODS = [MODEL];
 const MAX_ROUNDS = 5;
 export function activate(context: vscode.ExtensionContext) {
 	let config = vscode.workspace.getConfiguration();
@@ -113,12 +114,7 @@ function getLanguageSuffix(language: string): string {
 }
 
 async function experiment(language: string) : Promise<any> {
-	console.log(`Testing the folder of ${SRC}`);
-	console.log(`saving the result to ${TEST_PATH}`);
-	console.log(`Model: ${MODEL}`);
-	console.log(`Methods: ${GENMETHODS}`);
-	console.log(`Max Rounds: ${MAX_ROUNDS}`);
-	console.log(`Experiment Log Folder: ${EXP_LOG_FOLDER}`);
+	logCurrentSettings()
 	const suffix = getLanguageSuffix(language); 
 
 	function findFiles(folderPath: string, Files: string[] = []) {
@@ -135,10 +131,16 @@ async function experiment(language: string) : Promise<any> {
 	findFiles(SRC, Files);
 
 	for (const filePath of Files) {
+		for (let i = 0; i < Files.length; i++) {
+			const filePath = Files[i];
+			console.log(`#### Processing file ${i + 1} of ${Files.length}: ${filePath}`);
 		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
 		const symbols = await getAllSymbols(document.uri);
 		for (const symbol of symbols) {
 			if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
+				if (language === 'java' && !isPublic(symbol, document)) {
+					continue;
+				}
 				const curDocument = await vscode.workspace.openTextDocument(document.uri);
 				const editor = await vscode.window.showTextDocument(curDocument);
 				for (const method of GENMETHODS){
@@ -147,11 +149,23 @@ async function experiment(language: string) : Promise<any> {
 					const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
 					await generateUnitTestForAFunction(editor, symbol, fileName, method);
 				}
+				await closeActiveEditor(editor);
+				}
 			}
 		}
 	}
+	console.log('#### Experiment completed!');
+	logCurrentSettings()
 }
 
+function logCurrentSettings() {
+	console.log(`Testing the folder of ${SRC}`);
+	console.log(`saving the result to ${TEST_PATH}`);
+	console.log(`Model: ${MODEL}`);
+	console.log(`Methods: ${GENMETHODS}`);
+	console.log(`Max Rounds: ${MAX_ROUNDS}`);
+	console.log(`Experiment Log Folder: ${EXP_LOG_FOLDER}`);
+}
 function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
 	const fileName = document.fileName.split('/').pop()!.replace(/\.\w+$/, '');
 	const funcName = document.getText(symbol.selectionRange);
@@ -205,8 +219,8 @@ async function saveGeneratedCodeToFolder(code: string, fileName: string): Promis
 	edit.insert(uri, new vscode.Position(0, 0), code);
 	await vscode.workspace.applyEdit(edit);
 	await vscode.window.showTextDocument(document);
-    const result = await document.save();
-    console.log(`Save result: ${result}`);
+	const result = await document.save();
+	console.log(`Save result: ${result}`);
 
     if (!result) {
         vscode.window.showErrorMessage(`Failed to save generated code to ${uri.fsPath}! `);
@@ -261,7 +275,13 @@ interface LLMLogs {
 	model : string;
 }
 
+function isPublic(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): boolean {
+	const funcDefinition = document.lineAt(symbol.selectionRange.start.line).text;
+	return funcDefinition.includes('public') || false;
+}
+
 async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, fullFileName: string, method: string): Promise<void> {
+
 	const expData: ExpLogs[] = [];
 	const overallStartTime = Date.now(); // Record the start time
 	const fileNameParts = fullFileName.split('/');
@@ -306,10 +326,19 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
     const promptObj = await genPrompt(collectedData, method);
 	let logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: MODEL};
     const startLLMTime = Date.now();
-	testCode = await invokeLLM(method, promptObj, logObj);
-    testCode = parseCode(testCode);
-	expData.push({llmInfo: logObj, process: "invokeLLM", time: (Date.now() - startLLMTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
-    console.log('Generated Final test code:', testCode);
+	try {
+		testCode = await invokeLLM(method, promptObj, logObj);
+		testCode = parseCode(testCode);
+		expData.push({llmInfo: logObj, process: "invokeLLM", time: (Date.now() - startLLMTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
+		console.log('Generated Final test code:', testCode);
+	} catch (error) {
+		if (error instanceof TokenLimitExceededError) {
+			console.warn('Token limit exceeded, continuing...');
+			expData.push({llmInfo: logObj, process: "TokenLimitation", time: (Date.now() - startLLMTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
+		} else {
+			throw error;
+		}
+	}
 
     if (testCode) {
 		const saveStartTime = Date.now();
@@ -342,8 +371,13 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 				expData.push({llmInfo: fixlogObj, process: `FixWithLLM_${round}`, time: (Date.now() - fixStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: diagnosticMessages.join('\n')});
 				console.log('AI Response:', aiResponse);
 			} catch (error) {
-				console.error('Failed to get response from LLM:', error);
-				break;
+				if (error instanceof TokenLimitExceededError) {
+					console.warn('Token limit exceeded, continuing...');
+					expData.push({llmInfo: logObj, process: "TokenLimitation", time: (Date.now() - startLLMTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
+				} else {
+					throw error;
+				}
+				continue;
 			}
 	
 			// Step 4: Write AI-generated code to a temporary file
@@ -427,7 +461,6 @@ async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionS
 	// Ensure the directory exists
 
 	console.log('Experiment data saved to experiment_data.json');
-
 }
 
 async function generateUnitTestForSelectedRange(editor: vscode.TextEditor): Promise<void> {

@@ -1,7 +1,7 @@
 // diagnostic.ts
 import * as vscode from 'vscode';
 import {DecodedToken, getDecodedTokensFromLine, getDecodedTokensFromRange, retrieveDef} from './token';
-import {getSymbolDetail} from './utils';
+import {closeActiveEditor} from './utils';
 import {processParentDefinition, constructSymbolRelationShip, classifyTokenByUri} from './retrieve';
 import { isBaseline } from './generate';
 export enum DiagnosticTag {
@@ -28,39 +28,52 @@ export async function getDiagnosticsForFilePath(filePath: string): Promise<vscod
     const uri = vscode.Uri.file(filePath);
     const document = await vscode.workspace.openTextDocument(uri);
     const text = document.getText();
+    	// Close the editor with the saved version
     console.log(text)
     return getDiagnosticsForUri(uri);
 }
 
 async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
-    console.log(vscode.languages.getDiagnostics(uri))
+    console.log('Initial diagnostics:', vscode.languages.getDiagnostics(uri));
+
     return new Promise((resolve, reject) => {
-        // Get initial diagnostics
-        let diagnostics: vscode.Diagnostic[] = vscode.languages.getDiagnostics(uri);
+        try {
+            // Get initial diagnostics
+            let diagnostics: vscode.Diagnostic[] = vscode.languages.getDiagnostics(uri);
 
-        // Set up a listener for diagnostics changes
-        const diagnosticsChangedDisposable = vscode.languages.onDidChangeDiagnostics((event) => {
-            console.log('Diagnostics changed event triggered');
-            // Check if diagnostics for the saved file have changed
-            diagnostics = vscode.languages.getDiagnostics(uri);
-            console.log('Updated diagnostics:', diagnostics);
-            diagnosticsChangedDisposable.dispose();  // Stop listening once we get the diagnostics
-            console.log('Disposed diagnostics change listener');
-            // Resolve the promise with the updated diagnostics
-            resolve(diagnostics);
-        });
+            // Set up a listener for diagnostics changes
+            const diagnosticsChangedDisposable = vscode.languages.onDidChangeDiagnostics((event) => {
+                if (event.uris.some(updatedUri => updatedUri.toString() === uri.toString())) {
+                    console.log('Diagnostics changed event triggered for URI:', uri.toString());
 
-        console.log('Waiting for diagnostics to be updated...');
+                    // Update diagnostics
+                    diagnostics = vscode.languages.getDiagnostics(uri);
+                    console.log('Updated diagnostics:', diagnostics);
 
-        // Set a timeout to avoid hanging forever in case diagnostics don't change
-        const timeout = setTimeout(() => {
-            console.log('Timeout reached. Returning initial diagnostics.');
-            diagnosticsChangedDisposable.dispose(); // Cleanup the listener if timeout occurs
-            resolve(diagnostics); // Resolve with the initial diagnostics
-        }, 20000);  // 5 seconds timeout (you can adjust this as needed)
+                    // Clear the timeout to prevent it from firing
+                    clearTimeout(timeout);
 
-        // Optionally, reject the promise if something goes wrong
-        // reject(new Error('Error while fetching diagnostics'));
+                    // Dispose the listener to avoid memory leaks
+                    diagnosticsChangedDisposable.dispose();
+                    console.log('Disposed diagnostics change listener');
+
+                    // Resolve the promise with the updated diagnostics
+                    resolve(diagnostics);
+                }
+            });
+
+            console.log('Waiting for diagnostics to be updated...');
+
+            // Set a timeout to avoid hanging forever in case diagnostics don't change
+            const timeout = setTimeout(() => {
+                console.log('Timeout reached. Returning initial diagnostics.');
+                diagnosticsChangedDisposable.dispose(); // Cleanup the listener if timeout occurs
+                resolve(diagnostics); // Resolve with the initial diagnostics
+            }, 10000);  // 10 seconds timeout (adjust as needed)
+
+        } catch (error) {
+            reject(new Error(`Error while fetching diagnostics: ${error}`));
+        }
     });
 }
 
@@ -108,6 +121,8 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
     // Attempt to find an active editor for the document
     const editor = vscode.window.visibleTextEditors.find(e => e.document.uri.toString() === uri.toString());
 
+    // Close the editor if found
+
     if (!editor) {
         vscode.window.showErrorMessage('No active editor found for the given URI.');
         return [];
@@ -146,6 +161,7 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
         console.error('Error processing diagnostics:', error);
     }
     console.log(diagnosticMessages);
+    await closeActiveEditor(editor);
     return diagnosticMessages;
 }
 

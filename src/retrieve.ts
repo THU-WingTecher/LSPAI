@@ -377,7 +377,7 @@ export async function processParentDefinition(def: ParentDefinition, indent: str
         const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(def.uri));
         
         // Retrieve detailed information about the parent symbol
-        const parentDetail = await getSymbolDetail(document, def.parent, getFullInfo);
+        const parentDetail = await getSymbolDetail(document, def.parent);
         const packagOrName = getPackageOrUri(document, def.parent);
         const symboltype = getSymbolKindString(def.parent.kind);
         // Prepend the descriptive sentence
@@ -390,7 +390,7 @@ export async function processParentDefinition(def: ParentDefinition, indent: str
         // Iterate through each child ParentDefinition
         for (const childDef of def.children) {
             // Recursively process the child definitions with increased indentation
-            result += await processParentDefinition(childDef, indent + '  ', context);
+            result += await processParentDefinition(childDef, indent + '  ', context, getFullInfo);
         }
 
         return result;

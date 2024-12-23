@@ -143,6 +143,7 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
 
         // Initialize an array to hold constructor details
         const constructorsInfo: string[] = [];
+        const fieldsInfo: string[] = [];
 
         // Check if the class has children symbols
         if (symbol.children && symbol.children.length > 0) {
@@ -155,12 +156,27 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
                         constructorsInfo.push(constructorDetail);
                     }
                 }
+                if (childSymbol.kind === vscode.SymbolKind.Property || childSymbol.kind === vscode.SymbolKind.Field) {
+                    // Extract constructor details
+                    const fieldDetail = getFieldDetail(document, childSymbol);
+                    if (fieldDetail) {
+                        fieldsInfo.push(fieldDetail);
+                    }
+                }
+            }
+        }
+
+        // Append field information if available
+        if (fieldsInfo.length > 0) {
+            // detail += '\n  Constructors:\n';
+            for (const fieldInfo of fieldsInfo) {
+                detail += `    ${fieldInfo}\n`;
             }
         }
 
         // Append constructor information if available
         if (constructorsInfo.length > 0) {
-            detail += '\n  Constructors:\n';
+            // detail += '\n  Constructors:\n';
             for (const constructorInfo of constructorsInfo) {
                 detail += `    ${constructorInfo}\n`;
             }
@@ -173,9 +189,9 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
             detail += ` ${symbol.detail}`;
         }
 
-    } else if (symbol.kind === vscode.SymbolKind.Property || symbol.kind === vscode.SymbolKind.Field) {
-        // For properties and fields, retrieve the line text
-        detail = document.lineAt(symbol.selectionRange.start.line).text.trim();
+    // } else if (symbol.kind === vscode.SymbolKind.Property || symbol.kind === vscode.SymbolKind.Field) {
+    //     // For properties and fields, retrieve the line text
+    //     detail = document.lineAt(symbol.selectionRange.start.line).text.trim();
 
     } else {
         // For other symbol kinds, retrieve the line text
@@ -193,6 +209,7 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
  */
 function getConstructorDetail(document: vscode.TextDocument, constructorSymbol: vscode.DocumentSymbol): string | null {
     // Retrieve the line text where the constructor is defined
+    return document.getText(constructorSymbol.range);
     if (constructorSymbol.name){
         return constructorSymbol.name;
     } else {
@@ -200,7 +217,28 @@ function getConstructorDetail(document: vscode.TextDocument, constructorSymbol: 
     }
 }
 
+/**
+ * Extracts detailed information for a constructor symbol.
+ * @param document - The text document containing the constructor.
+ * @param constructorSymbol - The Constructor DocumentSymbol.
+ * @returns A string detailing the constructor's signature.
+ */
+function getFieldDetail(document: vscode.TextDocument, fieldSymbol: vscode.DocumentSymbol): string | null {
+    // Retrieve the line text where the constructor is defined
+    return document.getText(fieldSymbol.range);
+}
 
+export async function closeActiveEditor(editor:vscode.TextEditor){
+    if (editor) {
+        const document = editor.document;
+        await document.save();
+        if (document.isDirty) {
+            await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+        } else {
+            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+        }
+    }
+}
 export function isValidFunctionSymbol(functionSymbol: vscode.DocumentSymbol): boolean {
 	if (!functionSymbol.name) {
 		vscode.window.showErrorMessage('Function symbol has no name!');
