@@ -9,3 +9,9 @@ package-lock.json
 tsconfig.tsbuildinfo
 tsconfig.json
 experiments/
+temp/
+*.html
+*.js
+*.txt
+*.zip
+*.jar
