@@ -41,6 +41,7 @@ echo "Compiling test files in parallel with GNU parallel..."
 
 # Create the output directory if it doesn't exist, or clear it if it does
 mkdir -p "$OUTPUT_DIR"
+mkdir -p "$REPORT_DIR"
 
 # Use GNU parallel to compile the files in parallel
 echo "$TEST_FILES" | tr ' ' '\n' | parallel -j 64 javac -cp "$CLASSPATH:$DEPENDENCY_LIBS" -d "$OUTPUT_DIR" {}
@@ -53,15 +54,25 @@ echo "Starting coverage measurement with JaCoCo..."
 PROJECTCP="$COMPILED_SOURCE:$DEPENDENCY_LIBS:$OUTPUT_DIR"
 EXCLUDES_PATTERN="*Test*"  # Exclude test classes based on naming pattern ,excludes="$EXCLUDES_PATTERN" \
 
-# Find and run tests for all classes in the output directory
-find "$OUTPUT_DIR" -name "*.class" ! -name "*_scaffolding*" | \
-    sed "s|$OUTPUT_DIR/||; s|/|.|g; s|\.class$||" | sort | uniq | \
-    xargs -I {} -P 8 \
-    java -javaagent:"$JACOCO_AGENT_PATH"=destfile="$COVERAGE_FILE"\ 
-         -cp "$PROJECTCP" \
-         org.junit.platform.console.ConsoleLauncher \
-         --class-path "$PROJECTCP" \
-         --select-class {}
+
+
+# find "$OUTPUT_DIR" -name "*.class" ! -name "*_scaffolding*" | \
+# sed "s|$OUTPUT_DIR/||; s|/|.|g; s|\.class$||" | sort | uniq | while read -r TEST_CLASS; do
+#     echo "Running tests for class $TEST_CLASS with JaCoCo coverage..."
+
+#     java -javaagent:"$JACOCO_AGENT_PATH"=destfile="$COVERAGE_FILE" \
+#          -cp "$PROJECTCP" \
+#          org.junit.platform.console.ConsoleLauncher \
+#          --class-path "$PROJECTCP" \
+#          --select-class "$TEST_CLASS"
+
+#     echo "Finished running tests for $TEST_CLASS."
+# done
+java -javaagent:"$JACOCO_AGENT_PATH"=destfile="$COVERAGE_FILE" \
+     -cp "$PROJECTCP" \
+     org.junit.platform.console.ConsoleLauncher \
+     --class-path "$PROJECTCP" \
+     --scan-classpath "$OUTPUT_DIR"
 
 echo "Finished running tests for all classes."
 
@@ -69,6 +80,6 @@ echo "Finished running tests for all classes."
 echo "Generating coverage report..."
 
 # Use the JaCoCo CLI tool to generate the report
-java -jar $JACOCO_CLI_PATH report $COVERAGE_FILE --classfiles $OUTPUT_DIR --html $REPORT_DIR
+java -jar $JACOCO_CLI_PATH report $COVERAGE_FILE --classfiles $COMPILED_SOURCE --html $REPORT_DIR
 
 echo "Coverage report generated at $REPORT_DIR"
