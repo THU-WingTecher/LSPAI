@@ -42,7 +42,7 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "NODE_PATH=./node_modules node ./out/test/runTest.js"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.9",

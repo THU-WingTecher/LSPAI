@@ -114,7 +114,7 @@ function getLanguageSuffix(language: string): string {
 	return suffix;
 }
 
-async function experiment(language: string) : Promise<any> {
+export async function experiment(language: string) : Promise<any> {
 	logCurrentSettings()
 	const suffix = getLanguageSuffix(language); 
 
