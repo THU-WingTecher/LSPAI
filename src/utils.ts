@@ -4,6 +4,10 @@ import { getpackageStatement } from './retrieve';
 
 // patterns.ts
 
+export function testFunc() {
+    console.log('checking test');
+}
+
 export interface LanguagePatterns {
     [language: string]: string[];
 }
@@ -25,6 +29,7 @@ export const languageStandardPatterns: LanguagePatterns = {
     ],
     typescript: [
         '/node_modules/',
+
         '/typescript/',
         '/@types/'
     ],
@@ -241,9 +246,8 @@ function getFieldDetail(document: vscode.TextDocument, fieldSymbol: vscode.Docum
     return document.getText(fieldSymbol.range);
 }
 
-export async function closeActiveEditor(editor:vscode.TextEditor){
-    if (editor) {
-        const document = editor.document;
+export async function closeActiveEditor(document:vscode.TextDocument){
+    if (document) {
         await document.save();
         if (document.isDirty) {
             await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
