@@ -27,14 +27,13 @@ async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> 
 
 
 function getReturnTokens(
-    editor: vscode.TextEditor,
+    document: vscode.TextDocument,
     DefUseMap: DecodedToken[],
     functionSymbol: vscode.DocumentSymbol
 ): DecodedToken[] {
     const returnedTokens: DecodedToken[] = [];
     
     // Get the document text within the function's range
-    const document = editor.document;
     const functionRange = functionSymbol.range;
     const text = document.getText(functionRange);
     
@@ -76,7 +75,7 @@ function getReturnTokens(
     
     return returnedTokens;
 }
-async function getMethodOrFunctionsParamTokens(editor: vscode.TextEditor, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
+async function getMethodOrFunctionsParamTokens(document: vscode.TextDocument, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
     
     const functionSignature = functionSymbol.name;
     const methodOrFunctionParamTokens: DecodedToken[] = [];
@@ -90,7 +89,7 @@ async function getMethodOrFunctionsParamTokens(editor: vscode.TextEditor, DefUse
 
 
 
-async function followSymbolDataFlowAndCollectDependency(editor: vscode.TextEditor, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol, targetToken: DecodedToken): Promise<DecodedToken[]> {
+async function followSymbolDataFlowAndCollectDependency(document: vscode.TextDocument, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol, targetToken: DecodedToken): Promise<DecodedToken[]> {
     const collectedDependencies: DecodedToken[] = [];
     for (const token of DefUseMap) {
         if (token.line === targetToken.line) {
@@ -105,14 +104,14 @@ async function followSymbolDataFlowAndCollectDependency(editor: vscode.TextEdito
 
 
 export async function getDependentContext(
-    editor: vscode.TextEditor,
+    document: vscode.TextDocument,
     DefUseMap: DecodedToken[],
     functionSymbol: vscode.DocumentSymbol
 ): Promise<DpendenceAnalysisResult> { 
     // Fetch both token arrays concurrently
     const [methodOrFunctionParamTokens, returnTokens] = await Promise.all([
-        getMethodOrFunctionsParamTokens(editor, DefUseMap, functionSymbol),
-        getReturnTokens(editor, DefUseMap, functionSymbol)
+        getMethodOrFunctionsParamTokens(document, DefUseMap, functionSymbol),
+        getReturnTokens(document, DefUseMap, functionSymbol)
     ]);
 
     // Combine the token arrays
@@ -129,7 +128,7 @@ export async function getDependentContext(
 
     // Collect dependencies for all unique tokens in parallel
     const dependenciesPromises = uniqueTokens.map(token => 
-        followSymbolDataFlowAndCollectDependency(editor, DefUseMap, functionSymbol, token)
+        followSymbolDataFlowAndCollectDependency(document, DefUseMap, functionSymbol, token)
     );
     const dependenciesArrays = await Promise.all(dependenciesPromises);
 
@@ -137,7 +136,7 @@ export async function getDependentContext(
     const dependenciesArray = dependenciesArrays.flat();
 
     // Classify tokens by URI and generate the hierarchy
-    const tokenMap = await classifyTokenByUri(editor.document, dependenciesArray);
+    const tokenMap = await classifyTokenByUri(document, dependenciesArray);
     const result = await processAndGenerateHierarchy(functionSymbol, tokenMap, DefUseMap);
 
     return result;

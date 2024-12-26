@@ -60,19 +60,19 @@ export async function extractRangeTokensFromAllTokens(document: vscode.TextDocum
     return [];
 }
 
-export async function getDecodedTokensFromRange(editor: vscode.TextEditor, startPosition: vscode.Position, endPosition: vscode.Position): Promise<DecodedToken[]> {
+export async function getDecodedTokensFromRange(document: vscode.TextDocument, startPosition: vscode.Position, endPosition: vscode.Position): Promise<DecodedToken[]> {
     const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
         'vscode.provideDocumentRangeSemanticTokens',
-        editor.document.uri,
+        document.uri,
         new vscode.Range(startPosition, endPosition),
     );
     const tokensLegend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
         'vscode.provideDocumentRangeSemanticTokensLegend',
-        editor.document.uri,
+        document.uri,
         new vscode.Range(startPosition, endPosition),
     );
     if (!tokens) {
-        return await extractRangeTokensFromAllTokens(editor.document, startPosition, endPosition);
+        return await extractRangeTokensFromAllTokens(document, startPosition, endPosition);
     } else { 
         return decodeSemanticTokens(Array.from(tokens.data), tokensLegend);
     }
@@ -80,19 +80,19 @@ export async function getDecodedTokensFromRange(editor: vscode.TextEditor, start
     return [];
 }
 
-export async function getDecodedTokensFromSybol(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
+export async function getDecodedTokensFromSybol(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
     const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
         'vscode.provideDocumentRangeSemanticTokens',
-        editor.document.uri,
+        document.uri,
         functionSymbol.range,
     );
     const tokensLegend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
         'vscode.provideDocumentRangeSemanticTokensLegend',
-        editor.document.uri,
+        document.uri,
         functionSymbol.range,
     );
     if (!tokens) {
-        return await extractRangeTokensFromAllTokens(editor.document, functionSymbol.range.start, functionSymbol.range.end);
+        return await extractRangeTokensFromAllTokens(document, functionSymbol.range.start, functionSymbol.range.end);
     } else { 
         return decodeSemanticTokens(Array.from(tokens.data), tokensLegend);
     }
@@ -193,9 +193,9 @@ export async function retrieveDef(document: vscode.TextDocument, decodedTokens :
 	return decodedTokens;
 }
 
-export async function extractUseDefInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]>  {
-	const decodedTokens = await getDecodedTokensFromSybol(editor, functionSymbol);
-	return retrieveDef(editor.document, decodedTokens);
+export async function extractUseDefInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]>  {
+	const decodedTokens = await getDecodedTokensFromSybol(document, functionSymbol);
+	return retrieveDef(document, decodedTokens);
 }
 
 async function decodeSemanticTokens(data: number[], tokensLegend: vscode.SemanticTokensLegend, initialLine: number = 0, initialChar: number = 0): Promise<DecodedToken[]> {

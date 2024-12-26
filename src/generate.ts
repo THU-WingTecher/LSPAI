@@ -43,15 +43,15 @@ function getModelName(method: string): string {
 
 
 
-export async function collectInfo(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, DefUseMap: DecodedToken[], languageId: string, fileName: string, method: string): Promise<collectInfo> {
+export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, DefUseMap: DecodedToken[], languageId: string, fileName: string, method: string): Promise<collectInfo> {
 	let mainFunctionDependencies = "";
 	let dependentContext = "";
 	let mainfunctionParent = "";
-	const textCode = editor.document.getText(functionSymbol.range);
-	const packageStatement = getpackageStatement(editor.document);
+	const textCode = document.getText(functionSymbol.range);
+	const packageStatement = getpackageStatement(document);
 
 	if (!isBaseline(method)) {
-		const DependenciesInformation: DpendenceAnalysisResult = await getDependentContext(editor, DefUseMap, functionSymbol);
+		const DependenciesInformation: DpendenceAnalysisResult = await getDependentContext(document, DefUseMap, functionSymbol);
 		dependentContext = DependenciesInformation.dependencies;
 		mainFunctionDependencies = DependenciesInformation.mainFunctionDependencies;
 		mainfunctionParent = DependenciesInformation.mainfunctionParent;
