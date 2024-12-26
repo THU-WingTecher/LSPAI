@@ -54,20 +54,6 @@ echo "Starting coverage measurement with JaCoCo..."
 PROJECTCP="$COMPILED_SOURCE:$DEPENDENCY_LIBS:$OUTPUT_DIR"
 EXCLUDES_PATTERN="*Test*"  # Exclude test classes based on naming pattern ,excludes="$EXCLUDES_PATTERN" \
 
-
-
-# find "$OUTPUT_DIR" -name "*.class" ! -name "*_scaffolding*" | \
-# sed "s|$OUTPUT_DIR/||; s|/|.|g; s|\.class$||" | sort | uniq | while read -r TEST_CLASS; do
-#     echo "Running tests for class $TEST_CLASS with JaCoCo coverage..."
-
-#     java -javaagent:"$JACOCO_AGENT_PATH"=destfile="$COVERAGE_FILE" \
-#          -cp "$PROJECTCP" \
-#          org.junit.platform.console.ConsoleLauncher \
-#          --class-path "$PROJECTCP" \
-#          --select-class "$TEST_CLASS"
-
-#     echo "Finished running tests for $TEST_CLASS."
-# done
 java -javaagent:"$JACOCO_AGENT_PATH"=destfile="$COVERAGE_FILE" \
      -cp "$PROJECTCP" \
      org.junit.platform.console.ConsoleLauncher \

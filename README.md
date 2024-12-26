@@ -1,6 +1,6 @@
-# llm-lsp-ut README
+# LSPAI README
 
-This is the README for your extension "llm-lsp-ut". After writing up a brief description, we recommend including the following sections.
+This is the README for your extension "LSPAI". After writing up a brief description, we recommend including the following sections.
 
 ## Language Server SetUp
 
@@ -42,7 +42,13 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+1. Missing X server or $DISPLAY
+```bash
+[356101:1225/002335.748682:ERROR:ozone_platform_x11.cc(245)] Missing X server or $DISPLAY
+[356101:1225/002335.748705:ERROR:env.cc(258)] The platform failed to initialize.  Exiting.
+```
+run the command with `xvfb-run`.
+
 
 ## Release Notes
 
@@ -50,15 +56,7 @@ Users appreciate release notes as you update your extension.
 
 ### 1.0.0
 
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+Initial release of LSAPI.
 
 ---
 

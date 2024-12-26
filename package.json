@@ -42,10 +42,12 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "NODE_PATH=./node_modules node ./out/test/runTest.js"
+    "build": "tsc",
+    "test": "node ./out/test/runTest.js",
+    "experiment": "npm run build && NODE_PATH=./node_modules mocha ./out/runExp.js"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.9",
+    "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.95.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
@@ -53,7 +55,8 @@
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.13.0",
-    "typescript": "^5.6.3"
+    "mocha": "^11.0.1",
+    "typescript": "^5.7.2"
   },
   "dependencies": {
     "@langchain/core": "^0.3.26",

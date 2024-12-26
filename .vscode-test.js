@@ -1,6 +1,6 @@
 // .vscode-test.js
 const { defineConfig } = require('@vscode/test-cli');
-
+console.log('.vscode-test.js Running test configuration');
 module.exports = defineConfig([
     {
       label: 'unitTests',

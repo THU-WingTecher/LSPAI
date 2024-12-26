@@ -5,15 +5,31 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { testFunc } from '../../utils'
 // import * as myExtension from '../extension';
+import { experiment } from '../../extension'
+import { parseCode } from '../../utils'
 
 suite('Extension Test Suite', () => {
-  testFunc();
   suiteTeardown(() => {
     vscode.window.showInformationMessage('All tests done!');
   });
 
-  test('Sample test', () => {
-    assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-    assert.strictEqual(-1, [1, 2, 3].indexOf(0));
+  test('parse code test', () => {
+    const codeToParse = ` \`\`\`java hello world \`\`\` `;
+    assert.strictEqual(parseCode(codeToParse), 'hello world');
   });
+
+  let language = "java";
+
+  // Asynchronous test
+  // describe('Extension Test Suite', () => {
+  //   it('should run experiment with language', function(done) {
+  //     experiment(language).then(() => {
+  //         done();
+  //       })
+  //       // const results = await experiment(language);
+  //       // // Add assertions to verify the behavior of your experiment function
+  //       // console.log(results);
+  //       // Example: assert(result === expectedValue);
+  //   });
+  // });
 });
