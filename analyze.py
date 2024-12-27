@@ -4,6 +4,7 @@ import os
 from typing import List, Dict, Any
 from pathlib import Path
 from collections import defaultdict
+import re
 
 def load_json(file_path: str) -> List[Dict[str, Any]]:
     """
@@ -107,6 +108,79 @@ def print_token_usage(data: List[Dict[str, Any]], file_name: str) -> Dict[str, A
         "fixwithllm_count": fixwithllm_count
     }
 
+def parse_code(response: str) -> str:
+    """
+    Extract code block wrapped by triple backticks from the response string.
+
+    :param response: The response string containing the code block.
+    :return: Extracted code as a string, or an empty string if no code block is found.
+    """
+
+    # Regular expression to match code block wrapped by triple backticks, optional `~~`, and language tag
+    regex = r'```(?:\w+)?(?:~~)?\s*([\s\S]*?)\s*```'
+
+    # Match the response against the regular expression
+    match = re.search(regex, response)
+
+    # If a match is found, return the extracted code; otherwise, return an empty string
+    if match:
+        return match.group(1).strip()  # match.group(1) contains the code inside the backticks
+
+    # If no code block is found, return an empty string
+    print("No code block found in the response!")
+    return ""
+
+def save_code_to_naive_directory(file_path, folder_path):
+    original_folder_path=folder_path.name
+    file_name = Path(file_path).name
+    try:
+        data = load_json(file_path)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error processing '{file_name}': {e}")
+
+    for entry in data:
+        if entry.get('process') == 'invokeLLM' :
+            if entry.get('llmInfo') and entry['llmInfo'].get('result'):
+                file_path = entry['fileName']
+                code = entry['llmInfo']['result']
+                code = parse_code(code)
+                # Get the directory path to save the code under "naive"
+                naive_directory = Path(file_path).as_posix().replace(original_folder_path, f"realNaive_{original_folder_path}")
+                naive_dir = Path(naive_directory).parent  # Get the directory path
+
+                # Ensure the directory exists
+                os.makedirs(naive_dir, exist_ok=True)
+
+                # Save the extracted code to a file in the new directory
+                with open(naive_directory, 'w') as file:
+                    file.write(code)
+
+                print(f"Code saved to: {naive_directory}")
+
+def save_final_code_to_directory(file_path, folder_path, suffix_for_folder="realNaive"):
+    original_folder_path=folder_path.name
+    file_name = Path(file_path).name
+    try:
+        data = load_json(file_path)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error processing '{file_name}': {e}")
+
+    for entry in data:
+        if entry.get('llmInfo') and entry['llmInfo'].get('result'):
+            file_path = entry['fileName']
+            code = entry['llmInfo']['result']
+            code = parse_code(code)
+            # Get the directory path to save the code under "naive"
+            naive_directory = Path(file_path).as_posix().replace(original_folder_path, f"{suffix_for_folder}_{original_folder_path}")
+            naive_dir = Path(naive_directory).parent  # Get the directory path
+            print(f"Code saved to: {naive_directory}")
+    
+    # Ensure the directory exists
+    os.makedirs(naive_dir, exist_ok=True)
+
+    # Save the extracted code to a file in the new directory
+    with open(naive_directory, 'w') as file:
+        file.write(code)
 def analyze_json_file(file_path: str) -> Dict[str, Any]:
     """
     Analyze a single JSON file and print the required information.
@@ -125,7 +199,6 @@ def analyze_json_file(file_path: str) -> Dict[str, Any]:
             "fixwithllm_tokens": 0,
             "fixwithllm_count": 0
         }
-
     print_prompts_and_results(data, file_name)
     total_time = print_time_used(data, file_name)
     token_stats = print_token_usage(data, file_name)
@@ -161,6 +234,8 @@ def main():
     for json_file in json_files:
         print(f"\nProcessing file: {json_file.name}")
         result = analyze_json_file(str(json_file))
+        save_code_to_naive_directory(str(json_file), folder_path)
+        save_final_code_to_directory(str(json_file), folder_path, suffix_for_folder="Final")
         overall_time += result["time"]
         overall_tokens += result["total_tokens"]
         overall_fixwithllm_tokens += result["fixwithllm_tokens"]
