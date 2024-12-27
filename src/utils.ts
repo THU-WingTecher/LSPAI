@@ -19,7 +19,10 @@ export const languageStandardPatterns: LanguagePatterns = {
         '/javafx.',
         '/jdk.',
         '/sun.',
-        'src.zip'
+        'src.zip',
+        '/mockito-core', // For locating the Mockito core library in Maven/Gradle builds
+        '/libs/mockito', // If you're storing the mockito jars in a libs folder (adjust based on your project structure)
+        '/test/mockito', // If you have test folders that contain mockito-related code
     ],
     python: [
         '/lib/python',
@@ -247,14 +250,14 @@ function getFieldDetail(document: vscode.TextDocument, fieldSymbol: vscode.Docum
 }
 
 export async function closeActiveEditor(document:vscode.TextDocument){
-    if (document) {
-        await document.save();
-        if (document.isDirty) {
-            await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
-        } else {
-            await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-        }
-    }
+    // if (document) {
+    //     await document.save();
+    //     if (document.isDirty) {
+    //         await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
+    //     } else {
+    //         await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+    //     }
+    // }
 }
 export function isValidFunctionSymbol(functionSymbol: vscode.DocumentSymbol): boolean {
 	if (!functionSymbol.name) {

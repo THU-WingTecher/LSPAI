@@ -87,8 +87,8 @@ export async function genPrompt(data: collectInfo, method: string): Promise<any>
 		prompt = ChatUnitTestBaseUserPrompt(textCode, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName);
 	}
 	
-	console.log("System Prompt:", systemPromptText);
-	console.log("User Prompt:", prompt);
+	// console.log("System Prompt:", systemPromptText);
+	// console.log("User Prompt:", prompt);
 	const chatMessages: ChatMessage[] = [
 		{ role: "system", content: systemPromptText },
 		{ role: "user", content: prompt }
@@ -145,8 +145,8 @@ async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<
 		const tokenUsage = response.usage!.total_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
-		console.log('Generated test code:', result);
-		console.log('Token usage:', tokenUsage);
+		// console.log('Generated test code:', result);
+		// console.log('Token usage:', tokenUsage);
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);
@@ -184,7 +184,7 @@ async function callLocalLLM(method: string, promptObj: any, logObj: any): Promis
     const tokenUsage = (result as any).usage.total_tokens || 0;
     logObj.tokenUsage = tokenUsage;
     logObj.result = result;
-	console.log("Response content:", content);
+	// console.log("Response content:", content);
 	return content;
 	} catch (error) {
 	  console.error("Error sending chat request:", error);

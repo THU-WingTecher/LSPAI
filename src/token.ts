@@ -173,7 +173,7 @@ export async function getDecodedTokensFromLine(document: vscode.TextDocument, li
 
 
 export async function retrieveDef(document: vscode.TextDocument, decodedTokens : DecodedToken[]): Promise<DecodedToken[]>  {
-
+    console.log('Retrieving Def from Decoded tokens:', decodedTokens);
 	if (decodedTokens) {
 		for (const token of decodedTokens) {
 			const startPos = new vscode.Position(token.line, token.startChar);
@@ -187,7 +187,7 @@ export async function retrieveDef(document: vscode.TextDocument, decodedTokens :
 			);
 			token.word = word;
 			token.definition = definition;
-			console.log('Decoded token:', token);
+			// console.log('Decoded token:', token);
 		}
 	}
 	return decodedTokens;

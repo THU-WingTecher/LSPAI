@@ -6,8 +6,8 @@ import { experiment } from '../../extension'
 export async function run(): Promise<void> {
   // Create the mocha test
   console.log("index.ts")
-  const result = await experiment("java")
-  console.log(result)
+  // const result = await experiment("java")
+  // console.log(result)
   // const mocha = new Mocha({
   //   ui: 'tdd',                  // Test style
   //   color: true,                 // Enable color in output

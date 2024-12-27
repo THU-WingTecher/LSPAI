@@ -16,29 +16,39 @@ import { error } from 'console';
 // Your extension is activated the very first time the command is executed
 let WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
 let SRC = `${WORKSPACE}src/main/`;
-let TEST_PATH = `${WORKSPACE}results_test/`;
+let TEST_PATH = `${WORKSPACE}/results_test/`;
 let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 let MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
 let GENMETHODS = [MODEL, `naive_${MODEL}`];
+const PARALLEL = 10;
 // let GENMETHODS = [MODEL];
 const MAX_ROUNDS = 5;
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 	let config = vscode.workspace.getConfiguration();
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "llm-lsp-ut" is now active!');
+	const workspace = vscode.workspace.workspaceFolders;
+	if (workspace && workspace[0].uri.fsPath !== WORKSPACE) {
+		WORKSPACE = workspace[0].uri.fsPath;
+	}
+	console.log(`Current Workspace: ${WORKSPACE}`);
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	const disposable_exp = vscode.commands.registerCommand('llm-lsp-ut.JavaExperiment', () => {
+	const disposable_exp = await vscode.commands.registerCommand('llm-lsp-ut.JavaExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
 		vscode.window.showInformationMessage('JavaExperiment!');
 		const language = "java";
-		WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
-		SRC = `${WORKSPACE}src/main/`;
-		TEST_PATH = `${WORKSPACE}results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
+		SRC = `${WORKSPACE}/src/main/`;
+		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
-		experiment(language)
+
+		for (const method of GENMETHODS) {
+			const results = await experiment(language, method);
+			console.log(method, 'Results:', results);
+			const successCount = results.filter(result => result).length;
+			console.log(`${method}-Success: ${successCount}/${results.length}`);
+		}
 		vscode.window.showInformationMessage('Experiment Ended!');
 		
 	});
@@ -48,7 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "go";
-		experiment(language)
+		// experiment(language)
 		vscode.window.showInformationMessage('GoExperiment!');
 	});
 
@@ -100,8 +110,11 @@ function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function filterSymbolLessThanLine(symbols: vscode.DocumentSymbol[], line: number): vscode.DocumentSymbol[] {
+function filterSymbolsLessThanLine(symbols: vscode.DocumentSymbol[], line: number): vscode.DocumentSymbol[] {
 	return symbols.filter(symbol => symbol.range.end.line-symbol.range.start.line < line);
+}
+function isSymbolLessThanLines(symbol: vscode.DocumentSymbol, line: number): boolean {
+	return symbol.range.end.line-symbol.range.start.line < line;
 }
 export async function genUnitTestForFiles(Files: string[], language: string) : Promise<boolean[]> {
 	const generatedResults = [];
@@ -114,8 +127,8 @@ export async function genUnitTestForFiles(Files: string[], language: string) : P
 			console.log(`document.uri == ${document.uri}`);
 			const symbols = await getAllSymbols(document.uri);
 			console.log(`Found ${symbols.length} symbols in the document.`);
-			const filteredSymbols = filterSymbolLessThanLine(symbols, 4);
-			for (const symbol of filteredSymbols) {
+			// const filteredSymbols = filterSymbolLessThanLine(symbols, 4);
+			for (const symbol of symbols) {
 				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
 					if (language === 'java' && !isPublic(symbol, document)) {
 						continue;
@@ -135,65 +148,37 @@ export async function genUnitTestForFiles(Files: string[], language: string) : P
 	return generatedResults;
 }
 
-async function parallelGenUnitTestForFiles(Files: string[], language: string) {
-    const generatedResults: any[] = []; // To store generated results
-    const suffix = getLanguageSuffix(language); // Get suffix based on language
+async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[], 
+										language: string, method: string, num_parallel: number) {
+	const generatedResults: any[] = []; // To store generated results
+	const suffix = getLanguageSuffix(language); // Get suffix based on language
+	
+	// Generate a list of symbols and corresponding file names
+	const symbolFilePairs = symbolDocumentMap.map(({symbol, document}) => {
+		const folderPath = `${TEST_PATH}${method}`;
+		const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
+		const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
+		return { document, symbol, fileName };
+	});
 
-    // Process each file in parallel
-    const tasks = Files.map(async (filePath, index) => {
-        console.log(`#### Processing file ${index + 1} of ${Files.length}: ${filePath}`);
-        
-        // Sleep asynchronously
-        await sleep(1000); // Sleep for 1 second
-        
-        // Open the document asynchronously
-        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-        console.log(`document.uri == ${document.uri}`);
-        
-        // Get symbols in parallel
-        const symbols = await getAllSymbols(document.uri);
-        console.log(`Found ${symbols.length} symbols in the document.`);
-        
-        // Parallelize symbol processing
-        const symbolTasks = symbols.map(async (symbol) => {
-            if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-                if (language === 'java' && !isPublic(symbol, document)) {
-                    return; // Skip if not public
-                }
-
-                // Open the document again for the editor
-                const curDocument = await vscode.workspace.openTextDocument(document.uri);
-                // Process methods in parallel
-                const methodTasks = GENMETHODS.map(async (method) => {
-                    const folderPath = `${TEST_PATH}${method}`;
-                    const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
-                    const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
-                    
-                    // Generate unit tests and store the result
-                    const result = await generateUnitTestForAFunction(curDocument, symbol, fileName, method);
-                    generatedResults.push(result);
-                });
-
-                // Wait for all method processing tasks to complete
-                await Promise.all(methodTasks);
-
-                // Close the editor after all tasks are done
-                await closeActiveEditor(curDocument);
-            }
-        });
-
-        // Wait for all symbol processing tasks to complete
-        await Promise.all(symbolTasks);
-    });
-
-    // Wait for all file processing tasks to complete
-    await Promise.all(tasks);
-
+	// Process symbols in parallel batches
+	for (let i = 0; i < symbolFilePairs.length; i += num_parallel) {
+		const batch = symbolFilePairs.slice(i, i + num_parallel);
+		const symbolTasks = await batch.map(async ({ document, symbol, fileName }) => {
+			console.log(`#### Processing symbol ${symbol.name}`);
+			
+			// Generate unit tests and store the result
+			const result = await generateUnitTestForAFunction(document, symbol, fileName, method);
+			generatedResults.push(result);
+		});
+		await Promise.all(symbolTasks);
+	}
     // Return the generated results after all tasks are completed
     return generatedResults;
 }
 
-export async function experiment(language: string) : Promise<boolean[]> {
+
+export async function experiment(language: string, method: string) : Promise<boolean[]> {
 	logCurrentSettings()
 	const suffix = getLanguageSuffix(language); 
 
@@ -209,17 +194,32 @@ export async function experiment(language: string) : Promise<boolean[]> {
 	}
 	const Files: string[] = [];
 	findFiles(SRC, Files);
-	const num_parallel = 10;
-	const batchSize = Math.ceil(Files.length / num_parallel);
-	const generatedResults = [];
+	const symbolsToTest: vscode.DocumentSymbol[] = [];
+	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
 
-	for (let i = 0; i < num_parallel; i++) {
-		const batch = Files.slice(i * batchSize, (i + 1) * batchSize);
-		const results = await parallelGenUnitTestForFiles(batch, language);
-		generatedResults.push(...results);
+	for (const filePath of Files) {
+		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
+		console.log(`#### Preparing symbols under file: ${filePath}`);
+		const symbols = await getAllSymbols(document.uri);
+		if (symbols) {
+			for (const symbol of symbols) {
+				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
+					if (language === 'java' && !isPublic(symbol, document)) {
+						continue;
+					}
+					if (isSymbolLessThanLines(symbol, 4)){
+						continue;
+					}
+					symbolDocumentMap.push({ symbol, document });
+				}
+			}
+		}
+		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
 	}
+	
+	const generatedResults = await parallelGenUnitTestForSymbols(symbolDocumentMap, language, method, PARALLEL);
 	console.log('#### Experiment completed!');
-	logCurrentSettings()
+	logCurrentSettings();
 	return generatedResults;
 }
 
@@ -245,14 +245,23 @@ function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscod
 	}
 }
 
+async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+	const symbols = await Promise.race([
+		vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+			'vscode.executeDocumentSymbolProvider',
+			uri
+		),
+		new Promise<vscode.DocumentSymbol[]>(resolve => setTimeout(() => resolve([]), 5000))
+	]);
+	return symbols || [];
+}
 async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
 	const allSymbols: vscode.DocumentSymbol[] = [];
-	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-		'vscode.executeDocumentSymbolProvider',
-		uri
-	);
-	console.log(`uri = ${uri}, symbols = ${symbols}`);
+	console.log("sending request to get all symbols");
+	const symbols = await customExecuteDocumentSymbolProvider(uri);
+	// console.log(`uri = ${uri}, symbols = ${symbols}`);
 	function collectSymbols(symbols: vscode.DocumentSymbol[]) {
+		console.log("collecting...")
 		for (const symbol of symbols) {
 			allSymbols.push(symbol);
 			if (symbol.children.length > 0) {
@@ -367,7 +376,7 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 		testCode = await invokeLLM(method, promptObj, logObj);
 		testCode = parseCode(testCode);
 		expData.push({llmInfo: logObj, process: "invokeLLM", time: (Date.now() - startLLMTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
-		console.log('Generated Final test code:', testCode);
+		// console.log('Generated Final test code:', testCode);
 	} catch (error) {
 		if (error instanceof TokenLimitExceededError) {
 			console.warn('Token limit exceeded, continuing...');
@@ -393,7 +402,7 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			testCode = testCodeFromFile;
 			const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(fullFileName), diagnostics, method);
 			const diagnosticPrompts = constructDiagnosticPrompt(testCode, diagnosticMessages.join('\n'), collectedData.functionSymbol.name, collectedData.mainfunctionParent, collectedData.SourceCode)
-			console.log('Constructed Diagnostic Prompts:', diagnosticPrompts);
+			console.log('Constructed Diagnostic Messages:', diagnosticMessages);
 			const chatMessages: ChatMessage[] = [
 				{ role: "system", content: "" },
 				{ role: "user", content: diagnosticPrompts }
@@ -410,7 +419,6 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			try {
 				aiResponse = await invokeLLM(method, promptObj.messages, fixlogObj);
 				expData.push({llmInfo: fixlogObj, process: `FixWithLLM_${round}`, time: (Date.now() - fixStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: diagnosticMessages.join('\n')});
-				console.log('AI Response:', aiResponse);
 			} catch (error) {
 				if (error instanceof TokenLimitExceededError) {
 					console.warn('Token limit exceeded, continuing...');
@@ -421,16 +429,8 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 				continue;
 			}
 	
-			// Step 4: Write AI-generated code to a temporary file
 			const newTestCode = parseCode(aiResponse);
-			console.log('Generated Final test code:', newTestCode);
-			// const tempFilePath = writeCodeToTempFile(newTestCode);
-			// console.log(`AI-generated code written to temporary file: ${tempFilePath}`);
-	
-			// // Step 5: Read the generated code (assuming it's intended to fix the original file)
-			// const generatedCode = fs.readFileSync(tempFilePath, 'utf-8');
-	
-			// Step 6: Update the original file with the generated code
+
 			try {
 				const saveStartTime = Date.now();
 				await saveGeneratedCodeToFolder(newTestCode, fullFileName);
@@ -501,7 +501,7 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 	fs.writeFileSync(jsonFilePath, JSON.stringify(jsonContent, null, 2), 'utf8');
 	// Ensure the directory exists
 
-	console.log('Experiment data saved to experiment_data.json');
+	console.log(`Experiment data saved to ${jsonFilePath}`);
 
 	return genResult;
 }
@@ -528,7 +528,7 @@ async function generateUnitTestForSelectedRange(document: vscode.TextDocument, p
 			const parent = getSymbolDetail(document, functionSymbolWithParents[0]);
 			const children = functionSymbolWithParents.slice(1).map(symbol => getSymbolDetail(document, symbol)).join(' ');
 			targetCodeContextString = `${parent} { ${children} }`;
-			console.log(targetCodeContextString);
+			console.log(`targetCodeContext, : ${targetCodeContextString}`);
 		}
 		const folderPath = `${TEST_PATH}${GENMETHODS[1]}`;
 		
