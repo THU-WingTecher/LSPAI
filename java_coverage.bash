@@ -78,4 +78,4 @@ echo "Coverage report generated at $REPORT_DIR"
 # Echo the result
 echo "Total files: $total_files_count"
 echo ".java files: $valid_files_count"
-echo "Percentage of .java files: $percentage%"
+echo "Percentage of $REPORT_DIR java files: $percentage%"

@@ -32,7 +32,6 @@ export function activate(context: vscode.ExtensionContext) {
 	// The commandId parameter must match the command field in package.json
 	const disposable_exp = vscode.commands.registerCommand('llm-lsp-ut.JavaExperiment', () => {
 		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
 		vscode.window.showInformationMessage('JavaExperiment!');
 		const language = "java";
 		WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
@@ -40,25 +39,10 @@ export function activate(context: vscode.ExtensionContext) {
 		TEST_PATH = `${WORKSPACE}results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		experiment(language)
+		vscode.window.showInformationMessage('Experiment Ended!');
 		
 	});
 	context.subscriptions.push(disposable_exp);
-
-	const disposable = vscode.commands.registerCommand('llm-lsp-ut.JavaExperimentTest', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		console.log(`Testing the folder of ${SRC}`);
-		console.log(`saving the result to ${TEST_PATH}`);
-		console.log(`Model: ${MODEL}`);
-		console.log(`Methods: ${GENMETHODS}`);
-		console.log(`Max Rounds: ${MAX_ROUNDS}`);
-		console.log(`Experiment Log Folder: ${EXP_LOG_FOLDER}`);
-		const language = "java";
-		experiment(language)
-		vscode.window.showInformationMessage('JavaExperiment!');
-	});
-
-	context.subscriptions.push(disposable);
 
 	const disposable3 = vscode.commands.registerCommand('llm-lsp-ut.GoExperiment', () => {
 		// The code you place here will be executed every time your command is executed
@@ -225,7 +209,15 @@ export async function experiment(language: string) : Promise<boolean[]> {
 	}
 	const Files: string[] = [];
 	findFiles(SRC, Files);
-	const generatedResults = await parallelGenUnitTestForFiles(Files.slice(0, 10), language);
+	const num_parallel = 10;
+	const batchSize = Math.ceil(Files.length / num_parallel);
+	const generatedResults = [];
+
+	for (let i = 0; i < num_parallel; i++) {
+		const batch = Files.slice(i * batchSize, (i + 1) * batchSize);
+		const results = await parallelGenUnitTestForFiles(batch, language);
+		generatedResults.push(...results);
+	}
 	console.log('#### Experiment completed!');
 	logCurrentSettings()
 	return generatedResults;
@@ -441,7 +433,7 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			// Step 6: Update the original file with the generated code
 			try {
 				const saveStartTime = Date.now();
-				await saveGeneratedCodeToFolder(fullFileName, newTestCode);
+				await saveGeneratedCodeToFolder(newTestCode, fullFileName);
 				expData.push({llmInfo: null, process: "saveGeneratedCodeToFolder", time: (Date.now() - saveStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 				console.log('Original file updated with AI-generated code.');
 			} catch (error) {
@@ -494,7 +486,7 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 	});
 	const dir = path.dirname(jsonFilePath);
 	if (!fs.existsSync(dir)) {
-	fs.mkdirSync(dir, { recursive: true });
+		fs.mkdirSync(dir, { recursive: true });
 	}
 	// Check if the file exists and if not, initialize an empty array
 	let jsonContent = [];
