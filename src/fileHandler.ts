@@ -23,3 +23,13 @@ export async function updateOriginalFile(filePath: string, newCode: string): Pro
     edit.replace(uri, fullRange, newCode);
     await workspace.applyEdit(edit);
 }
+
+export async function saveGeneratedCodeToFolder(code: string, fileName: string): Promise<void> {
+	const folderPath = path.dirname(fileName);
+	if (!fs.existsSync(folderPath)) {
+		fs.mkdirSync(folderPath, { recursive: true });
+	}
+
+	fs.writeFileSync(fileName, code, 'utf8');
+	console.log(`Generated code saved to ${fileName}`);
+}

@@ -66,7 +66,7 @@ function getReturnTokens(
                         returnedTokens.push(token);
                     } else {
                         // Handle cases where the variable is not found in DefUseMap
-                        console.warn(`Variable "${cleanVarName}" returned but not found in DefUseMap.`);
+                        console.log(`Variable "${cleanVarName}" returned but not found in DefUseMap.`);
                     }
                 }
             }

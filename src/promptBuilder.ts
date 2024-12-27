@@ -9,7 +9,7 @@ export interface Prompt {
 
 export function constructDiagnosticPrompt(unit_test: string, diagnosticMessages: string, method_sig: string, class_name: string, testcode: string): string {
     return `
-I need you to fix an error in a unit test, an error occurred while compiling and executing
+I need you to fix an error in a unit test, an error occurred while compiling and executing.
 
 The unit test is:
 \`\`\`
@@ -49,7 +49,7 @@ I need you to create a whole unit test, ensuring optimal branch and line coverag
 // }
 export function JavaUnitTestTemplate(FileName: string, packageString: string): string {
     return `
-    Based on the provided information, you need to generate a unit test using Junit5, and Mock3 following below format:
+    Based on the provided information, you need to generate a unit test using Junit5, and Mock3.
     \`\`\`
     package ${packageString}
     {Replace With Needed Imports}
@@ -65,10 +65,7 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
 export function ChatUnitTestOurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
     return `
     The focal method is \`${functionName}\` in the \`${class_name}\`,
-    Based on the provided information, you need to generate a unit test following below format:
-
-    ${functionContext}. 
-    
+    ${functionContext}
     ${JavaUnitTestTemplate(FileName, packageString)}
 
     The source code of the focal method is:

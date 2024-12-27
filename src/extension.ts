@@ -7,11 +7,10 @@ import * as path from 'path';
 import { DecodedToken, extractUseDefInfo } from './token';
 import { invokeLLM, genPrompt, isBaseline, collectInfo, TokenLimitExceededError } from './generate';
 import { closeActiveEditor, getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
-import { classifyTokenByUri, getpackageStatement, summarizeClass } from './retrieve';
+import { getpackageStatement, summarizeClass } from './retrieve';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
-import {updateOriginalFile } from './fileHandler';
+import { saveGeneratedCodeToFolder } from './fileHandler';
 import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
-import { getPackedSettings } from 'http2';
 import { error } from 'console';
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -20,8 +19,8 @@ let SRC = `${WORKSPACE}src/main/`;
 let TEST_PATH = `${WORKSPACE}results_test/`;
 let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 let MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
-// let GENMETHODS = [MODEL, `naive_${MODEL}`];
-let GENMETHODS = [MODEL];
+let GENMETHODS = [MODEL, `naive_${MODEL}`];
+// let GENMETHODS = [MODEL];
 const MAX_ROUNDS = 5;
 export function activate(context: vscode.ExtensionContext) {
 	let config = vscode.workspace.getConfiguration();
@@ -117,6 +116,9 @@ function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function filterSymbolLessThanLine(symbols: vscode.DocumentSymbol[], line: number): vscode.DocumentSymbol[] {
+	return symbols.filter(symbol => symbol.range.end.line-symbol.range.start.line < line);
+}
 export async function genUnitTestForFiles(Files: string[], language: string) : Promise<boolean[]> {
 	const generatedResults = [];
 	const suffix = getLanguageSuffix(language); 
@@ -128,7 +130,8 @@ export async function genUnitTestForFiles(Files: string[], language: string) : P
 			console.log(`document.uri == ${document.uri}`);
 			const symbols = await getAllSymbols(document.uri);
 			console.log(`Found ${symbols.length} symbols in the document.`);
-			for (const symbol of symbols) {
+			const filteredSymbols = filterSymbolLessThanLine(symbols, 4);
+			for (const symbol of filteredSymbols) {
 				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
 					if (language === 'java' && !isPublic(symbol, document)) {
 						continue;
@@ -222,7 +225,7 @@ export async function experiment(language: string) : Promise<boolean[]> {
 	}
 	const Files: string[] = [];
 	findFiles(SRC, Files);
-	const generatedResults = await parallelGenUnitTestForFiles(Files, language);
+	const generatedResults = await parallelGenUnitTestForFiles(Files.slice(0, 10), language);
 	console.log('#### Experiment completed!');
 	logCurrentSettings()
 	return generatedResults;
@@ -271,15 +274,6 @@ async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> 
 	}
 
 	return allSymbols;
-}
-async function saveGeneratedCodeToFolder(code: string, fileName: string): Promise<void> {
-	const folderPath = path.dirname(fileName);
-	if (!fs.existsSync(folderPath)) {
-		fs.mkdirSync(folderPath, { recursive: true });
-	}
-
-	fs.writeFileSync(fileName, code, 'utf8');
-	console.log(`Generated code saved to ${fileName}`);
 }
 
 function getUniqueFileName(folderPath: string, fileName: string): string {
@@ -343,9 +337,6 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 	expData.push({llmInfo: null, process: "start", time: "", method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
     // Log the start of the experiment
     
-    // Start measuring execution time for the function
-    console.time('Function Execution Time');
-
     // 获取当前使用的编程语言
     const languageId = document.languageId;
     console.log('Language ID:', languageId);
@@ -450,7 +441,7 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			// Step 6: Update the original file with the generated code
 			try {
 				const saveStartTime = Date.now();
-				await updateOriginalFile(fullFileName, newTestCode);
+				await saveGeneratedCodeToFolder(fullFileName, newTestCode);
 				expData.push({llmInfo: null, process: "saveGeneratedCodeToFolder", time: (Date.now() - saveStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 				console.log('Original file updated with AI-generated code.');
 			} catch (error) {
@@ -479,7 +470,6 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
     }
 
     // Stop measuring the execution time
-    console.timeEnd('Function Execution Time');
 	expData.push({llmInfo: null, process: "End", time: (Date.now() - overallStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 
 	// Append to CSV file
