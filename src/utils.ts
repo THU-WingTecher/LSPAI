@@ -64,6 +64,38 @@ export function isStandardClass(uri: string, language: string): boolean {
     return patterns.some(pattern => decodedUri.includes(pattern));
 }
 
+async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+	const symbols = await Promise.race([
+		vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+			'vscode.executeDocumentSymbolProvider',
+			uri
+		),
+		new Promise<vscode.DocumentSymbol[]>(resolve => setTimeout(() => resolve([]), 5000))
+	]);
+	return symbols || [];
+}
+
+export async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+    const allSymbols: vscode.DocumentSymbol[] = [];
+    console.log("sending request to get all symbols");
+    const symbols = await customExecuteDocumentSymbolProvider(uri);
+    // console.log(`uri = ${uri}, symbols = ${symbols}`);
+    function collectSymbols(symbols: vscode.DocumentSymbol[]) {
+        console.log("collecting...")
+        for (const symbol of symbols) {
+            allSymbols.push(symbol);
+            if (symbol.children.length > 0) {
+                collectSymbols(symbol.children);
+            }
+        }
+    }
+
+    if (symbols) {
+        collectSymbols(symbols);
+    }
+
+    return allSymbols;
+}
 
 export function parseCode(response: string): string {
     // Regular expression to match code block wrapped by triple backticks, optional `~~`, and language tag

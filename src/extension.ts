@@ -6,12 +6,14 @@ import * as path from 'path';
 
 import { DecodedToken, extractUseDefInfo } from './token';
 import { invokeLLM, genPrompt, isBaseline, collectInfo, TokenLimitExceededError } from './generate';
-import { closeActiveEditor, getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
-import { getpackageStatement, summarizeClass } from './retrieve';
+import { closeActiveEditor, getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode, getAllSymbols } from './utils';
+import { summarizeClass } from './retrieve';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
-import { saveGeneratedCodeToFolder } from './fileHandler';
+import { saveGeneratedCodeToFolder, getUniqueFileName, genFileNameWithGivenSymbol } from './fileHandler';
 import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
 import { error } from 'console';
+import { LLMLogs, ExpLogs } from './log';
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 let WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
@@ -20,9 +22,11 @@ let TEST_PATH = `${WORKSPACE}/results_test/`;
 let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 let MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
 let GENMETHODS = [MODEL, `naive_${MODEL}`];
-const PARALLEL = 10;
+const PARALLEL = 1;
 // let GENMETHODS = [MODEL];
 const MAX_ROUNDS = 5;
+
+export function deactivate() { }
 export async function activate(context: vscode.ExtensionContext) {
 	let config = vscode.workspace.getConfiguration();
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
@@ -110,9 +114,41 @@ function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function filterSymbolsLessThanLine(symbols: vscode.DocumentSymbol[], line: number): vscode.DocumentSymbol[] {
-	return symbols.filter(symbol => symbol.range.end.line-symbol.range.start.line < line);
+async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<void> {
+
+	// 获取符号信息
+	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+		'vscode.executeDocumentSymbolProvider',
+		document.uri
+	);
+
+	if (!symbols) {
+		vscode.window.showErrorMessage('No symbols found!');
+		return;
+	}
+
+	// const allUseMap = new Map<String, Array<vscode.Location>>();
+	// 获取光标位置
+	const functionSymbolWithParents = getFunctionSymbolWithItsParents(symbols, position)!;
+	let targetCodeContextString = "";
+	if (functionSymbolWithParents.length > 0) {
+		const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0]);
+		const parent = getSymbolDetail(document, functionSymbolWithParents[0]);
+		const children = functionSymbolWithParents.slice(1).map(symbol => getSymbolDetail(document, symbol)).join(' ');
+		targetCodeContextString = `${parent} { ${children} }`;
+		console.log(`targetCodeContext, : ${targetCodeContextString}`);
+	}
+	const folderPath = `${TEST_PATH}${GENMETHODS[1]}`;
+	
+	const functionSymbol = getFunctionSymbol(symbols, position)!;
+	
+	const fileSig = genFileNameWithGivenSymbol(document, functionSymbol, document.languageId);
+	const fileName = getUniqueFileName(folderPath, `${fileSig}Test.java`);
+	await generateUnitTestForAFunction(document, functionSymbol, fileName, GENMETHODS[0]);
+
 }
+
+
 function isSymbolLessThanLines(symbol: vscode.DocumentSymbol, line: number): boolean {
 	return symbol.range.end.line-symbol.range.start.line < line;
 }
@@ -164,14 +200,19 @@ async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode
 	// Process symbols in parallel batches
 	for (let i = 0; i < symbolFilePairs.length; i += num_parallel) {
 		const batch = symbolFilePairs.slice(i, i + num_parallel);
-		const symbolTasks = await batch.map(async ({ document, symbol, fileName }) => {
+		const symbolTasks = batch.map(async ({ document, symbol, fileName }) => {
 			console.log(`#### Processing symbol ${symbol.name}`);
 			
 			// Generate unit tests and store the result
 			const result = await generateUnitTestForAFunction(document, symbol, fileName, method);
 			generatedResults.push(result);
 		});
-		await Promise.all(symbolTasks);
+		await Promise.all(symbolTasks.map(task => 
+			Promise.race([
+				task,
+				sleep(300*1000).then(() => console.warn('Timeout exceeded for symbol processing'))
+			])
+		));
 	}
     // Return the generated results after all tasks are completed
     return generatedResults;
@@ -224,110 +265,21 @@ export async function experiment(language: string, method: string) : Promise<boo
 }
 
 function logCurrentSettings() {
-	console.log(`Testing the folder of ${SRC}`);
-	console.log(`saving the result to ${TEST_PATH}`);
-	console.log(`Model: ${MODEL}`);
-	console.log(`Methods: ${GENMETHODS}`);
-	console.log(`Max Rounds: ${MAX_ROUNDS}`);
-	console.log(`Experiment Log Folder: ${EXP_LOG_FOLDER}`);
-}
-function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
-	const fileName = document.fileName.split('/').pop()!.replace(/\.\w+$/, '');
-	const funcName = document.getText(symbol.selectionRange);
-	const finalName = `${fileName}_${funcName}`;
-	if (language === 'java') {
-		const packageStatements = getpackageStatement(document)
-		const packageStatement = packageStatements ? packageStatements[0] : '';
-		const packageFolder = packageStatement.replace(";","").split(' ')[1].replace(/\./g, '/');
-		return `${packageFolder}/${finalName}`;
-	} else {
-		return finalName;
-	}
+    console.log(`Testing the folder of ${SRC}`);
+    console.log(`saving the result to ${TEST_PATH}`);
+    console.log(`Model: ${MODEL}`);
+    console.log(`Methods: ${GENMETHODS}`);
+    console.log(`Max Rounds: ${MAX_ROUNDS}`);
+    console.log(`Experiment Log Folder: ${EXP_LOG_FOLDER}`);
 }
 
-async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
-	const symbols = await Promise.race([
-		vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-			'vscode.executeDocumentSymbolProvider',
-			uri
-		),
-		new Promise<vscode.DocumentSymbol[]>(resolve => setTimeout(() => resolve([]), 5000))
-	]);
-	return symbols || [];
-}
-async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
-	const allSymbols: vscode.DocumentSymbol[] = [];
-	console.log("sending request to get all symbols");
-	const symbols = await customExecuteDocumentSymbolProvider(uri);
-	// console.log(`uri = ${uri}, symbols = ${symbols}`);
-	function collectSymbols(symbols: vscode.DocumentSymbol[]) {
-		console.log("collecting...")
-		for (const symbol of symbols) {
-			allSymbols.push(symbol);
-			if (symbol.children.length > 0) {
-				collectSymbols(symbol.children);
-			}
-		}
-	}
-
-	if (symbols) {
-		collectSymbols(symbols);
-	}
-
-	return allSymbols;
-}
-
-function getUniqueFileName(folderPath: string, fileName: string): string {
-    let counter = 1;
-    
-    // Find the part before 'Test.' and the 'Test.${suffix}' part
-    const baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
-    const suffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
-
-    // Initial new file name with counter right before Test.${suffix}
-    let newFileName = `${baseName}${counter}${suffix}`;
-    
-    // Check if the file exists, and increment the counter if it does
-    while (fs.existsSync(`${folderPath}/${newFileName}`)) {
-        counter++;
-        newFileName = `${baseName}${counter}${suffix}`;
-    }
-
-    return `${folderPath}/${newFileName}`;
-}
-// async function getSummarizedContext(editor: vscode.TextEditor, functionSymbol: vscode.Position): Promise<string> {
-// 	let res = "";
-// 	const importStatements = getImportStatement(editor);
-// 	const allSymbols = 
-// 	// Get variables, classes, ... in the context of the function
-// 	// Get all import libraries
-// 	// From this file, get all the used varaiables, classes, ...
-// 	return res;
-
-// }
-
-interface ExpLogs {
-	llmInfo : LLMLogs | null;
-	process : string;
-	time : string;
-	method : string;
-	fileName : string;
-	function : string;
-	errMsag : string;
-}
-
-interface LLMLogs {
-	tokenUsage : string;
-	result : string;
-	prompt : string;
-	model : string;
-}
 
 function isPublic(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): boolean {
 	const funcDefinition = document.lineAt(symbol.selectionRange.start.line).text;
 	return funcDefinition.includes('public') || false;
 }
 
+// main entry
 async function generateUnitTestForAFunction(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string, method: string): Promise<boolean> {
 
 	let genResult = false;
@@ -342,17 +294,6 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
     const languageId = document.languageId;
     console.log('Language ID:', languageId);
 
-    let DefUseMap: DecodedToken[] = [];
-    if (!isBaseline(method)) {
-        console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
-        const startTime = Date.now()
-		DefUseMap = await extractUseDefInfo(document, functionSymbol);
-		expData.push({llmInfo: null, process: "extractUseDefInfo", time: (Date.now() - startTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
-        console.log("DefUse Map length:", DefUseMap.length);
-    } else {
-        console.log("Baseline method");
-    }
-
     let functionName: string | null = null;
     if (!functionSymbol || !isFunctionSymbol(functionSymbol)) {
         vscode.window.showErrorMessage('No valid function symbol found!');
@@ -366,10 +307,11 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
     // 使用 LLM 生成单元测试
     let testCode = "";
 	const startTime = Date.now();
-
-    const collectedData = await collectInfo(document, functionSymbol, DefUseMap, languageId, fileName, method);
+	let originalCode = "";
+    const collectedData = await collectInfo(document, functionSymbol, languageId, fileName, method);
 	expData.push({llmInfo: null, process: "collectInfo", time: (Date.now() - startTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
     const promptObj = await genPrompt(collectedData, method);
+	let prev_diagnostics;
 	let logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: MODEL};
     const startLLMTime = Date.now();
 	try {
@@ -430,9 +372,9 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			}
 	
 			const newTestCode = parseCode(aiResponse);
-
 			try {
 				const saveStartTime = Date.now();
+				originalCode = fs.readFileSync(fullFileName, 'utf8');
 				await saveGeneratedCodeToFolder(newTestCode, fullFileName);
 				expData.push({llmInfo: null, process: "saveGeneratedCodeToFolder", time: (Date.now() - saveStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 				console.log('Original file updated with AI-generated code.');
@@ -442,9 +384,18 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			}
 	
 			// Step 7: Retrieve updated diagnostics
+			prev_diagnostics = diagnostics;
 			const diagStartTime2 = Date.now();
 			diagnostics = await getDiagnosticsForFilePath(fullFileName);
 			expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime2).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
+			if (diagnostics.length > prev_diagnostics.length && originalCode) {
+				console.log('Diagnostics increased, reverting to original code.');
+				fs.writeFileSync(fullFileName, originalCode, 'utf8');
+				console.log('Original code restored, re-collecting diagnostics...');
+				const diagStartTime2 = Date.now();
+				diagnostics = await getDiagnosticsForFilePath(fullFileName);
+				expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime2).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
+			}
 			console.log(`Remaining Diagnostics after Round ${round}:`, diagnostics.length);
 		}
 	
@@ -506,86 +457,3 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 	return genResult;
 }
 
-async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<void> {
-
-		// 获取符号信息
-		const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-			'vscode.executeDocumentSymbolProvider',
-			document.uri
-		);
-
-		if (!symbols) {
-			vscode.window.showErrorMessage('No symbols found!');
-			return;
-		}
-
-		// const allUseMap = new Map<String, Array<vscode.Location>>();
-		// 获取光标位置
-		const functionSymbolWithParents = getFunctionSymbolWithItsParents(symbols, position)!;
-		let targetCodeContextString = "";
-		if (functionSymbolWithParents.length > 0) {
-			const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0]);
-			const parent = getSymbolDetail(document, functionSymbolWithParents[0]);
-			const children = functionSymbolWithParents.slice(1).map(symbol => getSymbolDetail(document, symbol)).join(' ');
-			targetCodeContextString = `${parent} { ${children} }`;
-			console.log(`targetCodeContext, : ${targetCodeContextString}`);
-		}
-		const folderPath = `${TEST_PATH}${GENMETHODS[1]}`;
-		
-		const functionSymbol = getFunctionSymbol(symbols, position)!;
-		
-		const fileSig = genFileNameWithGivenSymbol(document, functionSymbol, document.languageId);
-		const fileName = getUniqueFileName(folderPath, `${fileSig}Test.java`);
-		await generateUnitTestForAFunction(document, functionSymbol, fileName, GENMETHODS[1]);
-
-}
-
-
-
-// This method is called when your extension is deactivated
-export function deactivate() { }
-
-// async function generateUnitTestForAFunction(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, fileName: string, method: string): Promise<void> {
-	
-// 	// 获取当前使用的编程语言
-// 	const languageId = editor.document.languageId;
-// 	console.log('Language ID:', languageId);
-// 	let DefUseMap: DecodedToken[] = [];
-// 	if (!isBaseline(method)) {
-// 		console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
-// 		DefUseMap = await extractUseDefInfo(editor, functionSymbol);
-// 		console.log("DefUse Map length:", DefUseMap.length);
-// 	} else {
-// 		console.log("Baseline method");
-// 	}
-// 	let functionName: string | null = null; 
-// 	if (!functionSymbol || !isFunctionSymbol(functionSymbol)) {
-// 		vscode.window.showErrorMessage('No valid function symbol found!');
-// 		// functionName = await getFunctionNameWithLSP(editor, position);
-// 	}
-
-// 	functionName = functionSymbol.name;
-// 	console.log('Function Symbol:', functionSymbol);
-// 	console.log('Function definition:', functionSymbol.detail);
-
-// 	if (!isValidFunctionSymbol(functionSymbol)) {
-// 		return;
-// 	};
-
-// 	// 使用 LLM 生成单元测试
-
-// 	let testCode = "";
-// 	const collectedData = await collectInfo(editor, functionSymbol, DefUseMap, languageId, fileName, method);
-// 	const promptObj = await genPrompt(collectedData, method);
-// 	testCode = await invokeLLM(method, promptObj);
-// 	testCode = parseCode(testCode);
-// 	console.log('Generated Final test code:', testCode);
-// 	if (testCode) {
-// 		await saveGeneratedCodeToFolder(testCode, fileName);
-// 		fixDiagnostics(fileName, method, testCode, collectedData.functionSymbol.name, collectedData.mainfunctionParent, collectedData.SourceCode);
-// 	}
-// 	if (!testCode) {
-// 		vscode.window.showErrorMessage('Failed to generate unit test!');
-// 		return;
-// 	}
-// }

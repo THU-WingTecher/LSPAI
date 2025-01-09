@@ -62,18 +62,19 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
     `;
 }
 
-export function ChatUnitTestOurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
+export function ChatUnitTestOurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string, refCodes: string): string {
     return `
     The focal method is \`${functionName}\` in the \`${class_name}\`,
     ${functionContext}
-    ${JavaUnitTestTemplate(FileName, packageString)}
-
     The source code of the focal method is:
     \`\`\`
     ${code}
     \`\`\`
-
-    ${dependentContext}
+    ${JavaUnitTestTemplate(FileName, packageString)}
+    ${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
+    \`\`\`
+    ${refCodes}
+    \`\`\`` : ''}
     `;
 }
 

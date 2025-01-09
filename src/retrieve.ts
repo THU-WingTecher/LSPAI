@@ -244,18 +244,19 @@ function mapFilteredSymbols(
     return parentDefinitions;
 }
 
+function isInWorkspace(uriString: string): boolean {
+    const workspaceFolders = vscode.workspace.workspaceFolders || [];
+    return workspaceFolders.some(folder => uriString.startsWith(folder.uri.toString()));
+}
+
 export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMap: DecodedToken[]): Promise<Map<string, DecodedToken[]>> {
     // Get all definitions from DefUseMap, but we retreive the method and definition together
     // Define the structure for ParentDefinition
     const tokenMap = new Map<string, DecodedToken[]>();
-    // Get workspace folders to check if the document is part of the workspace
-    const workspaceFolders = vscode.workspace.workspaceFolders || [];
-    const currentDocumentUri = document.uri.toString();
-    const isInWorkspace = workspaceFolders.some(folder => currentDocumentUri.startsWith(folder.uri.toString()));
 
     for (const token of DefUseMap) {
         const uri = token.definition?.[0]?.uri.toString();
-        if (uri && !isInWorkspace) {
+        if (uri && isInWorkspace(uri)) {
             if (!tokenMap.has(uri)) {
                 tokenMap.set(uri, []);
             }

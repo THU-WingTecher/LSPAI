@@ -6,9 +6,10 @@ import * as vscode from 'vscode';
 
 import {ChatUnitTestSystemPrompt, ChatUnitTestOurUserPrompt, ChatUnitTestBaseUserPrompt} from "./promptBuilder";
 import { HttpsProxyAgent } from 'https-proxy-agent';
-import { DecodedToken, createSystemPromptWithDefUseMap } from "./token";
+import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from "./token";
 import {getpackageStatement, getDependentContext, DpendenceAnalysisResult} from "./retrieve";
 import {ChatMessage, Prompt} from "./promptBuilder";
+import {getReferenceInfo} from "./reference";
 
 const TOKENTHRESHOLD = 2000; // Define your token threshold here
 
@@ -16,6 +17,7 @@ interface collectInfo {
 	dependentContext: string;
 	mainFunctionDependencies: string;
 	mainfunctionParent: string;
+	referenceCodes: string;
 	SourceCode: string;
 	languageId: string;
 	functionSymbol: vscode.DocumentSymbol;
@@ -43,18 +45,25 @@ function getModelName(method: string): string {
 
 
 
-export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, DefUseMap: DecodedToken[], languageId: string, fileName: string, method: string): Promise<collectInfo> {
+export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string, method: string): Promise<collectInfo> {
 	let mainFunctionDependencies = "";
 	let dependentContext = "";
 	let mainfunctionParent = "";
+	let referenceCodes = "";
+	let DefUseMap: DecodedToken[] = [];
 	const textCode = document.getText(functionSymbol.range);
 	const packageStatement = getpackageStatement(document);
 
 	if (!isBaseline(method)) {
+
+		console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
+		DefUseMap = await extractUseDefInfo(document, functionSymbol);
 		const DependenciesInformation: DpendenceAnalysisResult = await getDependentContext(document, DefUseMap, functionSymbol);
 		dependentContext = DependenciesInformation.dependencies;
 		mainFunctionDependencies = DependenciesInformation.mainFunctionDependencies;
 		mainfunctionParent = DependenciesInformation.mainfunctionParent;
+		referenceCodes = await getReferenceInfo(document, functionSymbol.selectionRange);
+
 	}
 	return {
 		dependentContext: dependentContext,
@@ -64,6 +73,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 		languageId: languageId,
 		functionSymbol: functionSymbol,
 		fileName: fileName,
+		referenceCodes: referenceCodes,
 		packageString: packageStatement ? packageStatement[0] : ''
 	}
 }
@@ -81,7 +91,7 @@ export async function genPrompt(data: collectInfo, method: string): Promise<any>
 		dependentContext = data.dependentContext;
 		mainFunctionDependencies = data.mainFunctionDependencies;
 		mainfunctionParent = data.mainfunctionParent;
-		prompt = ChatUnitTestOurUserPrompt( textCode, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName);
+		prompt = ChatUnitTestOurUserPrompt( textCode, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName, data.referenceCodes);
 
 	} else {
 		prompt = ChatUnitTestBaseUserPrompt(textCode, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName);
@@ -124,7 +134,7 @@ export async function invokeLLM(method: string, promptObj: any, logObj: any): Pr
 }
 
 async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<string> {
-	const proxy = "http://166.111.83.92:12333";
+	const proxy = "http://166.111.83.92:12334";
 	const modelName = getModelName(method);
 	process.env.http_proxy = proxy;
 	process.env.https_proxy = proxy;

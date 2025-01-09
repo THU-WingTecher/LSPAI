@@ -26,10 +26,12 @@ LOG_TEST2="${LOG_DIR}/${Model}"
 TEST_DIR_NAME1="naive_${Model}"
 TEST_DIR_NAME2="${Model}"
 
-# python3 analyze.py $LOG_TEST1
-# python3 analyze.py $LOG_TEST2
+python3 analyze.py $LOG_TEST1 > ${LOG_TEST1}_summary.txt
+echo "Summary of ${LOG_TEST1} is saved in ${LOG_TEST1}_summary.txt"
+python3 analyze.py $LOG_TEST2 > ${LOG_TEST2}_summary.txt
+echo "Summary of ${LOG_TEST2} is saved in ${LOG_TEST2}_summary.txt"
 
-bash java_coverage.bash $TARGET_PROJECT_PATH "${ROOT_TEST_DIR}/realNaive_${TEST_DIR_NAME1}"
-bash java_coverage.bash $TARGET_PROJECT_PATH "${ROOT_TEST_DIR}/Final_${TEST_DIR_NAME1}"
-bash java_coverage.bash $TARGET_PROJECT_PATH "${ROOT_TEST_DIR}/realNaive_${TEST_DIR_NAME2}"
-bash java_coverage.bash $TARGET_PROJECT_PATH "${ROOT_TEST_DIR}/Final_${TEST_DIR_NAME2}"
+# bash java_coverage.bash $TARGET_PROJECT_PATH "${ROOT_TEST_DIR}/realNaive_${TEST_DIR_NAME1}"
+# bash java_coverage.bash $TARGET_PROJECT_PATH "${ROOT_TEST_DIR}/Final_${TEST_DIR_NAME1}"
+# bash java_coverage.bash $TARGET_PROJECT_PATH "${ROOT_TEST_DIR}/realNaive_${TEST_DIR_NAME2}"
+# bash java_coverage.bash $TARGET_PROJECT_PATH "${ROOT_TEST_DIR}/Final_${TEST_DIR_NAME2}"

@@ -4,6 +4,7 @@ import {DecodedToken, getDecodedTokensFromLine, getDecodedTokensFromRange, retri
 import {closeActiveEditor} from './utils';
 import {processParentDefinition, constructSymbolRelationShip, classifyTokenByUri} from './retrieve';
 import { isBaseline } from './generate';
+import { getSymbolUsageInfo } from './reference';
 export enum DiagnosticTag {
     Unnecessary = 1,
     Deprecated
@@ -77,6 +78,15 @@ async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[
     });
 }
 
+function getLinesTexts(startLine: number, endLine: number, document: vscode.TextDocument): string {
+    let fullText = '';
+    for (let line = startLine; line <= endLine; line++) {
+        fullText += document.lineAt(line).text.trim() + '\n';  // Trim and append each line
+    }
+    fullText = fullText.trim();  // Optional: Remove any extra trailing newline
+    console.log(fullText);
+    return fullText;
+}
 
 export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vscode.Diagnostic[], method: string): Promise<string[]> {
     // Open the document
@@ -103,10 +113,11 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
     for (const diag of sortedDiagnostics) {
         // Retrieve decoded tokens for the specific line
         const decodedTokens = await getDecodedTokensFromLine(document, diag.range.start.line);
-        console.log(decodedTokens);
+        console.log(`Retrieved decoded tokens for line ${diag.range.start.line}:`, decodedTokens.map(token => token.word));
         await retrieveDef(document, decodedTokens);
         dependencyTokens.push(...decodedTokens);
-        const diagnosticMessage = `${getSeverityString(diag.severity)} in ${document.getText(diag.range)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
+        // const diagnosticMessage = `${getSeverityString(diag.severity)} in ${document.getText(diag.range)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
+        const diagnosticMessage = `${getSeverityString(diag.severity)} at : ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
         console.log(`Pushing Diagnostic message: ${diagnosticMessage}`);
         diagnosticMessages.push(diagnosticMessage);
     }
@@ -123,7 +134,16 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
                 const currDependencies = await processParentDefinition(def, '', "dependent", true);
                 dependencies += currDependencies;
             }
-            diagnosticMessages.push(dependencies);
+            if (dependencyTokens.length > 0) {
+                const refString = await getSymbolUsageInfo(document, dependencyTokens);
+                diagnosticMessages.push(refString);
+            }
+            if (symbolMaps.length > 0) {
+                diagnosticMessages.push(dependencies);
+            } else {
+                console.warn('No symbol relationships found.');
+                console.log(diagnosticMessages.join('\n'));
+            }
         }
     } catch (error) {
         console.error('Error processing diagnostics:', error);
