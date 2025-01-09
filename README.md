@@ -26,7 +26,11 @@ This is the README for your extension "LSPAI". After writing up a brief descript
         ```bash
         bash java_coverage.bash /vscode-llm-ut/experiments/commons-cli /vscode-llm-ut/temp/results_12_22_2024__20_46_22/naive_gpt-4o-mini
         ```
-
+    - Go Coverage Collect
+        ```bash
+        go build -o target/coverage_reporter coverage_reporter.go
+        target/coverage_reporter -target /vscode-llm-ut/experiments/logrus -test /vscode-llm-ut/experiments/logrus/tests -report /vscode-llm-ut/experiments/logrus/reports/
+        ```
 If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
 ## Extension Settings
