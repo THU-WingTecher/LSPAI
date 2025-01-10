@@ -4,10 +4,10 @@ import { ChatOpenAI } from "@langchain/openai";
 import { OpenAI } from "openai";
 import * as vscode from 'vscode';
 
-import {ChatUnitTestSystemPrompt, ChatUnitTestOurUserPrompt, ChatUnitTestBaseUserPrompt} from "./promptBuilder";
+import {ChatUnitTestSystemPrompt, ChatUnitTestLSPAIUserPrompt, ChatUnitTestBaseUserPrompt, OurUserPrompt, BaseUserPrompt} from "./promptBuilder";
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from "./token";
-import {getpackageStatement, getDependentContext, DpendenceAnalysisResult} from "./retrieve";
+import {getPackageStatement, getDependentContext, DpendenceAnalysisResult} from "./retrieve";
 import {ChatMessage, Prompt} from "./promptBuilder";
 import {getReferenceInfo} from "./reference";
 
@@ -52,7 +52,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 	let referenceCodes = "";
 	let DefUseMap: DecodedToken[] = [];
 	const textCode = document.getText(functionSymbol.range);
-	const packageStatement = getpackageStatement(document);
+	const packageStatement = getPackageStatement(document, document.languageId);
 
 	if (!isBaseline(method)) {
 
@@ -79,7 +79,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 }
 
 
-export async function genPrompt(data: collectInfo, method: string): Promise<any> {
+export async function genPrompt(data: collectInfo, method: string, language: string): Promise<any> {
 	let mainFunctionDependencies = "";
 	let dependentContext = "";
 	let mainfunctionParent = "";
@@ -91,12 +91,11 @@ export async function genPrompt(data: collectInfo, method: string): Promise<any>
 		dependentContext = data.dependentContext;
 		mainFunctionDependencies = data.mainFunctionDependencies;
 		mainfunctionParent = data.mainfunctionParent;
-		prompt = ChatUnitTestOurUserPrompt( textCode, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName, data.referenceCodes);
+		prompt = ChatUnitTestLSPAIUserPrompt( textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName, data.referenceCodes);
 
 	} else {
-		prompt = ChatUnitTestBaseUserPrompt(textCode, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName);
+		prompt = ChatUnitTestBaseUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName);
 	}
-	
 	// console.log("System Prompt:", systemPromptText);
 	// console.log("User Prompt:", prompt);
 	const chatMessages: ChatMessage[] = [

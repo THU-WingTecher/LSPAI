@@ -15,11 +15,11 @@
     "commands": [
       {
         "command": "llm-lsp-ut.JavaExperiment",
-        "title": "JavaExperiment"
+        "title": "LSPAI-Java-Experiment"
       },
       {
         "command": "llm-lsp-ut.GoExperiment",
-        "title": "GoExperiment"
+        "title": "LSPAI-Go-Experiment"
       },
       {
         "command": "extension.generateUnitTest",

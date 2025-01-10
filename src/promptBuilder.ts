@@ -33,7 +33,7 @@ I will provide the following information of the focal method:
 I will provide following brief information if the focal method has dependencies:
 1. Signatures of dependent classes.
 2. Signatures of dependent methods and fields in the dependent classes.
-I need you to create a whole unit test, ensuring optimal branch and line coverage. Compile WITHOUT errors. No additional explanations required.
+I need you to create a whole unit test using Junit5, ensuring optimal branch and line coverage. Compile WITHOUT errors, and use reflection to invoke private methods. No additional explanations required.
     `;
 }
 
@@ -61,16 +61,55 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
     \`\`\`
     `;
 }
+export function GoUnitTestTemplate(FileName: string, packageString: string): string {
+    return `
+    Based on the provided information, you need to generate a unit test using Go's testing package, and optionally mock using 'github.com/stretchr/testify/mock'.
+    \`\`\`
+    package ${packageString}
 
-export function ChatUnitTestOurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string, refCodes: string): string {
+    import (
+        "testing"
+        {Replace with needed imports}
+    )
+
+    func Test${FileName}(t *testing.T) {
+        {Replace with needed setup}
+        {Write your test function here}
+    }
+    \`\`\`
+    `;
+}
+
+export function PythonUnitTestTemplate(FileName: string, packageString: string): string {
+    return `
+    Based on the provided information, you need to generate a unit test using Python's unittest framework, and optionally mock using 'unittest.mock'.
+    \`\`\`
+    import unittest
+    from {Replace with needed imports} import {FileName}
+
+    class Test${FileName}(unittest.TestCase):
+        
+        def setUp(self):
+            {Replace with needed setup}
+
+        def test_{FileName}(self):
+            {Write your test function here}
+
+    if __name__ == '__main__':
+        unittest.main()
+    \`\`\`
+    `;
+}
+
+export function OurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string, refCodes: string): string {
+    //     ${functionContext} is deleted.
     return `
     The focal method is \`${functionName}\` in the \`${class_name}\`,
-    ${functionContext}
+
     The source code of the focal method is:
     \`\`\`
     ${code}
     \`\`\`
-    ${JavaUnitTestTemplate(FileName, packageString)}
     ${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
     \`\`\`
     ${refCodes}
@@ -78,18 +117,119 @@ export function ChatUnitTestOurUserPrompt(code: string, functionContext: string,
     `;
 }
 
-export function ChatUnitTestBaseUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
+export function BaseUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
     return `
     The focal method is \`${functionName}\`.
     Based on the provided information, you need to generate a unit test following below format:
-    \`\`\`
-    ${JavaUnitTestTemplate(FileName, packageString)}
-    \`\`\`
+
     The source code of the focal method is:
     \`\`\`
     ${code}
     \`\`\`
     `;
+}
+export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string, refCodes: string): string {
+    //     ${functionContext} is deleted.
+    if (languageId === 'java') {
+        return `
+        The focal method is \`${functionName}\` in the \`${class_name}\`,
+        The source code of the focal method is:
+        \`\`\`
+        ${code}
+        \`\`\`
+        ${JavaUnitTestTemplate(FileName, packageString)}
+        ${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
+        \`\`\`
+        ${refCodes}
+        \`\`\`` : ''}
+        `;
+    } else if (languageId === 'go') {
+        return `
+        The focal method is \`${functionName}\` in the \`${class_name}\`,
+        The source code of the focal method is:
+        \`\`\`
+        ${code}
+        \`\`\`
+        ${GoUnitTestTemplate(FileName, packageString)}
+        ${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
+        \`\`\`
+        ${refCodes}
+        \`\`\`` : ''}
+        `;
+    } else if (languageId === 'python') {
+        return `
+        The focal method is \`${functionName}\` in the \`${class_name}\`,
+        The source code of the focal method is:
+        \`\`\`
+        ${code}
+        \`\`\`
+        ${PythonUnitTestTemplate(FileName, packageString)}
+        ${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
+        \`\`\`
+        ${refCodes}
+        \`\`\`` : ''}
+        `;
+    } else {
+        return `
+        The focal method is \`${functionName}\`.
+        Based on the provided information, you need to generate a unit test following below format:
+
+        The source code of the focal method is:
+        \`\`\`
+        ${code}
+        \`\`\`
+        `;
+    }
+}
+
+export function ChatUnitTestBaseUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
+    if (languageId === 'java') {
+        return `
+        The focal method is \`${functionName}\`.
+        Based on the provided information, you need to generate a unit test following below format:
+        \`\`\`
+        ${JavaUnitTestTemplate(FileName, packageString)}
+        \`\`\`
+        The source code of the focal method is:
+        \`\`\`
+        ${code}
+        \`\`\`
+        `;
+    } else if (languageId === 'go') {
+        return `
+        The focal method is \`${functionName}\`.
+        Based on the provided information, you need to generate a unit test following below format:
+        \`\`\`
+        ${GoUnitTestTemplate(FileName, packageString)}
+        \`\`\`
+        The source code of the focal method is:
+        \`\`\`
+        ${code}
+        \`\`\`
+        `;
+    } else if (languageId === 'python') {
+        return `
+        The focal method is \`${functionName}\`.
+        Based on the provided information, you need to generate a unit test following below format:
+        \`\`\`
+        ${PythonUnitTestTemplate(FileName, packageString)}
+        \`\`\`
+        The source code of the focal method is:
+        \`\`\`
+        ${code}
+        \`\`\`
+        `;
+    } else {
+        return `
+        The focal method is \`${functionName}\`.
+        Based on the provided information, you need to generate a unit test following below format:
+
+        The source code of the focal method is:
+        \`\`\`
+        ${code}
+        \`\`\`
+        `;
+    }
 }
 
 function createPromptTemplate(language: string, code: string, functionName: string, fileName: string): string {

@@ -462,25 +462,63 @@ export async function processAndGenerateHierarchy(
     return { dependencies, mainFunctionDependencies, mainfunctionParent };
 }
 
-export function getpackageStatement(document: vscode.TextDocument): string[] | null {
+export function getPackageStatement(document: vscode.TextDocument, language: string): string[] | null {
     const documentText = document.getText();
-    const packageStatement = documentText.match(/package\s+.*;/g);
-    return packageStatement;
+
+    switch (language) {
+        case "python":
+            // Python does not use a package statement, return null for package
+            return null;
+        case "go":
+            // Go: Match 'package' followed by the package name (no semicolon)
+            return documentText.match(/package\s+.*;/g);
+        case "java":
+            // Java: Match 'package' followed by the package name (ending with a semicolon)
+            return documentText.match(/package\s+.*;/g);
+        default:
+            return null;
+    }
 }
-function getImportStatement(document: vscode.TextDocument): string {
+
+export function getImportStatement(document: vscode.TextDocument, language: string): string {
     let allImportStatements = "";
     const documentText = document.getText();
-    const importStatements = documentText.match(/import\s+.*;/g);
-    const packageStatement = getpackageStatement(document);
-    allImportStatements += packageStatement ? packageStatement[0] + '\n' : '';
-    allImportStatements += importStatements ? importStatements.join('\n') + '\n' : '';
+    let importStatements;
+    switch (language) {
+        case "python":
+            // Python: Match 'import' or 'from ... import'
+            importStatements = documentText.match(/(?:import\s+\w+|from\s+\w+\s+import\s+\w+)/g);
+            allImportStatements += importStatements ? importStatements.join('\n') + '\n' : '';
+            break;
+
+        case "go":
+            // Go: Match 'import' statements (including single-line and grouped imports)
+            importStatements = documentText.match(/import\s+.*\n/g) || [];
+            const packageStatement = getPackageStatement(document, language);
+            allImportStatements += packageStatement ? packageStatement[0] + '\n' : '';
+            allImportStatements += importStatements.join('');
+            break;
+
+        case "java":
+            // Java: Match 'import' statements (one per line)
+            const javaImportStatements = documentText.match(/import\s+.*;/g) || [];
+            const javaPackageStatement = getPackageStatement(document, language);
+            allImportStatements += javaPackageStatement ? javaPackageStatement[0] + '\n' : '';
+            allImportStatements += javaImportStatements.join('\n');
+            break;
+
+        default:
+            break;
+    }
+
     return allImportStatements;
 }
 
-export async function summarizeClass(document: vscode.TextDocument, classSymbol: vscode.DocumentSymbol): Promise<string> {
+
+export async function summarizeClass(document: vscode.TextDocument, classSymbol: vscode.DocumentSymbol, language: string): Promise<string> {
     let result = "";
     const children = classSymbol.children;
-    const importStatements = getImportStatement(document);
+    const importStatements = getImportStatement(document, language);
     result += importStatements + '\n';
     result += getSymbolDetail(document, classSymbol) + '\n';
     for (const child of children) {

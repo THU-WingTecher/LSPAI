@@ -13,6 +13,7 @@ import { saveGeneratedCodeToFolder, getUniqueFileName, genFileNameWithGivenSymbo
 import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
 import { error } from 'console';
 import { LLMLogs, ExpLogs } from './log';
+import { PassThrough } from 'stream';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -22,7 +23,8 @@ let TEST_PATH = `${WORKSPACE}/results_test/`;
 let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 let MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
 let GENMETHODS = [MODEL, `naive_${MODEL}`];
-const PARALLEL = 1;
+let EXP_PROB_TO_TEST = 1;
+const PARALLEL = 20;
 // let GENMETHODS = [MODEL];
 const MAX_ROUNDS = 5;
 
@@ -41,29 +43,37 @@ export async function activate(context: vscode.ExtensionContext) {
 	// The commandId parameter must match the command field in package.json
 	const disposable_exp = await vscode.commands.registerCommand('llm-lsp-ut.JavaExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
-		vscode.window.showInformationMessage('JavaExperiment!');
+		vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
 		const language = "java";
 		SRC = `${WORKSPACE}/src/main/`;
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 
-		for (const method of GENMETHODS) {
-			const results = await experiment(language, method);
+		const results = await experiment(language, GENMETHODS);
+		for (const method in results) {
 			console.log(method, 'Results:', results);
-			const successCount = results.filter(result => result).length;
-			console.log(`${method}-Success: ${successCount}/${results.length}`);
+			const successCount = results[method].filter(result => result).length;
+			console.log(`${method}-Success: ${successCount}/${results[method].length}`);
 		}
 		vscode.window.showInformationMessage('Experiment Ended!');
 		
 	});
 	context.subscriptions.push(disposable_exp);
 
-	const disposable3 = vscode.commands.registerCommand('llm-lsp-ut.GoExperiment', () => {
+	const disposable3 = await vscode.commands.registerCommand('llm-lsp-ut.GoExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "go";
-		// experiment(language)
-		vscode.window.showInformationMessage('GoExperiment!');
+		SRC = `${WORKSPACE}`;
+		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
+		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		const results = await experiment(language, GENMETHODS);
+		for (const method in results) {
+			console.log(method, 'Results:', results);
+			const successCount = results[method].filter(result => result).length;
+			console.log(`${method}-Success: ${successCount}/${results[method].length}`);
+		}
+		vscode.window.showInformationMessage('Experiment Ended!');
 	});
 
 	context.subscriptions.push(disposable3);
@@ -123,7 +133,7 @@ async function generateUnitTestForSelectedRange(document: vscode.TextDocument, p
 	);
 
 	if (!symbols) {
-		vscode.window.showErrorMessage('No symbols found!');
+		vscode.window.showErrorMessage('No symbols found! - It seems language server is not running.');
 		return;
 	}
 
@@ -131,8 +141,10 @@ async function generateUnitTestForSelectedRange(document: vscode.TextDocument, p
 	// 获取光标位置
 	const functionSymbolWithParents = getFunctionSymbolWithItsParents(symbols, position)!;
 	let targetCodeContextString = "";
+	const languageId = document.languageId;
+
 	if (functionSymbolWithParents.length > 0) {
-		const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0]);
+		const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0], languageId);
 		const parent = getSymbolDetail(document, functionSymbolWithParents[0]);
 		const children = functionSymbolWithParents.slice(1).map(symbol => getSymbolDetail(document, symbol)).join(' ');
 		targetCodeContextString = `${parent} { ${children} }`;
@@ -166,9 +178,9 @@ export async function genUnitTestForFiles(Files: string[], language: string) : P
 			// const filteredSymbols = filterSymbolLessThanLine(symbols, 4);
 			for (const symbol of symbols) {
 				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-					if (language === 'java' && !isPublic(symbol, document)) {
-						continue;
-					}
+					// if (language === 'java' && !isPublic(symbol, document)) {
+					// 	continue;
+					// }
 					const curDocument = await vscode.workspace.openTextDocument(document.uri);
 					for (const method of GENMETHODS){
 						const folderPath = `${TEST_PATH}${method}`;
@@ -205,6 +217,7 @@ async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode
 			
 			// Generate unit tests and store the result
 			const result = await generateUnitTestForAFunction(document, symbol, fileName, method);
+			vscode.window.showInformationMessage(`[Progress:${generatedResults.length}] Unit test (${method}) for ${symbol.name} generated!`);
 			generatedResults.push(result);
 		});
 		await Promise.all(symbolTasks.map(task => 
@@ -214,12 +227,12 @@ async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode
 			])
 		));
 	}
-    // Return the generated results after all tasks are completed
-    return generatedResults;
+	vscode.window.showInformationMessage(`Unit test for all ${symbolDocumentMap.map(item => item.symbol.name).join(', ')} generated!`);
+	return generatedResults;
 }
 
 
-export async function experiment(language: string, method: string) : Promise<boolean[]> {
+export async function experiment(language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
 	logCurrentSettings()
 	const suffix = getLanguageSuffix(language); 
 
@@ -229,7 +242,11 @@ export async function experiment(language: string, method: string) : Promise<boo
 			if (fs.statSync(fullPath).isDirectory()) {
 				findFiles(fullPath, Files); // Recursively search in subdirectory
 			} else if (file.endsWith(`.${suffix}`)) {
-				Files.push(fullPath);
+				if (language === "go" && file.toLowerCase().includes('test')) {
+					console.log(`Ignoring test file: ${fullPath}`);
+				} else {
+					Files.push(fullPath);
+				}
 			}
 		});
 	}
@@ -245,20 +262,25 @@ export async function experiment(language: string, method: string) : Promise<boo
 		if (symbols) {
 			for (const symbol of symbols) {
 				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-					if (language === 'java' && !isPublic(symbol, document)) {
-						continue;
-					}
+					// if (language === 'java' && !isPublic(symbol, document)) {
+					// 	continue;
+					// }
 					if (isSymbolLessThanLines(symbol, 4)){
 						continue;
 					}
-					symbolDocumentMap.push({ symbol, document });
+					if (Math.random() < EXP_PROB_TO_TEST) { // 50% probability
+						symbolDocumentMap.push({ symbol, document });
+					}
 				}
 			}
 		}
 		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
 	}
-	
-	const generatedResults = await parallelGenUnitTestForSymbols(symbolDocumentMap, language, method, PARALLEL);
+	const generatedResults: { [key: string]: boolean[] } = {};
+	for (const method of methods) {
+		console.log(`#### Starting experiment for method: ${method}`);
+		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, language, method, PARALLEL);
+	}
 	console.log('#### Experiment completed!');
 	logCurrentSettings();
 	return generatedResults;
@@ -272,7 +294,6 @@ function logCurrentSettings() {
     console.log(`Max Rounds: ${MAX_ROUNDS}`);
     console.log(`Experiment Log Folder: ${EXP_LOG_FOLDER}`);
 }
-
 
 function isPublic(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): boolean {
 	const funcDefinition = document.lineAt(symbol.selectionRange.start.line).text;
@@ -310,7 +331,7 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 	let originalCode = "";
     const collectedData = await collectInfo(document, functionSymbol, languageId, fileName, method);
 	expData.push({llmInfo: null, process: "collectInfo", time: (Date.now() - startTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
-    const promptObj = await genPrompt(collectedData, method);
+    const promptObj = await genPrompt(collectedData, method, languageId);
 	let prev_diagnostics;
 	let logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: MODEL};
     const startLLMTime = Date.now();

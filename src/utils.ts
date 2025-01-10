@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { assert } from 'console';
-import { getpackageStatement } from './retrieve';
+import { getPackageStatement } from './retrieve';
 
 // patterns.ts
 
@@ -177,7 +177,7 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
     }
     if (symbol.kind === vscode.SymbolKind.Class) {
         // Retrieve the line text where the class is defined
-        const packageStatement = getpackageStatement(document);
+        const packageStatement = getPackageStatement(document, document.languageId);
         detail += packageStatement ? packageStatement[0] + '\n' : '';
         detail += document.lineAt(symbol.selectionRange.start.line).text.trim() + '\n';
 
@@ -189,9 +189,9 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
         if (symbol.children && symbol.children.length > 0) {
             // Iterate over the children to find constructors
             for (const childSymbol of symbol.children) {
-                if (!isPublic(childSymbol, document)) {
-                    continue;
-                }
+                // if (!isPublic(childSymbol, document)) {
+                //     continue;
+                // }
                 if (childSymbol.kind === vscode.SymbolKind.Constructor) {
                     // Extract constructor details
 

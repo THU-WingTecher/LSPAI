@@ -202,42 +202,46 @@ async function decodeSemanticTokens(data: number[], tokensLegend: vscode.Semanti
     const decodedTokens: DecodedToken[] = [];
     let currentLine = initialLine;
     let currentChar = initialChar;
-    for (let i = 0; i < data.length; i += 5) {
-        const deltaLine = data[i];
-        const deltaStart = data[i + 1];
-        const length = data[i + 2];
-        const tokenTypeIndex = data[i + 3];
-        const tokenModifiersBitset = data[i + 4];
+        for (let i = 0; i < data.length; i += 5) {
+            try {
+                const deltaLine = data[i];
+                const deltaStart = data[i + 1];
+                const length = data[i + 2];
+                const tokenTypeIndex = data[i + 3];
+                const tokenModifiersBitset = data[i + 4];
 
-        // Update position
-        currentLine += deltaLine;
-        currentChar = deltaLine > 0 ? deltaStart : currentChar + deltaStart;
+                // Update position
+                currentLine += deltaLine;
+                currentChar = deltaLine > 0 ? deltaStart : currentChar + deltaStart;
 
-        // Decode token type
-        const typeName = tokensLegend.tokenTypes[tokenTypeIndex];
+                // Decode token type
 
-        // Decode token modifiers using bit masking
-        const modifiers: string[] = [];
-        tokensLegend.tokenModifiers.forEach((modifier: string, index: number) => {
-            if ((tokenModifiersBitset & (1 << index)) !== 0) {
-                modifiers.push(modifier);
+                const typeName = tokensLegend.tokenTypes[tokenTypeIndex];
+
+                // Decode token modifiers using bit masking
+                const modifiers: string[] = [];
+                tokensLegend.tokenModifiers.forEach((modifier: string, index: number) => {
+                    if ((tokenModifiersBitset & (1 << index)) !== 0) {
+                        modifiers.push(modifier);
+                    }
+                });
+
+                // Append decoded token
+                decodedTokens.push({
+                    id: `${currentLine}:${currentChar}`,
+                    word: "",
+                    line: currentLine,
+                    startChar: currentChar,
+                    length: length,
+                    type: typeName,
+                    modifiers: modifiers,
+                    definition: [],
+                });
+                } catch (error) {
+                console.error('Error decoding token type:', error);
+                }
             }
-        });
-
-        // Append decoded token
-        decodedTokens.push({
-            id: `${currentLine}:${currentChar}`,
-            word: "",
-            line: currentLine,
-            startChar: currentChar,
-            length: length,
-            type: typeName,
-            modifiers: modifiers,
-            definition: [],
-        });
-    }
-
-    return decodedTokens;
+    return decodedTokens
 }
 
 export function getSymbolKindString(value: number): string | undefined {
