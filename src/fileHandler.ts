@@ -51,12 +51,8 @@ export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol
 }
 
 
-export function getUniqueFileName(folderPath: string, fileName: string): string {
+export function getUniqueFileName(folderPath: string, baseName: string, suffix: string): string {
     let counter = 1;
-    
-    // Find the part before 'Test.' and the 'Test.${suffix}' part
-    const baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
-    const suffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
 
     // Initial new file name with counter right before Test.${suffix}
     let newFileName = `${baseName}${counter}${suffix}`;

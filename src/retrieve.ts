@@ -261,12 +261,16 @@ export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMa
                 tokenMap.set(uri, []);
             }
             const tokens = tokenMap.get(uri)!;
-            if (token.line !== undefined && token.startChar !== undefined) {
-                if (!tokens.some(t => t.line === token.line && t.startChar === token.startChar)) {
-                    tokens.push(token);
+            try {
+                if (token.line !== undefined && token.startChar !== undefined) {
+                    if (!tokens.some(t => t.line === token.line && t.startChar === token.startChar)) {
+                        tokens.push(token);
+                    }
+                } else {
+                    console.error(`Token has undefined line or startChar: ${JSON.stringify(token)}`);
                 }
-            } else {
-                console.error(`Token has undefined line or startChar: ${JSON.stringify(token)}`);
+            } catch (error) {
+                console.error(`Error processing token: ${JSON.stringify(token)}`, error);
             }
 
         }

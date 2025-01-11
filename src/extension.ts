@@ -96,6 +96,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable2);
+
 }
 function getLanguageSuffix(language: string): string {
 	const suffixMap: { [key: string]: string } = {
@@ -154,9 +155,8 @@ async function generateUnitTestForSelectedRange(document: vscode.TextDocument, p
 	
 	const functionSymbol = getFunctionSymbol(symbols, position)!;
 	
-	const fileSig = genFileNameWithGivenSymbol(document, functionSymbol, document.languageId);
-	const fileName = getUniqueFileName(folderPath, `${fileSig}Test.java`);
-	await generateUnitTestForAFunction(document, functionSymbol, fileName, GENMETHODS[0]);
+	const res = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId);
+	await generateUnitTestForAFunction(document, functionSymbol, res.fileName, GENMETHODS[0]);
 
 }
 
@@ -164,49 +164,72 @@ async function generateUnitTestForSelectedRange(document: vscode.TextDocument, p
 function isSymbolLessThanLines(symbol: vscode.DocumentSymbol, line: number): boolean {
 	return symbol.range.end.line-symbol.range.start.line < line;
 }
-export async function genUnitTestForFiles(Files: string[], language: string) : Promise<boolean[]> {
-	const generatedResults = [];
-	const suffix = getLanguageSuffix(language); 
-	for (const filePath of Files) {
-		for (let i = 0; i < Files.length; i++) {
-			const filePath = Files[i];
-			console.log(`#### Processing file ${i + 1} of ${Files.length}: ${filePath}`);
-			const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-			console.log(`document.uri == ${document.uri}`);
-			const symbols = await getAllSymbols(document.uri);
-			console.log(`Found ${symbols.length} symbols in the document.`);
-			// const filteredSymbols = filterSymbolLessThanLine(symbols, 4);
-			for (const symbol of symbols) {
-				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-					// if (language === 'java' && !isPublic(symbol, document)) {
-					// 	continue;
-					// }
-					const curDocument = await vscode.workspace.openTextDocument(document.uri);
-					for (const method of GENMETHODS){
-						const folderPath = `${TEST_PATH}${method}`;
-						const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
-						const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
-						generatedResults.push(await generateUnitTestForAFunction(curDocument, symbol, fileName, method));
-					}
-					await closeActiveEditor(curDocument);
-					}
-				}
-			}
-	}
-	return generatedResults;
-}
+// export async function genUnitTestForFiles(Files: string[], language: string) : Promise<boolean[]> {
+// 	const generatedResults = [];
+// 	const suffix = getLanguageSuffix(language); 
+// 	for (const filePath of Files) {
+// 		for (let i = 0; i < Files.length; i++) {
+// 			const filePath = Files[i];
+// 			console.log(`#### Processing file ${i + 1} of ${Files.length}: ${filePath}`);
+// 			const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+// 			console.log(`document.uri == ${document.uri}`);
+// 			const symbols = await getAllSymbols(document.uri);
+// 			console.log(`Found ${symbols.length} symbols in the document.`);
+// 			// const filteredSymbols = filterSymbolLessThanLine(symbols, 4);
+// 			for (const symbol of symbols) {
+// 				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
+// 					// if (language === 'java' && !isPublic(symbol, document)) {
+// 					// 	continue;
+// 					// }
+// 					const curDocument = await vscode.workspace.openTextDocument(document.uri);
+// 					for (const method of GENMETHODS){
+// 						const folderPath = `${TEST_PATH}${method}`;
+// 						const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
+// 						const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
+// 						generatedResults.push(await generateUnitTestForAFunction(curDocument, symbol, fileName, method));
+// 					}
+// 					await closeActiveEditor(curDocument);
+// 					}
+// 				}
+// 			}
+// 	}
+// 	return generatedResults;
+// }
 
+function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string){
+	const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
+	const suffix = getLanguageSuffix(language); // Get suffix based on language
+	let fileName;
+	let baseName;
+	let disposableSuffix;
+	switch (language) {
+		case "go":
+			const testFileFormatForGo = "_test"
+			fileName = `${fileSig}${testFileFormatForGo}.${suffix}`;
+			baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+            disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+		case "java":
+			const testFileFormatForJava = "Test"
+			fileName = `${fileSig}${testFileFormatForJava}.${suffix}`;
+			baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+            disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+		default:
+			const uniTestFileFormat = "Test"
+			fileName = `${fileSig}${uniTestFileFormat}.${suffix}`;
+			baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+            disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+	}
+
+	return {document, symbol, fileName : getUniqueFileName(folderPath, baseName, disposableSuffix)}
+}
 async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[], 
 										language: string, method: string, num_parallel: number) {
 	const generatedResults: any[] = []; // To store generated results
-	const suffix = getLanguageSuffix(language); // Get suffix based on language
 	
 	// Generate a list of symbols and corresponding file names
 	const symbolFilePairs = symbolDocumentMap.map(({symbol, document}) => {
 		const folderPath = `${TEST_PATH}${method}`;
-		const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
-		const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
-		return { document, symbol, fileName };
+		return generateFileNameForDiffLanguage(document, symbol, folderPath, language);
 	});
 
 	// Process symbols in parallel batches
