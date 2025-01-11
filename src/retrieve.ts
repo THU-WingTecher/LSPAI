@@ -476,7 +476,7 @@ export function getPackageStatement(document: vscode.TextDocument, language: str
             return null;
         case "go":
             // Go: Match 'package' followed by the package name (no semicolon)
-            return documentText.match(/package\s+.*;/g);
+            return documentText.match(/package\s+.*/g); 
         case "java":
             // Java: Match 'package' followed by the package name (ending with a semicolon)
             return documentText.match(/package\s+.*;/g);

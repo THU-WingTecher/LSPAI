@@ -51,7 +51,7 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
     return `
     Based on the provided information, you need to generate a unit test using Junit5, and Mock3.
     \`\`\`
-    package ${packageString}
+    ${packageString}
     {Replace With Needed Imports}
 
     public class ${FileName} {
@@ -63,9 +63,9 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
 }
 export function GoUnitTestTemplate(FileName: string, packageString: string): string {
     return `
-    Based on the provided information, you need to generate a unit test using Go's testing package, and optionally mock using 'github.com/stretchr/testify/mock'.
+    Based on the provided information, you need to generate a unit test using Go's testing package.
     \`\`\`
-    package ${packageString}
+    ${packageString}_test
 
     import (
         "testing"
@@ -82,7 +82,7 @@ export function GoUnitTestTemplate(FileName: string, packageString: string): str
 
 export function PythonUnitTestTemplate(FileName: string, packageString: string): string {
     return `
-    Based on the provided information, you need to generate a unit test using Python's unittest framework, and optionally mock using 'unittest.mock'.
+    Based on the provided information, you need to generate a unit test using Python's unittest framework.
     \`\`\`
     import unittest
     from {Replace with needed imports} import {FileName}
@@ -129,8 +129,9 @@ export function BaseUserPrompt(code: string, functionContext: string, functionNa
     `;
 }
 export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string, refCodes: string): string {
-    //     ${functionContext} is deleted.
+
     if (languageId === 'java') {
+    //     for java, add ${functionContext} degrades performance.
         return `
         The focal method is \`${functionName}\` in the \`${class_name}\`,
         The source code of the focal method is:
@@ -147,6 +148,7 @@ export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, fu
         return `
         The focal method is \`${functionName}\` in the \`${class_name}\`,
         The source code of the focal method is:
+        ${functionContext}
         \`\`\`
         ${code}
         \`\`\`
@@ -160,6 +162,7 @@ export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, fu
         return `
         The focal method is \`${functionName}\` in the \`${class_name}\`,
         The source code of the focal method is:
+        ${functionContext}
         \`\`\`
         ${code}
         \`\`\`
