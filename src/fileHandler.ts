@@ -62,6 +62,15 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
         counter++;
         newFileName = `${baseName}${counter}${suffix}`;
     }
+    // Ensure the new file name is unique
+    const filePath = path.join(folderPath, newFileName);
 
-    return `${folderPath}/${newFileName}`;
+    // Create the file (if it doesn't exist)
+    if (!fs.existsSync(filePath)) {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    }
+    fs.writeFileSync(filePath, '', { flag: 'wx' }); // Creates the file, but throws error if it exists
+
+    // Return the full path of the unique file name
+    return filePath;
 }

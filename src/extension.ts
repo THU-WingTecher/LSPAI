@@ -14,6 +14,7 @@ import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
 import { error } from 'console';
 import { LLMLogs, ExpLogs } from './log';
 import { PassThrough } from 'stream';
+import { Document } from '@langchain/core/dist/documents/document';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -60,7 +61,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(disposable_exp);
 
-	const disposable3 = await vscode.commands.registerCommand('llm-lsp-ut.GoExperiment', async () => {
+	const disposable2 = await vscode.commands.registerCommand('llm-lsp-ut.GoExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "go";
@@ -76,10 +77,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.window.showInformationMessage('Experiment Ended!');
 	});
 
-	context.subscriptions.push(disposable3);
+	context.subscriptions.push(disposable2);
 
 
-	const disposable2 = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
+	const disposable3 = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			vscode.window.showErrorMessage('No active editor!');
@@ -95,8 +96,20 @@ export async function activate(context: vscode.ExtensionContext) {
 		// vscode.window.showInformationMessage(`Unit test for "${functionName}" generated!`);
 	});
 
-	context.subscriptions.push(disposable2);
+	context.subscriptions.push(disposable3);
 
+	const disposable4 = await vscode.commands.registerCommand('llm-lsp-ut.ReExperiment', async () => {
+		// The code you place here will be executed every time your command is executed
+		// Display a message box to the user
+		const language = "java";
+		SRC = `${WORKSPACE}/src/main/`;
+		TEST_PATH = `/vscode-llm-ut/experiments/commons-cli/results_1_11_2025__02_25_25/`;
+		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		await reExperiment(language, GENMETHODS, TEST_PATH);
+		vscode.window.showInformationMessage('Experiment Ended!');
+	});
+
+	context.subscriptions.push(disposable4);
 }
 function getLanguageSuffix(language: string): string {
 	const suffixMap: { [key: string]: string } = {
@@ -275,7 +288,6 @@ export async function experiment(language: string, methods: string[]) : Promise<
 	}
 	const Files: string[] = [];
 	findFiles(SRC, Files);
-	const symbolsToTest: vscode.DocumentSymbol[] = [];
 	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
 
 	for (const filePath of Files) {
@@ -291,7 +303,7 @@ export async function experiment(language: string, methods: string[]) : Promise<
 					if (isSymbolLessThanLines(symbol, 4)){
 						continue;
 					}
-					if (Math.random() < EXP_PROB_TO_TEST) { // 50% probability
+					if (Math.random() < EXP_PROB_TO_TEST) { 
 						symbolDocumentMap.push({ symbol, document });
 					}
 				}
@@ -307,6 +319,70 @@ export async function experiment(language: string, methods: string[]) : Promise<
 	console.log('#### Experiment completed!');
 	logCurrentSettings();
 	return generatedResults;
+}
+export function isGenerated(document: vscode.TextDocument, target: vscode.DocumentSymbol, origFolderPath: string, tempFolderPath: string): boolean {
+	const res = generateFileNameForDiffLanguage(document, target, tempFolderPath, document.languageId)
+	if (fs.existsSync(res.fileName.replace(tempFolderPath, origFolderPath))) {
+		return true;
+	} else {
+		return false;
+	}
+}
+export async function reExperiment(language: string, methods: string[], origFilePath: string) : Promise<void> {
+	logCurrentSettings()
+	const tempFolderPath = `${TEST_PATH}temp_${Math.random().toString(36).substring(2, 15)}/`;
+	const suffix = getLanguageSuffix(language); 
+
+	function findFiles(folderPath: string, Files: string[] = []) {
+		fs.readdirSync(folderPath).forEach(file => {
+			const fullPath = path.join(folderPath, file);
+			if (fs.statSync(fullPath).isDirectory()) {
+				findFiles(fullPath, Files); // Recursively search in subdirectory
+			} else if (file.endsWith(`.${suffix}`)) {
+				if (language === "go" && file.toLowerCase().includes('test')) {
+					console.log(`Ignoring test file: ${fullPath}`);
+				} else {
+					Files.push(fullPath);
+				}
+			}
+		});
+	}
+	const Files: string[] = [];
+	const Generated: string[] = [];
+	findFiles(SRC, Files);
+	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
+	let origFinalFilePath;
+	for (const method of methods) {
+		for (const filePath of Files) {
+				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
+				console.log(`#### Preparing symbols under file: ${filePath}`);
+				const symbols = await getAllSymbols(document.uri);
+				if (symbols) {
+					for (const symbol of symbols) {
+						if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
+							origFinalFilePath = path.join(origFilePath, method);
+							if (isGenerated(document, symbol, origFinalFilePath, path.join(tempFolderPath, method))){
+								continue;
+							}
+							// if (language === 'java' && !isPublic(symbol, document)) {
+							// 	continue;
+							// }
+							if (isSymbolLessThanLines(symbol, 4)){
+								continue;
+							}
+							vscode.window.showInformationMessage(`Found leak file : ${origFinalFilePath}`);
+							symbolDocumentMap.push({ symbol, document });
+						}
+					}
+				}
+				console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
+			}
+		const generatedResults: { [key: string]: boolean[] } = {};
+		console.log(`#### Starting experiment for method: ${method}`);
+		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, language, method, PARALLEL);
+	}
+	console.log('#### Experiment completed!');
+	logCurrentSettings();
 }
 
 function logCurrentSettings() {
