@@ -9,7 +9,7 @@ import { invokeLLM, genPrompt, isBaseline, collectInfo, TokenLimitExceededError 
 import { closeActiveEditor, getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode, getAllSymbols } from './utils';
 import { summarizeClass } from './retrieve';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
-import { saveGeneratedCodeToFolder, getUniqueFileName, genFileNameWithGivenSymbol } from './fileHandler';
+import { saveGeneratedCodeToFolder, getUniqueFileName, genFileNameWithGivenSymbol, saveGeneratedCodeToIntermediateLocation } from './fileHandler';
 import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
 import { error } from 'console';
 import { LLMLogs, ExpLogs } from './log';
@@ -22,10 +22,11 @@ let WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
 let SRC = `${WORKSPACE}src/main/`;
 let TEST_PATH = `${WORKSPACE}/results_test/`;
 let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
-let MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
+let HISTORY_PATH = `${TEST_PATH}history/`;
+let MODEL = "gpt-4o" // gpt-4o-mini"; // llama3-70b
 let GENMETHODS = [MODEL, `naive_${MODEL}`];
 let EXP_PROB_TO_TEST = 1;
-const PARALLEL = 20;
+const PARALLEL = 5;
 // let GENMETHODS = [MODEL];
 const MAX_ROUNDS = 5;
 
@@ -49,6 +50,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		SRC = `${WORKSPACE}/src/main/`;
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		HISTORY_PATH = `${TEST_PATH}history/`;
 
 		const results = await experiment(language, GENMETHODS);
 		for (const method in results) {
@@ -68,6 +70,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		SRC = `${WORKSPACE}`;
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		HISTORY_PATH = `${TEST_PATH}history/`;
+
 		const results = await experiment(language, GENMETHODS);
 		for (const method in results) {
 			console.log(method, 'Results:', results);
@@ -103,8 +107,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Display a message box to the user
 		const language = "java";
 		SRC = `${WORKSPACE}/src/main/`;
-		TEST_PATH = `/vscode-llm-ut/experiments/commons-cli/results_1_11_2025__02_25_25/`;
+		TEST_PATH = `/vscode-llm-ut/experiments/commons-cli/gpt4o_first/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		HISTORY_PATH = `${TEST_PATH}history/`;
+
 		await reExperiment(language, GENMETHODS, TEST_PATH);
 		vscode.window.showInformationMessage('Experiment Ended!');
 	});
@@ -221,16 +227,19 @@ function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: 
 			fileName = `${fileSig}${testFileFormatForGo}.${suffix}`;
 			baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
             disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+			break;
 		case "java":
 			const testFileFormatForJava = "Test"
 			fileName = `${fileSig}${testFileFormatForJava}.${suffix}`;
 			baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
             disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+			break;
 		default:
 			const uniTestFileFormat = "Test"
 			fileName = `${fileSig}${uniTestFileFormat}.${suffix}`;
 			baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
             disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+			break;
 	}
 
 	return {document, symbol, fileName : getUniqueFileName(folderPath, baseName, disposableSuffix)}
@@ -449,21 +458,21 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 	}
 
     if (testCode) {
+		let round = 0;
+		let curSavePoint;
+		let finalCode = testCode;
 		const saveStartTime = Date.now();
-        await saveGeneratedCodeToFolder(testCode, fullFileName);
+		curSavePoint = await saveGeneratedCodeToIntermediateLocation(testCode, fullFileName.split(method)[1], path.join(HISTORY_PATH, method, fileName, round.toString()));
 		expData.push({llmInfo: null, process: "saveGeneratedCodeToFolder", time: (Date.now() - saveStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 		// Fixing the code
-		let round = 0;
 		const diagStartTime = Date.now();
-		let diagnostics = await getDiagnosticsForFilePath(fullFileName);
+		let diagnostics = await getDiagnosticsForFilePath(curSavePoint);
 		expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 		while (round < MAX_ROUNDS && diagnostics.length > 0) {
 			round++;
 			console.log(`\n--- Round ${round} ---`);
-			const testCodeFromFile = fs.readFileSync(fullFileName, 'utf8');
-			testCode = testCodeFromFile;
-			const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(fullFileName), diagnostics, method);
-			const diagnosticPrompts = constructDiagnosticPrompt(testCode, diagnosticMessages.join('\n'), collectedData.functionSymbol.name, collectedData.mainfunctionParent, collectedData.SourceCode)
+			const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method);
+			const diagnosticPrompts = constructDiagnosticPrompt(finalCode, diagnosticMessages.join('\n'), collectedData.functionSymbol.name, collectedData.mainfunctionParent, collectedData.SourceCode)
 			console.log('Constructed Diagnostic Messages:', diagnosticMessages);
 			const chatMessages: ChatMessage[] = [
 				{ role: "system", content: "" },
@@ -491,11 +500,11 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 				continue;
 			}
 	
-			const newTestCode = parseCode(aiResponse);
+			finalCode = parseCode(aiResponse);
 			try {
 				const saveStartTime = Date.now();
 				originalCode = fs.readFileSync(fullFileName, 'utf8');
-				await saveGeneratedCodeToFolder(newTestCode, fullFileName);
+				curSavePoint = await saveGeneratedCodeToIntermediateLocation(finalCode, fullFileName.split(method)[1], path.join(HISTORY_PATH, method, fileName, round.toString()));
 				expData.push({llmInfo: null, process: "saveGeneratedCodeToFolder", time: (Date.now() - saveStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 				console.log('Original file updated with AI-generated code.');
 			} catch (error) {
@@ -506,19 +515,20 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			// Step 7: Retrieve updated diagnostics
 			prev_diagnostics = diagnostics;
 			const diagStartTime2 = Date.now();
-			diagnostics = await getDiagnosticsForFilePath(fullFileName);
+			diagnostics = await getDiagnosticsForFilePath(curSavePoint);
 			expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime2).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 			if (diagnostics.length > prev_diagnostics.length && originalCode) {
 				console.log('Diagnostics increased, reverting to original code.');
-				fs.writeFileSync(fullFileName, originalCode, 'utf8');
-				console.log('Original code restored, re-collecting diagnostics...');
-				const diagStartTime2 = Date.now();
-				diagnostics = await getDiagnosticsForFilePath(fullFileName);
+				const outmostDir = path.dirname(curSavePoint).split(path.sep).pop()!;
+				const newOutmostDir = (parseInt(outmostDir) - 1).toString();
+				curSavePoint = path.join(path.dirname(path.dirname(curSavePoint)), newOutmostDir, path.basename(curSavePoint));
+				finalCode = fs.readFileSync(curSavePoint, 'utf8');
+				diagnostics = await getDiagnosticsForFilePath(curSavePoint);
 				expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime2).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 			}
 			console.log(`Remaining Diagnostics after Round ${round}:`, diagnostics.length);
 		}
-	
+		await saveGeneratedCodeToFolder(finalCode, fullFileName);
 		if (diagnostics.length === 0) {
 			genResult = true;
 			console.log('All diagnostics have been resolved.');

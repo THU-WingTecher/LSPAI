@@ -35,6 +35,17 @@ export async function saveGeneratedCodeToFolder(code: string, fileName: string):
 	console.log(`Generated code saved to ${fileName}`);
 }
 
+export async function saveGeneratedCodeToIntermediateLocation(code: string, fullfileName: string, folderName: string): Promise<string> {
+    const fullPath = path.join(folderName, fullfileName);
+	const folderPath = path.dirname(fullPath);
+	if (!fs.existsSync(folderPath)) {
+		fs.mkdirSync(folderPath, { recursive: true });
+	}
+    fs.writeFileSync(fullPath, code, 'utf8');
+    console.log(`Generated code saved to ${fullPath}`);
+    return fullPath;
+}
+
 
 export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
     const fileName = document.fileName.split('/').pop()!.replace(/\.\w+$/, '');
