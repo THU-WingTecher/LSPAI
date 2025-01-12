@@ -22,11 +22,28 @@ This is the README for your extension "LSPAI". After writing up a brief descript
 1. Manual settings
     - Java Code Coverage Collect
         1. First, compile the target project, and locate compiled .class files under target/classes directory.
-        2. Run the pre-built script `java_coverage.bash` with giving the root directory of the target project and save directory of generated unit tests.
+            - git clone
+            - navigate to the root directory
+            - mvn install -DskipTests
+            - install dependency libs : mvn dependency:copy-dependencies
+            - check whether the compiled .class files generated under ${workspace}/target/classes ( for example, /commons-cli/target/classes/org/**/*.class)
+        2. Run the LSPAI
+            - F5 and run Extension Development Host
+            - clike File -> open Folder -> open commons-cli
+            - Cntrl+Shift+P
+            - Type "Java Experiment", and Run the "Java Experiment"
+            - You can check out that the experiment is ongoing on Debug Console.
+        3. Run the pre-built script `java_coverage.bash` with giving the root directory of the target project and save directory of generated unit tests.
         ```bash
         bash java_coverage.bash /vscode-llm-ut/experiments/commons-cli /vscode-llm-ut/temp/results_12_22_2024__20_46_22/naive_gpt-4o-mini
         ```
     - Go Coverage Collect
+        1. First, compile the target project
+            - git clone
+            - go build
+        2. Run the LSPAI
+            - same with above --> "Go Experiment"
+        3. Run the pre-built script
         ```bash
 go build -o target/coverage_reporter coverage_reporter.go
 target/coverage_reporter -target /vscode-llm-ut/experiments/logrus -test /vscode-llm-ut/experiments/logrus/tests -report /vscode-llm-ut/experiments/logrus/reports/

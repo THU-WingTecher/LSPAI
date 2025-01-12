@@ -19,7 +19,7 @@ fi
 # Input parameters
 TARGET_PROJECT_PATH=$1
 ROOT_TEST_DIR=$2
-Model="gpt-4o-mini"
+Model=$3
 LOG_DIR="${ROOT_TEST_DIR}/logs"
 LOG_TEST1="${LOG_DIR}/naive_${Model}"
 LOG_TEST2="${LOG_DIR}/${Model}"

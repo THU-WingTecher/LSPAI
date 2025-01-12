@@ -25,15 +25,17 @@ EVOSUITE="java -jar $EVOSUITE_JAR"
 # Navigate to target project path
 cd "$TARGET_PROJECT_PATH" || exit 1
 
-DEPENDENCY_LIBS=$(find /vscode-llm-ut/libs/ -name "*.jar" | tr '\n' ':')
+TARGET_DIR_DEPENDENCIES=$(find target/dependency/ -name "*.jar" | tr '\n' ':')
+LSPAI_DEPENDENCY_LIBS=$(find /vscode-llm-ut/libs/ -name "*.jar" | tr '\n' ':')
+DEPENDENCY_LIBS=$LSPAI_DEPENDENCY_LIBS:$TARGET_DIR_DEPENDENCIES
 COMPILED_SOURCE="target/classes"
-CLASSPATH=$COMPILED_SOURCE:$TEST_DIR
+CLASSPATH=$COMPILED_SOURCE:$TEST_DIR:$DEPENDENCY_LIBS
 TEST_FILES=$(find $TEST_DIR -name "*.java" | tr '\n' ' ')
 OUTPUT_DIR="${TEST_DIR}-compiled"  # Default value if not provided
 JACOCO_AGENT_PATH="/vscode-llm-ut/lib/jacocoagent.jar"  # Path to jacocoagent.jar
 JACOCO_CLI_PATH="/vscode-llm-ut/lib/jacococli.jar"  # Path to jacocoagent.jar
-COVERAGE_FILE="coverage.exec"  # Name of the coverage file to store results
-> "$COVERAGE_FILE"
+COVERAGE_FILE="${REPORT_DIR}/coverage.exec"  # Name of the coverage file to store results
+# > "$COVERAGE_FILE"
 
 # Step 1: Compile the test files in parallel
 echo "Running Command : javac -cp $CLASSPATH $TEST_FILES"
@@ -67,7 +69,6 @@ echo "Generating coverage report..."
 
 # Use the JaCoCo CLI tool to generate the report
 java -jar $JACOCO_CLI_PATH report $COVERAGE_FILE --classfiles $COMPILED_SOURCE --html $REPORT_DIR
-
 
 valid_files_count=$(find "$OUTPUT_DIR" -type f -name "*.class" | wc -l)
 total_files_count=$(find "$TEST_DIR" -type f -name "*.java" | wc -l)
