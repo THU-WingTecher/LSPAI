@@ -22,8 +22,16 @@
         "title": "LSPAI-Go-Experiment"
       },
       {
+        "command": "llm-lsp-ut.PythonExperiment",
+        "title": "LSPAI-Python-Experiment"
+      },
+      {
         "command": "extension.generateUnitTest",
         "title": "Generate Unit Test Function"
+      },
+      {
+        "command": "llm-lsp-ut.ReExperiment",
+        "title": "LSPAI-ReExperiment"
       }
     ],
     "menus": {
