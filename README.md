@@ -48,6 +48,22 @@ This is the README for your extension "LSPAI". After writing up a brief descript
 go build -o target/coverage_reporter coverage_reporter.go
 target/coverage_reporter -target /vscode-llm-ut/experiments/logrus -test /vscode-llm-ut/experiments/logrus/tests -report /vscode-llm-ut/experiments/logrus/reports/
         ```
+    - Python Coverage Collect
+    0. install coverage collecting libs `apt install python3-coverage python3-pytest`
+        1. First prepare all libs to be downloading
+            For black,
+            ```bash
+            apt install python3-myst-parser
+            apt install python3-Sphinx python3-docutils python3-sphinxcontrib-programoutput==0.18
+            apt install python3-Sphinx python3-docutils python3-sphinxcontrib-programoutput python3-sphinx_copybutton python3-furo
+            apt install python3-Sphinx
+            apt install python3-click python3-mypy-extensions
+            apt-get install python3-pathspec python3-platformdirs
+            ```
+        2. Fix minor error
+            - create _black_version.py file under src/black. 
+
+        3. run pre-written coverage collect script.
 If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
 ## Extension Settings

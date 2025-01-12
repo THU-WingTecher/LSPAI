@@ -9,12 +9,13 @@ import { invokeLLM, genPrompt, isBaseline, collectInfo, TokenLimitExceededError 
 import { closeActiveEditor, getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode, getAllSymbols } from './utils';
 import { summarizeClass } from './retrieve';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
-import { saveGeneratedCodeToFolder, getUniqueFileName, genFileNameWithGivenSymbol, saveGeneratedCodeToIntermediateLocation } from './fileHandler';
+import { saveGeneratedCodeToFolder, getUniqueFileName, genFileNameWithGivenSymbol, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage } from './fileHandler';
 import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
 import { error } from 'console';
 import { LLMLogs, ExpLogs } from './log';
 import { PassThrough } from 'stream';
 import { Document } from '@langchain/core/dist/documents/document';
+import { getLanguageSuffix } from './language';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -23,10 +24,11 @@ let SRC = `${WORKSPACE}src/main/`;
 let TEST_PATH = `${WORKSPACE}/results_test/`;
 let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 let HISTORY_PATH = `${TEST_PATH}history/`;
-let MODEL = "gpt-4o" // gpt-4o-mini"; // llama3-70b
+let MODEL = "gpt-4o-mini" // gpt-4o-mini"; // llama3-70b
 let GENMETHODS = [MODEL, `naive_${MODEL}`];
+// let GENMETHODS = [`naive_${MODEL}`];
 let EXP_PROB_TO_TEST = 1;
-const PARALLEL = 5;
+let PARALLEL = 1;
 // let GENMETHODS = [MODEL];
 const MAX_ROUNDS = 5;
 
@@ -58,6 +60,10 @@ export async function activate(context: vscode.ExtensionContext) {
 			const successCount = results[method].filter(result => result).length;
 			console.log(`${method}-Success: ${successCount}/${results[method].length}`);
 		}
+		vscode.window.showInformationMessage('Experiment Ended! Re-Scan for leacked file');
+		await reExperiment(language, GENMETHODS, TEST_PATH);
+		vscode.window.showInformationMessage('Experiment Ended! Re-Re-Scan for leacked file');
+		await reExperiment(language, GENMETHODS, TEST_PATH);
 		vscode.window.showInformationMessage('Experiment Ended!');
 		
 	});
@@ -78,10 +84,34 @@ export async function activate(context: vscode.ExtensionContext) {
 			const successCount = results[method].filter(result => result).length;
 			console.log(`${method}-Success: ${successCount}/${results[method].length}`);
 		}
+		vscode.window.showInformationMessage('Experiment Ended! Re-Scan for leacked file');
+		await reExperiment(language, GENMETHODS, TEST_PATH);
+		vscode.window.showInformationMessage('Experiment Ended! Re-Re-Scan for leacked file');
+		await reExperiment(language, GENMETHODS, TEST_PATH);
 		vscode.window.showInformationMessage('Experiment Ended!');
 	});
 
 	context.subscriptions.push(disposable2);
+
+	const Pydisposable2 = await vscode.commands.registerCommand('llm-lsp-ut.PythonExperiment', async () => {
+		// The code you place here will be executed every time your command is executed
+		// Display a message box to the user
+		const language = "python";
+		SRC = `${WORKSPACE}/src`;
+		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
+		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		HISTORY_PATH = `${TEST_PATH}history/`;
+
+		const results = await experiment(language, GENMETHODS);
+		for (const method in results) {
+			console.log(method, 'Results:', results);
+			const successCount = results[method].filter(result => result).length;
+			console.log(`${method}-Success: ${successCount}/${results[method].length}`);
+		}
+		vscode.window.showInformationMessage('Experiment Ended!');
+	});
+
+	context.subscriptions.push(Pydisposable2);
 
 
 	const disposable3 = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
@@ -90,14 +120,11 @@ export async function activate(context: vscode.ExtensionContext) {
 			vscode.window.showErrorMessage('No active editor!');
 			return;
 		}
-
+		SRC = `${WORKSPACE}`;
+		TEST_PATH = `${WORKSPACE}/selectedRange/`;
+		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		HISTORY_PATH = `${TEST_PATH}history/`;
 		const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
-
-		// // 弹出窗口显示生成的单元测试代码
-		// const testDocument = await vscode.workspace.openTextDocument({ content: testCode, language: languageId });
-		// await vscode.window.showTextDocument(testDocument);
-
-		// vscode.window.showInformationMessage(`Unit test for "${functionName}" generated!`);
 	});
 
 	context.subscriptions.push(disposable3);
@@ -107,7 +134,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Display a message box to the user
 		const language = "java";
 		SRC = `${WORKSPACE}/src/main/`;
-		TEST_PATH = `/vscode-llm-ut/experiments/commons-cli/gpt4o_first/`;
+		TEST_PATH = `/vscode-llm-ut/experiments/commons-csv/results_1_12_2025__02_26_37/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 
@@ -117,29 +144,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(disposable4);
 }
-function getLanguageSuffix(language: string): string {
-	const suffixMap: { [key: string]: string } = {
-		'python': 'py',
-		'go': 'go',
-		'typescript': 'ts',
-		'javascript': 'js',
-		'java': 'java',
-		'csharp': 'cs',
-		'ruby': 'rb',
-		'php': 'php',
-		'cpp': 'cpp',
-		'c': 'c',
-		'swift': 'swift',
-		'kotlin': 'kt',
-		'rust': 'rs'
-	};
-	
-	const suffix = suffixMap[language.toLowerCase()];
-	if (!suffix) {
-		throw new Error(`Unsupported language: ${language}. Please provide a language from the following list: ${Object.keys(suffixMap).join(', ')}`);
-	}
-	return suffix;
-}
+
 function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -183,67 +188,18 @@ async function generateUnitTestForSelectedRange(document: vscode.TextDocument, p
 function isSymbolLessThanLines(symbol: vscode.DocumentSymbol, line: number): boolean {
 	return symbol.range.end.line-symbol.range.start.line < line;
 }
-// export async function genUnitTestForFiles(Files: string[], language: string) : Promise<boolean[]> {
-// 	const generatedResults = [];
-// 	const suffix = getLanguageSuffix(language); 
-// 	for (const filePath of Files) {
-// 		for (let i = 0; i < Files.length; i++) {
-// 			const filePath = Files[i];
-// 			console.log(`#### Processing file ${i + 1} of ${Files.length}: ${filePath}`);
-// 			const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-// 			console.log(`document.uri == ${document.uri}`);
-// 			const symbols = await getAllSymbols(document.uri);
-// 			console.log(`Found ${symbols.length} symbols in the document.`);
-// 			// const filteredSymbols = filterSymbolLessThanLine(symbols, 4);
-// 			for (const symbol of symbols) {
-// 				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-// 					// if (language === 'java' && !isPublic(symbol, document)) {
-// 					// 	continue;
-// 					// }
-// 					const curDocument = await vscode.workspace.openTextDocument(document.uri);
-// 					for (const method of GENMETHODS){
-// 						const folderPath = `${TEST_PATH}${method}`;
-// 						const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
-// 						const fileName = getUniqueFileName(folderPath, `${fileSig}Test.${suffix}`);
-// 						generatedResults.push(await generateUnitTestForAFunction(curDocument, symbol, fileName, method));
-// 					}
-// 					await closeActiveEditor(curDocument);
-// 					}
-// 				}
-// 			}
-// 	}
-// 	return generatedResults;
-// }
 
-function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string){
-	const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
-	const suffix = getLanguageSuffix(language); // Get suffix based on language
-	let fileName;
-	let baseName;
-	let disposableSuffix;
-	switch (language) {
-		case "go":
-			const testFileFormatForGo = "_test"
-			fileName = `${fileSig}${testFileFormatForGo}.${suffix}`;
-			baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
-            disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
-			break;
-		case "java":
-			const testFileFormatForJava = "Test"
-			fileName = `${fileSig}${testFileFormatForJava}.${suffix}`;
-			baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
-            disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
-			break;
-		default:
-			const uniTestFileFormat = "Test"
-			fileName = `${fileSig}${uniTestFileFormat}.${suffix}`;
-			baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
-            disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
-			break;
+function goSpecificEnvGen(code: string): string {
+	// copy all source codes
+	// put our test code 
+	// run go test
+	const goPath = process.env.GOPATH;
+	if (goPath) {
+		return `${goPath}/src`;
 	}
-
-	return {document, symbol, fileName : getUniqueFileName(folderPath, baseName, disposableSuffix)}
+	return '';
 }
+
 async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[], 
 										language: string, method: string, num_parallel: number) {
 	const generatedResults: any[] = []; // To store generated results
@@ -280,23 +236,8 @@ async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode
 export async function experiment(language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
 	logCurrentSettings()
 	const suffix = getLanguageSuffix(language); 
-
-	function findFiles(folderPath: string, Files: string[] = []) {
-		fs.readdirSync(folderPath).forEach(file => {
-			const fullPath = path.join(folderPath, file);
-			if (fs.statSync(fullPath).isDirectory()) {
-				findFiles(fullPath, Files); // Recursively search in subdirectory
-			} else if (file.endsWith(`.${suffix}`)) {
-				if (language === "go" && file.toLowerCase().includes('test')) {
-					console.log(`Ignoring test file: ${fullPath}`);
-				} else {
-					Files.push(fullPath);
-				}
-			}
-		});
-	}
 	const Files: string[] = [];
-	findFiles(SRC, Files);
+	findFiles(SRC, Files, language, suffix);
 	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
 
 	for (const filePath of Files) {

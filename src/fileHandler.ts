@@ -5,6 +5,7 @@ import * as os from 'os';
 import { Uri, WorkspaceEdit, workspace } from 'vscode';
 import * as vscode from 'vscode';
 import { getPackageStatement, summarizeClass } from './retrieve';
+import { getLanguageSuffix } from './language';
 
 export function writeCodeToTempFile(code: string, extension: string = 'ts'): string {
     const tempDir = os.tmpdir();
@@ -46,6 +47,63 @@ export async function saveGeneratedCodeToIntermediateLocation(code: string, full
     return fullPath;
 }
 
+export function findFiles(folderPath: string, Files: string[] = [], language:string, suffix:string) {
+    fs.readdirSync(folderPath).forEach(file => {
+        const fullPath = path.join(folderPath, file);
+        if (fs.statSync(fullPath).isDirectory()) {
+            findFiles(fullPath, Files, language, suffix); // Recursively search in subdirectory
+        } else if (file.endsWith(`.${suffix}`)) {
+            if (language === "go" && file.toLowerCase().includes('test')) {
+                console.log(`Ignoring test file: ${fullPath}`);
+            } else {
+                Files.push(fullPath);
+            }
+        }
+    });
+}
+
+export async function saveGeneratedCodeToIntermediateLocationWithSrc(code: string, fullfileName: string, folderName: string): Promise<string> {
+    const fullPath = path.join(folderName, fullfileName);
+	const folderPath = path.dirname(fullPath);
+	if (!fs.existsSync(folderPath)) {
+		fs.mkdirSync(folderPath, { recursive: true });
+	}
+
+    fs.writeFileSync(fullPath, code, 'utf8');
+    console.log(`Generated code saved to ${fullPath}`);
+    return fullPath;
+}
+
+
+export function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string){
+    const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
+    const suffix = getLanguageSuffix(language); // Get suffix based on language
+    let fileName;
+    let baseName;
+    let disposableSuffix;
+    switch (language) {
+        case "go":
+            const testFileFormatForGo = "_test"
+            fileName = `${fileSig}${testFileFormatForGo}.${suffix}`;
+            baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+            disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+            break;
+        case "java":
+            const testFileFormatForJava = "Test"
+            fileName = `${fileSig}${testFileFormatForJava}.${suffix}`;
+            baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+            disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+            break;
+        default:
+            const uniTestFileFormat = "_test"
+            fileName = `${fileSig}${uniTestFileFormat}.${suffix}`;
+            baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+            disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+            break;
+    }
+
+    return {document, symbol, fileName : getUniqueFileName(folderPath, baseName, disposableSuffix)}
+}
 
 export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
     const fileName = document.fileName.split('/').pop()!.replace(/\.\w+$/, '');

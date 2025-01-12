@@ -31,7 +31,9 @@ export async function getDiagnosticsForFilePath(filePath: string): Promise<vscod
     const text = document.getText();
     	// Close the editor with the saved version
     // console.log(text)
-    return getDiagnosticsForUri(uri);
+    const diagnostics = await getDiagnosticsForUri(uri);
+    const filteredDiagnostics = diagnostics.filter(diagnostic => diagnostic.severity == vscode.DiagnosticSeverity.Error);
+    return filteredDiagnostics;
 }
 
 async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
