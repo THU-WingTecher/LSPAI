@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { DecodedToken, getSymbolKindString } from './token';
 import { getSymbolDetail, isStandardClass } from './utils';
+import path from 'path';
 
 async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
     const allSymbols: vscode.DocumentSymbol[] = [];
@@ -489,15 +490,36 @@ export function getPackageStatement(document: vscode.TextDocument, language: str
     }
 }
 
-export function getImportStatement(document: vscode.TextDocument, language: string): string {
+function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vscode.DocumentSymbol | null): string {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) {
+        throw new Error("No workspace folder found");
+    }
+
+    const workspacePath = workspaceFolders[0].uri.fsPath;
+    let importStatement = document.uri.fsPath.replace(workspacePath, '')
+    // Check if the import statement starts with a '/', and remove it if it does
+    if (importStatement.startsWith('/')) {
+        importStatement = importStatement.substring(1);
+    }
+    importStatement = importStatement.replace(/\//g, ".").replace(/\.py/g, "");
+    let res = `from ${importStatement} import *\n`;
+    if (symbol) {
+        res.replace("import *", `import ${document.getText(symbol.selectionRange)}`);
+    }
+    return res
+}
+
+export function getImportStatement(document: vscode.TextDocument, language: string, symbol: vscode.DocumentSymbol | null = null): string {
     let allImportStatements = "";
     const documentText = document.getText();
     let importStatements;
     switch (language) {
         case "python":
             // Python: Match 'import' or 'from ... import'
-            importStatements = documentText.match(/(?:import\s+\w+|from\s+\w+\s+import\s+\w+)/g);
-            allImportStatements += importStatements ? importStatements.join('\n') + '\n' : '';
+            allImportStatements += genPythonicSrcImportStatement(document, symbol); // from src.black 
+            // importStatements = documentText.match(/(?:import\s+\w+|from\s+\w+\s+import\s+\w+)/g);
+            // allImportStatements += importStatements ? importStatements.join('\n') + '\n' : '';
             break;
 
         case "go":

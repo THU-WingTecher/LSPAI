@@ -80,11 +80,12 @@ export function GoUnitTestTemplate(FileName: string, packageString: string): str
     `;
 }
 
-export function PythonUnitTestTemplate(FileName: string, packageString: string): string {
+export function PythonUnitTestTemplate(FileName: string, packageString: string, importString: string): string {
     return `
     Based on the provided information, you need to generate a unit test using Python's unittest framework.
     \`\`\`
     import unittest
+    ${importString}
     from {Replace with needed imports} import {FileName}
 
     class Test${FileName}(unittest.TestCase):
@@ -128,7 +129,7 @@ export function BaseUserPrompt(code: string, functionContext: string, functionNa
     \`\`\`
     `;
 }
-export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string, refCodes: string): string {
+export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, importString: string, FileName: string, refCodes: string): string {
 
     if (languageId === 'java') {
     //     for java, add ${functionContext} degrades performance.
@@ -166,7 +167,7 @@ export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, fu
         \`\`\`
         ${code}
         \`\`\`
-        ${PythonUnitTestTemplate(FileName, packageString)}
+        ${PythonUnitTestTemplate(FileName, packageString, importString)}
         ${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
         \`\`\`
         ${refCodes}
@@ -185,7 +186,7 @@ export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, fu
     }
 }
 
-export function ChatUnitTestBaseUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
+export function ChatUnitTestBaseUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, importString: string, FileName: string): string {
     if (languageId === 'java') {
         return `
         The focal method is \`${functionName}\`.
@@ -215,7 +216,7 @@ export function ChatUnitTestBaseUserPrompt(code: string, languageId: string, fun
         The focal method is \`${functionName}\`.
         Based on the provided information, you need to generate a unit test following below format:
         \`\`\`
-        ${PythonUnitTestTemplate(FileName, packageString)}
+        ${PythonUnitTestTemplate(FileName, packageString, importString)}
         \`\`\`
         The source code of the focal method is:
         \`\`\`

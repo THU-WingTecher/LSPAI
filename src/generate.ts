@@ -7,7 +7,7 @@ import * as vscode from 'vscode';
 import {ChatUnitTestSystemPrompt, ChatUnitTestLSPAIUserPrompt, ChatUnitTestBaseUserPrompt, OurUserPrompt, BaseUserPrompt} from "./promptBuilder";
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from "./token";
-import {getPackageStatement, getDependentContext, DpendenceAnalysisResult} from "./retrieve";
+import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement} from "./retrieve";
 import {ChatMessage, Prompt} from "./promptBuilder";
 import {getReferenceInfo} from "./reference";
 
@@ -23,6 +23,7 @@ interface collectInfo {
 	functionSymbol: vscode.DocumentSymbol;
 	fileName: string;
 	packageString: string;
+	importString: string;
 }
 const BASELINE = "naive";
 export function isBaseline(method: string): boolean {
@@ -53,6 +54,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 	let DefUseMap: DecodedToken[] = [];
 	const textCode = document.getText(functionSymbol.range);
 	const packageStatement = getPackageStatement(document, document.languageId);
+	const importStatement = getImportStatement(document, document.languageId, functionSymbol);
 
 	if (!isBaseline(method)) {
 
@@ -74,7 +76,8 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 		functionSymbol: functionSymbol,
 		fileName: fileName,
 		referenceCodes: referenceCodes,
-		packageString: packageStatement ? packageStatement[0] : ''
+		packageString: packageStatement ? packageStatement[0] : '',
+		importString: importStatement ? importStatement : ''
 	}
 }
 
@@ -91,10 +94,10 @@ export async function genPrompt(data: collectInfo, method: string, language: str
 		dependentContext = data.dependentContext;
 		mainFunctionDependencies = data.mainFunctionDependencies;
 		mainfunctionParent = data.mainfunctionParent;
-		prompt = ChatUnitTestLSPAIUserPrompt( textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName, data.referenceCodes);
+		prompt = ChatUnitTestLSPAIUserPrompt( textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName, data.referenceCodes);
 
 	} else {
-		prompt = ChatUnitTestBaseUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.fileName);
+		prompt = ChatUnitTestBaseUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName);
 	}
 	// console.log("System Prompt:", systemPromptText);
 	// console.log("User Prompt:", prompt);
