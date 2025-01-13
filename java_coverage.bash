@@ -70,13 +70,13 @@ echo "Generating coverage report..."
 # Use the JaCoCo CLI tool to generate the report
 java -jar $JACOCO_CLI_PATH report $COVERAGE_FILE --classfiles $COMPILED_SOURCE --html $REPORT_DIR
 
-valid_files_count=$(find "$OUTPUT_DIR" -type f -name "*.class" | wc -l)
-total_files_count=$(find "$TEST_DIR" -type f -name "*.java" | wc -l)
-percentage=$(echo "$valid_files_count $total_files_count" | awk '{ printf "%.2f\n", ($1 / $2) * 100 }')
+# valid_files_count=$(find "$OUTPUT_DIR" -type f -name "*.class" | wc -l)
+# total_files_count=$(find "$TEST_DIR" -type f -name "*.java" | wc -l)
+# percentage=$(echo "$valid_files_count $total_files_count" | awk '{ printf "%.2f\n", ($1 / $2) * 100 }')
 
-echo "Coverage report generated at $REPORT_DIR"
+# echo "Coverage report generated at $REPORT_DIR"
 
-# Echo the result
-echo "Total files: $total_files_count"
-echo ".java files: $valid_files_count"
-echo "Percentage of $REPORT_DIR java files: $percentage%"
+# # Echo the result
+# echo "Total files: $total_files_count"
+# echo ".java files: $valid_files_count"
+# echo "Percentage of $REPORT_DIR java files: $percentage%"

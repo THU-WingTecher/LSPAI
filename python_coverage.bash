@@ -22,6 +22,8 @@ REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
 mkdir -p "$REPORT_DIR"
 # Navigate to target project path
 cd "$TARGET_PROJECT_PATH" || exit 1
-PYTHONPATH="$TARGET_PROJECT_PATH/src":"$TARGET_PROJECT_PATH/src/black" ## hardcoded,,,,
+export PYTHONPATH="$TARGET_PROJECT_PATH/src":"$TARGET_PROJECT_PATH/src/black":"$TARGET_PROJECT_PATH/crawl4ai"
+# which python3
 python3 -m coverage run --data-file="$REPORT_DIR/.coverage" -m pytest --continue-on-collection-errors $TEST_DIR
-python3 -m coverage report --data-file="$REPORT_DIR/.coverage"
+python3 -m coverage report --data-file="$REPORT_DIR/.coverage" --include="$TARGET_PROJECT_PATH/src/*"
+python3 -m coverage report --data-file="$REPORT_DIR/.coverage" --include="$TARGET_PROJECT_PATH/crawl4ai/*"
