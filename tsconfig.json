@@ -24,5 +24,8 @@
 		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true
-	}
+	},
+	"exclude": [
+		"experiments/*"
+	]
 }

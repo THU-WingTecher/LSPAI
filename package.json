@@ -30,6 +30,10 @@
         "title": "Generate Unit Test Function"
       },
       {
+        "command": "extension.getDiagnostic",
+        "title": "Get Diagnostic Messages for current file"
+      },
+      {
         "command": "llm-lsp-ut.ReExperiment",
         "title": "LSPAI-ReExperiment"
       }
@@ -38,6 +42,11 @@
       "editor/context": [
         {
           "command": "extension.generateUnitTest",
+          "when": "editorTextFocus",
+          "group": "navigation"
+        },
+        {
+          "command": "extension.getDiagnostic",
           "when": "editorTextFocus",
           "group": "navigation"
         }
