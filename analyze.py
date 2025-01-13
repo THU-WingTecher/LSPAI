@@ -145,7 +145,7 @@ def save_code_to_naive_directory(file_path, folder_path):
                 code = entry['llmInfo']['result']
                 code = parse_code(code)
                 # Get the directory path to save the code under "naive"
-                naive_directory = Path(file_path).as_posix().replace(original_folder_path, f"realNaive_{original_folder_path}")
+                naive_directory = Path(file_path).as_posix().replace(original_folder_path, f"NOFIX_{original_folder_path}")
                 naive_dir = Path(naive_directory).parent  # Get the directory path
 
                 # Ensure the directory exists
@@ -157,7 +157,7 @@ def save_code_to_naive_directory(file_path, folder_path):
 
                 print(f"Code saved to: {naive_directory}")
 
-def save_final_code_to_directory(file_path, folder_path, suffix_for_folder="realNaive"):
+def save_final_code_to_directory(file_path, folder_path, suffix_for_folder="NOFIX"):
     original_folder_path=folder_path.name
     file_name = Path(file_path).name
     try:
@@ -235,7 +235,7 @@ def main():
         print(f"\nProcessing file: {json_file.name}")
         result = analyze_json_file(str(json_file))
         save_code_to_naive_directory(str(json_file), folder_path)
-        save_final_code_to_directory(str(json_file), folder_path, suffix_for_folder="Final")
+        # save_final_code_to_directory(str(json_file), folder_path, suffix_for_folder="Final")
         overall_time += result["time"]
         overall_tokens += result["total_tokens"]
         overall_fixwithllm_tokens += result["fixwithllm_tokens"]
