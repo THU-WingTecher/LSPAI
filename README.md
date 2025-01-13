@@ -50,6 +50,9 @@ target/coverage_reporter -target /vscode-llm-ut/experiments/logrus -test /vscode
         ```
     - Python Coverage Collect
     0. install coverage collecting libs `apt install python3-coverage python3-pytest`
+      505  apt install python3-venv
+        506  python3 -m venv venv
+        507  source venv/bin/activate
         1. First prepare all libs to be downloading
             For black,
             ```bash
@@ -62,7 +65,7 @@ target/coverage_reporter -target /vscode-llm-ut/experiments/logrus -test /vscode
             ```
         2. Fix minor error
             - create _black_version.py file under src/black. 
-
+        3. generate unit test(python executable should be selected as venv/bin/python,,)
         3. run pre-written coverage collect script.
 If you have any requirements or dependencies, add a section describing those and how to install and configure them.
 
