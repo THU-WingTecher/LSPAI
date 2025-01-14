@@ -4,7 +4,7 @@
 		"target": "ES2022",
 		"outDir": "out",
 		"lib": [
-			"ES2022"
+			"dom", "esnext", "ES2022"
 		],
 		"moduleResolution": "node",
 		"sourceMap": true,

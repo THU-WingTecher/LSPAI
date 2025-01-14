@@ -168,7 +168,7 @@ async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<
 async function callLocalLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	const modelName = getModelName(method);
 	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
-	const url = "http://192.168.6.7:12512/api/chat";
+	const url = "http://192.168.6.7:19295/api/chat";
 	const headers = {
 	  "Content-Type": "application/json",
 	};
