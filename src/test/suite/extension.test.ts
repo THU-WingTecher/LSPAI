@@ -5,7 +5,6 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { testFunc } from '../../utils'
 // import * as myExtension from '../extension';
-import { experiment } from '../../extension'
 import { parseCode } from '../../utils'
 
 suite('Extension Test Suite', () => {

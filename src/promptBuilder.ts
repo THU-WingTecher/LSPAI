@@ -37,6 +37,18 @@ I need you to create a whole unit test using Junit5, ensuring optimal branch and
     `;
 }
 
+export function FixSystemPrompt(language: string): string {
+    return `
+You should fix the given code snippet written in ${language}.
+I will provide the following information:
+1. Error messages.
+2. Related further code snippet helpful to fix code.
+3. Unit test code.
+The fixed code should be directly compilable without human's modification. Therefore, do not use "your~", and "My~".
+Final code should be ran WITHOUT errors, and use reflection to invoke private methods. No additional explanations required.
+    `;
+}
+
 // function DependentClassesPrompt(defUseMapString: string): string {
 // 	// System prompt from ChatUnitTest
 //     return `
@@ -64,8 +76,9 @@ export function JavaUnitTestTemplate(FileName: string, packageString: string): s
 export function GoUnitTestTemplate(FileName: string, packageString: string): string {
     return `
     Based on the provided information, you need to generate a unit test using Go's testing package.
+    The generated test code will be located at the same directory with target code. Therefore, you don't have to import target project.
     \`\`\`
-    ${packageString}_test
+    ${packageString}
 
     import (
         "testing"
@@ -129,7 +142,7 @@ export function BaseUserPrompt(code: string, functionContext: string, functionNa
     \`\`\`
     `;
 }
-export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, importString: string, FileName: string, refCodes: string): string {
+export function LSPAIUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, importString: string, FileName: string, refCodes: string): string {
 
     if (languageId === 'java') {
     //     for java, add ${functionContext} degrades performance.
@@ -148,8 +161,8 @@ export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, fu
     } else if (languageId === 'go') {
         return `
         The focal method is \`${functionName}\` in the \`${class_name}\`,
-        The source code of the focal method is:
         ${functionContext}
+        The source code of the focal method is:
         \`\`\`
         ${code}
         \`\`\`
@@ -162,8 +175,8 @@ export function ChatUnitTestLSPAIUserPrompt(code: string, languageId: string, fu
     } else if (languageId === 'python') {
         return `
         The focal method is \`${functionName}\` in the \`${class_name}\`,
-        The source code of the focal method is:
         ${functionContext}
+        The source code of the focal method is:
         \`\`\`
         ${code}
         \`\`\`

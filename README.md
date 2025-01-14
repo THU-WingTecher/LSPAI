@@ -21,6 +21,31 @@ This is the README for your extension "LSPAI". After writing up a brief descript
 
 1. Manual settings
     - Java Code Coverage Collect
+        - add below xml into pom.xml if that do't have.   
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>3.11.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.7.2</version>  <!-- Added version -->
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.7.2</version>  <!-- Added version -->
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>5.7.2</version>  <!-- Added version -->
+            <scope>test</scope>
+        </dependency>
         1. First, compile the target project, and locate compiled .class files under target/classes directory.
             - git clone
             - navigate to the root directory

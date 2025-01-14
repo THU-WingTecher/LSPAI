@@ -10,7 +10,7 @@ import { closeActiveEditor, getFunctionSymbol, isValidFunctionSymbol, isFunction
 import { summarizeClass } from './retrieve';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
 import { saveGeneratedCodeToFolder, getUniqueFileName, genFileNameWithGivenSymbol, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage } from './fileHandler';
-import {ChatMessage, Prompt, constructDiagnosticPrompt} from "./promptBuilder";
+import {ChatMessage, Prompt, constructDiagnosticPrompt, FixSystemPrompt} from "./promptBuilder";
 import { error } from 'console';
 import { LLMLogs, ExpLogs } from './log';
 import { PassThrough } from 'stream';
@@ -19,6 +19,7 @@ import { getLanguageSuffix } from './language';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
+let SEED = Date.now()
 let WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
 let SRC = `${WORKSPACE}src/main/`;
 let TEST_PATH = `${WORKSPACE}/results_test/`;
@@ -45,6 +46,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
+	let disposable = vscode.commands.registerCommand('extension.copilot', async () => {
+        // Use Copilot's command for generating tests
+        await vscode.commands.executeCommand('github.copilot.generateTests');
+        vscode.window.showInformationMessage('Generate Tests executed!');
+    });
+
+    context.subscriptions.push(disposable);
+
 	const disposable_exp = await vscode.commands.registerCommand('llm-lsp-ut.JavaExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
 		vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
@@ -53,19 +62,11 @@ export async function activate(context: vscode.ExtensionContext) {
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
-
-		const results = await experiment(language, GENMETHODS);
-		for (const method in results) {
-			console.log(method, 'Results:', results);
-			const successCount = results[method].filter(result => result).length;
-			console.log(`${method}-Success: ${successCount}/${results[method].length}`);
-		}
-		vscode.window.showInformationMessage('Experiment Ended! Re-Scan for leacked file');
-		await reExperiment(language, GENMETHODS, TEST_PATH);
-		vscode.window.showInformationMessage('Experiment Ended! Re-Re-Scan for leacked file');
-		await reExperiment(language, GENMETHODS, TEST_PATH);
-		vscode.window.showInformationMessage('Experiment Ended!');
-		
+		EXP_PROB_TO_TEST = 1;
+		PARALLEL = 20;
+		MODEL = "gpt-4o-mini";
+		GENMETHODS = [MODEL, `naive_${MODEL}`]		
+		await experiment(language, GENMETHODS);		
 	});
 	context.subscriptions.push(disposable_exp);
 
@@ -77,18 +78,11 @@ export async function activate(context: vscode.ExtensionContext) {
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
-
-		const results = await experiment(language, GENMETHODS);
-		for (const method in results) {
-			console.log(method, 'Results:', results);
-			const successCount = results[method].filter(result => result).length;
-			console.log(`${method}-Success: ${successCount}/${results[method].length}`);
-		}
-		vscode.window.showInformationMessage('Experiment Ended! Re-Scan for leacked file');
-		await reExperiment(language, GENMETHODS, TEST_PATH);
-		vscode.window.showInformationMessage('Experiment Ended! Re-Re-Scan for leacked file');
-		await reExperiment(language, GENMETHODS, TEST_PATH);
-		vscode.window.showInformationMessage('Experiment Ended!');
+		EXP_PROB_TO_TEST = 1;
+		PARALLEL = 20;
+		MODEL = "gpt-4o-mini";
+		GENMETHODS = [MODEL, `naive_${MODEL}`]	
+		await experiment(language, GENMETHODS);
 	});
 
 	context.subscriptions.push(disposable2);
@@ -97,18 +91,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "python";
-		SRC = `${WORKSPACE}/src`;
+		// SRC = `${WORKSPACE}/src`;
+		SRC = `${WORKSPACE}/crawl4ai`;
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
-
-		const results = await experiment(language, GENMETHODS);
-		for (const method in results) {
-			console.log(method, 'Results:', results);
-			const successCount = results[method].filter(result => result).length;
-			console.log(`${method}-Success: ${successCount}/${results[method].length}`);
-		}
-		vscode.window.showInformationMessage('Experiment Ended!');
+		EXP_PROB_TO_TEST = 0.1;
+		PARALLEL = 20;
+		MODEL = "gpt-4o-mini";
+		await experiment(language, GENMETHODS);
 	});
 
 	context.subscriptions.push(Pydisposable2);
@@ -127,7 +118,21 @@ export async function activate(context: vscode.ExtensionContext) {
 		const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
 	});
 
-	context.subscriptions.push(disposable3);
+	const diagnostic = vscode.commands.registerCommand('extension.getDiagnostic', async () => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			vscode.window.showErrorMessage('No active editor!');
+			return;
+		}
+		SRC = `${WORKSPACE}`;
+		TEST_PATH = `${WORKSPACE}/selectedRange/`;
+		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
+		HISTORY_PATH = `${TEST_PATH}history/`;
+		let diagnostics = await getDiagnosticsForFilePath(editor.document.uri.fsPath);
+		console.log(diagnostics)
+	});
+
+	context.subscriptions.push(diagnostic);
 
 	const disposable4 = await vscode.commands.registerCommand('llm-lsp-ut.ReExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
@@ -147,6 +152,25 @@ export async function activate(context: vscode.ExtensionContext) {
 
 function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function experiment(language: string, genMethods: string[]): Promise<void> {
+	const results = await _experiment(language, genMethods);
+	for (const method in results) {
+		console.log(method, 'Results:', results);
+		const successCount = results[method].filter(result => result).length;
+		console.log(`${method}-Success: ${successCount}/${results[method].length}`);
+	}
+	// if (EXP_PROB_TO_TEST === 1){
+	// vscode.window.showInformationMessage('Experiment Ended! Re-Scan for leacked file');
+	// await reExperiment(language, GENMETHODS, TEST_PATH);
+	// vscode.window.showInformationMessage('Experiment Ended! Re-Re-Scan for leacked file');
+	// await reExperiment(language, GENMETHODS, TEST_PATH);
+	// } else {
+	// 	console.log('EXP_PROB_TO_TEST is not 1, so no re experiment');
+	// }
+	vscode.window.showInformationMessage('Experiment Ended!');
+
 }
 
 async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<void> {
@@ -179,7 +203,7 @@ async function generateUnitTestForSelectedRange(document: vscode.TextDocument, p
 	
 	const functionSymbol = getFunctionSymbol(symbols, position)!;
 	
-	const res = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId);
+	const res = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId, []);
 	await generateUnitTestForAFunction(document, functionSymbol, res.fileName, GENMETHODS[0]);
 
 }
@@ -189,25 +213,52 @@ function isSymbolLessThanLines(symbol: vscode.DocumentSymbol, line: number): boo
 	return symbol.range.end.line-symbol.range.start.line < line;
 }
 
-function goSpecificEnvGen(code: string): string {
-	// copy all source codes
-	// put our test code 
-	// run go test
-	const goPath = process.env.GOPATH;
-	if (goPath) {
-		return `${goPath}/src`;
-	}
-	return '';
+function goSpecificEnvGen(fullfileName: string, folderName: string, language: string): string {
+    // Create the new folder path
+    const fullPath = path.join(folderName, fullfileName);
+    const newFolder = path.dirname(fullPath);
+    const suffix = getLanguageSuffix(language); 
+    const Files: string[] = [];
+
+    // Find all source code files
+    findFiles(SRC, Files, language, suffix);
+	
+    // Copy all source code files to the new folder, preserving directory structure
+    Files.forEach(file => {
+        // Calculate the relative destination directory and file name
+        const relativeDir = path.relative(SRC, path.dirname(file)); // Get the relative directory
+		console.log(path.dirname(file), relativeDir);
+        const destDir = path.join(newFolder, relativeDir); // Destination directory for the file
+        const destFile = path.join(destDir, path.basename(file)); // Complete destination file path
+
+        // Ensure the destination directory exists
+        if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+        }
+
+        // Try to copy the file
+        try {
+            fs.copyFileSync(file, destFile); // Copy file to the destination
+        } catch (err) {
+            console.error(`Error copying file ${file} to ${destFile}: ${err}`);
+        }
+    });
+
+    return fullPath; // Return the new folder path
 }
 
 async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[], 
 										language: string, method: string, num_parallel: number) {
 	const generatedResults: any[] = []; // To store generated results
-	
+	const folderPath = `${TEST_PATH}${method}`	
 	// Generate a list of symbols and corresponding file names
+	const filePaths: string[] = []
+	if (language === 'go') {
+		const res = goSpecificEnvGen('random', folderPath, language);
+	}
 	const symbolFilePairs = symbolDocumentMap.map(({symbol, document}) => {
-		const folderPath = `${TEST_PATH}${method}`;
-		return generateFileNameForDiffLanguage(document, symbol, folderPath, language);
+;
+		return generateFileNameForDiffLanguage(document, symbol, folderPath, language, filePaths);
 	});
 
 	// Process symbols in parallel batches
@@ -233,7 +284,7 @@ async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode
 }
 
 
-export async function experiment(language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
+export async function _experiment(language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
 	logCurrentSettings()
 	const suffix = getLanguageSuffix(language); 
 	const Files: string[] = [];
@@ -271,7 +322,7 @@ export async function experiment(language: string, methods: string[]) : Promise<
 	return generatedResults;
 }
 export function isGenerated(document: vscode.TextDocument, target: vscode.DocumentSymbol, origFolderPath: string, tempFolderPath: string): boolean {
-	const res = generateFileNameForDiffLanguage(document, target, tempFolderPath, document.languageId)
+	const res = generateFileNameForDiffLanguage(document, target, tempFolderPath, document.languageId, [])
 	if (fs.existsSync(res.fileName.replace(tempFolderPath, origFolderPath))) {
 		return true;
 	} else {
@@ -342,6 +393,8 @@ function logCurrentSettings() {
     console.log(`Methods: ${GENMETHODS}`);
     console.log(`Max Rounds: ${MAX_ROUNDS}`);
     console.log(`Experiment Log Folder: ${EXP_LOG_FOLDER}`);
+    console.log(`EXP_PROB_TO_TEST: ${EXP_PROB_TO_TEST}`);
+    console.log(`PARALLEL: ${PARALLEL}`);
 }
 
 function isPublic(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): boolean {
@@ -403,11 +456,14 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 		let curSavePoint;
 		let finalCode = testCode;
 		const saveStartTime = Date.now();
-		curSavePoint = await saveGeneratedCodeToIntermediateLocation(testCode, fullFileName.split(method)[1], path.join(HISTORY_PATH, method, fileName, round.toString()));
+		// curSavePoint = await saveGeneratedCodeToIntermediateLocation(testCode, fullFileName.split(method)[1], path.join(HISTORY_PATH, method, round.toString()));
+		curSavePoint = await saveToIntermediate(finalCode, fullFileName.split(method)[1], path.join(HISTORY_PATH, method, round.toString()), languageId);
 		expData.push({llmInfo: null, process: "saveGeneratedCodeToFolder", time: (Date.now() - saveStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 		// Fixing the code
 		const diagStartTime = Date.now();
 		let diagnostics = await getDiagnosticsForFilePath(curSavePoint);
+		// curSavePoint = await goSpecificEnvGen(testCode, fullFileName.split(method)[1], path.join(HISTORY_PATH, method, fileName, round.toString()), languageId);
+		// diagnostics = await getDiagnosticsForFilePath(curSavePoint);
 		expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 		while (round < MAX_ROUNDS && diagnostics.length > 0) {
 			round++;
@@ -416,7 +472,7 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			const diagnosticPrompts = constructDiagnosticPrompt(finalCode, diagnosticMessages.join('\n'), collectedData.functionSymbol.name, collectedData.mainfunctionParent, collectedData.SourceCode)
 			console.log('Constructed Diagnostic Messages:', diagnosticMessages);
 			const chatMessages: ChatMessage[] = [
-				{ role: "system", content: "" },
+				{ role: "system", content: FixSystemPrompt(languageId) },
 				{ role: "user", content: diagnosticPrompts }
 			];
 		
@@ -444,8 +500,8 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			finalCode = parseCode(aiResponse);
 			try {
 				const saveStartTime = Date.now();
-				originalCode = fs.readFileSync(fullFileName, 'utf8');
-				curSavePoint = await saveGeneratedCodeToIntermediateLocation(finalCode, fullFileName.split(method)[1], path.join(HISTORY_PATH, method, fileName, round.toString()));
+				originalCode = fs.readFileSync(curSavePoint, 'utf8');
+				curSavePoint = await saveToIntermediate(finalCode, fullFileName.split(method)[1], path.join(HISTORY_PATH, method, round.toString()), languageId);
 				expData.push({llmInfo: null, process: "saveGeneratedCodeToFolder", time: (Date.now() - saveStartTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
 				console.log('Original file updated with AI-generated code.');
 			} catch (error) {
@@ -458,20 +514,22 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 			const diagStartTime2 = Date.now();
 			diagnostics = await getDiagnosticsForFilePath(curSavePoint);
 			expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime2).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
-			if (diagnostics.length > prev_diagnostics.length && originalCode) {
-				console.log('Diagnostics increased, reverting to original code.');
-				const outmostDir = path.dirname(curSavePoint).split(path.sep).pop()!;
-				const newOutmostDir = (parseInt(outmostDir) - 1).toString();
-				curSavePoint = path.join(path.dirname(path.dirname(curSavePoint)), newOutmostDir, path.basename(curSavePoint));
-				finalCode = fs.readFileSync(curSavePoint, 'utf8');
-				diagnostics = await getDiagnosticsForFilePath(curSavePoint);
-				expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime2).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
-			}
+			// if (diagnostics.length > prev_diagnostics.length && originalCode) {
+			// 	console.log('Diagnostics increased, reverting to original code.');
+			// 	const outmostDir = path.dirname(curSavePoint).split(path.sep).pop()!;
+			// 	const newOutmostDir = (parseInt(outmostDir) - 1).toString();
+			// 	curSavePoint = path.join(path.dirname(path.dirname(curSavePoint)), newOutmostDir, path.basename(curSavePoint));
+			// 	finalCode = fs.readFileSync(curSavePoint, 'utf8');
+			// 	diagnostics = await getDiagnosticsForFilePath(curSavePoint);
+			// 	expData.push({llmInfo: null, process: "getDiagnosticsForFilePath", time: (Date.now() - diagStartTime2).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
+			// }
 			console.log(`Remaining Diagnostics after Round ${round}:`, diagnostics.length);
 		}
-		await saveGeneratedCodeToFolder(finalCode, fullFileName);
+
+
 		if (diagnostics.length === 0) {
 			genResult = true;
+			await saveGeneratedCodeToFolder(finalCode, fullFileName);
 			console.log('All diagnostics have been resolved.');
 		} else {
 			console.log(`Reached the maximum of ${MAX_ROUNDS} rounds with ${diagnostics.length} diagnostics remaining.`);
@@ -528,3 +586,18 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 	return genResult;
 }
 
+export async function saveToIntermediate(testCode: string, fullFileName: string, folderName: string, language: string): Promise<string> {
+	let curSavePoint;
+	if (language == "go"){
+		curSavePoint = path.join(folderName, fullFileName);
+		if (!fs.existsSync(path.dirname(curSavePoint))){
+			curSavePoint = await goSpecificEnvGen(fullFileName, folderName, language);
+			await sleep(1000); // Sleep for 1 second
+		}
+		fs.writeFileSync(curSavePoint, testCode, 'utf8');
+		console.log(`Generated code saved to ${curSavePoint}`);
+	} else {
+		curSavePoint = await saveGeneratedCodeToIntermediateLocation(testCode, fullFileName, folderName);
+	}
+	return curSavePoint;
+}

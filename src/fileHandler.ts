@@ -50,13 +50,13 @@ export async function saveGeneratedCodeToIntermediateLocation(code: string, full
 export function findFiles(folderPath: string, Files: string[] = [], language:string, suffix:string) {
     fs.readdirSync(folderPath).forEach(file => {
         const fullPath = path.join(folderPath, file);
-        if (fs.statSync(fullPath).isDirectory()) {
+        if (fs.statSync(fullPath).isDirectory() && !path.basename(fullPath).startsWith('results_')) {
             findFiles(fullPath, Files, language, suffix); // Recursively search in subdirectory
-        } else if (file.endsWith(`.${suffix}`)) {
+        } else if (file.endsWith(`.${suffix}`) && !path.basename(fullPath).startsWith('results_')) {
             if (language === "go" && file.toLowerCase().includes('test')) {
-                console.log(`Ignoring test file: ${fullPath}`);
+            console.log(`Ignoring test file: ${fullPath}`);
             } else {
-                Files.push(fullPath);
+            Files.push(fullPath);
             }
         }
     });
@@ -75,7 +75,7 @@ export async function saveGeneratedCodeToIntermediateLocationWithSrc(code: strin
 }
 
 
-export function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string){
+export function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string, generated: string[]){
     const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
     const suffix = getLanguageSuffix(language); // Get suffix based on language
     let fileName;
@@ -102,7 +102,7 @@ export function generateFileNameForDiffLanguage(document: vscode.TextDocument, s
             break;
     }
 
-    return {document, symbol, fileName : getUniqueFileName(folderPath, baseName, disposableSuffix)}
+    return {document, symbol, fileName : getUniqueFileName(folderPath, baseName, disposableSuffix, generated)}
 }
 
 export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
@@ -114,32 +114,33 @@ export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol
         const packageStatement = packageStatements ? packageStatements[0] : '';
         const packageFolder = packageStatement.replace(";","").split(' ')[1].replace(/\./g, '/');
         return `${packageFolder}/${finalName}`;
+    } else if (language === 'go'){
+        const relPath = path.relative(vscode.workspace.rootPath!, document.fileName);
+        return `${relPath.replace(".go","")}_${funcName}`;
     } else {
         return finalName;
     }
 }
 
 
-export function getUniqueFileName(folderPath: string, baseName: string, suffix: string): string {
+export function getUniqueFileName(folderPath: string, baseName: string, suffix: string, filePaths: string[]): string {
     let counter = 1;
 
     // Initial new file name with counter right before Test.${suffix}
     let newFileName = `${baseName}${counter}${suffix}`;
     
-    // Check if the file exists, and increment the counter if it does
-    while (fs.existsSync(`${folderPath}/${newFileName}`)) {
+    // Check if the file name is unique by checking the folder and filePaths
+    while (filePaths.includes(path.join(folderPath, newFileName)) || fs.existsSync(path.join(folderPath, newFileName))) {
         counter++;
         newFileName = `${baseName}${counter}${suffix}`;
     }
-    // Ensure the new file name is unique
+    
+    // Prepare the full path for the unique file
     const filePath = path.join(folderPath, newFileName);
-
-    // Create the file (if it doesn't exist)
-    if (!fs.existsSync(filePath)) {
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    }
-    fs.writeFileSync(filePath, '', { flag: 'wx' }); // Creates the file, but throws error if it exists
-
+    
+    // Add the new file path to the list to prevent future name clashes
+    filePaths.push(filePath);
+    
     // Return the full path of the unique file name
     return filePath;
 }

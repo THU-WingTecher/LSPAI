@@ -14,7 +14,7 @@ function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range
     return shortestSymbol;
 }
 
-export async function getReferenceInfo(document: vscode.TextDocument, range: vscode.Range, refWindow: number = 100): Promise<string> {
+export async function getReferenceInfo(document: vscode.TextDocument, range: vscode.Range, refWindow: number = 60): Promise<string> {
     const position = range.start;
     const refes = await vscode.commands.executeCommand<vscode.Location[]>(
         'vscode.executeReferenceProvider',

@@ -1,5 +1,6 @@
 // diagnostic.ts
 import * as vscode from 'vscode';
+import * as path from 'path';
 import {DecodedToken, getDecodedTokensFromLine, getDecodedTokensFromRange, retrieveDef} from './token';
 import {closeActiveEditor} from './utils';
 import {processParentDefinition, constructSymbolRelationShip, classifyTokenByUri} from './retrieve';
@@ -8,6 +9,10 @@ import { getSymbolUsageInfo } from './reference';
 export enum DiagnosticTag {
     Unnecessary = 1,
     Deprecated
+}
+
+function chooseDiagnostic(diag: vscode.Diagnostic): boolean {
+    return diag.severity <= vscode.DiagnosticSeverity.Warning
 }
 
 export function getSeverityString(severity: vscode.DiagnosticSeverity): string {
@@ -32,7 +37,7 @@ export async function getDiagnosticsForFilePath(filePath: string): Promise<vscod
     	// Close the editor with the saved version
     // console.log(text)
     const diagnostics = await getDiagnosticsForUri(uri);
-    const filteredDiagnostics = diagnostics.filter(diagnostic => diagnostic.severity == vscode.DiagnosticSeverity.Error);
+    const filteredDiagnostics = diagnostics.filter(diagnostic => chooseDiagnostic(diagnostic));
     return filteredDiagnostics;
 }
 
@@ -90,6 +95,16 @@ function getLinesTexts(startLine: number, endLine: number, document: vscode.Text
     return fullText;
 }
 
+function getDiagnosticRelatedInfo(uri: vscode.Uri, diag: vscode.Diagnostic): string {
+    let relatedInfo = '';
+    if (diag.relatedInformation){
+        for (const info of diag.relatedInformation) {
+            relatedInfo += `${info.message} from ${path.relative(uri.fsPath, info.location.uri.fsPath)}\n`;
+        }
+    }
+    return relatedInfo;
+}
+
 export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vscode.Diagnostic[], method: string): Promise<string[]> {
     // Open the document
     const document = await vscode.workspace.openTextDocument(uri);
@@ -104,7 +119,7 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
     // }
 
     // Filter diagnostics by severity (Error > Warning > Information > Hint)
-    const sortedDiagnostics = vscodeDiagnostics.filter(diag => diag.severity === vscode.DiagnosticSeverity.Error);
+    const sortedDiagnostics = vscodeDiagnostics.filter(diag => chooseDiagnostic(diag));
 
     console.log(sortedDiagnostics);
 
@@ -122,6 +137,10 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
         const diagnosticMessage = `${getSeverityString(diag.severity)} at : ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
         console.log(`Pushing Diagnostic message: ${diagnosticMessage}`);
         diagnosticMessages.push(diagnosticMessage);
+        const relInfo = getDiagnosticRelatedInfo(uri, diag);
+        if (relInfo){
+            diagnosticMessages.push(relInfo);
+        }
     }
     try {
         const tokenMap = await classifyTokenByUri(document, dependencyTokens);

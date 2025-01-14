@@ -138,7 +138,7 @@ export async function getDependentContext(
 
     // Classify tokens by URI and generate the hierarchy
     const tokenMap = await classifyTokenByUri(document, dependenciesArray);
-    const result = await processAndGenerateHierarchy(functionSymbol, tokenMap, DefUseMap);
+    const result = await processAndGenerateHierarchy(document, functionSymbol, tokenMap, DefUseMap);
 
     return result;
 }
@@ -391,7 +391,7 @@ export async function processParentDefinition(def: ParentDefinition, indent: str
         const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(def.uri));
         
         // Retrieve detailed information about the parent symbol
-        const parentDetail = await getSymbolDetail(document, def.parent);
+        const parentDetail = await getSymbolDetail(document, def.parent, getFullInfo);
         const packagOrName = getPackageOrUri(document, def.parent);
         const symboltype = getSymbolKindString(def.parent.kind);
         // Prepend the descriptive sentence
@@ -422,22 +422,23 @@ export async function processParentDefinition(def: ParentDefinition, indent: str
  * @returns A promise that resolves to a formatted hierarchy string.
  */
 export async function processAndGenerateHierarchy(
+    document: vscode.TextDocument,
     mainFunctionsymbol: vscode.DocumentSymbol,
     tokenMap: Map<string, DecodedToken[]>,
     DefUseMap: DecodedToken[]
 ): Promise<DpendenceAnalysisResult> {
     // Retrieve all definitions
     const allDef: ParentDefinition[] = await constructSymbolRelationShip(tokenMap);
+    const getFullinfo = document.languageId !== "java";
     let mainFunctionDependencies = "";
     let mainfunctionParent = "";
     // Initialize an empty string to build the hierarchy
     let dependencies = '';
 
 
-
     // Process each top-level ParentDefinition
     for (const def of allDef) {
-        const currDependencies = await processParentDefinition(def);
+        const currDependencies = await processParentDefinition(def, '', "dependent", getFullinfo);
         dependencies += currDependencies;
         // Check if the current definition or its children contain the main function
         async function containsMainFunction(def: ParentDefinition): Promise<boolean> {
@@ -462,8 +463,10 @@ export async function processAndGenerateHierarchy(
     }
 
     // Output the hierarchy string (e.g., log it or display in a VSCode output channel)
+    if (mainFunctionsymbol.name === mainfunctionParent) {
+        mainfunctionParent = path.relative(vscode.workspace.rootPath!, document.uri.path);
+    }
     console.log(dependencies);
-    
     // // Optionally, display in an output channel
     // const outputChannel = vscode.window.createOutputChannel('Symbol Hierarchy');
     // outputChannel.appendLine(dependencies);
