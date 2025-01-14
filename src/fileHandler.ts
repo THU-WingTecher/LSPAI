@@ -130,7 +130,7 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
     let newFileName = `${baseName}${counter}${suffix}`;
     
     // Check if the file name is unique by checking the folder and filePaths
-    while (filePaths.includes(path.join(folderPath, newFileName)) || fs.existsSync(path.join(folderPath, newFileName))) {
+    while (filePaths.map(f => f.toLowerCase()).includes(path.join(folderPath, newFileName).toLowerCase()) || fs.existsSync(path.join(folderPath, newFileName))) {
         counter++;
         newFileName = `${baseName}${counter}${suffix}`;
     }

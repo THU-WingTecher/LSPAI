@@ -172,9 +172,9 @@ export async function getHover(document: vscode.TextDocument, symbol: vscode.Doc
  */
 export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, getFullInfo: boolean = false): string {
     let detail = '';
-    if (getFullInfo) {
-        return document.getText(symbol.range);
-    }
+    if (getFullInfo && document.getText(symbol.range).split('\n').length < 40 ) {
+        return removeComments(document.getText(symbol.range));
+    } 
     if (symbol.kind === vscode.SymbolKind.Class) {
         // Retrieve the line text where the class is defined
         const packageStatement = getPackageStatement(document, document.languageId);
@@ -251,8 +251,26 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
         detail = document.lineAt(symbol.selectionRange.start.line).text.trim();
     }
 
-    return detail;
+    return removeComments(detail);
+    ;
 }
+
+function removeComments(code: string): string {
+    // Regular expression to match comments in Go, Java, and Python
+    const commentRegex = [
+        /\/\/[^\n]*\n/g, // Go, Java, Python single-line comments (//...)
+        /\/\*[\s\S]*?\*\//g, // Go, Java, Python multi-line comments (/*...*/)
+        /'''[\s\S]*?'''/g, // Python triple single-quoted comments
+        /"""[\s\S]*?"""/g,  // Python triple double-quoted comments
+        /#.*$/gm // Python single-line comments (#...)
+    ];
+
+    // Remove comments by replacing them with an empty string
+    return commentRegex.reduce((codeWithoutComments, regex) => {
+        return codeWithoutComments.replace(regex, '');
+    }, code);
+}
+
 
 /**
  * Extracts detailed information for a constructor symbol.
