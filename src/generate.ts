@@ -120,7 +120,7 @@ export class TokenLimitExceededError extends Error {
 export async function invokeLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	// LLM生成单元测试代码
 	const messageTokens = promptObj[1].content.split(/\s+/).length
-
+	console.log("Invoking . . .")
 	if (messageTokens > TOKENTHRESHOLD) {
 		throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
 	}
@@ -192,8 +192,8 @@ async function callLocalLLM(method: string, promptObj: any, logObj: any): Promis
 	const result = await response.json();
 	const content = (result as any).message.content;
     // Assuming the response contains 'usage' data with token usage
-    const tokenUsage = (result as any).usage.total_tokens || 0;
-    logObj.tokenUsage = tokenUsage;
+    // const tokenUsage = (result as any).usage.total_tokens || 0;
+    // logObj.tokenUsage = tokenUsage;
     logObj.result = result;
 	// console.log("Response content:", content);
 	return content;

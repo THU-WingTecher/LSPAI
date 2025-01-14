@@ -16,9 +16,7 @@ import { LLMLogs, ExpLogs } from './log';
 import { PassThrough } from 'stream';
 import { Document } from '@langchain/core/dist/documents/document';
 import { getLanguageSuffix } from './language';
-import axios from "axios";
 import {Agent } from "http";
-import { Ollama } from 'ollama'
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -123,8 +121,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const diagnostic = vscode.commands.registerCommand('extension.getDiagnostic', async () => {
 		const editor = vscode.window.activeTextEditor;
-		testAxios();
-		postToChatAPI();
 		if (!editor) {
 			vscode.window.showErrorMessage('No active editor!');
 			return;
@@ -177,65 +173,6 @@ async function experiment(language: string, genMethods: string[]): Promise<void>
 	vscode.window.showInformationMessage('Experiment Ended!');
 
 }
-async function testAxios() {
-	try {
-	  const response = await axios.get('https://www.baidu.com');
-	  console.log('Status:', response.status);
-	  console.log('Headers:', response.headers);
-	  console.log('Data:', response.data);
-	} catch (error) {
-	  if (axios.isAxiosError(error)) {
-		console.error('Axios Error:', error.message);
-	  } else {
-		console.error('Unexpected Error:', error);
-	  }
-	}
-  }
-async function postToChatAPI() {
-
-	// const ollama = new Ollama({ host: 'http://192.168.6.7:19295' })
-	// const response = await ollama.chat({
-	// model: 'llama3-70b',
-	// messages: [{ role: 'user', content: 'Why is the sky blue?' }],
-	// })
-	// console.log(response);
-	const url = "http://192.168.6.7:19295/api/chat";
-  
-	const data = {
-	  model: "llama3-70b",
-	  messages: [
-		{ role: "system", content: "" },
-		{ role: "user", content: "Hello?" },
-	  ],
-	  stream: false,
-	};
-  
-	const headers = {
-	  "Content-Type": "application/json",
-	  "Accept": "*/*", // Explicitly matches curl
-	};
-  
-	const agent = new Agent({ keepAlive: false }); // Disables keep-alive to match curl
-  
-	try {
-	  const response = await axios.post(url, data, {
-		headers,
-		httpAgent: agent, // Use the custom agent
-		timeout: 5000, // Optional: Set a timeout
-	  });
-	  console.log("Response Data:", response.data);
-	  return response.data;
-	} catch (error) {
-	  if (axios.isAxiosError(error)) {
-		console.error("Axios Error Response:", error.response?.data);
-		console.error("Status Code:", error.response?.status);
-		console.error("Headers:", error.response?.headers);
-	  } else {
-		console.error("Unexpected Error:", error);
-	  }
-	  throw error;
-	}
-  }  
 
 async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<void> {
 
