@@ -9,16 +9,16 @@ export interface Prompt {
 
 export function constructDiagnosticPrompt(unit_test: string, diagnosticMessages: string, method_sig: string, class_name: string, testcode: string): string {
     return `
-I need you to fix an error in a unit test, an error occurred while compiling and executing.
-
-The unit test is:
+Problem : Fix the error
+Errors : ${diagnosticMessages}
+Output : Fixed coded wrapped with block. No explanation needed.
+Background : While unit test generation, generated code has error.
+Instruction 
+- The fixed code should be directly compilable without human's modification. Therefore, do not use "your~", and "My~".
+The errotic code is:
 \`\`\`
 ${unit_test}
 \`\`\`
-
-${diagnosticMessages}
-
-Please fix the error and return the whole fixed unit test. No explanation is needed. Wrap the code in a code block.
 `;
 }
 
@@ -38,15 +38,7 @@ I need you to create a whole unit test using Junit5, ensuring optimal branch and
 }
 
 export function FixSystemPrompt(language: string): string {
-    return `
-You should fix the given code snippet written in ${language}.
-I will provide the following information:
-1. Error messages.
-2. Related further code snippet helpful to fix code.
-3. Unit test code.
-The fixed code should be directly compilable without human's modification. Therefore, do not use "your~", and "My~".
-Final code should be ran WITHOUT errors, and use reflection to invoke private methods. No additional explanations required.
-    `;
+    return ``;
 }
 
 // function DependentClassesPrompt(defUseMapString: string): string {
