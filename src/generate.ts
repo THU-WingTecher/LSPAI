@@ -10,6 +10,7 @@ import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from
 import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement} from "./retrieve";
 import {ChatMessage, Prompt} from "./promptBuilder";
 import {getReferenceInfo} from "./reference";
+import { Ollama } from 'ollama';
 
 const TOKENTHRESHOLD = 2000; // Define your token threshold here
 
@@ -168,29 +169,36 @@ async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<
 async function callLocalLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	const modelName = getModelName(method);
 	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
-	const url = "http://192.168.6.7:19295/api/chat";
-	const headers = {
-	  "Content-Type": "application/json",
-	};
-  
-	const data = {
-	  model: modelName,
-	  messages: promptObj,
-	  stream: false,
-	};
-  
+	const ollama = new Ollama({ host: 'http://192.168.6.7:19295' })
 	try {
-	const response = await fetch(url, {
-		method: "POST",
-		headers: headers,
-		body: JSON.stringify(data),
-	});
-	if (!response.ok) {
-		throw new Error(`HTTP error! status: ${response.status}`);
-	}
+		const response = await ollama.chat({
+			model: modelName,
+			messages: promptObj,
+			stream: false,
+		})
+	// const url = "http://192.168.6.7:19296/api/chat";
+	// const headers = {
+	//   "Content-Type": "application/json",
+	// };
+  
+	// const data = {
+	//   model: modelName,
+	//   messages: promptObj,
+	//   stream: false,
+	// };
+  
+	// try {
+	// const response = await fetch(url, {
+	// 	method: "POST",
+	// 	headers: headers,
+	// 	body: JSON.stringify(data),
+	// });
+	// if (!response.ok) {
+	// 	throw new Error(`HTTP error! status: ${response.status}`);
+	// }
 
-	const result = await response.json();
-	const content = (result as any).message.content;
+	const result = await response;
+	const content = (response as any).message.content;
     // Assuming the response contains 'usage' data with token usage
     // const tokenUsage = (result as any).usage.total_tokens || 0;
     // logObj.tokenUsage = tokenUsage;

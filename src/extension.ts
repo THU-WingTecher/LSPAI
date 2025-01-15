@@ -64,7 +64,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
-		PARALLEL = 20;
+		PARALLEL = 5;
 		MODEL = "llama3-70b";
 		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);		
@@ -80,8 +80,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
-		PARALLEL = 20;
-		MODEL = "gpt-4o-mini";
+		PARALLEL = 5;
+		MODEL = "llama3-70b";
 		GENMETHODS = [MODEL, `naive_${MODEL}`]	
 		await experiment(language, GENMETHODS);
 	});
@@ -447,12 +447,10 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 		if (error instanceof TokenLimitExceededError) {
 			console.warn('Token limit exceeded, continuing...');
 			expData.push({llmInfo: logObj, process: "TokenLimitation", time: (Date.now() - startLLMTime).toString(), method: method, fileName: fullFileName, function: functionSymbol.name, errMsag: ""});
-		} else {
-			throw error;
 		}
 	}
 
-    if (testCode) {
+    if (testCode && !isBaseline(method)) {
 		let round = 0;
 		let curSavePoint;
 		let finalCode = testCode;
