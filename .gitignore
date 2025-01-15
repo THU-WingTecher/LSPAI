@@ -16,3 +16,4 @@ temp/
 *.txt
 *.zip
 *.jar
+.npmrc

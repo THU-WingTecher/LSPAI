@@ -41,6 +41,11 @@ export function isLlama(method: string): boolean {
 	return method.includes(LLAMAMODELNAME);
 }
 
+const DEEPSEEKMODELNAME = "deepseek";
+export function isDeepSeek(method: string): boolean {
+	return method.includes(DEEPSEEKMODELNAME);
+}
+
 function getModelName(method: string): string {
 	return method.split("_").pop()!;
 }
@@ -129,14 +134,48 @@ export async function invokeLLM(method: string, promptObj: any, logObj: any): Pr
 		return callOpenAi(method, promptObj, logObj);
 	} else if(isLlama(method)) {
 		return callLocalLLM(method, promptObj, logObj);
+	} else if(isDeepSeek(method)) {
+		return callDeepSeek(method, promptObj, logObj);
 	} else {
 		vscode.window.showErrorMessage('wrong model name!')
 		return "";
 	}
 }
 
+async function callDeepSeek(method: string, promptObj: any, logObj: any): Promise<string> {
+	// const proxy = "http://166.111.83.87:45321";
+	const modelName = getModelName(method);
+	// process.env.http_proxy = proxy;
+	// process.env.https_proxy = proxy;
+	// process.env.HTTP_PROXY = proxy;
+	// process.env.HTTPS_PROXY = proxy;
+	// process.env.OPENAI_PROXY_URL = proxy;
+	logObj.prompt = promptObj[1].content;
+	const openai = new OpenAI({
+		baseURL: 'https://api.deepseek.com',
+		apiKey: "sk-ef83b63a8e0643369b91caccd235f9f2",
+		// httpAgent: new HttpsProxyAgent(proxy),
+	});
+	try {
+		const response = await openai.chat.completions.create({
+			model: modelName,
+			messages: promptObj
+		});
+		const result = response.choices[0].message.content!;
+		const tokenUsage = response.usage!.total_tokens;
+		logObj.tokenUsage = tokenUsage;
+		logObj.result = result;
+		// console.log('Generated test code:', result);
+		// console.log('Token usage:', tokenUsage);
+		return result;
+	} catch (e) {
+		console.error('Error generating test code:', e);
+		throw e;
+	}
+}
+
 async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<string> {
-	const proxy = "http://166.111.83.92:12334";
+	const proxy = "http://166.111.83.87:45321";
 	const modelName = getModelName(method);
 	process.env.http_proxy = proxy;
 	process.env.https_proxy = proxy;

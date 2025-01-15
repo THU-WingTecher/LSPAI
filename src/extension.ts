@@ -26,7 +26,7 @@ let SRC = `${WORKSPACE}src/main/`;
 let TEST_PATH = `${WORKSPACE}/results_test/`;
 let EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 let HISTORY_PATH = `${TEST_PATH}history/`;
-let MODEL = "llama3-70b" // gpt-4o-mini"; // llama3-70b
+let MODEL = "deepseek-chat" // gpt-4o-mini"; // llama3-70b // deepseek-chat
 let GENMETHODS = [MODEL, `naive_${MODEL}`];
 // let GENMETHODS = [`naive_${MODEL}`];
 let EXP_PROB_TO_TEST = 1;
@@ -64,8 +64,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
-		PARALLEL = 5;
-		MODEL = "llama3-70b";
+		PARALLEL = 1;
+		MODEL = "deepseek-chat";
 		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);		
 	});
@@ -100,7 +100,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
 		PARALLEL = 20;
-		MODEL = "gpt-4o-mini";
+		MODEL = "gpt-4o";
 		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);
 	});
