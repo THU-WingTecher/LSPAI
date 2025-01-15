@@ -82,7 +82,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		EXP_PROB_TO_TEST = 1;
 		PARALLEL = 20;
 		MODEL = "gpt-4o-mini";
-		GENMETHODS = [`naive_${MODEL}`]	
+		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);
 	});
 
@@ -93,14 +93,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Display a message box to the user
 		const language = "python";
 		// SRC = `${WORKSPACE}/src`;
-		SRC = `${WORKSPACE}/crawl4ai`;
+		// SRC = `${WORKSPACE}/crawl4ai`; // crawl4ai
+		SRC = `${WORKSPACE}/src`; // black
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
 		PARALLEL = 20;
-		MODEL = "gpt-4o";
-		GENMETHODS = [MODEL, `naive_${MODEL}`];
+		MODEL = "gpt-4o-mini";
+		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);
 	});
 
