@@ -80,9 +80,9 @@ export async function activate(context: vscode.ExtensionContext) {
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
-		PARALLEL = 5;
-		MODEL = "llama3-70b";
-		GENMETHODS = [MODEL, `naive_${MODEL}`]	
+		PARALLEL = 20;
+		MODEL = "gpt-4o-mini";
+		GENMETHODS = [`naive_${MODEL}`]	
 		await experiment(language, GENMETHODS);
 	});
 
@@ -97,9 +97,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
-		EXP_PROB_TO_TEST = 0.1;
+		EXP_PROB_TO_TEST = 1;
 		PARALLEL = 20;
-		MODEL = "gpt-4o-mini";
+		MODEL = "gpt-4o";
+		GENMETHODS = [MODEL, `naive_${MODEL}`];
 		await experiment(language, GENMETHODS);
 	});
 
@@ -450,7 +451,12 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 		}
 	}
 
-    if (testCode && !isBaseline(method)) {
+	if (isBaseline(method)){
+		saveGeneratedCodeToFolder(testCode, fullFileName);
+		return true;
+	}
+
+    if (testCode) {
 		let round = 0;
 		let curSavePoint;
 		let finalCode = testCode;
