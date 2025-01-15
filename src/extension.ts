@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { DecodedToken, extractUseDefInfo } from './token';
-import { invokeLLM, genPrompt, isBaseline, collectInfo, TokenLimitExceededError } from './generate';
+import { invokeLLM, genPrompt, isBaseline, collectInfo, TokenLimitExceededError, isLlama } from './generate';
 import { closeActiveEditor, getFunctionSymbol, isValidFunctionSymbol, isFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode, getAllSymbols } from './utils';
 import { summarizeClass } from './retrieve';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
@@ -20,6 +20,7 @@ import {Agent } from "http";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
+let TIMEOUT = 300*1000
 let SEED = Date.now()
 let WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
 let SRC = `${WORKSPACE}src/main/`;
@@ -64,7 +65,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
-		PARALLEL = 1;
+		PARALLEL = 30;
 		MODEL = "deepseek-chat";
 		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);		
@@ -80,8 +81,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
-		PARALLEL = 20;
-		MODEL = "gpt-4o-mini";
+		PARALLEL = 30;
+		MODEL = "deepseek-chat";
 		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);
 	});
@@ -99,8 +100,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
-		PARALLEL = 20;
-		MODEL = "gpt-4o";
+		PARALLEL = 30;
+		MODEL = "deepseek-chat";
 		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);
 	});
@@ -142,7 +143,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Display a message box to the user
 		const language = "java";
 		SRC = `${WORKSPACE}/src/main/`;
-		TEST_PATH = `/vscode-llm-ut/experiments/commons-csv/results_1_12_2025__02_26_37/`;
+		TEST_PATH = `/vscode-llm-ut/experiments/commons-cli/results_1_15_2025__08_51_27/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 
@@ -160,6 +161,9 @@ function sleep(ms: number): Promise<void> {
 async function experiment(language: string, genMethods: string[]): Promise<void> {
 	const results = await _experiment(language, genMethods);
 	for (const method in results) {
+		if (isLlama(method)) {
+			TIMEOUT = TIMEOUT*2
+		}
 		console.log(method, 'Results:', results);
 		const successCount = results[method].filter(result => result).length;
 		console.log(`${method}-Success: ${successCount}/${results[method].length}`);
@@ -278,7 +282,7 @@ async function parallelGenUnitTestForSymbols(symbolDocumentMap: { symbol: vscode
 		await Promise.all(symbolTasks.map(task => 
 			Promise.race([
 				task,
-				sleep(300*1000).then(() => console.warn('Timeout exceeded for symbol processing'))
+				sleep(TIMEOUT).then(() => console.warn('Timeout exceeded for symbol processing'))
 			])
 		));
 	}
