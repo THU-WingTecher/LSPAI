@@ -23,6 +23,13 @@ OUTPUT_DIR="${TEST_DIR}-compiled"  # Default value if not provided
 valid_files_count=0
 total_files_count=0
 
+if [[ "$TARGET_PROJECT_PATH" == *cli ]]; then
+    total_files_count=207
+fi
+if [[ "$TARGET_PROJECT_PATH" == *csv ]]; then
+    total_files_count=140
+fi
+
 # Iterate through each .java file in the TEST_DIR
 for java_file in $(find "$TEST_DIR" -type f -name "*.java"); do
     # Get the corresponding .class file name
@@ -34,7 +41,7 @@ for java_file in $(find "$TEST_DIR" -type f -name "*.java"); do
         valid_files_count=$((valid_files_count + 1))
     fi
 
-    total_files_count=$((total_files_count + 1))
+    # total_files_count=$((total_files_count + 1))
 done
 
 # If there are no Java files, avoid division by zero

@@ -25,5 +25,5 @@ cd "$TARGET_PROJECT_PATH" || exit 1
 export PYTHONPATH="$TARGET_PROJECT_PATH/src":"$TARGET_PROJECT_PATH/src/black":"$TARGET_PROJECT_PATH/crawl4ai"
 # which python3
 python3 -m coverage run --data-file="$REPORT_DIR/.coverage" -m pytest --continue-on-collection-errors $TEST_DIR
-python3 -m coverage report --data-file="$REPORT_DIR/.coverage" --include="$TARGET_PROJECT_PATH/src/*"
+# python3 -m coverage report --data-file="$REPORT_DIR/.coverage" --include="$TARGET_PROJECT_PATH/src/*"
 python3 -m coverage report --data-file="$REPORT_DIR/.coverage" --include="$TARGET_PROJECT_PATH/crawl4ai/*"
