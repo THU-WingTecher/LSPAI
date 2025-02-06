@@ -51,6 +51,36 @@
           "group": "navigation"
         }
       ]
+    },
+    "configuration": {
+      "title": "LLM LSP Unit Test Generator",
+      "properties": {
+        "llm-lsp-ut.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for OpenAI"
+        },
+        "llm-lsp-ut.deepseekApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for Deepseek"
+        },
+        "llm-lsp-ut.proxyUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Proxy URL for API calls"
+        },
+        "llm-lsp-ut.localLLMUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Proxy URL for API calls"
+        },
+        "llm-lsp-ut.model": {
+          "type": "string",
+          "default": "deepseek-chat",
+          "description": "Model to use for code generation"
+        }
+      }
     }
   },
   "scripts": {

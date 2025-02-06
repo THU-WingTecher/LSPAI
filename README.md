@@ -1,147 +1,169 @@
-# LSPAI README
+# LSPAI - Intelligent Unit Test Generation
 
-This is the README for your extension "LSPAI". After writing up a brief description, we recommend including the following sections.
+LSPAI is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP) integration. Generate high-quality unit tests automatically and in real-time for multiple programming languages.
 
-## Language Server SetUp
+## ✨ Key Features
 
-1. Install the language server by installing vscode extension.
-2. Activate semantic tokenizer by adding the following to your settings.
-   - Go language[[!gopls](https://github.com/golang/vscode-go/wiki/settings)] : add below to your settings.json, which can be accessed by pressing `Ctrl + ,` and then clicking on the `{}` icon on the top right corner.
-	```json
-    "gopls": {
-		"ui.semanticTokens": true,
-	}
-    ```
-    - Java language : add below to your settings.json, which can be accessed by pressing `Ctrl + ,` and then clicking on the `{}` icon on the top right corner.
+- 🚀 Real-time unit test generation as you code
+- 🌍 Multi-language support (Java, Go, Python)
+- 🎯 Semantic-aware test generation using LSP
+- ⚡ Immediate feedback and coverage insights
+- 🔄 Continuous test updates as code evolves
 
+## 🎯 Project Status
 
-## Requirements
+| IDE      | Java | Python | Go  | C++ | TypeScript | Others |
+|----------|------|--------|-----|-----|------------|--------|
+| VS Code  | ✅   | ✅     | ✅  | 🚧  | 🚧         | 🚧     |
+| IntelliJ | 🚧   | 🚧     | 🚧  | 🚧  | 🚧         | 🚧     |
 
-## Dependency Setting
+Legend:
+- ✅ Fully Supported
+- 🚧 In Development
+- ❌ Not Yet Supported
 
-1. Manual settings
-    - Java Code Coverage Collect
-        - add below xml into pom.xml if that do't have.   
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>3.11.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>5.7.2</version>  <!-- Added version -->
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.7.2</version>  <!-- Added version -->
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <version>5.7.2</version>  <!-- Added version -->
-            <scope>test</scope>
-        </dependency>
-        1. First, compile the target project, and locate compiled .class files under target/classes directory.
-            - git clone
-            - navigate to the root directory
-            - mvn install -DskipTests
-            - install dependency libs : mvn dependency:copy-dependencies
-            - check whether the compiled .class files generated under ${workspace}/target/classes ( for example, /commons-cli/target/classes/org/**/*.class)
-        2. Run the LSPAI
-            - F5 and run Extension Development Host
-            - clike File -> open Folder -> open commons-cli
-            - Cntrl+Shift+P
-            - Type "Java Experiment", and Run the "Java Experiment"
-            - You can check out that the experiment is ongoing on Debug Console.
-        3. Run the pre-built script `java_coverage.bash` with giving the root directory of the target project and save directory of generated unit tests.
-        ```bash
-        bash java_coverage.bash /vscode-llm-ut/experiments/commons-cli /vscode-llm-ut/temp/results_12_22_2024__20_46_22/naive_gpt-4o-mini
-        ```
-    - Go Coverage Collect
-        1. First, compile the target project
-            - git clone
-            - go build
-        2. Run the LSPAI
-            - same with above --> "Go Experiment"
-        3. Run the pre-built script
-        ```bash
-go build -o target/coverage_reporter coverage_reporter.go
-target/coverage_reporter -target /vscode-llm-ut/experiments/logrus -test /vscode-llm-ut/experiments/logrus/tests -report /vscode-llm-ut/experiments/logrus/reports/
-        ```
-    - Python Coverage Collect
-    0. install coverage collecting libs `apt install python3-coverage python3-pytest`
-      505  apt install python3-venv
-        506  python3 -m venv venv
-        507  source venv/bin/activate
-        1. First prepare all libs to be downloading
-            For black,
-            ```bash
-            apt install python3-myst-parser
-            apt install python3-Sphinx python3-docutils python3-sphinxcontrib-programoutput==0.18
-            apt install python3-Sphinx python3-docutils python3-sphinxcontrib-programoutput python3-sphinx_copybutton python3-furo
-            apt install python3-Sphinx
-            apt install python3-click python3-mypy-extensions
-            apt-get install python3-pathspec python3-platformdirs
-            ```
-        2. Fix minor error
-            - create _black_version.py file under src/black. 
-        3. generate unit test(python executable should be selected as venv/bin/python,,)
-        3. run pre-written coverage collect script.
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## 🛠️ Setup Guide
 
-## Extension Settings
+### 1. Install LSPAI Extension
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+#### Option A: VS Code Marketplace (Coming Soon!)
+- LSPAI will be available on the VS Code marketplace
+- You'll be able to install directly through VS Code's extension panel
 
-For example:
+#### Option B: Build from Source
+1. Prerequisites
+   ```bash
+   # Install Node.js if not already installed
+   # For Ubuntu/Debian
+   curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+   sudo apt-get install -y nodejs
 
-This extension contributes the following settings:
+   # For macOS (using Homebrew)
+   brew install node
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+   # Verify installation
+   node --version
+   npm --version
+   ```
 
-## Known Issues
+2. Clone and Build
+   ```bash
+   # Clone the repository
+   git clone https://github.com/your-repo/lspai.git
+   cd lspai
 
-1. Missing X server or $DISPLAY
-```bash
-[356101:1225/002335.748682:ERROR:ozone_platform_x11.cc(245)] Missing X server or $DISPLAY
-[356101:1225/002335.748705:ERROR:env.cc(258)] The platform failed to initialize.  Exiting.
+   # Install dependencies
+   npm install
+
+   # Build the extension
+   npm run compile
+   ```
+
+3. Run in Development Mode
+   - Open the project in VS Code
+   - Press `F5` to launch Extension Development Host
+   - A new VS Code window will open with LSPAI loaded
+
+### 2. Configure Language Servers
+
+1. Install Required Language Servers from VS Code Marketplace:
+   - Java: Oracle Java Extension Pack ( identifier : oracle.oracle-java)
+   - Python: Pylance and Python extension ( identifier : ms-python.vscode-pylance, ms-python.python)
+   - Go: Go extension ( identifier : golang.go)
+
+2. Language-Specific Setup:
+   
+   **For Go:**
+   Enable semantic tokenization in your VS Code settings.json:
+   ```json
+   {
+     "gopls": {
+       "ui.semanticTokens": true
+     }
+   }
+   ```
+
+3. [Optional] Project Compilation
+   - While not required, compiling your project can improve error diagnosis and auto-fixing capabilities
+   - Refer Experiment Setup
+
+### 3. Configure LLM Settings
+
+LSPAI supports multiple LLM providers. Configure your preferred option in VS Code settings:
+
+1. Open VS Code Settings (Ctrl/Cmd + ,)
+2. Search for "llm-lsp-ut"
+3. Configure one of the following:
+
+```json
+{
+    "llm-lsp-ut.model": "deepseek-chat",  // Choose: "deepseek-chat", "openai", or "ollama"
+    
+    // For OpenAI
+    "llm-lsp-ut.openaiApiKey": "your-api-key",
+    
+    // For Deepseek
+    "llm-lsp-ut.deepseekApiKey": "your-api-key",
+    
+    // For Local LLM (Ollama)
+    "llm-lsp-ut.localLLMUrl": "http://your-ollama-server:port"
+}
 ```
-run the command with `xvfb-run`.
+## 🛠️ Experiment Reproduction Guide
+LSPAI is published as a research paper (currently under review). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).
 
+The experiments documentation includes:
+- Dataset preparation steps
+- Benchmark setup instructions
+- Evaluation metrics and procedures
+- Statistical analysis methods
+- Hardware and software requirements
 
-## Release Notes
+## ⚙️ Extension Settings
 
-Users appreciate release notes as you update your extension.
+Configure LSPAI through VS Code settings:
+
+* `lspai.enable`: Enable/disable automatic test generation
+* `lspai.coverage.threshold`: Set minimum coverage threshold
+* `lspai.languages`: Configure supported languages
+
+## 🔍 Known Issues
+
+1. X Server Display Error
+   ```bash
+   [ERROR:ozone_platform_x11.cc(245)] Missing X server or $DISPLAY
+   ```
+   Solution: Run commands with `xvfb-run`
+
+## 📝 Release Notes
 
 ### 1.0.0
+- Initial release with support for Java, Go, and Python
+- Real-time test generation capability
+- Integrated coverage reporting
 
-Initial release of LSAPI.
+## 📚 Resources
+
+- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+- [VS Code Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
+- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 🎯 Project Status
+
+| IDE      | Java | Python | Go  | C++ | TypeScript | Others |
+|----------|------|--------|-----|-----|------------|--------|
+| VS Code  | ✅   | ✅     | ✅  | 🚧  | 🚧         | 🚧     |
+| IntelliJ | 🚧   | 🚧     | 🚧  | 🚧  | 🚧         | 🚧     |
+
+Legend:
+- ✅ Fully Supported
+- 🚧 In Development
+- ❌ Not Yet Supported
 
 ---
 
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+**Happy Testing with LSPAI! 🎉**
