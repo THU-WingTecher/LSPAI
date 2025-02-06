@@ -1,11 +1,12 @@
 // fileHandler.ts
-import * as fs from 'fs';
-import * as path from 'path';
 import * as os from 'os';
 import { Uri, WorkspaceEdit, workspace } from 'vscode';
 import * as vscode from 'vscode';
 import { getPackageStatement, summarizeClass } from './retrieve';
 import { getLanguageSuffix } from './language';
+import * as fs from 'fs';
+import * as path from 'path';
+import { goSpecificEnvGen, currentSrcPath, sleep, DEFAULT_FILE_ENCODING } from './experiment';
 
 export function writeCodeToTempFile(code: string, extension: string = 'ts'): string {
     const tempDir = os.tmpdir();
@@ -143,4 +144,29 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
     
     // Return the full path of the unique file name
     return filePath;
+}
+export async function saveToIntermediate(
+    testCode: string,
+    fullFileName: string,
+    folderName: string,
+    language: string
+): Promise<string> {
+    let curSavePoint: string;
+
+    if (language === "go") {
+        curSavePoint = path.join(folderName, fullFileName);
+        if (!fs.existsSync(path.dirname(curSavePoint))) {
+            curSavePoint = await goSpecificEnvGen(fullFileName, folderName, language, currentSrcPath);
+            await sleep(1000);
+        }
+        fs.writeFileSync(curSavePoint, testCode, DEFAULT_FILE_ENCODING);
+        console.log(`Generated code saved to ${curSavePoint}`);
+    } else {
+        curSavePoint = await saveGeneratedCodeToIntermediateLocation(
+            testCode,
+            fullFileName,
+            folderName
+        );
+    }
+    return curSavePoint;
 }

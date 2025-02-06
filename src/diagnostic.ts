@@ -4,7 +4,7 @@ import * as path from 'path';
 import {DecodedToken, getDecodedTokensFromLine, getDecodedTokensFromRange, retrieveDef} from './token';
 import {closeActiveEditor} from './utils';
 import {processParentDefinition, constructSymbolRelationShip, classifyTokenByUri} from './retrieve';
-import { isBaseline } from './generate';
+import { isBaseline } from './experiment';
 import { getSymbolUsageInfo } from './reference';
 export enum DiagnosticTag {
     Unnecessary = 1,

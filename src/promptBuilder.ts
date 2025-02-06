@@ -1,3 +1,6 @@
+import { ContextInfo } from "./generate";
+import { isBaseline } from "./experiment";
+
 export interface ChatMessage {
     role: string;
     content: string;
@@ -240,4 +243,31 @@ ${code}
 \`\`\`
 `;
     }
+}
+export async function genPrompt(data: ContextInfo, method: string, language: string): Promise<any> {
+	let mainFunctionDependencies = "";
+	let dependentContext = "";
+	let mainfunctionParent = "";
+	let prompt = "";
+	const systemPromptText = ChatUnitTestSystemPrompt(data.languageId);
+	const textCode = data.SourceCode;
+
+	if (!isBaseline(method)) {
+		dependentContext = data.dependentContext;
+		mainFunctionDependencies = data.mainFunctionDependencies;
+		mainfunctionParent = data.mainfunctionParent;
+		prompt = LSPAIUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName, data.referenceCodes);
+	} else {
+		prompt = ChatUnitTestBaseUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName);
+	}
+	// console.log("System Prompt:", systemPromptText);
+	// console.log("User Prompt:", prompt);
+	const chatMessages: ChatMessage[] = [
+		{ role: "system", content: systemPromptText },
+		{ role: "user", content: prompt }
+	];
+
+	const promptObj: Prompt = { messages: chatMessages };
+
+	return Promise.resolve(promptObj.messages);
 }

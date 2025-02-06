@@ -1,20 +1,21 @@
-
-import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { ChatOpenAI } from "@langchain/openai";
-import { OpenAI } from "openai";
 import * as vscode from 'vscode';
-
-import {ChatUnitTestSystemPrompt, LSPAIUserPrompt, ChatUnitTestBaseUserPrompt, OurUserPrompt, BaseUserPrompt} from "./promptBuilder";
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from "./token";
-import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement} from "./retrieve";
-import {ChatMessage, Prompt} from "./promptBuilder";
+import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement, summarizeClass} from "./retrieve";
 import {getReferenceInfo} from "./reference";
-import { Ollama } from 'ollama';
+import { TokenLimitExceededError } from "./invokeLLM";
+import { currentGenMethods, currentTestPath, isBaseline, currentHistoryPath, currentExpLogPath, currentModel } from "./experiment";
 
-const TOKENTHRESHOLD = 2000; // Define your token threshold here
+import * as fs from 'fs';
+import * as path from 'path';
+import { LLMLogs, ExpLogs } from './log';
+import { invokeLLM } from "./invokeLLM";
+import { genPrompt, ChatMessage, Prompt, constructDiagnosticPrompt, FixSystemPrompt } from "./promptBuilder";
+import { getAllSymbols, isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
+import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
+import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate } from './fileHandler';
+import { error } from 'console';
 
-interface collectInfo {
+export interface ContextInfo {
 	dependentContext: string;
 	mainFunctionDependencies: string;
 	mainfunctionParent: string;
@@ -26,32 +27,8 @@ interface collectInfo {
 	packageString: string;
 	importString: string;
 }
-const BASELINE = "naive";
-export function isBaseline(method: string): boolean {
-	return method.includes(BASELINE);
-}
 
-const OPENAIMODELNAME = "gpt";
-export function isOpenAi(method: string): boolean {
-	return method.includes(OPENAIMODELNAME);
-}
-
-const LLAMAMODELNAME = "llama";
-export function isLlama(method: string): boolean {
-	return method.includes(LLAMAMODELNAME);
-}
-
-const DEEPSEEKMODELNAME = "deepseek";
-export function isDeepSeek(method: string): boolean {
-	return method.includes(DEEPSEEKMODELNAME);
-}
-
-function getModelName(method: string): string {
-	return method.split("_").pop()!;
-}
-
-
-export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string, method: string): Promise<collectInfo> {
+export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string, method: string): Promise<ContextInfo> {
 	let mainFunctionDependencies = "";
 	let dependentContext = "";
 	let mainfunctionParent = "";
@@ -87,235 +64,391 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 }
 
 
-export async function genPrompt(data: collectInfo, method: string, language: string): Promise<any> {
-	let mainFunctionDependencies = "";
-	let dependentContext = "";
-	let mainfunctionParent = "";
-	let prompt = "";
-	const systemPromptText = ChatUnitTestSystemPrompt(data.languageId);
-	const textCode = data.SourceCode;
+export async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<void> {
 
-	if (!isBaseline(method)) {
-		dependentContext = data.dependentContext;
-		mainFunctionDependencies = data.mainFunctionDependencies;
-		mainfunctionParent = data.mainfunctionParent;
-		prompt = LSPAIUserPrompt( textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName, data.referenceCodes);
-	} else {
-		prompt = ChatUnitTestBaseUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName);
+	// 获取符号信息
+	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+		'vscode.executeDocumentSymbolProvider',
+		document.uri
+	);
+
+	if (!symbols) {
+		vscode.window.showErrorMessage('No symbols found! - It seems language server is not running.');
+		return;
 	}
-	// console.log("System Prompt:", systemPromptText);
-	// console.log("User Prompt:", prompt);
+
+	// const allUseMap = new Map<String, Array<vscode.Location>>();
+	// 获取光标位置
+	const functionSymbolWithParents = getFunctionSymbolWithItsParents(symbols, position)!;
+	let targetCodeContextString = "";
+	const languageId = document.languageId;
+
+	if (functionSymbolWithParents.length > 0) {
+		const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0], languageId);
+		const parent = getSymbolDetail(document, functionSymbolWithParents[0]);
+		const children = functionSymbolWithParents.slice(1).map(symbol => getSymbolDetail(document, symbol)).join(' ');
+		targetCodeContextString = `${parent} { ${children} }`;
+		console.log(`targetCodeContext, : ${targetCodeContextString}`);
+	}
+	const folderPath = `${currentTestPath}${currentGenMethods[1]}`;
+	
+	const functionSymbol = getFunctionSymbol(symbols, position)!;
+	
+	const res = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId, []);
+	await generateUnitTestForAFunction(
+		document, 
+		functionSymbol, 
+	);
+
+}
+
+// Helper functions for the main generator
+async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, method: string, fullFileName: string): Promise<{ 
+	languageId: string, 
+	fileName: string, 
+	expData: ExpLogs[] 
+}> {
+	const expData: ExpLogs[] = [];
+	const fileNameParts = fullFileName.split('/');
+	const fileName = fileNameParts[fileNameParts.length - 1].split('.')[0];
+	
+	expData.push({
+		llmInfo: null, 
+		process: "start", 
+		time: "", 
+		method, 
+		fileName: fullFileName, 
+		function: functionSymbol.name, 
+		errMsag: ""
+	});
+
+	const languageId = document.languageId;
+	console.log('Language ID:', languageId);
+
+	if (!functionSymbol || !isFunctionSymbol(functionSymbol) || !isValidFunctionSymbol(functionSymbol)) {
+		vscode.window.showErrorMessage('No valid function symbol found!');
+		throw new Error('Invalid function symbol');
+	}
+
+	return { languageId, fileName, expData };
+}
+
+async function generateInitialTestCode(
+	document: vscode.TextDocument,
+	functionSymbol: vscode.DocumentSymbol,
+	languageId: string,
+	fileName: string,
+	method: string,
+	model: string,
+	expData: ExpLogs[]
+): Promise<string> {
+	const startTime = Date.now();
+	const collectedData = await collectInfo(document, functionSymbol, languageId, fileName, method);
+	expData.push({
+		llmInfo: null,
+		process: "collectInfo",
+		time: (Date.now() - startTime).toString(),
+		method,
+		fileName,
+		function: functionSymbol.name,
+		errMsag: ""
+	});
+
+	const promptObj = await genPrompt(collectedData, method, languageId);
+	const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+	const startLLMTime = Date.now();
+
+	try {
+		const testCode = await invokeLLM(method, promptObj, logObj);
+		const parsedCode = parseCode(testCode);
+		expData.push({
+			llmInfo: logObj,
+			process: "invokeLLM",
+			time: (Date.now() - startLLMTime).toString(),
+			method,
+			fileName,
+			function: functionSymbol.name,
+			errMsag: ""
+		});
+		return parsedCode;
+	} catch (error) {
+		if (error instanceof TokenLimitExceededError) {
+			console.warn('Token limit exceeded, continuing...');
+			expData.push({
+				llmInfo: logObj,
+				process: "TokenLimitation",
+				time: (Date.now() - startLLMTime).toString(),
+				method,
+				fileName,
+				function: functionSymbol.name,
+				errMsag: ""
+			});
+		}
+		throw error;
+	}
+}
+
+async function performFixingRound(
+	round: number,
+	curSavePoint: string,
+	currentCode: string,
+	diagnostics: vscode.Diagnostic[],
+	collectedData: any,
+	method: string,
+	languageId: string,
+	model: string,
+	historyPath: string,
+	fullFileName: string,
+	expData: ExpLogs[]
+): Promise<{ code: string, savePoint: string, diagnostics: vscode.Diagnostic[] } | null> {
+	console.log(`\n--- Round ${round} ---`);
+	
+	// Get diagnostic messages
+	const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method);
+	if (!diagnosticMessages.length) {
+		console.error('No diagnostic messages found!');
+		return null;
+	}
+
+	// Construct prompt for fixing
+	const diagnosticPrompts = constructDiagnosticPrompt(
+		currentCode,
+		diagnosticMessages.join('\n'),
+		collectedData.functionSymbol.name,
+		collectedData.mainfunctionParent,
+		collectedData.SourceCode
+	);
+	console.log('Constructed Diagnostic Messages:', diagnosticMessages);
+
+	// Prepare chat messages
 	const chatMessages: ChatMessage[] = [
-		{ role: "system", content: systemPromptText },
-		{ role: "user", content: prompt }
+		{ role: "system", content: FixSystemPrompt(languageId) },
+		{ role: "user", content: diagnosticPrompts }
 	];
 
-	const promptObj: Prompt = { messages: chatMessages };
+	// Get AI response
+	const fixlogObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: model};
+	const fixStartTime = Date.now();
+	let aiResponse: string;
 
-	return Promise.resolve(promptObj.messages);
-}
-
-export class TokenLimitExceededError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = "TokenLimitExceededError";
-	}
-}
-
-export async function invokeLLM(method: string, promptObj: any, logObj: any): Promise<string> {
-	// LLM生成单元测试代码
-	const messageTokens = promptObj[1].content.split(/\s+/).length
-	console.log("Invoking . . .")
-	if (messageTokens > TOKENTHRESHOLD) {
-		throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
-	}
-	if (isOpenAi(method)) {
-		return callOpenAi(method, promptObj, logObj);
-	} else if(isLlama(method)) {
-		return callLocalLLM(method, promptObj, logObj);
-	} else if(isDeepSeek(method)) {
-		return callDeepSeek(method, promptObj, logObj);
-	} else {
-		vscode.window.showErrorMessage('wrong model name!')
-		return "";
-	}
-}
-
-async function callDeepSeek(method: string, promptObj: any, logObj: any): Promise<string> {
-	// const proxy = "http://166.111.83.87:45321";
-	const modelName = getModelName(method);
-	// process.env.http_proxy = proxy;
-	// process.env.https_proxy = proxy;
-	// process.env.HTTP_PROXY = proxy;
-	// process.env.HTTPS_PROXY = proxy;
-	// process.env.OPENAI_PROXY_URL = proxy;
-	logObj.prompt = promptObj[1].content;
-	const openai = new OpenAI({
-		baseURL: 'https://api.deepseek.com',
-		apiKey: "sk-ef83b63a8e0643369b91caccd235f9f2",
-		// httpAgent: new HttpsProxyAgent(proxy),
-	});
 	try {
-		const response = await openai.chat.completions.create({
-			model: modelName,
-			messages: promptObj
+		aiResponse = await invokeLLM(method, chatMessages, fixlogObj);
+		expData.push({
+			llmInfo: fixlogObj,
+			process: `FixWithLLM_${round}`,
+			time: (Date.now() - fixStartTime).toString(),
+			method,
+			fileName: fullFileName,
+			function: collectedData.functionSymbol.name,
+			errMsag: diagnosticMessages.join('\n')
 		});
-		const result = response.choices[0].message.content!;
-		const tokenUsage = response.usage!.total_tokens;
-		logObj.tokenUsage = tokenUsage;
-		logObj.result = result;
-		// console.log('Generated test code:', result);
-		// console.log('Token usage:', tokenUsage);
-		return result;
-	} catch (e) {
-		console.error('Error generating test code:', e);
-		throw e;
-	}
-}
-
-async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<string> {
-	const proxy = "http://166.111.83.87:45321";
-	const modelName = getModelName(method);
-	process.env.http_proxy = proxy;
-	process.env.https_proxy = proxy;
-	process.env.HTTP_PROXY = proxy;
-	process.env.HTTPS_PROXY = proxy;
-	process.env.OPENAI_PROXY_URL = proxy;
-	logObj.prompt = promptObj[1].content;
-	const openai = new OpenAI({
-		apiKey: "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",
-		httpAgent: new HttpsProxyAgent(proxy),
-	});
-	try {
-		const response = await openai.chat.completions.create({
-			model: modelName,
-			messages: promptObj
-		});
-		const result = response.choices[0].message.content!;
-		const tokenUsage = response.usage!.total_tokens;
-		logObj.tokenUsage = tokenUsage;
-		logObj.result = result;
-		// console.log('Generated test code:', result);
-		// console.log('Token usage:', tokenUsage);
-		return result;
-	} catch (e) {
-		console.error('Error generating test code:', e);
-		throw e;
-	}
-}
-
-async function callLocalLLM(method: string, promptObj: any, logObj: any): Promise<string> {
-	const modelName = getModelName(method);
-	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
-	const ollama = new Ollama({ host: 'http://192.168.6.7:19295' })
-	try {
-		const response = await ollama.chat({
-			model: modelName,
-			messages: promptObj,
-			stream: false,
-		})
-	// const url = "http://192.168.6.7:19296/api/chat";
-	// const headers = {
-	//   "Content-Type": "application/json",
-	// };
-  
-	// const data = {
-	//   model: modelName,
-	//   messages: promptObj,
-	//   stream: false,
-	// };
-  
-	// try {
-	// const response = await fetch(url, {
-	// 	method: "POST",
-	// 	headers: headers,
-	// 	body: JSON.stringify(data),
-	// });
-	// if (!response.ok) {
-	// 	throw new Error(`HTTP error! status: ${response.status}`);
-	// }
-
-	const result = await response;
-	const content = (response as any).message.content;
-    // Assuming the response contains 'usage' data with token usage
-    // const tokenUsage = (result as any).usage.total_tokens || 0;
-    // logObj.tokenUsage = tokenUsage;
-    logObj.result = result;
-	// console.log("Response content:", content);
-	return content;
 	} catch (error) {
-	  console.error("Error sending chat request:", error);
-	  throw error;
-	}
-  }
-
-
-/**
- * @deprecated
- */
-async function generateTestCode(editor: vscode.TextEditor, functionSymbol: vscode.DocumentSymbol, DefUseMap: DecodedToken[], languageId: String): Promise<string> {
-	// LLM生成单元测试代码
-
-    const systemPropmt = await createSystemPromptWithDefUseMap(editor, DefUseMap)
-	const systemPrompt = systemPropmt.join('\n');
-    console.log(systemPropmt)
-	// const messageContent = `
-	// 		Given the following {language} code:
-	// 		{code}
-			
-	// 		Generate a unit test for the function "{functionName}" in {language}. 
-	// 		Make sure to follow best practices for writing unit tests. You should only generate the test code and neccessary code comment without any other word. You should not wrap the code in a markdown code block.
-	// 	`;
-	const messageContent = ChatPromptTemplate.fromTemplate(
-		`
-			Given the following {language} code:
-			{code}
-			
-			Generate a unit test for the function "{functionName}" in {language}. 
-			Make sure to follow best practices for writing unit tests. You should only generate the test code and neccessary code comment without any other word. You should not wrap the code in a markdown code block.
-		`
-	);
-	const prompt = ChatPromptTemplate.fromMessages(
-		[
-			["system", systemPrompt],
-			messageContent
-		]
-	);
-
-	const textCode = editor.document.getText(functionSymbol.range);
-	const proxy = "http://166.111.83.92:12333";
-	process.env.http_proxy = proxy;
-	process.env.https_proxy = proxy;
-	process.env.HTTP_PROXY = proxy;
-	process.env.HTTPS_PROXY = proxy;
-	process.env.OPENAI_PROXY_URL = proxy;
-	// const response2 = await axios.get('https://www.google.com');
-	// console.log(response2.data);
-
-	// console.log('1');
-	const llm = new ChatOpenAI(
-		{
-			model: "gpt-4o-mini",
-			apiKey: "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"
+		if (error instanceof TokenLimitExceededError) {
+			console.warn('Token limit exceeded, continuing...');
 		}
+		expData.push({
+			llmInfo: fixlogObj,
+			process: error instanceof TokenLimitExceededError ? "TokenLimitation" : "UnknownError",
+			time: (Date.now() - fixStartTime).toString(),
+			method,
+			fileName: fullFileName,
+			function: collectedData.functionSymbol.name,
+			errMsag: ""
+		});
+		return null;
+	}
+
+	// Parse and save the fixed code
+	const fixedCode = parseCode(aiResponse);
+	const saveStartTime = Date.now();
+	
+	try {
+		const newSavePoint = await saveToIntermediate(
+			fixedCode,
+			fullFileName.split(method)[1],
+			path.join(historyPath, method, round.toString()),
+			languageId
+		);
+		
+		expData.push({
+			llmInfo: null,
+			process: "saveGeneratedCodeToFolder",
+			time: (Date.now() - saveStartTime).toString(),
+			method,
+			fileName: fullFileName,
+			function: collectedData.functionSymbol.name,
+			errMsag: ""
+		});
+
+		// Get updated diagnostics
+		const diagStartTime = Date.now();
+		const newDiagnostics = await getDiagnosticsForFilePath(newSavePoint);
+		expData.push({
+			llmInfo: null,
+			process: "getDiagnosticsForFilePath",
+			time: (Date.now() - diagStartTime).toString(),
+			method,
+			fileName: fullFileName,
+			function: collectedData.functionSymbol.name,
+			errMsag: ""
+		});
+
+		console.log(`Remaining Diagnostics after Round ${round}:`, newDiagnostics.length);
+		
+		return {
+			code: fixedCode,
+			savePoint: newSavePoint,
+			diagnostics: newDiagnostics
+		};
+	} catch (error) {
+		console.error('Failed to save or validate fixed code:', error);
+		return null;
+	}
+}
+
+async function fixDiagnostics(
+	testCode: string,
+	collectedData: any,
+	method: string,
+	languageId: string,
+	model: string,
+	historyPath: string,
+	fullFileName: string,
+	expData: ExpLogs[],
+	MAX_ROUNDS: number
+): Promise<{ finalCode: string, success: boolean }> {
+	let round = 0;
+	let finalCode = testCode;
+	let curSavePoint = await saveToIntermediate(
+		finalCode,
+		fullFileName.split(method)[1],
+		path.join(historyPath, method, round.toString()),
+		languageId
 	);
-	// console.log('2');
-	const chain = prompt.pipe(llm);
-	// console.log('3');
 
-	const promptContent = await prompt.format({ language: languageId, code: textCode, functionName: functionSymbol.name });
-	console.log('Generated prompt:', promptContent);
+	let diagnostics = await getDiagnosticsForFilePath(curSavePoint);
 
-	return "!!";
-	// try {
-	// 	const response = await chain.invoke({ language: languageId, code: textCode, functionName: functionSymbol.name }); 
-	// 	console.log('4');
-	// 	const result = response.content;
-	// 	// console.log('Generated test code:', result);
-	// 	return result as string;
-	// } catch (e) {
-	// 	console.log(e);
-	// 	return "!!";
-	// }
+	while (round < MAX_ROUNDS && diagnostics.length > 0) {
+		round++;
+		const result = await performFixingRound(
+			round,
+			curSavePoint,
+			finalCode,
+			diagnostics,
+			collectedData,
+			method,
+			languageId,
+			model,
+			historyPath,
+			fullFileName,
+			expData
+		);
+		
+		if (!result) break;
+		
+		finalCode = result.code;
+		curSavePoint = result.savePoint;
+		diagnostics = result.diagnostics;
+	}
 
+	return {
+		finalCode,
+		success: diagnostics.length === 0
+	};
+}
+
+// Main function
+export async function generateUnitTestForAFunction(
+	document: vscode.TextDocument,
+	functionSymbol: vscode.DocumentSymbol,
+	MAX_ROUNDS: number = 3,
+	fullFileName: string = "",
+	method: string = "",
+	historyPath: string = "",
+	expLogPath: string = "",
+	model: string = ""
+): Promise<boolean> {
+
+	try {
+		const { languageId, fileName, expData } = await initializeTestGeneration(
+			document,
+			functionSymbol,
+			method,
+			fullFileName
+		);
+
+		const testCode = await generateInitialTestCode(
+			document,
+			functionSymbol,
+			languageId,
+			fileName,
+			method,
+			model,
+			expData
+		);
+
+		if (isBaseline(method)) {
+			await saveGeneratedCodeToFolder(testCode, fullFileName);
+			return true;
+		}
+
+		const { finalCode, success } = await fixDiagnostics(
+			testCode,
+			await collectInfo(document, functionSymbol, languageId, fileName, method),
+			method,
+			languageId,
+			model,
+			historyPath,
+			fullFileName,
+			expData,
+			MAX_ROUNDS
+		);
+
+		await saveGeneratedCodeToFolder(finalCode, fullFileName);
+		await saveExperimentData(expData, fileName, method);
+
+		return success;
+	} catch (error) {
+		console.error('Failed to generate unit test:', error);
+		vscode.window.showErrorMessage('Failed to generate unit test!');
+		return false;
+	}
+}
+
+async function saveExperimentData(expData: ExpLogs[], fileName: string, method: string) {
+	const jsonFilePath = path.join(currentExpLogPath, method, `${fileName}_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}.json`);
+
+	// Prepare the data to be saved
+    const formattedData = expData.map(log => ({
+		method: log.method,
+		process: log.process,
+		time: log.time,
+		fileName: log.fileName,
+		function: log.function,
+		errMsag: log.errMsag,
+		llmInfo: log.llmInfo ? {
+			tokenUsage: log.llmInfo.tokenUsage,
+			result: log.llmInfo.result,
+			prompt: log.llmInfo.prompt,
+			model: log.llmInfo.model
+		} : null
+    }));
+
+	const dir = path.dirname(jsonFilePath);
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
+
+    // Check if file exists and initialize empty array if not
+	let jsonContent = [];
+	if (fs.existsSync(jsonFilePath)) {
+		jsonContent = JSON.parse(fs.readFileSync(jsonFilePath, 'utf8'));
+	}
+	
+	// Append the current experiment's data
+	jsonContent.push(...formattedData);
+	
+    // Write the updated data
+	fs.writeFileSync(jsonFilePath, JSON.stringify(jsonContent, null, 2), 'utf8');
+	console.log(`Experiment data saved to ${jsonFilePath}`);
 }

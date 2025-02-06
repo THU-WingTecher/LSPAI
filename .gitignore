@@ -9,7 +9,8 @@ node_modules
 package-lock.json
 tsconfig.tsbuildinfo
 tsconfig.json
-experiments/
+experiments/projects/
+experiments/venv/
 temp/
 *.html
 *.js
@@ -17,3 +18,11 @@ temp/
 *.zip
 *.jar
 .npmrc
+*.vscode
+*.log
+*.out
+*.coverage
+*.coverage.out
+*.coverage.json
+*.coverage.html
+package-lock.json

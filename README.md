@@ -7,8 +7,6 @@ LSPAI is a powerful VS Code extension that revolutionizes unit test creation thr
 - 🚀 Real-time unit test generation as you code
 - 🌍 Multi-language support (Java, Go, Python)
 - 🎯 Semantic-aware test generation using LSP
-- ⚡ Immediate feedback and coverage insights
-- 🔄 Continuous test updates as code evolves
 
 ## 🎯 Project Status
 
@@ -151,18 +149,6 @@ Configure LSPAI through VS Code settings:
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 🎯 Project Status
-
-| IDE      | Java | Python | Go  | C++ | TypeScript | Others |
-|----------|------|--------|-----|-----|------------|--------|
-| VS Code  | ✅   | ✅     | ✅  | 🚧  | 🚧         | 🚧     |
-| IntelliJ | 🚧   | 🚧     | 🚧  | 🚧  | 🚧         | 🚧     |
-
-Legend:
-- ✅ Fully Supported
-- 🚧 In Development
-- ❌ Not Yet Supported
 
 ---
 

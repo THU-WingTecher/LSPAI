@@ -32,10 +32,6 @@
       {
         "command": "extension.getDiagnostic",
         "title": "Get Diagnostic Messages for current file"
-      },
-      {
-        "command": "llm-lsp-ut.ReExperiment",
-        "title": "LSPAI-ReExperiment"
       }
     ],
     "menus": {

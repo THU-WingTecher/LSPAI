@@ -309,4 +309,10 @@ def main():
     print("\nDone.\n")
 
 if __name__ == "__main__":
+#   343  python3 new_analyze.py /vscode-llm-ut/experiments/black/results_1_15_2025__10_19_09/logs/deepseek-chat
+#   344  python3 new_analyze.py /vscode-llm-ut/experiments/commons-cli/results_deepseek/logs/deepseek-chat /vscode-llm-ut/experiments/commons-csv/results_deepseek/logs/deepseek-chat
+#   345  python3 new_analyze.py /vscode-llm-ut/experiments/commons-cli/results_deepseek/logs/deepseek-chat /vscode-llm-ut/experiments/commons-csv/results_deepseek/logs/deepseek-chat
+#   346  pythone new_analyze.py /vscode-llm-ut/experiments/cobra/results_deepseek/logs/deepseek-chat /vscode-llm-ut/experiments/logrus/results_deepseek/logs/deepseek-chat
+#   347  python3 new_analyze.py /vscode-llm-ut/experiments/cobra/results_deepseek/logs/deepseek-chat /vscode-llm-ut/experiments/logrus/results_deepseek/logs/deepseek-chat
+#   348  python3 new_analyze.py /vscode-llm-ut/experiments/crawl4ai/results_1_16_2025__24_59_39/logs/deepseek-chat /vscode-llm-ut/experiments/black/results_1_15_2025__10_19_09
     main()
