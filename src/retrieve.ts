@@ -397,7 +397,7 @@ export async function processParentDefinition(def: ParentDefinition, indent: str
         // Prepend the descriptive sentence
         let result = '';
         if (indent === '') {
-            result += `${indent}The brief information of dependent ${symboltype} \`${packagOrName}\` is \n${indent}${parentDetail}\n`;
+            result += `${indent}The brief information of dependent ${symboltype} \`${packagOrName}\` is \`\`\`\n${indent}${parentDetail}\n`;
         } else {
             result += `${indent}${parentDetail}\n`;
         }
@@ -406,7 +406,7 @@ export async function processParentDefinition(def: ParentDefinition, indent: str
             // Recursively process the child definitions with increased indentation
             result += await processParentDefinition(childDef, indent + '  ', context, getFullInfo);
         }
-
+        result += `${indent}\`\`\``;
         return result;
     } catch (error) {
         console.error(`Error processing symbol ${def.parent.name} in ${def.uri}:`, error);

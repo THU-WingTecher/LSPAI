@@ -86,22 +86,25 @@ export async function activate(context: vscode.ExtensionContext) {
 		GENMETHODS = [MODEL, `naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);
 	});
-
 	context.subscriptions.push(disposable2);
 
 	const Pydisposable2 = await vscode.commands.registerCommand('llm-lsp-ut.PythonExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "python";
-		// SRC = `${WORKSPACE}/src`;
-		SRC = `${WORKSPACE}/crawl4ai`; // crawl4ai
-		// SRC = `${WORKSPACE}/src`; // black
+		if (WORKSPACE.includes("black")){
+			SRC = `${WORKSPACE}/src`;
+		} else if (WORKSPACE.includes("crawl4ai")){
+			SRC = `${WORKSPACE}/crawl4ai`;
+		} else {
+			SRC = `${WORKSPACE}/src`;
+		} 
 		TEST_PATH = `${WORKSPACE}/results_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}/`;
 		EXP_LOG_FOLDER = `${TEST_PATH}logs/`;
 		HISTORY_PATH = `${TEST_PATH}history/`;
 		EXP_PROB_TO_TEST = 1;
 		PARALLEL = 50;
-		GENMETHODS = [MODEL, `naive_${MODEL}`]		
+		GENMETHODS = [`naive_${MODEL}`]		
 		await experiment(language, GENMETHODS);
 	});
 
@@ -109,6 +112,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
 	const disposable3 = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
+		logCurrentSettings();
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			vscode.window.showErrorMessage('No active editor!');
@@ -538,11 +542,11 @@ async function generateUnitTestForAFunction(document: vscode.TextDocument, funct
 
 		if (diagnostics.length === 0) {
 			genResult = true;
-			await saveGeneratedCodeToFolder(finalCode, fullFileName);
 			console.log('All diagnostics have been resolved.');
 		} else {
 			console.log(`Reached the maximum of ${MAX_ROUNDS} rounds with ${diagnostics.length} diagnostics remaining.`);
 		}
+		await saveGeneratedCodeToFolder(finalCode, fullFileName);
     }
 
     if (!testCode) {

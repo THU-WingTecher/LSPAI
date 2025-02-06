@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getAllSymbols } from './utils';
+import { getAllSymbols, removeComments } from './utils';
 import { DecodedToken } from './token';
 
 function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
@@ -33,7 +33,7 @@ export async function getReferenceInfo(document: vscode.TextDocument, range: vsc
             if (ref.uri.toString() === document.uri.toString() && shortestSymbol.range.start.isBeforeOrEqual(position) && shortestSymbol.range.end.isAfterOrEqual(position)) {
                 continue; // Skip the reference at the same position and URI
             }
-            const refText = refDocument.getText(shortestSymbol.range);
+            const refText = removeComments(refDocument.getText(shortestSymbol.range)).trim();
             const refTextLines = refText.split('\n').length;
             const currentTotalLines = referenceCodes.reduce((acc, code) => acc + code.split('\n').length, 0);
             if (currentTotalLines + refTextLines <= refWindow) {

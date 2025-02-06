@@ -171,6 +171,10 @@ export async function getHover(document: vscode.TextDocument, symbol: vscode.Doc
  * @returns A string summarizing the symbol's details.
  */
 export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, getFullInfo: boolean = false): string {
+    // symbol.kind >= vscode.SymbolKind.Variable  MEANS that the symbol is a variable, constant, ... other no need to summarize symbols
+    // if (symbol.kind >= vscode.SymbolKind.Variable){
+    //     return '';
+    // }
     let detail = '';
     if (getFullInfo && document.getText(symbol.range).split('\n').length < 40 ) {
         return removeComments(document.getText(symbol.range));
@@ -255,7 +259,7 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
     ;
 }
 
-function removeComments(code: string): string {
+export function removeComments(code: string): string {
     // Regular expression to match comments in Go, Java, and Python
     const commentRegex = [
         /\/\/[^\n]*\n/g, // Go, Java, Python single-line comments (//...)

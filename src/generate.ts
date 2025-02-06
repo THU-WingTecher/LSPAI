@@ -51,7 +51,6 @@ function getModelName(method: string): string {
 }
 
 
-
 export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string, method: string): Promise<collectInfo> {
 	let mainFunctionDependencies = "";
 	let dependentContext = "";
