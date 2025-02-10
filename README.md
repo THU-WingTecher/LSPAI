@@ -90,23 +90,26 @@ Legend:
 LSPAI supports multiple LLM providers. Configure your preferred option in VS Code settings:
 
 1. Open VS Code Settings (Ctrl/Cmd + ,)
-2. Search for "lspAi"
-3. Configure one of the following:
+2. Configure LLM settings using one of these methods:
 
-```json
-{
-    "lspAi.model": "deepseek-chat",  // Choose: "deepseek-chat", "openai", or "ollama"
-    
-    // For OpenAI
-    "lspAi.openaiApiKey": "your-api-key",
-    
-    // For Deepseek
-    "lspAi.deepseekApiKey": "your-api-key",
-    
-    // For Local LLM (Ollama)
-    "lspAi.localLLMUrl": "http://your-ollama-server:port"
-}
-```
+   **Option A: Through VS Code Settings UI**
+   - Search for "lspAi" settings
+   - Configure your preferred model and API keys
+
+   **Option B: Direct JSON Configuration**
+   Add the following to your VS Code User Settings (settings.json):
+   ```json
+   {
+     "lspAi": {
+       "model": "deepseek-chat",  // Choose: "deepseek-chat", "openai", or "ollama"
+       "openaiApiKey": "your-api-key",    // Required for OpenAI
+       "deepseekApiKey": "your-api-key",  // Required for Deepseek
+       "localLLMUrl": "http://your-ollama-server:port",  // Required for Ollama
+       "proxyUrl": "your-proxy-server"    // Optional: Configure if using a proxy
+     }
+   }
+   ```
+
 ## 🛠️ Experiment Reproduction Guide
 LSPAI is published as a research paper (currently under review). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).
 

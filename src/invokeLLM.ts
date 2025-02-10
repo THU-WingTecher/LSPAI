@@ -33,6 +33,26 @@ export function getModelName(method: string): string {
 	return method.split("_").pop()!;
 }
 
+
+export function getModelConfigError(method: string): string | undefined {
+    const config = vscode.workspace.getConfiguration('lspAi');
+
+    if (method.includes(OPENAIMODELNAME) && !config.get<string>('openaiApiKey')) {
+        return 'OpenAI API key is not configured. Please set lspAi.openaiApiKey in settings.';
+    }
+
+    if (method.includes(LLAMAMODELNAME) && !config.get<string>('localLLMUrl')) {
+        return 'Local LLM URL is not configured. Please set lspAi.localLLMUrl in settings.';
+    }
+
+    if (method.includes(DEEPSEEKMODELNAME) && !config.get<string>('deepseekApiKey')) {
+        return 'Deepseek API key is not configured. Please set lspAi.deepseekApiKey in settings.';
+    }
+
+    return undefined;
+}
+
+
 export async function callLocalLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	const modelName = getModelName(method);
 	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
@@ -60,6 +80,11 @@ export async function callLocalLLM(method: string, promptObj: any, logObj: any):
 
 export async function invokeLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	// LLM生成单元测试代码
+	const error = getModelConfigError(method);
+	if (error) {
+		vscode.window.showErrorMessage(error);
+		return "";
+	}
 	const messageTokens = promptObj[1].content.split(/\s+/).length;
 	console.log("Invoking . . .");
 	if (messageTokens > TOKENTHRESHOLD) {

@@ -31,11 +31,15 @@ const TIME_ZONE = 'CST';
 const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
 
 // Constants for specific project paths
-const PYTHON_SRC_PATHS = {
+const SRC_PATHS = {
+	CLI: '/src/main/',
+	CSV: 'src/main/',
     BLACK: '/src',
     CRAWL4AI: '/crawl4ai',
-    DEFAULT: '/src'
-};
+    DEFAULT: '/'
+} as const;
+
+type ProjectName = keyof typeof SRC_PATHS;
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -188,14 +192,14 @@ function generateTimestampString(): string {
 }
 
 // Function to get source path based on project type
-function getPythonSourcePath(workspace: string): string {
-    if (workspace.includes("black")) {
-        return `${workspace}${PYTHON_SRC_PATHS.BLACK}`;
-    } else if (workspace.includes("crawl4ai")) {
-        return `${workspace}${PYTHON_SRC_PATHS.CRAWL4AI}`;
-    }
-    return `${workspace}${PYTHON_SRC_PATHS.DEFAULT}`;
-}
+// function getPythonSourcePath(workspace: string): string {
+//     if (workspace.includes("black")) {
+//         return `${workspace}${PYTHON_SRC_PATHS.BLACK}`;
+//     } else if (workspace.includes("crawl4ai")) {
+//         return `${workspace}${PYTHON_SRC_PATHS.CRAWL4AI}`;
+//     }
+//     return `${workspace}${PYTHON_SRC_PATHS.DEFAULT}`;
+// }
 
 // Function to generate result folder path
 function generateResultFolderPath(workspace: string): string {
@@ -207,6 +211,13 @@ export function sleep(ms: number): Promise<void> {
 }
 
 export async function experiment(language: string, genMethods: string[]): Promise<void> {
+	currentSrcPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
+	const projectName = vscode.workspace.workspaceFolders![0].name;
+	if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+		currentSrcPath = path.join(currentSrcPath, SRC_PATHS[projectName as ProjectName]);
+	} else {
+		currentSrcPath = path.join(currentSrcPath, SRC_PATHS.DEFAULT);
+	}
 	const results = await _experiment(language, genMethods);
 	for (const method in results) {
 		console.log(method, 'Results:', results);

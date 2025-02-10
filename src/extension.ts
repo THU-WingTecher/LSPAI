@@ -58,7 +58,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
 	const disposable3 = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
-		logCurrentSettings();
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			vscode.window.showErrorMessage('No active editor!');

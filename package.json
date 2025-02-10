@@ -75,6 +75,11 @@
           "type": "string",
           "default": "deepseek-chat",
           "description": "Model to use for code generation"
+        },
+        "lspAi.maxRound": {
+          "type": "number",
+          "default": 5,
+          "description": "Maximum number of rounds for code generation"
         }
       }
     }

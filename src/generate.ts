@@ -14,6 +14,7 @@ import { getAllSymbols, isFunctionSymbol, isValidFunctionSymbol, getFunctionSymb
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
 import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate } from './fileHandler';
 import { error } from 'console';
+import * as os from 'os';
 
 export interface ContextInfo {
 	dependentContext: string;
@@ -68,9 +69,13 @@ function getCurrentModel(): string {
     return config.get<string>('model') ?? currentModel; // Fallback to currentModel if not set in settings
 }
 
+function getMaxRound(): number {
+	const config = vscode.workspace.getConfiguration('lspAi');
+    return config.get<number>('maxRound') ?? 5; // Fallback to 5 rounds if not set in settings
+}
+
 export async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<void> {
 
-	const model = getCurrentModel();
 	// 获取符号信息
 	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
 		'vscode.executeDocumentSymbolProvider',
@@ -89,22 +94,42 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	const languageId = document.languageId;
 
 	if (functionSymbolWithParents.length > 0) {
-		const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0], languageId);
+		// const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0], languageId);
 		const parent = getSymbolDetail(document, functionSymbolWithParents[0]);
 		const children = functionSymbolWithParents.slice(1).map(symbol => getSymbolDetail(document, symbol)).join(' ');
 		targetCodeContextString = `${parent} { ${children} }`;
 		console.log(`targetCodeContext, : ${targetCodeContextString}`);
 	}
-	const folderPath = `${currentTestPath}${currentGenMethods[1]}`;
-	
+
+	const pathParts = vscode.workspace.workspaceFolders![0].uri.fsPath.split("/");
+	const projectName = pathParts[pathParts.length - 1];
+	const model = getCurrentModel();
+	const folderPath = path.join(os.tmpdir(), projectName, model);
+	const historyPath = path.join(folderPath, "history");
+	const expLogPath = path.join(folderPath, "logs");
 	const functionSymbol = getFunctionSymbol(symbols, position)!;
 	
-	const res = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId, []);
-	await generateUnitTestForAFunction(
+	// Generate the file paths
+	const { fileName } = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId, []);
+	
+	// Call generateUnitTestForAFunction with all required parameters
+	const finalCode = await generateUnitTestForAFunction(
 		document, 
 		functionSymbol, 
-		model
+		model,
+		getMaxRound(), // MAX_ROUNDS
+		fileName, // fullFileName
+		"", // method
+		historyPath,
+		expLogPath
 	);
+	// Create a new untitled document with the generated code
+	const newDocument = await vscode.workspace.openTextDocument({
+		language: languageId,
+		content: finalCode
+	});
+
+	await vscode.window.showTextDocument(newDocument, { preview: true });
 
 }
 
@@ -363,17 +388,35 @@ async function fixDiagnostics(
 	};
 }
 
+function getDefaultValue(): any {
+	return {
+		"method": "",
+		"model": "",
+		"MAX_ROUNDS": 5,
+		"fullFileName": "",
+		"historyPath": "",
+		"expLogPath": ""
+	}
+}
 // Main function
 export async function generateUnitTestForAFunction(
 	document: vscode.TextDocument,
 	functionSymbol: vscode.DocumentSymbol,
 	model: string,
-	MAX_ROUNDS: number = 5,
-	fullFileName: string = "",
-	method: string = "",
-	historyPath: string = "",
-	expLogPath: string = "",
-): Promise<boolean> {
+	MAX_ROUNDS: number,
+	fullFileName: string,
+	method: string,
+	historyPath: string,
+	expLogPath: string,
+): Promise<string> {
+
+	if (method === "") {
+		method = model;
+	}
+	console.log(`Generating unit test for ${method} in ${fullFileName}`);
+	console.log(`MAX_ROUNDS: ${MAX_ROUNDS}`);
+	console.log(`historyPath: ${historyPath}`);
+	console.log(`expLogPath: ${expLogPath}`);
 	// need give default value if thoes values are empty
 	try {
 		const { languageId, fileName, expData } = await initializeTestGeneration(
@@ -398,7 +441,7 @@ export async function generateUnitTestForAFunction(
 
 		if (isBaseline(method)) {
 			await saveGeneratedCodeToFolder(testCode, fullFileName);
-			return true;
+			return '';
 		}
 
 		const { finalCode, success } = await fixDiagnostics(
@@ -416,11 +459,11 @@ export async function generateUnitTestForAFunction(
 		await saveGeneratedCodeToFolder(finalCode, fullFileName);
 		await saveExperimentData(expData, fileName, method);
 
-		return success;
+		return finalCode;
 	} catch (error) {
 		console.error('Failed to generate unit test:', error);
 		vscode.window.showErrorMessage('Failed to generate unit test!');
-		return false;
+		return '';
 	}
 }
 
