@@ -15,34 +15,25 @@
     "commands": [
       {
         "command": "lspAi.JavaExperiment",
-        "title": "LSPAI-Java-Experiment"
+        "title": "LSPAI::Java-Experiment"
       },
       {
         "command": "lspAi.GoExperiment",
-        "title": "LSPAI-Go-Experiment"
+        "title": "LSPAI::Go-Experiment"
       },
       {
         "command": "lspAi.PythonExperiment",
-        "title": "LSPAI-Python-Experiment"
+        "title": "LSPAI::Python-Experiment"
       },
       {
         "command": "extension.generateUnitTest",
-        "title": "Generate Unit Test Function"
-      },
-      {
-        "command": "extension.getDiagnostic",
-        "title": "Get Diagnostic Messages for current file"
+        "title": "LSPAI::Generate Unit Test"
       }
     ],
     "menus": {
       "editor/context": [
         {
           "command": "extension.generateUnitTest",
-          "when": "editorTextFocus",
-          "group": "navigation"
-        },
-        {
-          "command": "extension.getDiagnostic",
           "when": "editorTextFocus",
           "group": "navigation"
         }

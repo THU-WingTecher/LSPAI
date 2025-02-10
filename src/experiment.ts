@@ -1,19 +1,12 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { LLMLogs, ExpLogs } from './log';
-import { BASELINE, invokeLLM } from "./invokeLLM";
-import { genPrompt, ChatMessage, Prompt, constructDiagnosticPrompt, FixSystemPrompt } from "./promptBuilder";
-import { getAllSymbols, isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail } from './utils';
-import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
-import { saveGeneratedCodeToFolder, findFiles, generateFileNameForDiffLanguage } from './fileHandler';
+import { BASELINE } from "./invokeLLM";
+import { getAllSymbols } from './utils';
+import { findFiles, generateFileNameForDiffLanguage } from './fileHandler';
 import { getLanguageSuffix } from './language';
-import { error } from 'console';
-import { summarizeClass } from './retrieve';
-import { PassThrough } from 'stream';
-import { Document } from '@langchain/core/dist/documents/document';
-import { Agent } from "http";
 import { generateUnitTestForAFunction } from './generate';
+import { currentExpProb, currentParallelCount, currentModel } from './config';
 // Constants for experiment settings
 const MIN_FUNCTION_LINES = 4;
 export const DEFAULT_FILE_ENCODING = 'utf8';
@@ -32,44 +25,32 @@ const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
 
 // Constants for specific project paths
 const SRC_PATHS = {
-	CLI: '/src/main/',
-	CSV: 'src/main/',
-    BLACK: '/src',
-    CRAWL4AI: '/crawl4ai',
+	"commons-cli": '/src/main/',
+	"commons-csv": 'src/main/',
+    "black": '/src',
+    "crawl4ai": '/crawl4ai',
     DEFAULT: '/'
 } as const;
 
 type ProjectName = keyof typeof SRC_PATHS;
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-const RANDOM_SEED = Date.now();
-const DEFAULT_WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
-const DEFAULT_SRC_PATH = `${DEFAULT_WORKSPACE}src/main/`;
-const DEFAULT_TEST_PATH = `${DEFAULT_WORKSPACE}/results_test/`;
-const DEFAULT_EXP_LOG_PATH = `${DEFAULT_TEST_PATH}logs/`;
-const DEFAULT_HISTORY_PATH = `${DEFAULT_TEST_PATH}history/`;
-const DEFAULT_MODEL = "deepseek-chat"; // gpt-4o-mini"; // llama3-70b // deepseek-chat
-const DEFAULT_GEN_METHODS = [DEFAULT_MODEL, `naive_${DEFAULT_MODEL}`];
-const DEFAULT_EXP_PROB = 1;
-const DEFAULT_PARALLEL_COUNT = 1;
 
-// Then update the variables that can change during runtime
-export let currentWorkspace = DEFAULT_WORKSPACE;
-export let currentSrcPath = DEFAULT_SRC_PATH;
-export let currentTestPath = DEFAULT_TEST_PATH;
-export let currentExpLogPath = DEFAULT_EXP_LOG_PATH;
-export let currentHistoryPath = DEFAULT_HISTORY_PATH;
-export let currentModel = DEFAULT_MODEL;
-export let currentGenMethods = [...DEFAULT_GEN_METHODS];
-export let currentExpProb = DEFAULT_EXP_PROB;
-export let currentParallelCount = DEFAULT_PARALLEL_COUNT;
+async function _experiment(srcPath: string, language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
+	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
+	const folderPath = path.join(workspace, RESULTS_FOLDER_PREFIX + generateTimestampString());
+	const expLogPath = path.join(folderPath, "logs");
 
-async function _experiment(language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
-	logCurrentSettings()
+    console.log(`Testing the folder of ${srcPath}`);
+    console.log(`saving the result to ${folderPath}`);
+    console.log(`Model: ${currentModel}`);
+    console.log(`Methods: ${methods}`);
+    console.log(`Max Rounds: ${MAX_ROUNDS}`);
+    console.log(`Experiment Log Folder: ${expLogPath}`);
+    console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
+    console.log(`PARALLEL: ${currentParallelCount}`);
 	const suffix = getLanguageSuffix(language); 
 	const Files: string[] = [];
-	findFiles(currentSrcPath, Files, language, suffix);
+	findFiles(srcPath, Files, language, suffix);	
 	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
 
 	for (const filePath of Files) {
@@ -96,10 +77,18 @@ async function _experiment(language: string, methods: string[]) : Promise<{[key:
 	const generatedResults: { [key: string]: boolean[] } = {};
 	for (const method of methods) {
 		console.log(`#### Starting experiment for method: ${method}`);
-		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, language, method, currentParallelCount);
+		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
 	}
 	console.log('#### Experiment completed!');
-	logCurrentSettings();
+
+    console.log(`Testing the folder of ${srcPath}`);
+    console.log(`saving the result to ${folderPath}`);
+    console.log(`Model: ${currentModel}`);
+    console.log(`Methods: ${methods}`);
+    console.log(`Max Rounds: ${MAX_ROUNDS}`);
+    console.log(`Experiment Log Folder: ${expLogPath}`);
+    console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
+    console.log(`PARALLEL: ${currentParallelCount}`);
 	return generatedResults;
 }
 
@@ -111,73 +100,62 @@ export function isGenerated(document: vscode.TextDocument, target: vscode.Docume
 		return false;
 	}
 }
-export async function reExperiment(language: string, methods: string[], origFilePath: string) : Promise<void> {
-	logCurrentSettings()
-	const tempFolderPath = `${currentTestPath}temp_${Math.random().toString(36).substring(2, 15)}/`;
-	const suffix = getLanguageSuffix(language); 
+// export async function reExperiment(language: string, methods: string[], origFilePath: string) : Promise<void> {
+// 	logCurrentSettings()
+// 	const tempFolderPath = `${currentTestPath}temp_${Math.random().toString(36).substring(2, 15)}/`;
+// 	const suffix = getLanguageSuffix(language); 
 
-	function findFiles(folderPath: string, Files: string[] = []) {
-		fs.readdirSync(folderPath).forEach(file => {
-			const fullPath = path.join(folderPath, file);
-			if (fs.statSync(fullPath).isDirectory()) {
-				findFiles(fullPath, Files); // Recursively search in subdirectory
-			} else if (file.endsWith(`.${suffix}`)) {
-				if (language === "go" && file.toLowerCase().includes('test')) {
-					console.log(`Ignoring test file: ${fullPath}`);
-				} else {
-					Files.push(fullPath);
-				}
-			}
-		});
-	}
-	const Files: string[] = [];
-	const Generated: string[] = [];
-	findFiles(currentSrcPath, Files);
-	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
-	let origFinalFilePath;
-	for (const method of methods) {
-		for (const filePath of Files) {
-				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
-				console.log(`#### Preparing symbols under file: ${filePath}`);
-				const symbols = await getAllSymbols(document.uri);
-				if (symbols) {
-					for (const symbol of symbols) {
-						if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-							origFinalFilePath = path.join(origFilePath, method);
-							if (isGenerated(document, symbol, origFinalFilePath, path.join(tempFolderPath, method))){
-								continue;
-							}
-							// if (language === 'java' && !isPublic(symbol, document)) {
-							// 	continue;
-							// }
-							if (isSymbolLessThanLines(symbol)){
-								continue;
-							}
-							vscode.window.showInformationMessage(`Found leak file : ${origFinalFilePath}`);
-							symbolDocumentMap.push({ symbol, document });
-						}
-					}
-				}
-				console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
-			}
-		const generatedResults: { [key: string]: boolean[] } = {};
-		console.log(`#### Starting experiment for method: ${method}`);
-		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, language, method, currentParallelCount);
-	}
-	console.log('#### Experiment completed!');
-	logCurrentSettings();
-}
-
-export function logCurrentSettings() {
-    console.log(`Testing the folder of ${currentSrcPath}`);
-    console.log(`saving the result to ${currentTestPath}`);
-    console.log(`Model: ${currentModel}`);
-    console.log(`Methods: ${currentGenMethods}`);
-    console.log(`Max Rounds: ${MAX_ROUNDS}`);
-    console.log(`Experiment Log Folder: ${currentExpLogPath}`);
-    console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
-    console.log(`PARALLEL: ${currentParallelCount}`);
-}
+// 	function findFiles(folderPath: string, Files: string[] = []) {
+// 		fs.readdirSync(folderPath).forEach(file => {
+// 			const fullPath = path.join(folderPath, file);
+// 			if (fs.statSync(fullPath).isDirectory()) {
+// 				findFiles(fullPath, Files); // Recursively search in subdirectory
+// 			} else if (file.endsWith(`.${suffix}`)) {
+// 				if (language === "go" && file.toLowerCase().includes('test')) {
+// 					console.log(`Ignoring test file: ${fullPath}`);
+// 				} else {
+// 					Files.push(fullPath);
+// 				}
+// 			}
+// 		});
+// 	}
+// 	const Files: string[] = [];
+// 	const Generated: string[] = [];
+// 	findFiles(currentSrcPath, Files);
+// 	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
+// 	let origFinalFilePath;
+// 	for (const method of methods) {
+// 		for (const filePath of Files) {
+// 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
+// 				console.log(`#### Preparing symbols under file: ${filePath}`);
+// 				const symbols = await getAllSymbols(document.uri);
+// 				if (symbols) {
+// 					for (const symbol of symbols) {
+// 						if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
+// 							origFinalFilePath = path.join(origFilePath, method);
+// 							if (isGenerated(document, symbol, origFinalFilePath, path.join(tempFolderPath, method))){
+// 								continue;
+// 							}
+// 							// if (language === 'java' && !isPublic(symbol, document)) {
+// 							// 	continue;
+// 							// }
+// 							if (isSymbolLessThanLines(symbol)){
+// 								continue;
+// 							}
+// 							vscode.window.showInformationMessage(`Found leak file : ${origFinalFilePath}`);
+// 							symbolDocumentMap.push({ symbol, document });
+// 						}
+// 					}
+// 				}
+// 				console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
+// 			}
+// 		const generatedResults: { [key: string]: boolean[] } = {};
+// 		console.log(`#### Starting experiment for method: ${method}`);
+// 		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, language, method, currentParallelCount);
+// 	}
+// 	console.log('#### Experiment completed!');
+// 	logCurrentSettings();
+// }
 
 function isPublic(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): boolean {
 	const funcDefinition = document.lineAt(symbol.selectionRange.start.line).text;
@@ -211,14 +189,14 @@ export function sleep(ms: number): Promise<void> {
 }
 
 export async function experiment(language: string, genMethods: string[]): Promise<void> {
-	currentSrcPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
+	let currentSrcPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
 	const projectName = vscode.workspace.workspaceFolders![0].name;
 	if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
 		currentSrcPath = path.join(currentSrcPath, SRC_PATHS[projectName as ProjectName]);
 	} else {
 		currentSrcPath = path.join(currentSrcPath, SRC_PATHS.DEFAULT);
 	}
-	const results = await _experiment(language, genMethods);
+	const results = await _experiment(currentSrcPath, language, genMethods);
 	for (const method in results) {
 		console.log(method, 'Results:', results);
 		const successCount = results[method].filter(result => result).length;
@@ -267,12 +245,16 @@ export function goSpecificEnvGen(fullfileName: string, folderName: string, langu
 
 async function parallelGenUnitTestForSymbols(
     symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[], 
+	currentSrcPath: string,
+	currentTestPath: string,
     language: string, 
     method: string, 
     num_parallel: number
 ) {
     const generatedResults: any[] = [];
-    const folderPath = `${currentTestPath}${method}`    
+	const historyPath = path.join(currentTestPath, "history");
+    const folderPath = path.join(currentTestPath, method);    
+	const expLogPath = path.join(currentTestPath, "logs");
     const filePaths: string[] = []
     if (language === 'go') {
         const res = goSpecificEnvGen('random', folderPath, language, currentSrcPath);
@@ -286,14 +268,15 @@ async function parallelGenUnitTestForSymbols(
         const symbolTasks = batch.map(async ({ document, symbol, fileName }) => {
             console.log(`#### Processing symbol ${symbol.name}`);
             const result = await generateUnitTestForAFunction(
+				currentSrcPath,
                 document, 
                 symbol, 
                 currentModel,
                 MAX_ROUNDS,
                 fileName, 
                 method,
-                currentHistoryPath,
-                currentExpLogPath,
+                historyPath,
+                expLogPath,
             );
             vscode.window.showInformationMessage(`[Progress:${generatedResults.length}] Unit test (${method}) for ${symbol.name} generated!`);
             generatedResults.push(result);

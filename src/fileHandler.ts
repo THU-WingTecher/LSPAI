@@ -6,7 +6,7 @@ import { getPackageStatement, summarizeClass } from './retrieve';
 import { getLanguageSuffix } from './language';
 import * as fs from 'fs';
 import * as path from 'path';
-import { goSpecificEnvGen, currentSrcPath, sleep, DEFAULT_FILE_ENCODING } from './experiment';
+import { goSpecificEnvGen, sleep, DEFAULT_FILE_ENCODING } from './experiment';
 
 export function writeCodeToTempFile(code: string, extension: string = 'ts'): string {
     const tempDir = os.tmpdir();
@@ -147,6 +147,7 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
 }
 export async function saveToIntermediate(
     testCode: string,
+    currentSrcPath: string,
     fullFileName: string,
     folderName: string,
     language: string

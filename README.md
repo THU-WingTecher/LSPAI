@@ -101,7 +101,7 @@ LSPAI supports multiple LLM providers. Configure your preferred option in VS Cod
    ```json
    {
      "lspAi": {
-       "model": "deepseek-chat",  // Choose: "deepseek-chat", "openai", or "ollama"
+       "model": "deepseek-chat",  // Choose: // gpt-4o-mini"; // llama3-70b // deepseek-chat
        "openaiApiKey": "your-api-key",    // Required for OpenAI
        "deepseekApiKey": "your-api-key",  // Required for Deepseek
        "localLLMUrl": "http://your-ollama-server:port",  // Required for Ollama
@@ -109,6 +109,22 @@ LSPAI supports multiple LLM providers. Configure your preferred option in VS Cod
      }
    }
    ```
+
+### 4. Generate Unit Tests
+
+To generate unit tests with LSPAI:
+
+1. Open your workspace in VS Code
+2. Navigate to the function/method you want to test
+3. Right-click within the function definition
+4. Select "LSPAI::Generate Unit Test" from the context menu
+![Unit Test Generation Example](doc/assets/simulateExampleFig.png)
+5. Wait for the test generation to complete( it may take 30-40 seconds )
+![Unit Test Generation Example](doc/assets/loadingFig.png)
+6. Checkout Generated example and deploy!
+![Unit Test Generation Example](doc/assets/resultFig.png)
+
+
 
 ## 🛠️ Experiment Reproduction Guide
 LSPAI is published as a research paper (currently under review). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).

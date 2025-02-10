@@ -3,7 +3,7 @@ import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from
 import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement, summarizeClass} from "./retrieve";
 import {getReferenceInfo} from "./reference";
 import { TokenLimitExceededError } from "./invokeLLM";
-import { currentGenMethods, currentTestPath, isBaseline, currentHistoryPath, currentExpLogPath, currentModel } from "./experiment";
+import { isBaseline } from "./experiment";
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,7 +15,7 @@ import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
 import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate } from './fileHandler';
 import { error } from 'console';
 import * as os from 'os';
-
+import { currentModel, maxRound } from './config';
 export interface ContextInfo {
 	dependentContext: string;
 	mainFunctionDependencies: string;
@@ -64,17 +64,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 	}
 }
 
-function getCurrentModel(): string {
-	const config = vscode.workspace.getConfiguration('lspAi');
-    return config.get<string>('model') ?? currentModel; // Fallback to currentModel if not set in settings
-}
-
-function getMaxRound(): number {
-	const config = vscode.workspace.getConfiguration('lspAi');
-    return config.get<number>('maxRound') ?? 5; // Fallback to 5 rounds if not set in settings
-}
-
-export async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<void> {
+export async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<string> {
 
 	// 获取符号信息
 	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
@@ -84,7 +74,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 
 	if (!symbols) {
 		vscode.window.showErrorMessage('No symbols found! - It seems language server is not running.');
-		return;
+		return "";
 	}
 
 	// const allUseMap = new Map<String, Array<vscode.Location>>();
@@ -101,9 +91,10 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 		console.log(`targetCodeContext, : ${targetCodeContextString}`);
 	}
 
-	const pathParts = vscode.workspace.workspaceFolders![0].uri.fsPath.split("/");
+	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
+	const pathParts = workspace.split("/");
 	const projectName = pathParts[pathParts.length - 1];
-	const model = getCurrentModel();
+	const model = currentModel;
 	const folderPath = path.join(os.tmpdir(), projectName, model);
 	const historyPath = path.join(folderPath, "history");
 	const expLogPath = path.join(folderPath, "logs");
@@ -114,22 +105,18 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	
 	// Call generateUnitTestForAFunction with all required parameters
 	const finalCode = await generateUnitTestForAFunction(
+		workspace,
 		document, 
 		functionSymbol, 
 		model,
-		getMaxRound(), // MAX_ROUNDS
+		maxRound, // MAX_ROUNDS
 		fileName, // fullFileName
 		"", // method
 		historyPath,
 		expLogPath
 	);
-	// Create a new untitled document with the generated code
-	const newDocument = await vscode.workspace.openTextDocument({
-		language: languageId,
-		content: finalCode
-	});
 
-	await vscode.window.showTextDocument(newDocument, { preview: true });
+	return finalCode;
 
 }
 
@@ -220,6 +207,7 @@ async function generateInitialTestCode(
 }
 
 async function performFixingRound(
+	srcPath: string,
 	round: number,
 	curSavePoint: string,
 	currentCode: string,
@@ -296,6 +284,7 @@ async function performFixingRound(
 	try {
 		const newSavePoint = await saveToIntermediate(
 			fixedCode,
+			srcPath,
 			fullFileName.split(method)[1],
 			path.join(historyPath, method, round.toString()),
 			languageId
@@ -338,6 +327,7 @@ async function performFixingRound(
 }
 
 async function fixDiagnostics(
+	srcPath: string,
 	testCode: string,
 	collectedData: any,
 	method: string,
@@ -352,6 +342,7 @@ async function fixDiagnostics(
 	let finalCode = testCode;
 	let curSavePoint = await saveToIntermediate(
 		finalCode,
+		srcPath,
 		fullFileName.split(method)[1],
 		path.join(historyPath, method, round.toString()),
 		languageId
@@ -362,6 +353,7 @@ async function fixDiagnostics(
 	while (round < MAX_ROUNDS && diagnostics.length > 0) {
 		round++;
 		const result = await performFixingRound(
+			srcPath,
 			round,
 			curSavePoint,
 			finalCode,
@@ -388,18 +380,9 @@ async function fixDiagnostics(
 	};
 }
 
-function getDefaultValue(): any {
-	return {
-		"method": "",
-		"model": "",
-		"MAX_ROUNDS": 5,
-		"fullFileName": "",
-		"historyPath": "",
-		"expLogPath": ""
-	}
-}
 // Main function
 export async function generateUnitTestForAFunction(
+	srcPath: string,
 	document: vscode.TextDocument,
 	functionSymbol: vscode.DocumentSymbol,
 	model: string,
@@ -445,6 +428,7 @@ export async function generateUnitTestForAFunction(
 		}
 
 		const { finalCode, success } = await fixDiagnostics(
+			srcPath,
 			testCode,
 			collectedData,
 			method,
@@ -457,7 +441,7 @@ export async function generateUnitTestForAFunction(
 		);
 
 		await saveGeneratedCodeToFolder(finalCode, fullFileName);
-		await saveExperimentData(expData, fileName, method);
+		await saveExperimentData(expData, expLogPath, fileName, method);
 
 		return finalCode;
 	} catch (error) {
@@ -467,8 +451,8 @@ export async function generateUnitTestForAFunction(
 	}
 }
 
-async function saveExperimentData(expData: ExpLogs[], fileName: string, method: string) {
-	const jsonFilePath = path.join(currentExpLogPath, method, `${fileName}_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}.json`);
+async function saveExperimentData(expData: ExpLogs[], expLogPath: string, fileName: string, method: string) {
+	const jsonFilePath = path.join(expLogPath, method, `${fileName}_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}.json`);
 
 	// Prepare the data to be saved
     const formattedData = expData.map(log => ({
