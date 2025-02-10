@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(disposable);
 
-	const disposable_exp = await vscode.commands.registerCommand('llm-lsp-ut.JavaExperiment', async () => {
+	const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {
 		vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
 		const language = "java";
 		await experiment(language, currentGenMethods);
@@ -41,7 +41,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(disposable_exp);
 
-	const disposable2 = await vscode.commands.registerCommand('llm-lsp-ut.GoExperiment', async () => {
+	const disposable2 = await vscode.commands.registerCommand('lspAi.GoExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "go";
@@ -49,7 +49,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(disposable2);
 
-	const Pydisposable2 = await vscode.commands.registerCommand('llm-lsp-ut.PythonExperiment', async () => {
+	const Pydisposable2 = await vscode.commands.registerCommand('lspAi.PythonExperiment', async () => {
 		const language = "python";
 		await experiment(language, currentGenMethods);
 	});
@@ -67,7 +67,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
 	});
 
-	// const disposable4 = await vscode.commands.registerCommand('llm-lsp-ut.ReExperiment', async () => {
+	// const disposable4 = await vscode.commands.registerCommand('lspAi.ReExperiment', async () => {
 	// 	// The code you place here will be executed every time your command is executed
 	// 	// Display a message box to the user
 	// 	const language = "java";

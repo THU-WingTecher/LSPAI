@@ -1,6 +1,6 @@
 {
-  "name": "llm-lsp-ut",
-  "displayName": "llm-lsp-ut",
+  "name": "lspAi",
+  "displayName": "lspAi",
   "description": "unit test generation with llm and lsp.",
   "version": "0.0.1",
   "engines": {
@@ -14,15 +14,15 @@
   "contributes": {
     "commands": [
       {
-        "command": "llm-lsp-ut.JavaExperiment",
+        "command": "lspAi.JavaExperiment",
         "title": "LSPAI-Java-Experiment"
       },
       {
-        "command": "llm-lsp-ut.GoExperiment",
+        "command": "lspAi.GoExperiment",
         "title": "LSPAI-Go-Experiment"
       },
       {
-        "command": "llm-lsp-ut.PythonExperiment",
+        "command": "lspAi.PythonExperiment",
         "title": "LSPAI-Python-Experiment"
       },
       {
@@ -51,27 +51,27 @@
     "configuration": {
       "title": "LLM LSP Unit Test Generator",
       "properties": {
-        "llm-lsp-ut.openaiApiKey": {
+        "lspAi.openaiApiKey": {
           "type": "string",
           "default": "",
           "description": "API key for OpenAI"
         },
-        "llm-lsp-ut.deepseekApiKey": {
+        "lspAi.deepseekApiKey": {
           "type": "string",
           "default": "",
           "description": "API key for Deepseek"
         },
-        "llm-lsp-ut.proxyUrl": {
+        "lspAi.proxyUrl": {
           "type": "string",
           "default": "",
           "description": "Proxy URL for API calls"
         },
-        "llm-lsp-ut.localLLMUrl": {
+        "lspAi.localLLMUrl": {
           "type": "string",
           "default": "",
           "description": "Proxy URL for API calls"
         },
-        "llm-lsp-ut.model": {
+        "lspAi.model": {
           "type": "string",
           "default": "deepseek-chat",
           "description": "Model to use for code generation"

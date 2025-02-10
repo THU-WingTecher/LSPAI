@@ -63,9 +63,14 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 	}
 }
 
+function getCurrentModel(): string {
+	const config = vscode.workspace.getConfiguration('lspAi');
+    return config.get<string>('model') ?? currentModel; // Fallback to currentModel if not set in settings
+}
 
 export async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<void> {
 
+	const model = getCurrentModel();
 	// 获取符号信息
 	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
 		'vscode.executeDocumentSymbolProvider',
@@ -98,6 +103,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	await generateUnitTestForAFunction(
 		document, 
 		functionSymbol, 
+		model
 	);
 
 }
@@ -136,6 +142,7 @@ async function initializeTestGeneration(document: vscode.TextDocument, functionS
 async function generateInitialTestCode(
 	document: vscode.TextDocument,
 	functionSymbol: vscode.DocumentSymbol,
+	collectedData: any,
 	languageId: string,
 	fileName: string,
 	method: string,
@@ -143,7 +150,6 @@ async function generateInitialTestCode(
 	expData: ExpLogs[]
 ): Promise<string> {
 	const startTime = Date.now();
-	const collectedData = await collectInfo(document, functionSymbol, languageId, fileName, method);
 	expData.push({
 		llmInfo: null,
 		process: "collectInfo",
@@ -361,14 +367,14 @@ async function fixDiagnostics(
 export async function generateUnitTestForAFunction(
 	document: vscode.TextDocument,
 	functionSymbol: vscode.DocumentSymbol,
-	MAX_ROUNDS: number = 3,
+	model: string,
+	MAX_ROUNDS: number = 5,
 	fullFileName: string = "",
 	method: string = "",
 	historyPath: string = "",
 	expLogPath: string = "",
-	model: string = ""
 ): Promise<boolean> {
-
+	// need give default value if thoes values are empty
 	try {
 		const { languageId, fileName, expData } = await initializeTestGeneration(
 			document,
@@ -377,9 +383,12 @@ export async function generateUnitTestForAFunction(
 			fullFileName
 		);
 
+		const collectedData = await collectInfo(document, functionSymbol, languageId, fileName, method);
+
 		const testCode = await generateInitialTestCode(
 			document,
 			functionSymbol,
+			collectedData,
 			languageId,
 			fileName,
 			method,
@@ -394,7 +403,7 @@ export async function generateUnitTestForAFunction(
 
 		const { finalCode, success } = await fixDiagnostics(
 			testCode,
-			await collectInfo(document, functionSymbol, languageId, fileName, method),
+			collectedData,
 			method,
 			languageId,
 			model,

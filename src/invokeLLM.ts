@@ -36,7 +36,7 @@ export function getModelName(method: string): string {
 export async function callLocalLLM(method: string, promptObj: any, logObj: any): Promise<string> {
 	const modelName = getModelName(method);
 	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
-	const config = vscode.workspace.getConfiguration('llm-lsp-ut');
+	const config = vscode.workspace.getConfiguration('lspAi');
 	const ollama = new Ollama({ host: config.get<string>('localLLMUrl') })
 	try {
 		const response = await ollama.chat({
@@ -82,7 +82,7 @@ export async function callDeepSeek(method: string, promptObj: any, logObj: any):
 	const modelName = getModelName(method);
 	logObj.prompt = promptObj[1].content;
 	
-	const config = vscode.workspace.getConfiguration('llm-lsp-ut');
+	const config = vscode.workspace.getConfiguration('lspAi');
 	const apiKey = config.get<string>('deepseekApiKey');
 	
 	if (!apiKey) {
@@ -112,7 +112,7 @@ export async function callDeepSeek(method: string, promptObj: any, logObj: any):
 }
 
 export async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<string> {
-	const config = vscode.workspace.getConfiguration('llm-lsp-ut');
+	const config = vscode.workspace.getConfiguration('lspAi');
 	const proxy = config.get<string>('proxyUrl');
 	const apiKey = config.get<string>('openaiApiKey');
 	

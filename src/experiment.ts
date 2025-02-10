@@ -277,12 +277,12 @@ async function parallelGenUnitTestForSymbols(
             const result = await generateUnitTestForAFunction(
                 document, 
                 symbol, 
+                currentModel,
                 MAX_ROUNDS,
                 fileName, 
                 method,
                 currentHistoryPath,
                 currentExpLogPath,
-                currentModel
             );
             vscode.window.showInformationMessage(`[Progress:${generatedResults.length}] Unit test (${method}) for ${symbol.name} generated!`);
             generatedResults.push(result);
