@@ -1,15 +1,58 @@
 ## Currently WIP
 
+## 🛠️ Setup Guide
 
-download experiment dataset : 
+### 1. Install LSPAI Extension
 
-wget --no-check-certificate "https://drive.google.com/file/d/1_yzbcPCVC0820IyRbKzcMikiZKXpxHGB/view?usp=sharing" -O experimentData.tar.gz
-tar xvf experimentData.tar.gz
+1. Pull the image and run
+   ```bash
+   docker pull lspai:latest
+   docker run -it --name lspai lspai:latest /bin/bash
+   ```
 
-move to the directory where Dockerfile is located, 
-and run 
+2. Clone and Build
+   ```bash
+   # Clone the repository
+   git clone https://github.com/your-repo/lspai.git
+   cd lspai
 
-docker build -t lspai -f Dockerfile.dev .
+   # Install dependencies
+   npm install
+
+   # Build the extension
+   npm run compile
+   ```
+
+3. Open the workspace with VSCode: this step is necessary since VSCode supports wonderful extension development environment.
+
+4. Run in Development Mode
+   - Open `/LSPAI/src/extension.ts`
+   - Press `F5` to launch Extension Development Host
+   - From the top, select `VS Code Extension Development`.
+   - If A new VS Code window is opened, you are ready with LSPAI in development mode.
+
+### 2. Download Dataset
+1. Download Experiment Dataset
+```bash
+cd /LSPAI
+wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/0fad8b7869ba43d08486/?dl=1" -O experiments/experimentData.tar.gz
+cd experiments/projects
+tar xvf ../experimentData.tar.gz
+```
+now you can see the downloaded dataset as
+```
+/LSPAI/experiments
+|-- experimentData.tar.gz
+|-- projects
+|   |-- black
+|   |-- cobra
+|   |-- commons-cli
+|   |-- commons-csv
+|   |-- crawl4ai
+|   `-- logrus
+```
+2. Download Real-World Project
+[WIP]
 ### Prerequisites
 
 1. **Docker Setup** [WIP]
@@ -87,3 +130,11 @@ docker build -t lspai -f Dockerfile.dev .
    python3 -m venv venv
    source venv/bin/activate
    ```
+
+
+
+
+
+Before publish
+1. delete all data files under experiments
+2. delete git information
