@@ -1,0 +1,28 @@
+FROM debian:latest
+
+# Update package lists and install required dependencies
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jdk  \
+    golang \
+    software-properties-common \
+    python3-venv \
+    python3-pip \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Go 1.22 manually
+RUN curl -OL https://go.dev/dl/go1.22.2.linux-amd64.tar.gz \
+    && tar -C /usr/local -xzf go1.22.2.linux-amd64.tar.gz \
+    && rm go1.22.2.linux-amd64.tar.gz
+ENV PATH="/usr/local/go/bin:$PATH"
+
+# Verify installations
+RUN java -version && \
+    go version && \
+    python3 --version && \
+    python3 -m venv --help
+
+WORKDIR /workspace
+
+CMD ["/bin/bash"]

@@ -1,5 +1,15 @@
 ## Currently WIP
 
+
+download experiment dataset : 
+
+wget --no-check-certificate "https://drive.google.com/file/d/1_yzbcPCVC0820IyRbKzcMikiZKXpxHGB/view?usp=sharing" -O experimentData.tar.gz
+tar xvf experimentData.tar.gz
+
+move to the directory where Dockerfile is located, 
+and run 
+
+docker build -t lspai -f Dockerfile.dev .
 ### Prerequisites
 
 1. **Docker Setup** [WIP]

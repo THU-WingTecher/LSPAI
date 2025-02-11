@@ -14,13 +14,18 @@ if [ -z "$2" ]; then
     exit 1
 fi
 
+if [ -z "$3" ]; then
+    echo "Error: Test file save path is missing."
+    echo "Usage: $0 <target_project_path> <test_save_dir> [report_dir]"
+    exit 1
+fi
+
 
 # Input parameters
 TARGET_PROJECT_PATH=$1
 TEST_DIR=$2
 REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
 
-EVOSUITE_JAR="/vscode-llm-ut/libs/evosuite-master-1.2.1-SNAPSHOT.jar"
 EVOSUITE="java -jar $EVOSUITE_JAR"
 # Navigate to target project path
 cd "$TARGET_PROJECT_PATH" || exit 1
