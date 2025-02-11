@@ -29,19 +29,10 @@ Legend:
 - You'll be able to install directly through VS Code's extension panel
 
 #### Option B: Build from Source
-1. Prerequisites
+1. Pull the image and run
    ```bash
-   # Install Node.js if not already installed
-   # For Ubuntu/Debian
-   curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
-   sudo apt-get install -y nodejs
-
-   # For macOS (using Homebrew)
-   brew install node
-
-   # Verify installation
-   node --version
-   npm --version
+   docker pull lspai:latest
+   docker run -it --name lspai lspai:latest /bin/bash
    ```
 
 2. Clone and Build
@@ -57,19 +48,22 @@ Legend:
    npm run compile
    ```
 
-3. Run in Development Mode
-   - Open the project in VS Code
+3. Open the workspace with VSCode: this step is necessary since VSCode supports wonderful extension development environment.
+
+4. Run in Development Mode
+   - Open `/LSPAI/src/extension.ts`
    - Press `F5` to launch Extension Development Host
-   - A new VS Code window will open with LSPAI loaded
+   - From the top, select `VS Code Extension Development`.
+   - If A new VS Code window is opened, you are ready with LSPAI in development mode.
 
 ### 2. Configure Language Servers
 
-1. Install Required Language Servers from VS Code Marketplace:
+1. Install Required Language Servers from VS Code Marketplace: if you pull the docker image, these are already downloaded.
    - Java: Oracle Java Extension Pack ( identifier : oracle.oracle-java)
    - Python: Pylance and Python extension ( identifier : ms-python.vscode-pylance, ms-python.python)
    - Go: Go extension ( identifier : golang.go)
 
-2. Language-Specific Setup:
+2. Language-Specific Setup: if you pull the docker image, these are already setted.
    
    **For Go:**
    Enable semantic tokenization in your VS Code settings.json:
@@ -109,6 +103,7 @@ LSPAI supports multiple LLM providers. Configure your preferred option in VS Cod
      }
    }
    ```
+   The settings may be shaded, but don't worry, it is normal effect.
 
 ### 4. Generate Unit Tests
 
