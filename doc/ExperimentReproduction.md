@@ -60,8 +60,9 @@
    mv /LSPAI/experiments/data/black/* .
    ```
 
-3. **Evaluate Black Project**
-   
+3. **Reproduce Experiment for Black Project**
+   We have three base lines - gpt-4o, gpt-4o-mini, deepseek-chat. 
+   To completely reproduce our experiment, you should repeat below pipeline three times(deepseek, gpt-4o, and gpt-4o-mini)
    a. Coverage Analysis
    ```bash
    # Run coverage analysis for LSPAI approach
@@ -86,7 +87,17 @@
    Note: While exact numbers may vary by environment, LSPAI typically shows 1-2% better coverage than the naive approach.
   
    b. Passrate Analysis
-    [WIP]
+   From the test execution results, you will see output similar to:
+   ```
+   ============================================================================================================ 506 failed, 208 passed, 4 warnings, 144 errors in 7.34s =============================================================================================================
+   ```
+   
+   The passrate is calculated by:
+   1. Total functions to test for Black project = 440 (predetermined)
+   2. Subtract number of errors from total: (440 - 144)
+   3. Divide by total functions: (440 - 144) / 440 = 0.673
+
+
 4. **Crawl4ai Project Setup**
    ```bash
    cd /LSPAI/experiments/projects
