@@ -31,27 +31,83 @@
    - From the top, select `VS Code Extension Development`.
    - If A new VS Code window is opened, you are ready with LSPAI in development mode.
 
-### 2. Download Dataset
-1. Download Experiment Dataset
-```bash
-cd /LSPAI
-wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/0fad8b7869ba43d08486/?dl=1" -O experiments/experimentData.tar.gz
-cd experiments/projects
-tar xvf ../experimentData.tar.gz
-```
-now you can see the downloaded dataset as
-```
-/LSPAI/experiments
-|-- experimentData.tar.gz
-|-- projects
-|   |-- black
-|   |-- cobra
-|   |-- commons-cli
-|   |-- commons-csv
-|   |-- crawl4ai
-|   `-- logrus
-```
-2. Download Real-World Project
+### 2. Download and Setup Real-World Projects
+
+#### Python Projects
+
+1. **Setup Python Environment**
+   ```bash
+   cd /LSPAI
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+2. **Black Project Setup**
+   ```bash
+   # Clone and checkout specific version
+   cd /LSPAI/experiments/projects
+   git clone https://github.com/psf/black.git
+   cd black
+   git checkout 8dc912774e322a2cd46f691f19fb91d2237d06e2
+
+   # Install dependencies
+   pip install -r docs/requirements.txt
+   pip install click mypy_extensions packaging urllib3 pathspec platformdirs
+
+   # Configure project
+   echo "version = '00.0.0'" > src/black/_black_version.py
+   rm pyproject.toml
+   mv /LSPAI/experiments/data/black/* .
+   ```
+
+3. **Evaluate Black Project**
+   
+   a. Coverage Analysis
+   ```bash
+   # Run coverage analysis for LSPAI approach
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/black \
+       /LSPAI/experiments/data/black/results_deepseek/deepseek-chat \
+       //LSPAI
+
+   # Run coverage analysis for naive approach
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/black \
+       /LSPAI/experiments/projects/black/results_deepseek/naive_deepseek-chat \
+       //Naive
+   ```
+
+   Expected output will look like:
+   ```
+   src/blib2to3/pytree.py               475    315    34%
+   ------------------------------------------------------
+   TOTAL                               7588   4534    40%
+   ```
+   Note: While exact numbers may vary by environment, LSPAI typically shows 1-2% better coverage than the naive approach.
+  
+   b. Passrate Analysis
+    [WIP]
+4. **Crawl4ai Project Setup**
+   ```bash
+   cd /LSPAI/experiments/projects
+   git clone https://github.com/unclecode/crawl4ai.git
+   cd crawl4ai
+   git checkout 8878b3d032fb21ce3567b34db128bfa64687198a
+   ```
+    [WIP]
+#### Go Projects
+[WIP]
+
+### Prerequisites
+
+1. **Docker Setup** [WIP]
+   ```bash
+   # Pull the LSPAI experiment image
+   docker pull lspai/experiment:latest
+   
+   # Run the container
+   docker run -it lspai/experiment:latest
+   ```
 [WIP]
 ### Prerequisites
 

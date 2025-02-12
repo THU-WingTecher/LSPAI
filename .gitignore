@@ -26,3 +26,6 @@ temp/
 *.coverage.json
 *.coverage.html
 package-lock.json
+*.tar.gz
+venv/
+experiments/data
