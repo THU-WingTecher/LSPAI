@@ -108,6 +108,11 @@
     [WIP]
 #### Go Projects
 [WIP]
+#### Java Projects
+apt install -y maven
+mvn install -DskipTests
+mvn dependency:copy-dependencies
+[WIP]
 
 ### Prerequisites
 
@@ -136,32 +141,40 @@
 3. Table3 [WIP]
 
 ### Java Setup
-1. Add these dependencies to your `pom.xml`:
-```xml
-<dependency>
-    <groupId>org.mockito</groupId>
-    <artifactId>mockito-core</artifactId>
-    <version>3.11.0</version>
-    <scope>test</scope>
-</dependency>
-<dependency>
-    <groupId>org.junit.jupiter</groupId>
-    <artifactId>junit-jupiter-api</artifactId>
-    <version>5.7.2</version>  <!-- Added version -->
-    <scope>test</scope>
-</dependency>
-<dependency>
-    <groupId>org.junit.jupiter</groupId>
-    <artifactId>junit-jupiter-engine</artifactId>
-    <version>5.7.2</version>  <!-- Added version -->
-    <scope>test</scope>
-</dependency>
-<dependency>
-    <groupId>org.junit.jupiter</groupId>
-    <artifactId>junit-jupiter-params</artifactId>
-    <version>5.7.2</version>  <!-- Added version -->
-    <scope>test</scope>
-</dependency>
+0. Java Setup
+  https://cloud.tsinghua.edu.cn/f/3e9f84c18e3d42c09960/?dl=1 
+  put to /LSPAI/lib/*
+0. git clone project
+
+1. Directly Generate Unit Test
+a. compile the project and install depnedencies
+mvn install -DskipTests
+mvn dependency:copy-dependencies
+b. F5 -> Run development mode
+c. Open project
+d. choose model at settings.json
+e. cntrl+shift+p -> LSPAI::Java-Experiment
+
+2. Reproduce with provided dataset
+a. download necessary libs
+b. download compiled files (this is necessary since jacoco coverage report only work with the original binary files that is used when generating unit tests)
+https://cloud.tsinghua.edu.cn/f/727023280c2f4ec2bbe9/?dl=1
+put to projects/commons-cli/target/
+c. reproduce : you should repeat below pipe line six times, NAIVE, LSPAI, for three base lines.
+c. coverage analysis
+   bash /LSPAI/experiments/scripts/java_coverage.bash /LSPAI/experiments/projects/commons-cli /LSPAI/experiments/data/commons-cli/results_deepseek/deepseek-chat
+   
+   after running above command, you can see the report at /LSPAI/experiments/data/commons-cli/results_deepseek/deepseek-chat-report/index.html
+   ![JaCoCo Coverage Report Example](doc/assets/resultFig.png)
+
+d. valid rate analysis
+   bash /LSPAI/experiments/scripts/java_coverage.bash /LSPAI/experiments/projects/commons-cli /LSPAI/experiments/data/commons-cli/results_deepseek/deepseek-chat
+
+   after running above command, you can checkout the direct result
+   ```
+   Total .java files: 207
+Files with corresponding .class files: 119
+Pass rate: 57.49%
 ```
 
 ### Project Setup Steps
