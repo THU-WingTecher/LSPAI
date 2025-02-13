@@ -31,18 +31,62 @@
    - From the top, select `VS Code Extension Development`.
    - If A new VS Code window is opened, you are ready with LSPAI in development mode.
 
-### 2. Download and Setup Real-World Projects
+## Reproduce Experiment Results 
 
-#### Python Projects
+There are two ways to proceed with the experiments:
 
-1. **Setup Python Environment**
-   ```bash
-   cd /LSPAI
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+#### Option A: Generate Unit Tests (Manual Method)
+If you want to generate unit tests yourself, follow these steps:
 
-2. **Black Project Setup**
+1. Complete the LSPAI Extension installation (see Setup Guide above)
+2. Launch LSPAI in Development Mode:
+   - Open `/LSPAI/src/extension.ts`
+   - Press `F5` to launch Extension Development Host
+   - Select "VS Code Extension Development" from the dropdown
+   - A new VS Code window should open
+
+3. Configure the workspace:
+   - Open the target project: Navigate to `experiments/project/black` 
+     (File -> Open Folder -> select experiments/project/black)
+   - Select Python interpreter: In the bottom-right section, choose `venv/bin/python`
+
+4. Run the experiment:
+   - Press `CTRL+SHIFT+P`
+   - For Python, you should first generate venv-python version, and install necessary libraries, and select python interpreter at righ-bottom section of vscode.
+   - Run the command `LSPAI::Python-Experiment`
+   - Monitor progress in the debug console
+
+> Note: Generating unit tests for every function in real-world projects is time-consuming. We provide pre-generated experiment data as an alternative (see Option B).
+
+#### Option B: Use Pre-generated Dataset (Recommended)
+
+Download and extract the experiment dataset:
+```bash
+cd /LSPAI
+wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/0fad8b7869ba43d08486/?dl=1" -O experiments/experimentData.tar.gz
+mkdir experiments/data
+cd experiments/data
+tar xvf ../experimentData.tar.gz
+```
+
+The extracted dataset will have this structure:
+```
+/LSPAI/experiments
+├── experimentData.tar.gz
+└── data
+    ├── black
+    ├── cobra
+    ├── commons-cli
+    ├── commons-csv
+    ├── crawl4ai
+    └── logrus
+```
+
+#### Python Projects [ BLACK, CRAWL4AI]
+
+1. **Black Project Setup**
+
+   To set up the Black project, follow these steps:
    ```bash
    # Clone and checkout specific version
    cd /LSPAI/experiments/projects
@@ -50,8 +94,14 @@
    cd black
    git checkout 8dc912774e322a2cd46f691f19fb91d2237d06e2
 
+   # Python Setup
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install coverage pytest
+
    # Install dependencies
    pip install -r docs/requirements.txt
+   pip install -r test_requirements.txt
    pip install click mypy_extensions packaging urllib3 pathspec platformdirs
 
    # Configure project
@@ -60,42 +110,70 @@
    mv /LSPAI/experiments/data/black/* .
    ```
 
-3. **Reproduce Experiment for Black Project**
-   We have three base lines - gpt-4o, gpt-4o-mini, deepseek-chat. 
-   To completely reproduce our experiment, you should repeat below pipeline three times(deepseek, gpt-4o, and gpt-4o-mini)
-   a. Coverage Analysis
+2. **Reproduce Experiment for Black Project**
+
+   To reproduce the experiments, run the following commands for each baseline (GPT-4o, GPT-4o-mini, DeepSeek):
+
    ```bash
-   # Run coverage analysis for LSPAI approach
+   # LSPAI - DS-V3
    bash /LSPAI/experiments/scripts/python_coverage.bash \
        /LSPAI/experiments/projects/black \
-       /LSPAI/experiments/data/black/results_deepseek/deepseek-chat \
-       //LSPAI
+       /LSPAI/experiments/data/black/results_deepseek/deepseek-chat
 
-   # Run coverage analysis for naive approach
+   # NAIVE - DS-V3
    bash /LSPAI/experiments/scripts/python_coverage.bash \
        /LSPAI/experiments/projects/black \
-       /LSPAI/experiments/projects/black/results_deepseek/naive_deepseek-chat \
-       //Naive
-   ```
+       /LSPAI/experiments/projects/black/results_deepseek/naive_deepseek-chat
 
-   Expected output will look like:
+   # LSPAI - GPT4o
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/black \
+       /LSPAI/experiments/data/black/results_gpt-4o/gpt-4o
+
+   # NAIVE - GPT4o
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/black \
+       /LSPAI/experiments/projects/black/results_gpt-4o/naive_gpt-4o
+
+   # LSPAI - GPT4o-mini
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/black \
+       /LSPAI/experiments/projects/black/results_gpt-4o-mini/gpt-4o-mini
+
+   # NAIVE - GPT4o-mini
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/black \
+       /LSPAI/experiments/projects/black/results_gpt-4o-mini/naive_gpt-4o-mini
    ```
+   
+3. **Analysis of Results**
+
+   After running any of the above commands, you'll get output for Coverage Analysis and Passrate Analysis.
+
+   a. Coverage Analysis ( e.g., deepseek)
+
+   The printed output will show coverage results for various files. Here's an example:
+   ```
+   ...
    src/blib2to3/pytree.py               475    315    34%
    ------------------------------------------------------
    TOTAL                               7588   4534    40%
    ```
-   Note: While exact numbers may vary by environment, LSPAI typically shows 1-2% better coverage than the naive approach.
+   The **TOTAL** row represents the final coverage percentage. In this case, 40%.
+   > Note: Coverage numbers may vary based on the environment, but LSPAI typically shows a 1-2% higher coverage compared to the naive approach.
   
-   b. Passrate Analysis
-   From the test execution results, you will see output similar to:
+   b. Valid Rate Analysis ( The number of total functions : 440 )
+
+   The printed output also show summarized results for whole unit test code files. Here's an example:
+
    ```
-   ============================================================================================================ 506 failed, 208 passed, 4 warnings, 144 errors in 7.34s =============================================================================================================
+   ...
+   ============================================================================================================ ... failed, ... passed, ... warnings, 144 errors in 7.34s =============================================================================================================
+   ...
    ```
+   From the given the number of errors, we can calculate the Valid Rate. 
    
-   The passrate is calculated by:
-   1. Total functions to test for Black project = 440 (predetermined)
-   2. Subtract number of errors from total: (440 - 144)
-   3. Divide by total functions: (440 - 144) / 440 = 0.673
+   In this case, 67.3% ((440 - 144) / 440 )
 
 
 4. **Crawl4ai Project Setup**
@@ -104,8 +182,85 @@
    git clone https://github.com/unclecode/crawl4ai.git
    cd crawl4ai
    git checkout 8878b3d032fb21ce3567b34db128bfa64687198a
+
+   # Python Setup
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install coverage pytest
+
+   # Install dependencies
+   # Don\'nt forget to activate venv environment
+   pip install -r requirements.txt
+
+   mv /LSPAI/experiments/data/crawl4ai/* .
    ```
-    [WIP]
+
+5. **Reproduce Experiment for CRAWL4AI Project**
+
+   To reproduce the experiments, run the following commands for each baseline (GPT-4o, GPT-4o-mini, DeepSeek):
+
+   ```bash
+   # LSPAI - DS-V3
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/crawl4ai \
+       /LSPAI/experiments/data/crawl4ai/results_deepseek/deepseek-chat
+
+   # NAIVE - DS-V3
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/crawl4ai \
+       /LSPAI/experiments/projects/crawl4ai/results_deepseek/naive_deepseek-chat
+
+   # LSPAI - GPT4o
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/crawl4ai \
+       /LSPAI/experiments/data/crawl4ai/results_gpt-4o/gpt-4o
+
+   # NAIVE - GPT4o
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/crawl4ai \
+       /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
+
+   # LSPAI - GPT4o-mini
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/crawl4ai \
+       /LSPAI/experiments/data/crawl4ai/results_gpt-4o-mini/gpt-4o-mini
+
+   # NAIVE - GPT4o-mini
+   bash /LSPAI/experiments/scripts/python_coverage.bash \
+       /LSPAI/experiments/projects/crawl4ai \
+       /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/naive_gpt-4o-mini
+   ```
+
+6. **Analysis of Results**
+
+   After running any of the above commands, you'll get output for Coverage Analysis and Passrate Analysis.
+
+   a. Coverage Analysis ( e.g., deepseek)
+
+   The printed output will show coverage results for various files. Here's an example:
+```
+   ...
+crawl4ai/utils.py                            689    334    52%
+crawl4ai/version_manager.py                   21      1    95%
+crawl4ai/web_crawler.py                      110     80    27%
+--------------------------------------------------------------
+TOTAL                                       5751   3304    43%
+   ```
+The TOTAL row represents the overall coverage percentage (43% in this case).
+   > Note: Coverage numbers may vary based on the environment, but LSPAI typically shows a 1-2% higher coverage compared to the naive approach.
+  
+   b. Valid Rate Analysis ( The number of total functions : 377 )
+
+The passrate analysis will summarize the number of total functions and the number of errors. Here's an example of the printed output:
+   ```
+   ...
+   ============================================================================================================ ... failed, ... passed, ... warnings, 108 errors in 20.98s =============================================================================================================
+   ...
+   ```
+   From the given the number of errors, we can calculate the Valid Rate. 
+   
+   In this case, 71.3% ((377 - 108) / 377 )
+
 #### Go Projects
 [WIP]
 
