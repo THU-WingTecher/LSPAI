@@ -177,4 +177,3 @@ export async function callOpenAi(method: string, promptObj: any, logObj: any): P
 		throw e;
 	}
 }
-

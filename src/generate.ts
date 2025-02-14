@@ -177,7 +177,7 @@ async function generateInitialTestCode(
 	const startLLMTime = Date.now();
 
 	try {
-		const testCode = await invokeLLM(method, promptObj, logObj);
+		const testCode = await invokeLLM(model, promptObj, logObj);
 		const parsedCode = parseCode(testCode);
 		expData.push({
 			llmInfo: logObj,
