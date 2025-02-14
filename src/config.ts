@@ -13,6 +13,7 @@ import * as vscode from 'vscode';
 // const DEFAULT_GEN_METHODS = [DEFAULT_MODEL, `naive_${DEFAULT_MODEL}`];
 const DEFAULT_EXP_PROB = 1;
 const DEFAULT_PARALLEL_COUNT = 1;
+const DEFAULT_MODEL = 'deepseek-chat';
 
 // // Then update the variables that can change during runtime
 // export let currentWorkspace = DEFAULT_WORKSPACE;
@@ -24,9 +25,9 @@ const DEFAULT_PARALLEL_COUNT = 1;
 // export let currentGenMethods = [...DEFAULT_GEN_METHODS];
 
 export let currentExpProb = DEFAULT_EXP_PROB;
-export let currentParallelCount = DEFAULT_PARALLEL_COUNT;
 export const config = vscode.workspace.getConfiguration('lspAi');
-export const currentModel = config.get<string>('model') ?? 'deepseek-chat';
+export const currentModel = config.get<string>('model') ?? DEFAULT_MODEL;
+export const currentParallelCount = config.get<number>('parallel') ?? DEFAULT_PARALLEL_COUNT;;
 export const methodsForExperiment = [currentModel, `naive_${currentModel}`];
 
 export const maxRound = config.get<number>('maxRound') ?? 5;
