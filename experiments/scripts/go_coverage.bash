@@ -46,56 +46,49 @@ cp "$TARGET_PROJECT_PATH/go.sum" "$TEST_DIR/"
 mkdir -p "$REPORT_DIR"
 # Navigate to target project path
 cd "$TEST_DIR" || exit 1
+go mod tidy
 # Run the Go command and capture the error log
-error_log=$(go test ./... -v 2>&1)
+# error_log=$(go test ./... -v 2>&1)
 
-python3 /vscode-llm-ut/go_clean.py "$error_log"
-echo "Re Running Test Files"
+# python3 /vscode-llm-ut/go_clean.py "$error_log"
+# echo "Re Running Test Files"
 COVERAGE_REPORT=${REPORT_DIR}/coverage.out
-
-# Clear old report if it exists
 echo "" > $COVERAGE_REPORT
-echo "" > test_output.lo
-echo "" > coverage.out
-go test ./.. -cover
-cat coverage.out
-# echo "coverage file :"
-# cat $COVERAGE_REPORT
-# Find all test files recursively
 
-go test ./... -failfast=false -v -cover -coverprofile="${REPORT_DIR}/coverage.out"
-go tool cover -html="${REPORT_DIR}/coverage.out" -o ${REPORT_DIR}/coverage_report.html
+if [[ "$TARGET_PROJECT_PATH" == *cobra ]]; then
+    go test ./... \
+        -coverpkg=github.com/spf13/cobra,github.com/spf13/cobra/doc \
+        -coverprofile=${COVERAGE_REPORT} \
+        -covermode=atomic || true
+    exit 0
+fi
 
-# find -name '*_test.go' | while read -r TEST_FILE; do
-#     # Get the directory of the test file
-#     DIR=$(dirname "$TEST_FILE")
-    
+if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then
 
-#     # Change to the test directory
-#     # cd "$TEST_DIR" || exit 1
-    
-#     # Run the test with coverage
-#     echo "After running coverage of $TEST_FILE"
-#     go test -coverprofile=coverage.out -run $TEST_FILE > test_output.log 2>&1
-#     # cat coverage.out
-#     # Check if coverage.out was generated
-#     if [ -f coverage.out ]; then
-#         COVERAGE=$(go tool cover -func=coverage.out | tail -n 1)
-#         # echo "$TEST_DIR: $COVERAGE" >> "$COVERAGE_REPORT"
-#         # break
-#     fi
-    
-#     # Clean up
-#     # rm -f coverage.out test_output.log
-    
-#     # Go back to the base directory
-#     # cd "$BASE_DIR" || exit 1
-# done
+# go test ./... github.com/sirupsen/logrus     -cover     -coverprofile=coverage.out     -covermode=atomic || true
+
+    find -name '*_test.go' | while read -r TEST_FILE; do
+        # Get the directory of the test file
+        DIR=$(dirname "$TEST_FILE")
+        # Run the test with coverage
+        echo "Running coverage of $TEST_FILE"
+        # go test ./... -coverprofile=${REPORT_DIR}/coverage.out -run $TEST_FILE > test_output.log 2>&1
+        go test -coverprofile=${REPORT_DIR}/coverage.out -run $TEST_FILE > test_output.log 2>&1
+        cat ${REPORT_DIR}/coverage.out
+        # Check if coverage.out was generated
+        if [ -f ${REPORT_DIR}/coverage.out ]; then
+            COVERAGE=$(go tool cover -func=${REPORT_DIR}/coverage.out | tail -n 1)
+
+        fi
+    done
+    python3 /vscode-llm-ut/experiments/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
+
+fi
+
 # cat coverage.out
 # # go test ./... -failfast=false -v -cover -coverprofile="${REPORT_DIR}/coverage.out"
 # # go tool cover -html="${REPORT_DIR}/coverage.out" -o ${REPORT_DIR}/coverage_report.html
-python3 /vscode-llm-ut/interpret_go_out.py coverage.out
-python3 /vscode-llm-ut/interpret_go_out.py ${REPORT_DIR}/coverage.out
+# python3 /vscode-llm-ut/experiments/scripts/interpret_go_out.py coverage.out
 
 # Extract the total number of statements and covered statements from the coverage.out
 # total_statements=$(grep -oP '^\S+' "${REPORT_DIR}/coverage.out" | wc -l)
