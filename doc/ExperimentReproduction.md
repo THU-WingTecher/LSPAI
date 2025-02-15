@@ -63,7 +63,7 @@ If you want to generate unit tests yourself, follow these steps:
 Download and extract the experiment dataset:
 ```bash
 cd /LSPAI
-wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/0fad8b7869ba43d08486/?dl=1" -O experiments/experimentData.tar.gz
+wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/b2fb4d2da958401d8005/?dl=1" -O experiments/experimentData.tar.gz
 mkdir experiments/data
 cd experiments/data
 tar xvf ../experimentData.tar.gz
@@ -262,6 +262,41 @@ The passrate analysis will summarize the number of total functions and the numbe
    In this case, 71.3% ((377 - 108) / 377 )
 
 #### Go Projects
+
+git clone https://github.com/sirupsen/logrus.git
+cd logrus
+go env -w GOPROXY=https://goproxy.io,direct
+go mod tidy
+
+bash experiments/scripts/go_coverage.bash  /vscode-llm-ut/experiments/projects/logrus /vscode-llm-ut/experiments/data/results_deepseek/deepseek-chat
+
+```bash
+...
+After running coverage of ./writer_WriterLevel1_test.go
+Total Statements: 588
+Covered Statements: 174
+Coverage Percentage: 29.59%
+```
+
+pass rate analysis 
+```bash
+bash experiments/scripts/go_passrate.bash  /vscode-llm-ut/experiments/projects/logrus /vscode-llm-ut/experiments/data/results_deepseek/deepseek-chat /vscode-llm-ut/experiments/data/results_deepseek/deepseek-chat-test
+```
+
+```bash
+Total test files: 30
+Pass rate: 21.428571428571427
+```
+
+- cobra
+
+git clone https://github.com/spf13/cobra.git
+cd cobra
+go env -w GOPROXY=https://goproxy.io,direct
+go mod tidy
+
+bash experiments/scripts/go_coverage.bash  /vscode-llm-ut/experiments/projects/cobra /vscode-llm-ut/experiments/data/cobra/results_deepseek/deepseek-chat_clean
+```bash
 [WIP]
 #### Java Projects
 apt install -y maven
