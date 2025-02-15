@@ -209,10 +209,9 @@ export function isSymbolLessThanLines(symbol: vscode.DocumentSymbol): boolean {
     return symbol.range.end.line - symbol.range.start.line < MIN_FUNCTION_LINES;
 }
 
-export function goSpecificEnvGen(fullfileName: string, folderName: string, language: string, srcPath: string): string {
+export function goSpecificEnvGen(folderName: string, language: string, srcPath: string): string {
     // Create the new folder path
-    const fullPath = path.join(folderName, fullfileName);
-    const newFolder = path.dirname(fullPath);
+    const newFolder = folderName;
     const suffix = getLanguageSuffix(language); 
     const Files: string[] = [];
 
@@ -222,10 +221,10 @@ export function goSpecificEnvGen(fullfileName: string, folderName: string, langu
     // Copy all source code files to the new folder, preserving directory structure
     Files.forEach(file => {
         // Calculate the relative destination directory and file name
-        const relativeDir = path.relative(srcPath, path.dirname(file)); // Get the relative directory
-		console.log(path.dirname(file), relativeDir);
-        const destDir = path.join(newFolder, relativeDir); // Destination directory for the file
-        const destFile = path.join(destDir, path.basename(file)); // Complete destination file path
+        const relativeDir = path.relative(srcPath, path.dirname(file));
+        console.log(path.dirname(file), relativeDir);
+        const destDir = path.join(newFolder, relativeDir);
+        const destFile = path.join(destDir, path.basename(file));
 
         // Ensure the destination directory exists
         if (!fs.existsSync(destDir)) {
@@ -234,13 +233,13 @@ export function goSpecificEnvGen(fullfileName: string, folderName: string, langu
 
         // Try to copy the file
         try {
-            fs.copyFileSync(file, destFile); // Copy file to the destination
+            fs.copyFileSync(file, destFile);
         } catch (err) {
             console.error(`Error copying file ${file} to ${destFile}: ${err}`);
         }
     });
 
-    return fullPath; // Return the new folder path
+    return newFolder;
 }
 
 async function parallelGenUnitTestForSymbols(
@@ -257,7 +256,7 @@ async function parallelGenUnitTestForSymbols(
 	const expLogPath = path.join(currentTestPath, "logs");
     const filePaths: string[] = []
     if (language === 'go') {
-        const res = goSpecificEnvGen('random', folderPath, language, currentSrcPath);
+        const res = goSpecificEnvGen(folderPath, language, currentSrcPath);
     }
     const symbolFilePairs = symbolDocumentMap.map(({symbol, document}) => {
         return generateFileNameForDiffLanguage(document, symbol, folderPath, language, filePaths);

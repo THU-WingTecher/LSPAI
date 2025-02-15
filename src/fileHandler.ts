@@ -157,7 +157,7 @@ export async function saveToIntermediate(
     if (language === "go") {
         curSavePoint = path.join(folderName, fullFileName);
         if (!fs.existsSync(path.dirname(curSavePoint))) {
-            curSavePoint = await goSpecificEnvGen(fullFileName, folderName, language, currentSrcPath);
+            curSavePoint = await goSpecificEnvGen(folderName, language, currentSrcPath);
             await sleep(1000);
         }
         fs.writeFileSync(curSavePoint, testCode, DEFAULT_FILE_ENCODING);
