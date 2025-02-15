@@ -32,4 +32,3 @@ if [ "$valid" -eq 0 ]; then
 fi
 
 python3 -c "print('Pass rate:', $valid/$TOTAL*100)"
-echo "Pass rate: $passrate"
