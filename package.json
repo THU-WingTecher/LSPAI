@@ -1,8 +1,13 @@
 {
   "name": "lspAi",
   "displayName": "lspAi",
+  "publisher": "GwihwanGo",
   "description": "unit test generation with llm and lsp.",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GwihwanGo/LSPAI.git"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
