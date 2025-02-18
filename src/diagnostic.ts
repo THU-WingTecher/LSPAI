@@ -48,36 +48,57 @@ async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[
         try {
             // Get initial diagnostics
             let diagnostics: vscode.Diagnostic[] = vscode.languages.getDiagnostics(uri);
+            
+            // If we already have diagnostics, return them immediately
+            if (diagnostics && diagnostics.length > 0) {
+                console.log('Found initial diagnostics, returning immediately');
+                return resolve(diagnostics);
+            }
+
+            let attempts = 0;
+            const maxAttempts = 3;
+            const retryInterval = 2000; // 2 seconds
+
+            const checkDiagnostics = () => {
+                diagnostics = vscode.languages.getDiagnostics(uri);
+                if (diagnostics && diagnostics.length > 0) {
+                    console.log('Found diagnostics on retry:', diagnostics);
+                    cleanup();
+                    return resolve(diagnostics);
+                }
+
+                attempts++;
+                if (attempts >= maxAttempts) {
+                    console.log('Max attempts reached, returning current diagnostics');
+                    cleanup();
+                    return resolve(diagnostics);
+                }
+            };
 
             // Set up a listener for diagnostics changes
             const diagnosticsChangedDisposable = vscode.languages.onDidChangeDiagnostics((event) => {
                 if (event.uris.some(updatedUri => updatedUri.toString() === uri.toString())) {
                     console.log('Diagnostics changed event triggered for URI:', uri.toString());
-
-                    // Update diagnostics
                     diagnostics = vscode.languages.getDiagnostics(uri);
                     console.log('Updated diagnostics:', diagnostics);
-
-                    // Clear the timeout to prevent it from firing
-                    clearTimeout(timeout);
-
-                    // Dispose the listener to avoid memory leaks
-                    diagnosticsChangedDisposable.dispose();
-                    console.log('Disposed diagnostics change listener');
-
-                    // Resolve the promise with the updated diagnostics
+                    cleanup();
                     resolve(diagnostics);
                 }
             });
 
-            console.log('Waiting for diagnostics to be updated...');
+            const intervalId = setInterval(checkDiagnostics, retryInterval);
 
-            // Set a timeout to avoid hanging forever in case diagnostics don't change
-            const timeout = setTimeout(() => {
-                console.log('Timeout reached. Returning initial diagnostics.');
-                diagnosticsChangedDisposable.dispose(); // Cleanup the listener if timeout occurs
-                resolve(diagnostics); // Resolve with the initial diagnostics
-            }, 10000);  // 10 seconds timeout (adjust as needed)
+            const cleanup = () => {
+                clearInterval(intervalId);
+                diagnosticsChangedDisposable.dispose();
+            };
+
+            // Set a final timeout
+            setTimeout(() => {
+                console.log('Final timeout reached');
+                cleanup();
+                resolve(diagnostics);
+            }, 10000); // 10 seconds total timeout
 
         } catch (error) {
             reject(new Error(`Error while fetching diagnostics: ${error}`));
