@@ -22,41 +22,7 @@ Legend:
 
 ## 🛠️ Setup Guide
 
-### 1. Install LSPAI Extension
-
-#### Option A: VS Code Marketplace (Coming Soon!)
-- LSPAI will be available on the VS Code marketplace
-- You'll be able to install directly through VS Code's extension panel
-
-#### Option B: Build from Source
-1. Pull the image and run
-   ```bash
-   docker pull lspai:latest
-   docker run -it --name lspai lspai:latest /bin/bash
-   ```
-
-2. Clone and Build
-   ```bash
-   # Clone the repository
-   git clone https://github.com/your-repo/lspai.git
-   cd lspai
-
-   # Install dependencies
-   npm install
-
-   # Build the extension
-   npm run compile
-   ```
-
-3. Open the workspace with VSCode: this step is necessary since VSCode supports wonderful extension development environment.
-
-4. Run in Development Mode
-   - Open `/LSPAI/src/extension.ts`
-   - Press `F5` to launch Extension Development Host
-   - From the top, select `VS Code Extension Development`.
-   - If A new VS Code window is opened, you are ready with LSPAI in development mode.
-
-### 2. Configure Language Servers
+### 1. Configure Language Servers
 
 1. Install Required Language Servers from VS Code Marketplace: if you pull the docker image, these are already downloaded.
    - Java: Oracle Java Extension Pack ( identifier : oracle.oracle-java)
@@ -79,7 +45,7 @@ Legend:
    - While not required, compiling your project can improve error diagnosis and auto-fixing capabilities
    - Refer Experiment Setup
 
-### 3. Configure LLM Settings
+### 2. Configure LLM Settings
 
 LSPAI supports multiple LLM providers. Configure your preferred option in VS Code settings:
 
@@ -105,7 +71,9 @@ LSPAI supports multiple LLM providers. Configure your preferred option in VS Cod
    ```
    The settings may be shaded, but don't worry, it is normal effect.
 
-### 4. Generate Unit Tests
+### 3. Generate Unit Tests
+
+Now you are ready!! 
 
 To generate unit tests with LSPAI:
 
@@ -131,13 +99,13 @@ The experiments documentation includes:
 - Statistical analysis methods
 - Hardware and software requirements
 
-## ⚙️ Extension Settings
+<!-- ## ⚙️ Extension Settings
 
 Configure LSPAI through VS Code settings:
 
 * `lspai.enable`: Enable/disable automatic test generation
 * `lspai.coverage.threshold`: Set minimum coverage threshold
-* `lspai.languages`: Configure supported languages
+* `lspai.languages`: Configure supported languages -->
 
 ## 🔍 Known Issues
 
