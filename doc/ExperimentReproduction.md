@@ -5,6 +5,8 @@
 - [Table of Contents](#table-of-contents)
 - [🛠️ Setup Guide](#️-setup-guide)
   - [1. Install LSPAI Extension](#1-install-lspai-extension)
+    - [Option A: VS Code Marketplace (Coming Soon!)](#option-a-vs-code-marketplace-coming-soon)
+    - [Option B: Build from Source](#option-b-build-from-source)
 - [Reproduce Experiment Results](#reproduce-experiment-results)
   - [Prepare Unit Test Codes](#prepare-unit-test-codes)
     - [Option A: Generate Unit Tests (Manual Method)](#option-a-generate-unit-tests-manual-method)
@@ -24,8 +26,31 @@
 
 ### 1. Install LSPAI Extension
 
-Complete installing extention.
-Refer 🛠️ Setup Guide at [Readme](../README.md)
+#### Option A: VS Code Marketplace (Coming Soon!)
+
+Download the extension from this [link](https://marketplace.visualstudio.com/items?itemName=GwihwanGo.lspAi) or search "LSPAI" in VS Code extension market.
+
+#### Option B: Build from Source
+1. Pull the image and run
+   ```bash
+   docker pull lspai:latest
+   docker run -it --name lspai lspai:latest /bin/bash
+   ```
+
+2. Clone and Build
+   ```bash
+   # Clone the repository
+   git clone https://github.com/your-repo/lspai.git
+   cd lspai
+
+   # Install dependencies
+   npm install
+
+   # Build the extension
+   npm run compile
+   ```
+
+After installing the extension, please configure your language servers and LLM settings by following the 🛠️ Setup Guide in the [README](../README.md).
 
 ## Reproduce Experiment Results 
 
@@ -37,6 +62,8 @@ There are two ways to proceed with the experiments:
 
 Each programming language has slightly different steps. 
 Overall, you can follow these steps:
+
+If you followed the **Setup Guide :: Option A**, you can directly proceed with step 4.
 
 1. Complete the LSPAI Extension installation (see Setup Guide above)
 2. Launch LSPAI in Development Mode:
@@ -84,7 +111,6 @@ The extracted dataset will have this structure:
     ├── cobra
     ├── commons-cli
     ├── commons-csv
-    ├── crawl4ai
     └── logrus
 ```
 
@@ -436,7 +462,7 @@ bash experiments/scripts/go_coverage.bash  /vscode-llm-ut/experiments/projects/c
    # NAIVE - DS-V3
    bash /LSPAI/experiments/scripts/java_coverage.bash \
       /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/projects/commons-cli/results_deepseek/naive_deepseek-chat
+      /LSPAI/experiments/data/commons-cli/results_deepseek/naive_deepseek-chat
 
    # LSPAI - GPT4o
    bash /LSPAI/experiments/scripts/java_coverage.bash \
@@ -446,7 +472,7 @@ bash experiments/scripts/go_coverage.bash  /vscode-llm-ut/experiments/projects/c
    # NAIVE - GPT4o
    bash /LSPAI/experiments/scripts/java_coverage.bash \
       /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/projects/commons-cli/results_gpt-4o/naive_gpt-4o
+      /LSPAI/experiments/data/commons-cli/results_gpt-4o/naive_gpt-4o
 
    # LSPAI - GPT4o-mini
    bash /LSPAI/experiments/scripts/java_coverage.bash \
@@ -456,7 +482,7 @@ bash experiments/scripts/go_coverage.bash  /vscode-llm-ut/experiments/projects/c
    # NAIVE - GPT4o-mini
    bash /LSPAI/experiments/scripts/java_coverage.bash \
       /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/projects/commons-cli/results_gpt-4o-mini/naive_gpt-4o-mini
+      /LSPAI/experiments/data/commons-cli/results_gpt-4o-mini/naive_gpt-4o-mini
    ```
 
    **4. Coverage Analysis**
@@ -657,7 +683,7 @@ bash experiments/scripts/go_coverage.bash  /vscode-llm-ut/experiments/projects/c
    # NAIVE - GPT4o
    bash /LSPAI/experiments/scripts/java_passrate.bash \
       /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/projects/commons-csv/results_gpt-4o/naive_gpt-4o
+      /LSPAI/experiments/data/commons-csv/results_gpt-4o/naive_gpt-4o
 
    # LSPAI - GPT4o-mini
    bash /LSPAI/experiments/scripts/java_passrate.bash \
