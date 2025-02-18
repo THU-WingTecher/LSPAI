@@ -1,5 +1,5 @@
 target/
-out
+lib
 dist
 node_modules
 .vscode-test/
@@ -9,8 +9,7 @@ node_modules
 package-lock.json
 tsconfig.tsbuildinfo
 tsconfig.json
-experiments/projects/
-experiments/venv/
+experiments
 temp/
 *.html
 *.js
