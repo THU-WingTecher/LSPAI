@@ -1,7 +1,7 @@
 #!/bin/bash
 # set -x
 #!/bin/bash
-# overall statements : 588(go test -cover -coverprofile=cov.out, /vscode-llm-ut/experiments/logrus# python3 /vscode-llm-ut/interpret_go_out.py cov.out)
+# overall statements : 588(go test -cover -coverprofile=cov.out, /LSPAI/experiments/logrus# python3 /LSPAI/interpret_go_out.py cov.out)
 # Check if the required parameters are provided
 if [ -z "$1" ]; then
     echo "Error: Target project path is missing."
@@ -50,7 +50,7 @@ go mod tidy
 # Run the Go command and capture the error log
 # error_log=$(go test ./... -v 2>&1)
 
-# python3 /vscode-llm-ut/go_clean.py "$error_log"
+# python3 /LSPAI/go_clean.py "$error_log"
 # echo "Re Running Test Files"
 COVERAGE_REPORT=${REPORT_DIR}/coverage.out
 echo "" > $COVERAGE_REPORT
@@ -81,14 +81,14 @@ if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then
 
         fi
     done
-    python3 /vscode-llm-ut/experiments/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
+    python3 /LSPAI/experiments/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
 
 fi
 
 # cat coverage.out
 # # go test ./... -failfast=false -v -cover -coverprofile="${REPORT_DIR}/coverage.out"
 # # go tool cover -html="${REPORT_DIR}/coverage.out" -o ${REPORT_DIR}/coverage_report.html
-# python3 /vscode-llm-ut/experiments/scripts/interpret_go_out.py coverage.out
+# python3 /LSPAI/experiments/scripts/interpret_go_out.py coverage.out
 
 # Extract the total number of statements and covered statements from the coverage.out
 # total_statements=$(grep -oP '^\S+' "${REPORT_DIR}/coverage.out" | wc -l)
