@@ -1,4 +1,3 @@
-****## Currently WIP
 
 ## Table of Contents
 - [Table of Contents](#table-of-contents)
@@ -43,6 +42,9 @@
       - [Reproduce Experiment Results :: Valid Rate](#reproduce-experiment-results--valid-rate-1)
       - [Valid Rate Analysis](#valid-rate-analysis-3)
   - [Throuput Experiment](#throuput-experiment)
+    - [Reproduce Result](#reproduce-result)
+    - [Interpret Result](#interpret-result)
+- [Conclusion](#conclusion)
   - [Prerequisites](#prerequisites)
   - [Prerequisites](#prerequisites-1)
 
@@ -250,7 +252,7 @@ The extracted dataset will have this structure:
 
 
    #### Crawl4ai Project Setup
-   
+
       ```bash
       cd /LSPAI/experiments/projects
       git clone https://github.com/unclecode/crawl4ai.git
@@ -926,7 +928,82 @@ The extracted dataset will have this structure:
 
 ### Throuput Experiment
 
+In this section, we reproduce the experiment results of LSPAI, focusing on the tokens used and the time taken. LSPAI generates log files when generating test files, and based on these log files, we summarize and analyze the costs associated with LSPAI's operations.
 
+Before proceeding, make sure you have already downloaded the provided dataset as described in this section(#option-b-use-pre-generated-dataset-recommended).
+
+#### Reproduce Result
+
+For each dataset folder (e.g., `results_deepseek`, `results_gpt-4o`, and `results_gpt-4o-mini`), you will find corresponding logs folders. The structure should look like this:
+
+```bash
+│   │   ├── results_deepseek-chat
+│   │   │   ├── history
+│   │   │   ├── logs
+│   │   │   │   ├── deepseek-chat <-- COPY the PATH of this folder!
+│   │   │   │   │   └── ... json files
+```
+Copy the absolute path of the folder marked as `<-- COPY the PATH of this folder!`, and then run the prewritten Python scripts below.
+
+To summarize the overall cost of generating unit tests for Python projects (`crawl4ai` and `black`), use the following commands:
+
+```bash 
+# Python - DS-V3 ( Remember we moved dataset files from data/ folder to project/ folder)
+python3 experiments/scripts/anal_cost.py /LSPAI/experiments/projects/black/results_deepseek/logs/deepseek-chat /LSPAI/experiments/projects/crawl4ai/results_deepseek/logs/deepseek-chat
+
+# Go - DS-V3 
+python3 experiments/scripts/anal_cost.py /LSPAI/experiments/data/logrus/results_deepseek/logs/deepseek-chat /LSPAI/experiments/data/cobra/results_deepseek/logs/deepseek-chat
+
+# Java - DS-V3 
+python3 experiments/scripts/anal_cost.py /LSPAI/experiments/data/commons-cli/results_deepseek/logs/deepseek-chat /LSPAI/experiments/data/commons-csv/results_deepseek/logs/deepseek-chat
+```
+
+#### Interpret Result
+
+After running the above commands, you will get summarized results in the following format:
+
+```bash
+=== Overall Statistics (across ALL directories) ===
+
+Total Files Processed: 435
+Total Time Used (ms): 50501186
+Total Tokens Used: 766972
+Total FixWithLLM Tokens Used: 79256
+Total FixWithLLM Processes Run: 54
+Average Time per File (ms): 116094.68
+Average Tokens per File: 1763.15
+Average FixWithLLM Time per File (ms): 1674.84
+Average FixWithLLM Tokens per File: 182.20
+
+=== Average Time and Token Usage per Process ===
+
+Process                          Avg Time (ms)      Avg Tokens
+-----------------------------------------------------------------
+End                                   59194.80            0.00
+FixWithLLM_1                          11358.20         1306.88
+FixWithLLM_2                          17819.57         1805.29
+FixWithLLM_3                          20662.75         1981.25
+FixWithLLM_4                          26029.50         2466.00
+FixWithLLM_5                          14779.00         1487.00
+collectInfo                           36167.88            0.00
+getDiagnosticsForFilePath              6681.67            0.00
+invokeLLM                             12374.62         1580.96
+saveGeneratedCodeToFolder                 0.88            0.00
+start                                     0.00            0.00
+
+```
+
+Since we perform 5 rounds for each FixWithLLM process, to get the average time and tokens used for fixing the code, refer to the values under `Average FixWithLLM Time per File` and `Average FixWithLLM Tokens per File`.
+
+For other processes, such as collecting context information (`collectInfo`), generating diagnostic error messages (`getDiagnosticsForFilePath`), or saving files (`saveGeneratedCodeToFolder`), you can directly refer to the figures under the Process Avg Time (ms) Avg Tokens section.
+
+## Conclusion 
+
+Thank you for reading this experiment reproduction document! If you encounter any issues or errors, feel free to contact me by creating an issue or sending me an email at iejw1914@gmail.com.
+
+We are dedicated to contributing to the open-source community and welcome any contributions or recommendations!
+
+**Happy Testing with LSPAI! 🎉**
 
 ### Prerequisites
 
