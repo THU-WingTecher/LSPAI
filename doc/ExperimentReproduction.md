@@ -59,7 +59,7 @@ Download the extension from this [link](https://marketplace.visualstudio.com/ite
 #### Option B: Build from Source
 1. Pull the image and run
    ```bash
-   docker pull lspai:latest
+   docker pull gwihwan/lspai:latest
    docker run -it --name lspai lspai:latest /bin/bash
    ```
 
@@ -67,7 +67,7 @@ Download the extension from this [link](https://marketplace.visualstudio.com/ite
    ```bash
    # Clone the repository
    git clone https://github.com/your-repo/lspai.git
-   cd lspai
+   cd LSPAI
 
    # Install dependencies
    npm install
