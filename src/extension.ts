@@ -14,7 +14,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// 	// raise error
 	// 	throw new Error("Current workspace is not set");
 	// }
-	const disposable3 = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
+	const disposable = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
 			vscode.window.showErrorMessage('Please open a file and select a function to generate unit test.');
@@ -43,6 +43,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			}
 		});
 	});
+	context.subscriptions.push(disposable);
 
 	const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {
 		vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
