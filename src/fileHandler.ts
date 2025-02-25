@@ -6,10 +6,16 @@ import { getPackageStatement, summarizeClass } from './retrieve';
 import { getLanguageSuffix } from './language';
 import * as fs from 'fs';
 import * as path from 'path';
-import { goSpecificEnvGen, sleep, DEFAULT_FILE_ENCODING } from './experiment';
+import { goSpecificEnvGen, sleep, DEFAULT_FILE_ENCODING, TIME_FORMAT_OPTIONS } from './experiment';
+
+export function getTempDirAtCurWorkspace(): string {
+    const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
+    const testDir = path.join(workspace, `results_${generateTimestampString()}`);
+    return testDir;
+}
 
 export function writeCodeToTempFile(code: string, extension: string = 'ts'): string {
-    const tempDir = os.tmpdir();
+    const tempDir = getTempDirAtCurWorkspace();
     const tempFilePath = path.join(tempDir, `fix_${Date.now()}.${extension}`);
     fs.writeFileSync(tempFilePath, code, { encoding: 'utf-8' });
     return tempFilePath;
@@ -25,6 +31,16 @@ export async function updateOriginalFile(filePath: string, newCode: string): Pro
     );
     edit.replace(uri, fullRange, newCode);
     await workspace.applyEdit(edit);
+}
+
+export async function showGeneratedCodeWithPreview(filePath: string, column: vscode.ViewColumn = vscode.ViewColumn.Beside): Promise<void> {
+    const uri = vscode.Uri.file(filePath);
+    const document = await vscode.workspace.openTextDocument(uri);
+    await vscode.window.showTextDocument(document, {
+        preview: true,
+        viewColumn: column
+    });
+    vscode.window.showInformationMessage(`Generated code has been saved to ${filePath}`);
 }
 
 export async function saveGeneratedCodeToFolder(code: string, fileName: string): Promise<void> {
@@ -170,4 +186,11 @@ export async function saveToIntermediate(
         );
     }
     return curSavePoint;
+
+}// Function to generate timestamp string for folder names
+export function generateTimestampString(): string {
+    return new Date()
+        .toLocaleString('en-US', TIME_FORMAT_OPTIONS)
+        .replace(/[/,: ]/g, '_');
 }
+

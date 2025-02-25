@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BASELINE } from "./invokeLLM";
 import { getAllSymbols } from './utils';
-import { findFiles, generateFileNameForDiffLanguage } from './fileHandler';
+import { findFiles, generateFileNameForDiffLanguage, generateTimestampString } from './fileHandler';
 import { getLanguageSuffix } from './language';
 import { generateUnitTestForAFunction } from './generate';
 import { currentExpProb, currentParallelCount, currentModel } from './config';
@@ -21,7 +21,7 @@ export const NAIVE_PREFIX = "naive_";
 
 // Constants for time formatting
 const TIME_ZONE = 'CST';
-const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
+export const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
 
 // Constants for specific project paths
 const SRC_PATHS = {
@@ -34,6 +34,17 @@ const SRC_PATHS = {
 
 type ProjectName = keyof typeof SRC_PATHS;
 
+// Add these constants near the top with other constants
+const SEED = 12345; // Fixed seed for reproducibility
+let seededRandom: () => number;
+
+// Add this function near other utility functions
+function initializeSeededRandom(seed: number) {
+    seededRandom = function() {
+        seed = (seed * 16807) % 2147483647;
+        return (seed - 1) / 2147483646;
+    };
+}
 
 async function _experiment(srcPath: string, language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
 	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
@@ -53,6 +64,8 @@ async function _experiment(srcPath: string, language: string, methods: string[])
 	findFiles(srcPath, Files, language, suffix);	
 	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
 
+	initializeSeededRandom(SEED); // Initialize the seeded random generator
+	
 	for (const filePath of Files) {
 		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
 		console.log(`#### Preparing symbols under file: ${filePath}`);
@@ -66,7 +79,7 @@ async function _experiment(srcPath: string, language: string, methods: string[])
 					if (isSymbolLessThanLines(symbol)){
 						continue;
 					}
-					if (Math.random() < currentExpProb) { 
+					if (seededRandom() < currentExpProb) { 
 						symbolDocumentMap.push({ symbol, document });
 					}
 				}
@@ -75,6 +88,7 @@ async function _experiment(srcPath: string, language: string, methods: string[])
 		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
 	}
 	const generatedResults: { [key: string]: boolean[] } = {};
+    
 	for (const method of methods) {
 		console.log(`#### Starting experiment for method: ${method}`);
 		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
@@ -160,13 +174,6 @@ export function isGenerated(document: vscode.TextDocument, target: vscode.Docume
 function isPublic(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): boolean {
 	const funcDefinition = document.lineAt(symbol.selectionRange.start.line).text;
 	return funcDefinition.includes('public') || false;
-}
-
-// Function to generate timestamp string for folder names
-function generateTimestampString(): string {
-    return new Date()
-        .toLocaleString('en-US', TIME_FORMAT_OPTIONS)
-        .replace(/[/,: ]/g, '_');
 }
 
 // Function to get source path based on project type
