@@ -16,6 +16,8 @@ import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, fin
 import { error } from 'console';
 import * as os from 'os';
 import { currentModel, maxRound } from './config';
+import { showGeneratedCodeWithPreview, getTempDirAtCurWorkspace } from './fileHandler';
+
 export interface ContextInfo {
 	dependentContext: string;
 	mainFunctionDependencies: string;
@@ -27,6 +29,21 @@ export interface ContextInfo {
 	fileName: string;
 	packageString: string;
 	importString: string;
+}
+
+export interface DiagnosticRound {
+	round: number;
+	diagnosticsFixed: number;
+	remainingDiagnostics: number;
+	diagnosticMessages: string[];
+}
+
+export interface DiagnosticReport {
+	initialDiagnostics: number;
+	finalDiagnostics: number;
+	totalRounds: number;
+	fixSuccess: boolean;
+	roundHistory: DiagnosticRound[];
 }
 
 export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string, method: string): Promise<ContextInfo> {
@@ -65,7 +82,6 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 }
 
 export async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<string> {
-
 	// 获取符号信息
 	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
 		'vscode.executeDocumentSymbolProvider',
@@ -95,7 +111,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	const pathParts = workspace.split("/");
 	const projectName = pathParts[pathParts.length - 1];
 	const model = currentModel;
-	const folderPath = path.join(os.tmpdir(), projectName, model);
+	const folderPath = path.join(getTempDirAtCurWorkspace(), projectName, model);
 	const historyPath = path.join(folderPath, "history");
 	const expLogPath = path.join(folderPath, "logs");
 	const functionSymbol = getFunctionSymbol(symbols, position)!;
@@ -161,21 +177,10 @@ async function generateInitialTestCode(
 	model: string,
 	expData: ExpLogs[]
 ): Promise<string> {
-	const startTime = Date.now();
-	expData.push({
-		llmInfo: null,
-		process: "collectInfo",
-		time: (Date.now() - startTime).toString(),
-		method,
-		fileName,
-		function: functionSymbol.name,
-		errMsag: ""
-	});
 
 	const promptObj = await genPrompt(collectedData, method, languageId);
 	const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 	const startLLMTime = Date.now();
-
 	try {
 		const testCode = await invokeLLM(model, promptObj, logObj);
 		const parsedCode = parseCode(testCode);
@@ -336,8 +341,10 @@ async function fixDiagnostics(
 	historyPath: string,
 	fullFileName: string,
 	expData: ExpLogs[],
-	MAX_ROUNDS: number
-): Promise<{ finalCode: string, success: boolean }> {
+	MAX_ROUNDS: number,
+	showGeneratedCode: boolean		
+): Promise<{ finalCode: string, success: boolean, diagnosticReport: DiagnosticReport }> {
+	
 	let round = 0;
 	let finalCode = testCode;
 	let curSavePoint = await saveToIntermediate(
@@ -347,11 +354,24 @@ async function fixDiagnostics(
 		path.join(historyPath, method, round.toString()),
 		languageId
 	);
+	if (showGeneratedCode) {
+		await showGeneratedCodeWithPreview(curSavePoint);
+	}
 
 	let diagnostics = await getDiagnosticsForFilePath(curSavePoint);
+	const initialDiagnosticCount = diagnostics.length;
+	const diagnosticHistory: DiagnosticRound[] = [];
 
 	while (round < MAX_ROUNDS && diagnostics.length > 0) {
 		round++;
+		// Record diagnostic changes for this round
+		diagnosticHistory.push({
+			round,
+			diagnosticsFixed: diagnostics.length - diagnostics.length,
+			remainingDiagnostics: diagnostics.length,
+			diagnosticMessages: await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method)
+		});
+		
 		const result = await performFixingRound(
 			srcPath,
 			round,
@@ -367,16 +387,25 @@ async function fixDiagnostics(
 			expData
 		);
 		
-		if (!result) break;
+		diagnostics = result?.diagnostics || [];
+		finalCode = result?.code || finalCode;
+		curSavePoint = result?.savePoint || curSavePoint;
+		if (!diagnostics) break;
 		
-		finalCode = result.code;
-		curSavePoint = result.savePoint;
-		diagnostics = result.diagnostics;
 	}
+
+	const diagnosticReport: DiagnosticReport = {
+		initialDiagnostics: initialDiagnosticCount,
+		finalDiagnostics: diagnostics.length,
+		totalRounds: round,
+		fixSuccess: diagnostics.length === 0,
+		roundHistory: diagnosticHistory
+	};
 
 	return {
 		finalCode,
-		success: diagnostics.length === 0
+		success: diagnostics.length === 0,
+		diagnosticReport
 	};
 }
 
@@ -391,6 +420,7 @@ export async function generateUnitTestForAFunction(
 	method: string,
 	historyPath: string,
 	expLogPath: string,
+	showGeneratedCode: boolean = true
 ): Promise<string> {
 
 	if (method === "") {
@@ -408,9 +438,17 @@ export async function generateUnitTestForAFunction(
 			method,
 			fullFileName
 		);
-
+		const startTime = Date.now();
 		const collectedData = await collectInfo(document, functionSymbol, languageId, fileName, method);
-
+		expData.push({
+			llmInfo: null,
+			process: "collectInfo",
+			time: (Date.now() - startTime).toString(),
+			method,
+			fileName,
+			function: functionSymbol.name,
+			errMsag: ""
+		});
 		const testCode = await generateInitialTestCode(
 			document,
 			functionSymbol,
@@ -426,8 +464,8 @@ export async function generateUnitTestForAFunction(
 			await saveGeneratedCodeToFolder(testCode, fullFileName);
 			return '';
 		}
-
-		const { finalCode, success } = await fixDiagnostics(
+		const fixstartTime = Date.now();
+		const { finalCode, success, diagnosticReport } = await fixDiagnostics(
 			srcPath,
 			testCode,
 			collectedData,
@@ -437,8 +475,22 @@ export async function generateUnitTestForAFunction(
 			historyPath,
 			fullFileName,
 			expData,
-			MAX_ROUNDS
+			MAX_ROUNDS,
+			showGeneratedCode
 		);
+		expData.push({
+			llmInfo: null,
+			process: "fixDiagnostics",
+			time: (Date.now() - fixstartTime).toString(),
+			method,
+			fileName,
+			function: functionSymbol.name,
+			errMsag: ""
+		});
+		// Save diagnostic report
+		const reportPath = path.join(expLogPath, method, `${fileName}_diagnostic_report.json`);
+		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
 
 		await saveGeneratedCodeToFolder(finalCode, fullFileName);
 		await saveExperimentData(expData, expLogPath, fileName, method);
