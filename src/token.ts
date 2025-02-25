@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getFunctionSymbol, isValidFunctionSymbol } from './utils';
-
+import { getMethodOrFunctionsParamTokens, getReturnTokens } from './retrieve';
 export interface DecodedToken {
     id: string;
     word: string;
@@ -193,9 +193,30 @@ export async function retrieveDef(document: vscode.TextDocument, decodedTokens :
 	return decodedTokens;
 }
 
+async function distilateTokens(document: vscode.TextDocument, decodedTokens: DecodedToken[], functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
+    const [methodOrFunctionParamTokens, returnTokens] = await Promise.all([
+        getMethodOrFunctionsParamTokens(document, decodedTokens, functionSymbol),
+        getReturnTokens(document, decodedTokens, functionSymbol)
+    ]);
+
+    // Combine the token arrays
+    const combinedTokens = [...methodOrFunctionParamTokens, ...returnTokens];
+
+    // Remove duplicate tokens based on a unique key (e.g., word, line, startChar)
+    const uniqueTokensMap = new Map<string, DecodedToken>();
+    for (const token of combinedTokens) {
+        if (!uniqueTokensMap.has(token.id)) {
+            uniqueTokensMap.set(token.id, token);
+        }
+    }
+    const uniqueTokens = Array.from(uniqueTokensMap.values());
+    return uniqueTokens;
+}
+
 export async function extractUseDefInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]>  {
-	const decodedTokens = await getDecodedTokensFromSybol(document, functionSymbol);
-	return retrieveDef(document, decodedTokens);
+    const decodedTokens = await getDecodedTokensFromSybol(document, functionSymbol);
+    const distilatedTokens = await distilateTokens(document, decodedTokens, functionSymbol);
+	return retrieveDef(document, distilatedTokens);
 }
 
 async function decodeSemanticTokens(data: number[], tokensLegend: vscode.SemanticTokensLegend, initialLine: number = 0, initialChar: number = 0): Promise<DecodedToken[]> {

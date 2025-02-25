@@ -27,7 +27,7 @@ async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> 
 }
 
 
-function getReturnTokens(
+export function getReturnTokens(
     document: vscode.TextDocument,
     DefUseMap: DecodedToken[],
     functionSymbol: vscode.DocumentSymbol
@@ -76,7 +76,7 @@ function getReturnTokens(
     
     return returnedTokens;
 }
-async function getMethodOrFunctionsParamTokens(document: vscode.TextDocument, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
+export async function getMethodOrFunctionsParamTokens(document: vscode.TextDocument, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
     
     const functionSignature = functionSymbol.name;
     const methodOrFunctionParamTokens: DecodedToken[] = [];

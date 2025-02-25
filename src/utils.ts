@@ -104,14 +104,13 @@ export function parseCode(response: string): string {
     // Match the response against the regular expression
     const match = response.match(regex);
 
-    // If a match is found, return the extracted code; otherwise, return null
+    // If a match is found, return the extracted code
     if (match) {
         return match[1].trim(); // match[1] contains the code inside the backticks
     }
 
-    // If no code block is found, return null
-    console.error("No code block found in the response!");
-    return ""
+    // If no code block is found, return the original response
+    return response.trim();
 }
 
 export function getFunctionSymbol(symbols: vscode.DocumentSymbol[], functionPosition: vscode.Position): vscode.DocumentSymbol | null {
