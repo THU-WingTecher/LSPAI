@@ -15,8 +15,9 @@ export class TokenLimitExceededError extends Error {
 }
 
 const OPENAIMODELNAME = "gpt";
+const OPENAIMODELNAME2 = "o1";
 export function isOpenAi(method: string): boolean {
-	return method.includes(OPENAIMODELNAME);
+	return method.includes(OPENAIMODELNAME) || method.includes(OPENAIMODELNAME2);
 }
 
 const LLAMAMODELNAME = "llama";
