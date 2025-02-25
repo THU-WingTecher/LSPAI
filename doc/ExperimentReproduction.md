@@ -162,6 +162,7 @@ The extracted dataset will have this structure:
 
    Run below command to move dataset to target project
    ```bash
+   mkdir -p /LSPAI/experiments/projects
    cd /LSPAI/experiments/projects/black # black should be substitue to crawl4ai if you proceed with crawl4ai projects
    mv /LSPAI/experiments/data/black/* .
    ```
@@ -172,6 +173,7 @@ The extracted dataset will have this structure:
       To set up the Black project, follow these steps:
       ```bash
       # Clone and checkout specific version
+      mkdir -p /LSPAI/experiments/projects
       cd /LSPAI/experiments/projects
       git clone https://github.com/psf/black.git
       cd black
@@ -262,6 +264,7 @@ The extracted dataset will have this structure:
    #### Crawl4ai Project Setup
 
       ```bash
+      mkdir -p /LSPAI/experiments/projects
       cd /LSPAI/experiments/projects
       git clone https://github.com/unclecode/crawl4ai.git
       cd crawl4ai
@@ -362,6 +365,7 @@ The extracted dataset will have this structure:
    To set up the Logrus project, follow these steps:
    ```bash
    # Clone and checkout a specific version
+   mkdir -p /LSPAI/experiments/projects
    cd /LSPAI/experiments/projects
    git clone https://github.com/sirupsen/logrus.git
    cd logrus
@@ -473,6 +477,7 @@ The extracted dataset will have this structure:
    To set up the Cobra project, follow these steps:
    ```bash
    # Clone and checkout a specific version
+   mkdir -p /LSPAI/experiments/projects
    cd /LSPAI/experiments/projects
    git clone https://github.com/spf13/cobra.git
    cd cobra
@@ -623,6 +628,7 @@ The extracted dataset will have this structure:
    To set up the CLI project, follow these steps:
    ```bash
    # Clone and checkout a specific version
+   mkdir -p /LSPAI/experiments/projects
    cd /LSPAI/experiments/projects
    git clone https://github.com/apache/commons-cli.git
    cd commons-cli
@@ -780,6 +786,7 @@ The extracted dataset will have this structure:
    To set up the CSV project, follow these steps:
    ```bash
    # Clone and checkout a specific version
+   mkdir -p /LSPAI/experiments/projects
    cd /LSPAI/experiments/projects
    git clone https://github.com/apache/commons-csv.git
    cd commons-csv
