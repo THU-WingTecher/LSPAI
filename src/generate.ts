@@ -445,7 +445,7 @@ export async function generateUnitTestForAFunction(
 			process: "collectInfo",
 			time: (Date.now() - startTime).toString(),
 			method,
-			fileName,
+			fileName: fullFileName,
 			function: functionSymbol.name,
 			errMsag: ""
 		});
@@ -454,39 +454,43 @@ export async function generateUnitTestForAFunction(
 			functionSymbol,
 			collectedData,
 			languageId,
-			fileName,
+			fullFileName,
 			method,
 			model,
 			expData
 		);
-
+		
+		let diagnosticReport: DiagnosticReport | null = null;
+		let finalCode: string = "";
 		if (isBaseline(method)) {
-			await saveGeneratedCodeToFolder(testCode, fullFileName);
-			return '';
+			finalCode = testCode;
+		} else {
+			const fixstartTime = Date.now();
+			const report = await fixDiagnostics(
+				srcPath,
+				testCode,
+				collectedData,
+				method,
+				languageId,
+				model,
+				historyPath,
+				fullFileName,
+				expData,
+				MAX_ROUNDS,
+				showGeneratedCode
+			);
+			diagnosticReport = report.diagnosticReport;
+			finalCode = report.finalCode;
+			expData.push({
+				llmInfo: null,
+				process: "fixDiagnostics",
+				time: (Date.now() - fixstartTime).toString(),
+				method,
+				fileName: fullFileName,
+				function: functionSymbol.name,
+				errMsag: ""
+			});
 		}
-		const fixstartTime = Date.now();
-		const { finalCode, success, diagnosticReport } = await fixDiagnostics(
-			srcPath,
-			testCode,
-			collectedData,
-			method,
-			languageId,
-			model,
-			historyPath,
-			fullFileName,
-			expData,
-			MAX_ROUNDS,
-			showGeneratedCode
-		);
-		expData.push({
-			llmInfo: null,
-			process: "fixDiagnostics",
-			time: (Date.now() - fixstartTime).toString(),
-			method,
-			fileName,
-			function: functionSymbol.name,
-			errMsag: ""
-		});
 		// Save diagnostic report
 		const reportPath = path.join(expLogPath, method, `${fileName}_diagnostic_report.json`);
 		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
