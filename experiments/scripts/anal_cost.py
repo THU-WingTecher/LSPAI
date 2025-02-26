@@ -90,9 +90,9 @@ def parse_code(response: str) -> str:
     if match:
         return match.group(1).strip()
     print("No code block found in the response!")
-    return ""
+    return response
 
-def save_code_to_naive_directory(file_path, folder_path):
+def save_code_to_from_log(file_path, folder_path, suffix_for_folder="NOFIX"):
     original_folder_path = folder_path.name
     file_name = Path(file_path).name
     try:
@@ -101,36 +101,19 @@ def save_code_to_naive_directory(file_path, folder_path):
         print(f"Error processing '{file_name}': {e}")
         return
 
-    for entry in data:
-        if entry.get('process') == 'invokeLLM':
-            if entry.get('llmInfo') and entry['llmInfo'].get('result'):
-                code_file = entry['fileName']
-                code = entry['llmInfo']['result']
-                code = parse_code(code)
-                naive_directory = Path(code_file).as_posix().replace(
-                    original_folder_path, f"NOFIX_{original_folder_path}"
-                )
-                naive_dir = Path(naive_directory).parent
-                os.makedirs(naive_dir, exist_ok=True)
-                with open(naive_directory, 'w') as file:
-                    file.write(code)
-                print(f"Code saved to: {naive_directory}")
+    firstGeneratedData = None
+    code_path = data[0]['fileName']
+    print(f"Code file: {code_path}")
+    if suffix_for_folder == "NOFIX":
+        for entry in data:
+            if entry.get('process') == 'invokeLLM':
+                firstGeneratedData = entry
+                break
 
-def save_final_code_to_directory(file_path, folder_path, suffix_for_folder="NOFIX"):
-    original_folder_path = folder_path.name
-    file_name = Path(file_path).name
-    try:
-        data = load_json(file_path)
-    except (FileNotFoundError, ValueError) as e:
-        print(f"Error processing '{file_name}': {e}")
-        return
-
-    for entry in data:
-        if entry.get('llmInfo') and entry['llmInfo'].get('result'):
-            code_file = entry['fileName']
-            code = entry['llmInfo']['result']
+        if firstGeneratedData:
+            code = firstGeneratedData['llmInfo']['result']
             code = parse_code(code)
-            naive_directory = Path(code_file).as_posix().replace(
+            naive_directory = Path(code_path).as_posix().replace(
                 original_folder_path, f"{suffix_for_folder}_{original_folder_path}"
             )
             naive_dir = Path(naive_directory).parent
@@ -138,6 +121,52 @@ def save_final_code_to_directory(file_path, folder_path, suffix_for_folder="NOFI
             os.makedirs(naive_dir, exist_ok=True)
             with open(naive_directory, 'w') as file:
                 file.write(code)
+    elif suffix_for_folder == "Final":
+        last_llm_data = None
+        for entry in data:
+            if entry.get('llmInfo') is not None :
+                last_llm_data = entry
+
+        if last_llm_data:
+            code = last_llm_data['llmInfo']['result']
+            code = parse_code(code)
+            final_directory = Path(code_path).as_posix().replace(
+                original_folder_path, f"{suffix_for_folder}_{original_folder_path}"
+            )
+            final_dir = Path(final_directory).parent
+            print(f"Code saved to: {final_directory}")
+            os.makedirs(final_dir, exist_ok=True)
+            with open(final_directory, 'w') as file:
+                file.write(code)
+
+# def save_final_code_to_directory(file_path, folder_path, suffix_for_folder="NOFIX"):
+#     original_folder_path = folder_path.name
+#     file_name = Path(file_path).name
+#     try:
+#         data = load_json(file_path)
+#     except (FileNotFoundError, ValueError) as e:
+#         print(f"Error processing '{file_name}': {e}")
+#         return
+
+#     firstGeneratedData = None
+#     code_path = data[0]['fileName']
+#     print(f"Code file: {code_path}")
+#     for entry in data:
+#         if entry.get('process') == 'invokeLLM':
+#             firstGeneratedData = entry
+#             break
+
+#     if firstGeneratedData:
+#         code = firstGeneratedData['llmInfo']['result']
+#         code = parse_code(code)
+#         naive_directory = Path(code_path).as_posix().replace(
+#             original_folder_path, f"{suffix_for_folder}_{original_folder_path}"
+#         )
+#         naive_dir = Path(naive_directory).parent
+#         print(f"Code saved to: {naive_directory}")
+#         os.makedirs(naive_dir, exist_ok=True)
+#         with open(naive_directory, 'w') as file:
+#             file.write(code)
 
 def analyze_json_file(file_path: str) -> Dict[str, Any]:
     """
@@ -241,11 +270,14 @@ def main():
             continue
 
         for json_file in json_files:
+            if json_file.name.endswith("diagnostic_report.json"):
+                continue
             print(f"\nProcessing file: {json_file.name}")
             result = analyze_json_file(str(json_file))
 
             # Optionally save extracted code
-            save_code_to_naive_directory(str(json_file), folder_path)
+            save_code_to_from_log(str(json_file), folder_path, suffix_for_folder="Final")
+            save_code_to_from_log(str(json_file), folder_path, suffix_for_folder="NOFIX")
             # save_final_code_to_directory(str(json_file), folder_path, suffix_for_folder="Final")
 
             overall_time += result["time"]
@@ -255,6 +287,7 @@ def main():
 
             # Accumulate overall FixWithLLM time
             overall_fixwithllm_time += result["fixwithllm_time"]
+
 
             file_count += 1
 
@@ -286,12 +319,12 @@ def main():
     if overall_fixwithllm_count > 0:
         print(f"Total FixWithLLM Tokens Used: {overall_fixwithllm_tokens}")
         print(f"Total FixWithLLM Processes Run: {overall_fixwithllm_count}")
-    print(f"Average Time per File (ms): {average_time_per_file:.2f}")
-    print(f"Average Tokens per File: {average_tokens_per_file:.2f}")
+    print(f"Average Time per Function (ms): {average_time_per_file:.2f}")
+    print(f"Average Tokens per Function: {average_tokens_per_file:.2f}")
 
     # Print new averaged fix time/tokens per file
-    print(f"Average FixWithLLM Time per File (ms): {average_fixwithllm_time_per_file:.2f}")
-    print(f"Average FixWithLLM Tokens per File: {average_fixwithllm_tokens_per_file:.2f}")
+    print(f"Average FixWithLLM Time per Function (ms): {average_fixwithllm_time_per_file:.2f}")
+    print(f"Average FixWithLLM Tokens per Function: {average_fixwithllm_tokens_per_file:.2f}")
 
     # ======== Average Time/Token Usage per Process ========
     print("\n=== Average Time and Token Usage per Process ===\n")
@@ -305,14 +338,10 @@ def main():
         avg_time = (time_info['time'] / time_info['count']) if time_info['count'] else 0
         avg_tokens = (token_info['tokens'] / token_info['count']) if token_info['count'] else 0
         print(f"{proc_name:<30} {avg_time:>15.2f} {avg_tokens:>15.2f}")
-
+    # print the total time and tokens used
+    print(f"Average Total Time Used (ms): {overall_time / file_count}")
+    print(f"Average Total Tokens Used: {overall_tokens / file_count}")
     print("\nDone.\n")
 
 if __name__ == "__main__":
-#   343  python3 new_analyze.py /vscode-llm-ut/experiments/black/results_1_15_2025__10_19_09/logs/deepseek-chat
-#   344  python3 new_analyze.py /vscode-llm-ut/experiments/commons-cli/results_deepseek/logs/deepseek-chat /vscode-llm-ut/experiments/commons-csv/results_deepseek/logs/deepseek-chat
-#   345  python3 new_analyze.py /vscode-llm-ut/experiments/commons-cli/results_deepseek/logs/deepseek-chat /vscode-llm-ut/experiments/commons-csv/results_deepseek/logs/deepseek-chat
-#   346  pythone new_analyze.py /vscode-llm-ut/experiments/cobra/results_deepseek/logs/deepseek-chat /vscode-llm-ut/experiments/logrus/results_deepseek/logs/deepseek-chat
-#   347  python3 new_analyze.py /vscode-llm-ut/experiments/cobra/results_deepseek/logs/deepseek-chat /vscode-llm-ut/experiments/logrus/results_deepseek/logs/deepseek-chat
-#   348  python3 new_analyze.py /vscode-llm-ut/experiments/crawl4ai/results_1_16_2025__24_59_39/logs/deepseek-chat /vscode-llm-ut/experiments/black/results_1_15_2025__10_19_09
     main()
