@@ -114,62 +114,62 @@ export function isGenerated(document: vscode.TextDocument, target: vscode.Docume
 		return false;
 	}
 }
-// export async function reExperiment(language: string, methods: string[], origFilePath: string) : Promise<void> {
-// 	logCurrentSettings()
-// 	const tempFolderPath = `${currentTestPath}temp_${Math.random().toString(36).substring(2, 15)}/`;
-// 	const suffix = getLanguageSuffix(language); 
+export async function reExperiment(language: string, methods: string[], origFilePath: string) : Promise<void> {
 
-// 	function findFiles(folderPath: string, Files: string[] = []) {
-// 		fs.readdirSync(folderPath).forEach(file => {
-// 			const fullPath = path.join(folderPath, file);
-// 			if (fs.statSync(fullPath).isDirectory()) {
-// 				findFiles(fullPath, Files); // Recursively search in subdirectory
-// 			} else if (file.endsWith(`.${suffix}`)) {
-// 				if (language === "go" && file.toLowerCase().includes('test')) {
-// 					console.log(`Ignoring test file: ${fullPath}`);
-// 				} else {
-// 					Files.push(fullPath);
-// 				}
-// 			}
-// 		});
-// 	}
-// 	const Files: string[] = [];
-// 	const Generated: string[] = [];
-// 	findFiles(currentSrcPath, Files);
-// 	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
-// 	let origFinalFilePath;
-// 	for (const method of methods) {
-// 		for (const filePath of Files) {
-// 				const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
-// 				console.log(`#### Preparing symbols under file: ${filePath}`);
-// 				const symbols = await getAllSymbols(document.uri);
-// 				if (symbols) {
-// 					for (const symbol of symbols) {
-// 						if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-// 							origFinalFilePath = path.join(origFilePath, method);
-// 							if (isGenerated(document, symbol, origFinalFilePath, path.join(tempFolderPath, method))){
-// 								continue;
-// 							}
-// 							// if (language === 'java' && !isPublic(symbol, document)) {
-// 							// 	continue;
-// 							// }
-// 							if (isSymbolLessThanLines(symbol)){
-// 								continue;
-// 							}
-// 							vscode.window.showInformationMessage(`Found leak file : ${origFinalFilePath}`);
-// 							symbolDocumentMap.push({ symbol, document });
-// 						}
-// 					}
-// 				}
-// 				console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
-// 			}
-// 		const generatedResults: { [key: string]: boolean[] } = {};
-// 		console.log(`#### Starting experiment for method: ${method}`);
-// 		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, language, method, currentParallelCount);
-// 	}
-// 	console.log('#### Experiment completed!');
-// 	logCurrentSettings();
-// }
+    let currentSrcPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
+	const projectName = vscode.workspace.workspaceFolders![0].name;
+	if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+		currentSrcPath = path.join(currentSrcPath, SRC_PATHS[projectName as ProjectName]);
+	} else {
+		currentSrcPath = path.join(currentSrcPath, SRC_PATHS.DEFAULT);
+	}
+    const tempFolderPath = path.join(origFilePath, 'temp');
+    console.log(`Re Experimenting the folder of ${origFilePath}`);
+    console.log(`saving the result to ${tempFolderPath}`);
+    console.log(`Model: ${currentModel}`);
+    console.log(`Methods: ${methods}`);
+    console.log(`Max Rounds: ${MAX_ROUNDS}`);
+    console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
+    console.log(`PARALLEL: ${currentParallelCount}`);
+	const suffix = getLanguageSuffix(language); 
+	const Files: string[] = [];
+	const Generated: string[] = [];
+	findFiles(currentSrcPath, Files, language, suffix);
+    const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
+
+	initializeSeededRandom(SEED); // Initialize the seeded random generator
+	
+	for (const method of methods) {
+		for (const filePath of Files) {
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
+            console.log(`#### Preparing symbols under file: ${filePath}`);
+            const symbols = await getAllSymbols(document.uri);
+            if (symbols) {
+                for (const symbol of symbols) {
+                    if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
+                        // if (language === 'java' && !isPublic(symbol, document)) {
+                        // 	continue;
+                        // }
+                        if (isSymbolLessThanLines(symbol)){
+                            continue;
+                        }
+                        if (seededRandom() < currentExpProb) { 
+                            if (isGenerated(document, symbol, path.join(origFilePath, method), path.join(tempFolderPath, method))){
+                                continue;
+                            }
+                            symbolDocumentMap.push({ symbol, document });
+                        }
+                    }
+                }
+            }
+            console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
+        }
+		const generatedResults: { [key: string]: boolean[] } = {};
+		console.log(`#### Starting experiment for method: ${method}`);
+		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, currentSrcPath, origFilePath, language, method, currentParallelCount);
+	}
+	console.log('#### Experiment completed!');
+}
 
 function isPublic(symbol: vscode.DocumentSymbol, document: vscode.TextDocument): boolean {
 	const funcDefinition = document.lineAt(symbol.selectionRange.start.line).text;
@@ -283,6 +283,7 @@ async function parallelGenUnitTestForSymbols(
                 method,
                 historyPath,
                 expLogPath,
+                false, // in parallel setting, we don't show code
             );
             vscode.window.showInformationMessage(`[Progress:${generatedResults.length}] Unit test (${method}) for ${symbol.name} generated!`);
             generatedResults.push(result);

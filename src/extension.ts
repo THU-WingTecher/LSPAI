@@ -1,19 +1,22 @@
 import * as vscode from 'vscode';
 import { 
 	experiment, 
+	reExperiment
 } from './experiment';
 import { generateUnitTestForSelectedRange } from './generate';
-import { methodsForExperiment } from './config';
+import { methodsForExperiment, currentModel, maxRound, currentExpProb, currentParallelCount } from './config';
 
 export async function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
 	const workspace = vscode.workspace.workspaceFolders!;
-	// if (workspace && workspace[0].uri.fsPath !== currentWorkspace) {
-	// 	// raise error
-	// 	throw new Error("Current workspace is not set");
-	// }
+	console.log(`Workspace: ${workspace[0].uri.fsPath}`);
+	console.log(`Model: ${currentModel}`);
+	console.log(`Methods: ${methodsForExperiment}`);
+	console.log(`Max Rounds: ${maxRound}`);
+	console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
+	console.log(`PARALLEL: ${currentParallelCount}`);
+
+	
 	const disposable = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
@@ -68,19 +71,43 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(Pydisposable2);
 
-	// const disposable4 = await vscode.commands.registerCommand('lspAi.ReExperiment', async () => {
-	// 	// The code you place here will be executed every time your command is executed
-	// 	// Display a message box to the user
-	// 	const language = "java";
-	// 	currentSrcPath = `${currentWorkspace}/src/main/`;
-	// 	currentTestPath = `/vscode-llm-ut/experiments/commons-cli/results_1_15_2025__08_51_27/`;
-	// 	currentExpLogPath = `${currentTestPath}logs/`;
-	// 	currentHistoryPath = `${currentTestPath}history/`;
+	const disposable4 = await vscode.commands.registerCommand('lspAi.ReExperiment', async () => {
+		// The code you place here will be executed every time your command is executed
+		// Display a message box to the user
+		const language = "java";
+		const currentGenMethods = ["naive_o1"]
+		const currentTestPath = `/LSPAI/experiments/projects/commons-cli/results_2_25_2025__08_49_45`;
+		// inspect whether the currentTestPath is endswith any of currentGenMethod
+		const isModelSynced = currentGenMethods.some(method => method.endsWith(currentModel));
+		if (!isModelSynced) {
+			vscode.window.showErrorMessage('Current Model Setting is not correct.');
+			return;
+		}
+		const isEndsWith = currentGenMethods.some(method => currentTestPath.endsWith(method));
+		if (isEndsWith) {
+			vscode.window.showErrorMessage('The current test path should not end gen methods.');
+			return;
+		}
 
-	// 	await reExperiment(language, currentGenMethods, currentTestPath);
-	// 	vscode.window.showInformationMessage('Experiment Ended!');
-	// });
+		await reExperiment(language, currentGenMethods, currentTestPath);
+	});
 
-	// context.subscriptions.push(disposable4);
+	context.subscriptions.push(disposable4);
+
+	const showSettingsDisposable = vscode.commands.registerCommand('lspAi.showSettings', () => {
+		const settings = [
+			`Model: ${currentModel}`,
+			`Methods: ${methodsForExperiment}`,
+			`Max Rounds: ${maxRound}`,
+			`Experiment Probability: ${currentExpProb}`,
+			`Parallel Count: ${currentParallelCount}`
+		];
+		
+		vscode.window.showInformationMessage('Current Settings:', {
+			detail: settings.join('\n'),
+			modal: true
+		});
+	});
+	context.subscriptions.push(showSettingsDisposable);
 }
 export function deactivate() { }
