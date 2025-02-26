@@ -6,13 +6,11 @@ import { getAllSymbols } from './utils';
 import { findFiles, generateFileNameForDiffLanguage, generateTimestampString } from './fileHandler';
 import { getLanguageSuffix } from './language';
 import { generateUnitTestForAFunction } from './generate';
-import { currentExpProb, currentParallelCount, currentModel } from './config';
+import { currentExpProb, currentParallelCount, currentModel, currentTimeout } from './config';
 // Constants for experiment settings
 const MIN_FUNCTION_LINES = 4;
 export const DEFAULT_FILE_ENCODING = 'utf8';
 const MAX_ROUNDS = 5;
-const TIMEOUT_MS = 300 * 1000;
-
 
 // Constants for file paths and extensions
 const INTERMEDIATE_FOLDER_PREFIX = 'temp_';
@@ -291,7 +289,7 @@ async function parallelGenUnitTestForSymbols(
         await Promise.all(symbolTasks.map(task => 
             Promise.race([
                 task,
-                sleep(TIMEOUT_MS).then(() => console.warn('Timeout exceeded for symbol processing'))
+                sleep(currentTimeout).then(() => console.warn('Timeout exceeded for symbol processing'))
             ])
         ));
     }

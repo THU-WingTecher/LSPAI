@@ -11,9 +11,11 @@ import * as vscode from 'vscode';
 // const DEFAULT_HISTORY_PATH = `${DEFAULT_TEST_PATH}history/`;
 // const DEFAULT_MODEL = "deepseek-chat"; // gpt-4o-mini"; // llama3-70b // deepseek-chat
 // const DEFAULT_GEN_METHODS = [DEFAULT_MODEL, `naive_${DEFAULT_MODEL}`];
-const DEFAULT_EXP_PROB = 1;
+const DEFAULT_EXP_PROB = 0.3;
 const DEFAULT_PARALLEL_COUNT = 1;
 const DEFAULT_MODEL = 'deepseek-chat';
+const DEFAULT_PROVIDER = 'deepseek';
+const DEFAULT_TIMEOUT_MS = 600 * 1000;
 
 // // Then update the variables that can change during runtime
 // export let currentWorkspace = DEFAULT_WORKSPACE;
@@ -23,10 +25,15 @@ const DEFAULT_MODEL = 'deepseek-chat';
 // export let currentHistoryPath = DEFAULT_HISTORY_PATH;
 // export let currentModel = DEFAULT_MODEL;
 // export let currentGenMethods = [...DEFAULT_GEN_METHODS];
-
+export type Provider = 'openai' | 'local' | 'deepseek';
 export let currentExpProb = DEFAULT_EXP_PROB;
+export let currentTimeout = DEFAULT_TIMEOUT_MS;
 export const config = vscode.workspace.getConfiguration('lspAi');
 export const currentModel = config.get<string>('model') ?? DEFAULT_MODEL;
+export const currentProvider = config.get<Provider>('provider') ?? DEFAULT_PROVIDER;
+if (currentProvider == 'local') {
+    currentTimeout = currentTimeout * 2
+}
 export const currentParallelCount = config.get<number>('parallel') ?? DEFAULT_PARALLEL_COUNT;;
 export const methodsForExperiment = [currentModel, `naive_${currentModel}`];
 
