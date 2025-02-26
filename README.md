@@ -61,6 +61,7 @@ LSPAI supports multiple LLM providers. Configure your preferred option in VS Cod
    ```json
    {
      "lspAi": {
+       "provider": "deepseek",
        "model": "deepseek-chat",  // Choose: // gpt-4o-mini"; // llama3-70b // deepseek-chat
        "openaiApiKey": "your-api-key",    // Required for OpenAI
        "deepseekApiKey": "your-api-key",  // Required for Deepseek
