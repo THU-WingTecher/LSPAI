@@ -4,7 +4,7 @@ import {
 	reExperiment
 } from './experiment';
 import { generateUnitTestForSelectedRange } from './generate';
-import { methodsForExperiment, currentModel, maxRound, currentExpProb, currentParallelCount } from './config';
+import { methodsForExperiment, currentModel, maxRound, currentExpProb, currentParallelCount, currentTimeout } from './config';
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -75,8 +75,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "java";
-		const currentGenMethods = ["naive_o1"]
-		const currentTestPath = `/LSPAI/experiments/projects/commons-cli/results_2_25_2025__08_49_45`;
+		const currentGenMethods = ["deepseek-reasoner"]
+		const currentTestPath = `/LSPAI/experiments/projects/commons-cli/results_2_26_2025__11_45_35`;
 		// inspect whether the currentTestPath is endswith any of currentGenMethod
 		const isModelSynced = currentGenMethods.some(method => method.endsWith(currentModel));
 		if (!isModelSynced) {
@@ -100,7 +100,8 @@ export async function activate(context: vscode.ExtensionContext) {
 			`Methods: ${methodsForExperiment}`,
 			`Max Rounds: ${maxRound}`,
 			`Experiment Probability: ${currentExpProb}`,
-			`Parallel Count: ${currentParallelCount}`
+			`Parallel Count: ${currentParallelCount}`,
+			`Timeout: ${currentTimeout}`
 		];
 		
 		vscode.window.showInformationMessage('Current Settings:', {
