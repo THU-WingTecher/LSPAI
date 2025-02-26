@@ -3,7 +3,7 @@
   "displayName": "LSPAI",
   "publisher": "GwihwanGo",
   "description": "LSPAI is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP) integration. Generate high-quality unit tests automatically and in real-time for multiple programming languages.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "icon": "doc/assets/lspai_image_v2.jpg",
   "repository": {
     "type": "git",
@@ -21,19 +21,27 @@
     "commands": [
       {
         "command": "lspAi.JavaExperiment",
-        "title": "LSPAI::Java-Experiment"
+        "title": "LSPAI: Java-Experiment"
       },
       {
         "command": "lspAi.GoExperiment",
-        "title": "LSPAI::Go-Experiment"
+        "title": "LSPAI: Go-Experiment"
       },
       {
         "command": "lspAi.PythonExperiment",
-        "title": "LSPAI::Python-Experiment"
+        "title": "LSPAI: Python-Experiment"
       },
       {
         "command": "extension.generateUnitTest",
-        "title": "LSPAI::Generate Unit Test"
+        "title": "LSPAI: Generate Unit Test"
+      },
+      {
+        "command": "lspAi.ReExperiment",
+        "title": "LSPAI: Re-Experiment"
+      },
+      {
+        "command": "lspAi.showSettings",
+        "title": "LSPAI: Show Current Settings"
       }
     ],
     "menus": {
@@ -67,6 +75,11 @@
           "type": "string",
           "default": "",
           "description": "Proxy URL for API calls"
+        },
+        "lspAi.provider": {
+          "type": "string",
+          "default": "deepseek",
+          "description": "Provider of LLM"
         },
         "lspAi.model": {
           "type": "string",
