@@ -31,7 +31,7 @@ export let currentTimeout = DEFAULT_TIMEOUT_MS;
 export const config = vscode.workspace.getConfiguration('lspAi');
 export const currentModel = config.get<string>('model') ?? DEFAULT_MODEL;
 export const currentProvider = config.get<Provider>('provider') ?? DEFAULT_PROVIDER;
-if (currentProvider == 'local') {
+if (currentProvider == 'local' || currentProvider == 'deepseek') {
     currentTimeout = currentTimeout * 2
 }
 export const currentParallelCount = config.get<number>('parallel') ?? DEFAULT_PARALLEL_COUNT;;

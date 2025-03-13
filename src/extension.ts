@@ -5,7 +5,9 @@ import {
 } from './experiment';
 import { generateUnitTestForSelectedRange } from './generate';
 import { methodsForExperiment, currentModel, maxRound, currentExpProb, currentParallelCount, currentTimeout } from './config';
-
+import { collectTrainData, main } from './train/collectTrainData';
+import * as fs from 'fs';
+import path from 'path';
 export async function activate(context: vscode.ExtensionContext) {
 
 	const workspace = vscode.workspace.workspaceFolders!;
@@ -15,6 +17,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log(`Max Rounds: ${maxRound}`);
 	console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
 	console.log(`PARALLEL: ${currentParallelCount}`);
+
 
 	
 	const disposable = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
@@ -93,6 +96,31 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable4);
+
+	const collectTrainDataDisposable = await vscode.commands.registerCommand('lspAi.CollectTrainData', async () => {
+		// const dataFolder = path.join(__dirname, '../data');
+		const dataFolder = "/UniTSyn/data/focal";
+
+		const jsonlFiles = fs.readdirSync(dataFolder)
+		.filter(file => file.endsWith('.jsonl'))
+		.map(file => path.join(dataFolder, file));
+		for (const jsonlFile of jsonlFiles) {	
+			console.log("jsonlFile: ", jsonlFile);
+			const inputJsonPath = jsonlFile;
+			const outputJsonPath = "/LSPAI/temp/" + jsonlFile.split('/').pop();
+			if (fs.existsSync(outputJsonPath)) {
+				fs.unlinkSync(outputJsonPath);
+			}
+	// Call the main function
+	const result = await main(inputJsonPath, outputJsonPath);
+	
+	console.log(outputJsonPath);
+
+			// Assert that the result is not null or undefined
+
+		}
+	});
+	context.subscriptions.push(collectTrainDataDisposable);
 
 	const showSettingsDisposable = vscode.commands.registerCommand('lspAi.showSettings', () => {
 		const settings = [

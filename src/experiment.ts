@@ -22,7 +22,7 @@ const TIME_ZONE = 'CST';
 export const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
 
 // Constants for specific project paths
-const SRC_PATHS = {
+export const SRC_PATHS = {
 	"commons-cli": '/src/main/',
 	"commons-csv": 'src/main/',
     "black": '/src',
@@ -30,7 +30,7 @@ const SRC_PATHS = {
     DEFAULT: '/'
 } as const;
 
-type ProjectName = keyof typeof SRC_PATHS;
+export type ProjectName = keyof typeof SRC_PATHS;
 
 // Add these constants near the top with other constants
 const SEED = 12345; // Fixed seed for reproducibility

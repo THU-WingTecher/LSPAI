@@ -34,12 +34,16 @@ export async function getReferenceInfo(document: vscode.TextDocument, range: vsc
                 continue; // Skip the reference at the same position and URI
             }
             const refText = removeComments(refDocument.getText(shortestSymbol.range)).trim();
-            const refTextLines = refText.split('\n').length;
-            const currentTotalLines = referenceCodes.reduce((acc, code) => acc + code.split('\n').length, 0);
-            if (currentTotalLines + refTextLines <= refWindow) {
+            if (refWindow === -1) {
                 referenceCodes.push(refText);
             } else {
-                break;
+                const refTextLines = refText.split('\n').length;
+                const currentTotalLines = referenceCodes.reduce((acc, code) => acc + code.split('\n').length, 0);
+                if (currentTotalLines + refTextLines <= refWindow) {
+                    referenceCodes.push(refText);
+                } else {
+                    break;
+                }
             }
         }
     }

@@ -70,10 +70,9 @@ export async function callLocalLLM(method: string, promptObj: any, logObj: any):
 			stream: false,
 		})
 	const result = await response;
-	const content = (response as any).message.content;
-    // Assuming the response contains 'usage' data with token usage
-    // const tokenUsage = (result as any).usage.total_tokens || 0;
-    // logObj.tokenUsage = tokenUsage;
+	const content = result.message.content;
+	const tokenUsage = result.prompt_eval_count;
+    logObj.tokenUsage = tokenUsage;
     logObj.result = result;
 	// console.log("Response content:", content);
 	return content;
@@ -132,7 +131,7 @@ export async function callDeepSeek(method: string, promptObj: any, logObj: any):
 			messages: promptObj
 		});
 		const result = response.choices[0].message.content!;
-		const tokenUsage = response.usage!.total_tokens;
+		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
 		// console.log('Generated test code:', result);
@@ -174,7 +173,7 @@ export async function callOpenAi(method: string, promptObj: any, logObj: any): P
 			messages: promptObj
 		});
 		const result = response.choices[0].message.content!;
-		const tokenUsage = response.usage!.total_tokens;
+		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
 		// console.log('Generated test code:', result);
