@@ -141,17 +141,18 @@ export function LSPAIUserPrompt(code: string, languageId: string, functionContex
 
     if (languageId === 'java') {
     //     for java, add ${functionContext} degrades performance.
+    // ${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
+    //     \`\`\`
+    //     ${refCodes}
+    //     \`\`\`` : ''}
         return `
 The focal method is \`${functionName}\` in the \`${class_name}\`,
+${functionContext}
 The source code of the focal method is:
 \`\`\`
 ${code}
 \`\`\`
 ${JavaUnitTestTemplate(FileName, packageString)}
-${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
-\`\`\`
-${refCodes}
-\`\`\`` : ''}
 `;
     } else if (languageId === 'go') {
         return `

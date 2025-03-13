@@ -1,21 +1,22 @@
 {
 	"compilerOptions": {
 		"module": "commonjs",
-		"target": "ES2022",
+		"target": "es2020",
 		"outDir": "out",
 		"lib": [
-			"dom", "esnext", "ES2022"
+			"dom", "esnext", "es2020"
 		],
+		// "lib": ["es2020"],
 		"moduleResolution": "node",
 		"sourceMap": true,
-		"baseUrl": ".",
+		// "baseUrl": ".",
 		"paths": {
 			"vscode": [
-			  "node_modules/@types/vscode"
+			  "./node_modules/@types/vscode"
 			],
-			"*": ["node_modules/*"]
+			"*": ["./node_modules/*"],
 		},
-		"types": ["node", "mocha"],
+		// "types": ["node", "mocha"],
 		"rootDir": "src",
 		"strict": true,   /* enable all strict type-checking options */
 		/* Additional Checks */
@@ -25,7 +26,8 @@
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true
 	},
+	"include": ["src", "src/test"],
 	"exclude": [
-		"experiments/*"
+		"experiments/*", "node_modules", ".vscode-test"
 	]
 }
