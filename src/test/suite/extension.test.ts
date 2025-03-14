@@ -7,44 +7,67 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import path from 'path';
 import { main } from '../../train/collectTrainData';
+import { activate } from '../../lsp';
+import { getDocUri } from '../../lsp';
 const dataFolder = path.join(__dirname, '../../../data');
 
 	
 suite('Extension Test Suite', () => {
 	vscode.window.showInformationMessage('Start all tests.');
 
+	// test('Check Language Server - Python', async () => {
+    //     const result = await checkLS('test.py');
+	// 	assert.strictEqual(result && result.length !== 0, true, 'Language server should return symbols');
+    // });
 	
-	// test('Sample test', () => {
-	// 	assert.strictEqual([1, 2, 3].indexOf(5), -1);
-	// 	assert.strictEqual([1, 2, 3].indexOf(0), -1);
+	// test('Check Language Server - Java', async () => {
+	// 	const result = await checkLS('Test.java');
+	// 	assert.strictEqual(result && result.length !== 0, true, 'Language server should return symbols');
 	// });
 
-	test('CollectTrainData main function test', async () => {
-		// Import the main function from collectTrainData
-		const jsonlFiles = fs.readdirSync(dataFolder)
-				.filter(file => file.endsWith('.jsonl'))
-				.map(file => path.join(dataFolder, file));
-		for (const jsonlFile of jsonlFiles) {	
-			const inputJsonPath = jsonlFile;
-			const outputJsonPath = "/LSPAI/temp/" + jsonlFile.split('/').pop();
-			if (fs.existsSync(outputJsonPath)) {
-				fs.unlinkSync(outputJsonPath);
-			}
-			// Call the main function
-			const result = await main(inputJsonPath, outputJsonPath);
-			
-			console.log(outputJsonPath);
+	// test('Check Language Server - Go', async () => {
+	// 	const result = await checkLS('test.go');
+	// 	assert.strictEqual(result && result.length !== 0, true, 'Language server should return symbols');
+	// });
 
-			// Assert that the result is not null or undefined
-			assert.ok(outputJsonPath !== null && outputJsonPath !== undefined, 'Main function should return a value');
-			
-			// Add more specific assertions based on what your main function returns
-			// For example, if it returns an array:
-		
-		// If it returns specific data structure, verify its properties
-		// Example: assert.ok(result.hasOwnProperty('someProperty'), 'Result should have someProperty');
-		}
-	});
-
+	// test('Check Language Server - TypeScript', async () => {
+	// 	const result = await checkLS('test.ts');
+	// 	console.log('result', result);
+	// 	assert.strictEqual(result && result.length !== 0, true, 'Language server should return symbols');
+	// });
 
 });
+
+async function checkLS(filename: string): Promise<vscode.DocumentSymbol[] | undefined> {
+    const uri = getDocUri(filename);
+    await activate(uri);
+    // const document = await vscode.workspace.openTextDocument(uri);
+	// console.log("all", vscode.extensions.all.map(e => e.id))
+	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+		'vscode.executeDocumentSymbolProvider',
+		uri
+	);
+	// console.log("symbols", symbols);
+	return symbols;
+    // const pythonExt = vscode.extensions.getExtension('ms-python.python');
+
+    // if (!pythonExt) {
+    //     console.error('Python extension is not installed.');
+    //     vscode.window.showErrorMessage("Python extension (ms-python.python) is missing.");
+    //     return;
+    // }
+
+    // if (!pythonExt.isActive) {
+    //     await pythonExt.activate();
+    // }
+
+    // const api = pythonExt.exports;
+
+    // if (api.getDocumentSymbols) {  // Ensure the API has this method
+    //     return api.getDocumentSymbols(uri);
+    // } else {
+    //     console.error('getDocumentSymbols API not found in ms-python.python');
+    //     vscode.window.showErrorMessage("The Python extension does not provide the required API.");
+    // }
+	return 	;
+}
