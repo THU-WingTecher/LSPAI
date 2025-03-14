@@ -9,12 +9,14 @@
 		// "lib": ["es2020"],
 		"moduleResolution": "node",
 		"sourceMap": true,
+		// "inlineSources": true,
+		// "sourceRoot": "${workspaceFolder}",
 		// "baseUrl": ".",
 		"paths": {
 			"vscode": [
 			  "./node_modules/@types/vscode"
 			],
-			"*": ["./node_modules/*"],
+			"*": ["./node_modules/*"]
 		},
 		// "types": ["node", "mocha"],
 		"rootDir": "src",
