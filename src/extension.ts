@@ -10,8 +10,13 @@ import * as fs from 'fs';
 import path from 'path';
 export async function activate(context: vscode.ExtensionContext) {
 
-	const workspace = vscode.workspace.workspaceFolders!;
-	console.log(`Workspace: ${workspace[0].uri.fsPath}`);
+	const workspace = vscode.workspace.workspaceFolders;
+
+	if (workspace && workspace.length > 0) {	
+		console.log(`Workspace: ${workspace[0].uri.fsPath}`);
+	} else {
+		console.log(`No workspace found`);
+	}
 	console.log(`Model: ${currentModel}`);
 	console.log(`Methods: ${methodsForExperiment}`);
 	console.log(`Max Rounds: ${maxRound}`);

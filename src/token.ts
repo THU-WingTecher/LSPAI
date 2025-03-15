@@ -61,6 +61,7 @@ export async function extractRangeTokensFromAllTokens(document: vscode.TextDocum
 }
 
 export async function getDecodedTokensFromRange(document: vscode.TextDocument, startPosition: vscode.Position, endPosition: vscode.Position): Promise<DecodedToken[]> {
+    
     const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
         'vscode.provideDocumentRangeSemanticTokens',
         document.uri,
@@ -172,21 +173,24 @@ export async function getDecodedTokensFromLine(document: vscode.TextDocument, li
 // }
 
 
-export async function retrieveDef(document: vscode.TextDocument, decodedTokens : DecodedToken[]): Promise<DecodedToken[]>  {
-    console.log('Retrieving Def from Decoded tokens:', decodedTokens);
+export async function retrieveDef(document: vscode.TextDocument, decodedTokens : DecodedToken[], skipDefinition: boolean = false): Promise<DecodedToken[]>  {
+    // console.log('Retrieving Def from Decoded tokens:', decodedTokens);
 	if (decodedTokens) {
 		for (const token of decodedTokens) {
 			const startPos = new vscode.Position(token.line, token.startChar);
 			const endPos = new vscode.Position(token.line, token.startChar + token.length);
 			const range = new vscode.Range(startPos, endPos);
-			const word = document.getText(range);
-			const definition = await vscode.commands.executeCommand<Array<vscode.Location>>(
-				'vscode.executeDefinitionProvider',
-				document.uri,
-				startPos
-			);
-			token.word = word;
-			token.definition = definition;
+            token.word = document.getText(range);
+            if (skipDefinition) {
+                token.definition = [];
+            } else {
+                const definition = await vscode.commands.executeCommand<Array<vscode.Location>>(
+                    'vscode.executeDefinitionProvider',
+                    document.uri,
+                    startPos
+                );
+                token.definition = definition;
+            }
 			// console.log('Decoded token:', token);
 		}
 	}

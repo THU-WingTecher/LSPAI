@@ -130,7 +130,8 @@ export async function callDeepSeek(method: string, promptObj: any, logObj: any):
 			model: modelName,
 			messages: promptObj
 		});
-		const result = response.choices[0].message.content!;
+
+		const result = response.choices[0].message.content! + "<think>" + ((response.choices[0].message as any).reasoning_content || '');
 		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
