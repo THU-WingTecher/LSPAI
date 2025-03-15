@@ -9,12 +9,17 @@ import path from 'path';
 import { main } from '../../train/collectTrainData';
 import { activate } from '../../lsp';
 import { getDocUri } from '../../lsp';
+import { generateUnitTestForAFunction } from '../../generate';
 const dataFolder = path.join(__dirname, '../../../data');
 
 	
 suite('Extension Test Suite', () => {
 	vscode.window.showInformationMessage('Start all tests.');
 
+	// test("Generate Unit Test", async () => {
+	// 	const result = await generateUnitTestForAFunction("test.py", "test", "test", "test", "test", "test", "test", "test", "test");
+	// 	console.log("result", result);
+	// });
 	// test('Check Language Server - Python', async () => {
     //     const result = await checkLS('test.py');
 	// 	assert.strictEqual(result && result.length !== 0, true, 'Language server should return symbols');

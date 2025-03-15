@@ -21,7 +21,7 @@ export async function getReferenceInfo(document: vscode.TextDocument, range: vsc
         document.uri,
         position,
     );
-    console.log('References:', refes);
+    // console.log('References:', refes);
 
     const referenceCodes: string[] = [];
     for (const ref of refes) {
@@ -47,7 +47,7 @@ export async function getReferenceInfo(document: vscode.TextDocument, range: vsc
             }
         }
     }
-    console.log('Reference Codes:', referenceCodes.join('\n'));
+    // console.log('Reference Codes:', referenceCodes.join('\n'));
     return referenceCodes.join('\n');
 }
 

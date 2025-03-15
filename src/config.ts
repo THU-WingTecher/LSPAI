@@ -1,51 +1,162 @@
+import path from 'path';
 import * as vscode from 'vscode';
 
 export enum PromptType {
-    BASIC = 'basic', // no context
-    DETAILED = 'detailed', // with context
-    CONCISE = 'concise' // with context and unit test
-  }
-  
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-// const RANDOM_SEED = Date.now();
-// const DEFAULT_WORKSPACE = "/vscode-llm-ut/experiments/commons-cli/";
-// const DEFAULT_SRC_PATH = `${DEFAULT_WORKSPACE}src/main/`;
-// const DEFAULT_TEST_PATH = `${DEFAULT_WORKSPACE}/results_test/`;
-// const DEFAULT_EXP_LOG_PATH = `${DEFAULT_TEST_PATH}logs/`;
-// const DEFAULT_HISTORY_PATH = `${DEFAULT_TEST_PATH}history/`;
-// const DEFAULT_MODEL = "deepseek-chat"; // gpt-4o-mini"; // llama3-70b // deepseek-chat
-// const DEFAULT_GEN_METHODS = [DEFAULT_MODEL, `naive_${DEFAULT_MODEL}`];
-const DEFAULT_EXP_PROB = 0.2;
-const DEFAULT_PARALLEL_COUNT = 1;
-const DEFAULT_MODEL = 'deepseek-chat';
-const DEFAULT_PROVIDER = 'deepseek';
-const DEFAULT_TIMEOUT_MS = 600 * 1000;
-const DEFAULT_PROMPT_TYPE = PromptType.BASIC;
-// // Then update the variables that can change during runtime
-// export let currentWorkspace = DEFAULT_WORKSPACE;
-// export let currentSrcPath = DEFAULT_SRC_PATH;
-// export let currentTestPath = DEFAULT_TEST_PATH;
-// export let currentExpLogPath = DEFAULT_EXP_LOG_PATH;
-// export let currentHistoryPath = DEFAULT_HISTORY_PATH;
-// export let currentModel = DEFAULT_MODEL;
-// export let currentGenMethods = [...DEFAULT_GEN_METHODS];
-export type Provider = 'openai' | 'local' | 'deepseek';
-export let currentExpProb = DEFAULT_EXP_PROB;
-export let currentTimeout = DEFAULT_TIMEOUT_MS;
-export const config = vscode.workspace.getConfiguration('lspAi');
-export const currentModel = config.get<string>('model') ?? DEFAULT_MODEL;
-export const currentProvider = config.get<Provider>('provider') ?? DEFAULT_PROVIDER;
-export let currentPromptType = DEFAULT_PROMPT_TYPE;
-if (process.env.EXPERIMENT_PROMPT_TYPE) {
-    currentPromptType = process.env.EXPERIMENT_PROMPT_TYPE as PromptType;
-} else {
-    currentPromptType = config.get<PromptType>('promptType') ?? DEFAULT_PROMPT_TYPE;
+    BASIC = 'basic',
+    DETAILED = 'detailed',
+    CONCISE = 'concise'
 }
-if (currentProvider == 'local' || currentProvider == 'deepseek') {
-    currentTimeout = currentTimeout * 2
-}
-export const currentParallelCount = config.get<number>('parallel') ?? DEFAULT_PARALLEL_COUNT;;
-export const methodsForExperiment = [currentModel];
 
-export const maxRound = config.get<number>('maxRound') ?? 5;
+export type Provider = 'openai' | 'local' | 'deepseek';
+
+const DEFAULT_CONFIG = {
+    expProb: 0.2,
+    parallelCount: 1,
+    model: 'deepseek-chat',
+    provider: 'deepseek' as Provider,
+    timeoutMs: 600 * 1000,
+    promptType: PromptType.BASIC,
+    maxRound: 5
+};
+
+export class Configuration {
+    private static instance: Configuration;
+    private config: any;
+
+    private constructor() {
+        this.config = this.loadConfiguration();
+        this.adjustTimeout();
+    }
+
+    public static getInstance(): Configuration {
+        if (!Configuration.instance) {
+            Configuration.instance = new Configuration();
+        }
+        return Configuration.instance;
+    }
+
+    private isTestingEnvironment(): boolean {
+        return process.env.NODE_ENV === 'test' || process.env.TESTING_MODE === 'true';
+    }
+
+    private validateTestConfig(envVar: string | undefined, paramName: string): void {
+        if (!envVar) {
+            throw new Error(`Testing environment requires ${paramName} to be set`);
+        }
+    }
+
+    private loadConfiguration() {
+        if (this.isTestingEnvironment()) {
+            // Validate test environment variables
+            this.validateTestConfig(process.env.TEST_EXP_PROB, 'TEST_EXP_PROB');
+            this.validateTestConfig(process.env.TEST_MODEL, 'TEST_MODEL');
+            this.validateTestConfig(process.env.TEST_PROVIDER, 'TEST_PROVIDER');
+            this.validateTestConfig(process.env.TEST_PROMPT_TYPE, 'TEST_PROMPT_TYPE');
+            this.validateTestConfig(process.env.TEST_TIMEOUT, 'TEST_TIMEOUT');
+            this.validateTestConfig(process.env.TEST_PARALLEL_COUNT, 'TEST_PARALLEL_COUNT');
+            this.validateTestConfig(process.env.TEST_MAX_ROUND, 'TEST_MAX_ROUND');
+            this.validateTestConfig(process.env.TEST_OPENAI_API_KEY, 'TEST_OPENAI_API_KEY');
+            this.validateTestConfig(process.env.TEST_DEEPSEEK_API_KEY, 'TEST_DEEPSEEK_API_KEY');
+            this.validateTestConfig(process.env.TEST_LOCAL_LLM_URL, 'TEST_LOCAL_LLM_URL');
+            this.validateTestConfig(process.env.TEST_PROXY_URL, 'TEST_PROXY_URL');
+
+            return {
+                expProb: parseFloat(process.env.TEST_EXP_PROB!),
+                model: process.env.TEST_MODEL!,
+                provider: process.env.TEST_PROVIDER! as Provider,
+                promptType: process.env.TEST_PROMPT_TYPE! as PromptType,
+                timeoutMs: parseInt(process.env.TEST_TIMEOUT!),
+                parallelCount: parseInt(process.env.TEST_PARALLEL_COUNT!),
+                maxRound: parseInt(process.env.TEST_MAX_ROUND!),
+                openaiApiKey: process.env.TEST_OPENAI_API_KEY,
+                deepseekApiKey: process.env.TEST_DEEPSEEK_API_KEY,
+                localLLMUrl: process.env.TEST_LOCAL_LLM_URL,
+                proxyUrl: process.env.TEST_PROXY_URL
+            };
+        } else {
+            const config = vscode.workspace.getConfiguration('lspAi');
+            return {
+                expProb: DEFAULT_CONFIG.expProb,
+                model: config.get<string>('model') ?? DEFAULT_CONFIG.model,
+                provider: config.get<Provider>('provider') ?? DEFAULT_CONFIG.provider,
+                promptType: config.get<PromptType>('promptType') ?? DEFAULT_CONFIG.promptType,
+                timeoutMs: DEFAULT_CONFIG.timeoutMs,
+                parallelCount: config.get<number>('parallel') ?? DEFAULT_CONFIG.parallelCount,
+                maxRound: config.get<number>('maxRound') ?? DEFAULT_CONFIG.maxRound,
+                openaiApiKey: config.get<string>('openaiApiKey'),
+                deepseekApiKey: config.get<string>('deepseekApiKey'),
+                localLLMUrl: config.get<string>('localLLMUrl'),
+                proxyUrl: config.get<string>('proxyUrl')
+            };
+        }
+    }
+
+    private adjustTimeout(): void {
+        if (this.provider === 'local' || this.provider === 'deepseek') {
+            this.config.timeoutMs *= 2;
+        }
+    }
+
+    // Getters
+    public get expProb(): number {
+        return this.config.expProb;
+    }
+
+    public get model(): string {
+        return this.config.model;
+    }
+
+    public get provider(): Provider {
+        return this.config.provider;
+    }
+
+    public get promptType(): PromptType {
+        return this.config.promptType;
+    }
+
+    public get timeoutMs(): number {
+        return this.config.timeoutMs;
+    }
+
+    public get parallelCount(): number {
+        return this.config.parallelCount;
+    }
+
+    public get maxRound(): number {
+        return this.config.maxRound;
+    }
+
+    public get openaiApiKey(): string | undefined {
+        return this.config.openaiApiKey;
+    }
+
+    public get deepseekApiKey(): string | undefined {
+        return this.config.deepseekApiKey;
+    }
+
+    public get localLLMUrl(): string | undefined {
+        return this.config.localLLMUrl;
+    }
+
+    public get proxyUrl(): string | undefined {
+        return this.config.proxyUrl;
+    }
+
+    public get methodsForExperiment(): string[] {
+        return [this.model];
+    }
+}
+
+// Export singleton instance
+// Create and export the singleton instance
+export const configInstance = Configuration.getInstance();
+
+// For backward compatibility, export individual values
+export const currentExpProb = configInstance.expProb;
+export const currentModel = configInstance.model;
+export const currentProvider = configInstance.provider;
+export const currentPromptType = configInstance.promptType;
+export const currentParallelCount = configInstance.parallelCount;
+export const maxRound = configInstance.maxRound;
+export const currentTimeout = configInstance.timeoutMs;
+export const methodsForExperiment = configInstance.methodsForExperiment;

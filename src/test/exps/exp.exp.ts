@@ -1,11 +1,8 @@
 import * as assert from 'assert';
-import * as vscode from 'vscode';
-import * as path from 'path';
-import { generateUnitTestForAFunction } from '../../generate';
-import { currentModel, currentPromptType, maxRound, methodsForExperiment, PromptType } from '../../config';
-import { getTempDirAtCurWorkspace } from '../../fileHandler';
-import { activate } from '../../lsp';
-import { _experiment } from '../../experiment';
+import { currentModel, currentProvider, currentPromptType, maxRound, methodsForExperiment, PromptType } from '../../config';
+import { invokeLLM } from '../../invokeLLM';
+import { Prompt } from '../../prompts/ChatMessage';
+import { ChatMessage } from '../../prompts/ChatMessage';
 
 
 suite('Extension Test Suite', () => {
@@ -20,44 +17,37 @@ suite('Extension Test Suite', () => {
         }
     });
     
-    // test('Run Experiment', async () => {
-    //     // Get environment variables
+    test('LLM should answer the question', async () => {
+        const chatMessages: ChatMessage[] = [
+            { role: "system", content: 'you are a helpful assistant' },
+            { role: "user", content: 'what is the capital of France?' }
+        ];
+    
+        // const promptObj: Prompt = { messages: chatMessages };
+        const result = await invokeLLM(chatMessages, []);
+        assert.strictEqual(result.length > 0, true, `Result should not be empty, current model : ${currentModel}`);
+    }); 
 
-    //     // const srcPath = "/LSPAI/experiments/projects/commons-cli";
-    //     // const targetFile = "src/main/java/org/apache/commons/cli/GnuParser.java";
-    //     // const functionName = "flatten";
-    //     const srcPath = process.env.EXPERIMENT_SRC_PATH!;
-    //     const promptType = process.env.EXPERIMENT_PROMPT_TYPE!;
-    //     // const targetFile = process.env.EXPERIMENT_TARGET_FILE!;
-    //     // const functionName = process.env.EXPERIMENT_FUNCTION_NAME!;
+    test('should properly load test configuration from environment variables', async () => {
+        // Set test environment variables
 
-    //     // Wait for extension to activate
-    //     console.log("srcPath: ", srcPath);
-    //     // await vscode.commands.executeCommand('workbench.action.files.openFolder', 
-    //     //     vscode.Uri.file(srcPath));
-        
-    //     // Open the target file
-    //     // const finalPath = path.join(srcPath, targetFile);
-    //     await activate();
-    //     const language = "java";
-    //     console.log("running experiment");
-    //     const results = await _experiment(srcPath, language, methodsForExperiment);
-	// 	console.log(results);
 
-    // });
+        // Set all test environment variables
+        const envKeys = ['TEST_MODEL', 'TEST_PROVIDER', 'TEST_EXP_PROB',    'TEST_TIMEOUT', 'TEST_PARALLEL_COUNT', 'TEST_MAX_ROUND', 'TEST_PROMPT_TYPE', 'TEST_OPENAI_API_KEY', 'TEST_DEEPSEEK_API_KEY', 'TEST_LOCAL_LLM_URL', 'TEST_PROXY_URL'];
+        const testConfig = Object.fromEntries(
+            envKeys.map(key => [key, process.env[key]])
+        );
+
+        // Import config after setting environment variables
+        const currentConfig = await import('../../config');
+
+        // Verify each configuration value
+        assert.strictEqual(currentConfig.currentModel, testConfig.TEST_MODEL);
+        assert.strictEqual(currentConfig.currentProvider, testConfig.TEST_PROVIDER);
+        assert.strictEqual(currentConfig.currentExpProb, parseFloat(testConfig.TEST_EXP_PROB!));
+        assert.strictEqual(currentConfig.currentTimeout, parseInt(testConfig.TEST_TIMEOUT!));
+        assert.strictEqual(currentConfig.currentParallelCount, parseInt(testConfig.TEST_PARALLEL_COUNT!));
+        assert.strictEqual(currentConfig.maxRound, parseInt(testConfig.TEST_MAX_ROUND!));
+        assert.strictEqual(currentConfig.currentPromptType, testConfig.TEST_PROMPT_TYPE);
+    });
 });
-
-function findFunctionSymbol(symbols: vscode.DocumentSymbol[], functionName: string): vscode.DocumentSymbol | undefined {
-    for (const symbol of symbols) {
-        if (symbol.name === functionName && symbol.kind === vscode.SymbolKind.Function) {
-            return symbol;
-        }
-        if (symbol.children) {
-            const found = findFunctionSymbol(symbol.children, functionName);
-            if (found) {
-                return found;
-            }
-        }
-    }
-    return undefined;
-}

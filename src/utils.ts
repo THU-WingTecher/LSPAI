@@ -77,11 +77,11 @@ async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vsc
 
 export async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
     const allSymbols: vscode.DocumentSymbol[] = [];
-    console.log("sending request to get all symbols");
+    // console.log("sending request to get all symbols");
     const symbols = await customExecuteDocumentSymbolProvider(uri);
     // console.log(`uri = ${uri}, symbols = ${symbols}`);
     function collectSymbols(symbols: vscode.DocumentSymbol[]) {
-        console.log("collecting...")
+        // console.log("collecting...")
         for (const symbol of symbols) {
             allSymbols.push(symbol);
             if (symbol.children.length > 0) {
