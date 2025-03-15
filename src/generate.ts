@@ -183,7 +183,7 @@ async function generateInitialTestCode(
 	const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 	const startLLMTime = Date.now();
 	try {
-		const testCode = await invokeLLM(model, promptObj, logObj);
+		const testCode = await invokeLLM(promptObj, logObj);
 		const parsedCode = parseCode(testCode);
 		expData.push({
 			llmInfo: logObj,
@@ -257,7 +257,7 @@ async function performFixingRound(
 	let aiResponse: string;
 
 	try {
-		aiResponse = await invokeLLM(method, chatMessages, fixlogObj);
+		aiResponse = await invokeLLM(chatMessages, fixlogObj);
 		expData.push({
 			llmInfo: fixlogObj,
 			process: `FixWithLLM_${round}`,

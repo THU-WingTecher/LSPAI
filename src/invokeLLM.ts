@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import { OpenAI } from "openai";
 import { HttpsProxyAgent } from "https-proxy-agent/dist";
 import { Ollama } from 'ollama';
-import { currentProvider } from "./config";
+import { configInstance } from "./config";
+
 export const TOKENTHRESHOLD = 2000; // Define your token threshold here
 
 export const BASELINE = "naive";
@@ -31,26 +32,25 @@ export class TokenLimitExceededError extends Error {
 // 	return method.includes(DEEPSEEKMODELNAME);
 // }
 
-export function getModelName(method: string): string {
-	return method.split("_").pop()!;
+export function getModelName(): string {
+	return configInstance.model.split("_").pop()!;
 }
 
-export function getModelConfigError(method: string): string | undefined {
-	const config = vscode.workspace.getConfiguration('lspAi');
-	const provider = currentProvider;
+export function getModelConfigError(): string | undefined {
+	const provider = configInstance.provider;
 	switch (provider) {
 		case 'openai':
-			if (!config.get<string>('openaiApiKey')) {
+			if (!configInstance.openaiApiKey) {
 				return 'OpenAI API key is not configured. Please set lspAi.openaiApiKey in settings.';
 			}
 			break;
 		case 'local':
-			if (!config.get<string>('localLLMUrl')) {
+			if (!configInstance.localLLMUrl) {
 				return 'Local LLM URL is not configured. Please set lspAi.localLLMUrl in settings.';
 			}
 			break;
 		case 'deepseek':
-			if (!config.get<string>('deepseekApiKey')) {
+			if (!configInstance.deepseekApiKey) {
 				return 'Deepseek API key is not configured. Please set lspAi.deepseekApiKey in settings.';
 			}
 			break;
@@ -58,11 +58,11 @@ export function getModelConfigError(method: string): string | undefined {
 	return undefined;
 }
 
-export async function callLocalLLM(method: string, promptObj: any, logObj: any): Promise<string> {
-	const modelName = getModelName(method);
+export async function callLocalLLM(promptObj: any, logObj: any): Promise<string> {
+	// const modelName = getModelName(method);
+	const modelName = getModelName();
 	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
-	const config = vscode.workspace.getConfiguration('lspAi');
-	const ollama = new Ollama({ host: config.get<string>('localLLMUrl') })
+	const ollama = new Ollama({ host: configInstance.localLLMUrl })
 	try {
 		const response = await ollama.chat({
 			model: modelName,
@@ -82,40 +82,42 @@ export async function callLocalLLM(method: string, promptObj: any, logObj: any):
 	}
   }
 
-export async function invokeLLM(method: string, promptObj: any, logObj: any): Promise<string> {
-	const error = getModelConfigError(method);
+export async function invokeLLM(promptObj: any, logObj: any): Promise<string> {
+	const error = getModelConfigError();
 	if (error) {
 		vscode.window.showErrorMessage(error);
+		console.error('invokeLLM::error', error);
 		return "";
 	}
 
+	// console.log('invokeLLM::promptObj', promptObj);
 	const messageTokens = promptObj[1].content.split(/\s+/).length;
-	console.log("Invoking . . .");
+	// console.log("Invoking . . .");
 	if (messageTokens > TOKENTHRESHOLD) {
 		throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
 	}
 
-	const provider = currentProvider;
+	const provider = configInstance.provider;
 	switch (provider) {
 		case 'openai':
-			return callOpenAi(method, promptObj, logObj);
+			return callOpenAi(promptObj, logObj);
 		case 'local':
-			return callLocalLLM(method, promptObj, logObj);
+			return callLocalLLM(promptObj, logObj);
 		case 'deepseek':
-			return callDeepSeek(method, promptObj, logObj);
+			return callDeepSeek(promptObj, logObj);
 		default:
 			vscode.window.showErrorMessage('Unsupported provider!');
 			return "";
 	}
 }
 
-export async function callDeepSeek(method: string, promptObj: any, logObj: any): Promise<string> {
+export async function callDeepSeek(promptObj: any, logObj: any): Promise<string> {
 	
-	const modelName = getModelName(method);
+	// const modelName = getModelName(method);
+	const modelName = getModelName();
 	logObj.prompt = promptObj[1].content;
 	
-	const config = vscode.workspace.getConfiguration('lspAi');
-	const apiKey = config.get<string>('deepseekApiKey');
+	const apiKey = configInstance.deepseekApiKey;
 	
 	if (!apiKey) {
 		throw new Error('Deepseek API key not configured. Please set it in VS Code settings.');
@@ -144,17 +146,19 @@ export async function callDeepSeek(method: string, promptObj: any, logObj: any):
 	}
 }
 
-export async function callOpenAi(method: string, promptObj: any, logObj: any): Promise<string> {
-	const config = vscode.workspace.getConfiguration('lspAi');
-	const proxy = config.get<string>('proxyUrl');
-	const apiKey = config.get<string>('openaiApiKey');
-	
+export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
+
+	const proxy = configInstance.proxyUrl;
+	const apiKey = configInstance.openaiApiKey;
+	// console.log('invokeLLM::callOpenAi::proxy', proxy);
+	// console.log('invokeLLM::callOpenAi::apiKey', apiKey);
 	if (!apiKey) {
 		throw new Error('OpenAI API key not configured. Please set it in VS Code settings.');
 	}
 	
-	const modelName = getModelName(method);
-	
+	// const modelName = getModelName(method);
+	const modelName = getModelName();
+	console.log('invokeLLM::callOpenAi::modelName', modelName);
 	if (proxy) {
 		process.env.http_proxy = proxy;
 		process.env.https_proxy = proxy;
