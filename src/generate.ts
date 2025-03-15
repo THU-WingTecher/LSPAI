@@ -9,7 +9,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { LLMLogs, ExpLogs } from './log';
 import { invokeLLM } from "./invokeLLM";
-import { genPrompt, ChatMessage, Prompt, constructDiagnosticPrompt, FixSystemPrompt } from "./promptBuilder";
+import { genPrompt, constructDiagnosticPrompt, FixSystemPrompt } from "./prompts/promptBuilder";
+import { ChatMessage, Prompt } from "./prompts/ChatMessage";
 import { getAllSymbols, isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
 import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate } from './fileHandler';
@@ -410,7 +411,27 @@ async function fixDiagnostics(
 }
 
 // Main function
-export async function generateUnitTestForAFunction(
+interface StepConfig {
+	enabled: boolean;
+	params?: Record<string, any>;
+  }
+  
+  interface GenerationConfig {
+	collectInfo: StepConfig;
+	initialGeneration: StepConfig;
+	diagnosticsFix: StepConfig;
+	saveResults: StepConfig;
+  }
+  
+  // Default configuration
+  const defaultConfig: GenerationConfig = {
+	collectInfo: { enabled: true },
+	initialGeneration: { enabled: true },
+	diagnosticsFix: { enabled: true },
+	saveResults: { enabled: true }
+  };
+  
+  export async function generateUnitTestForAFunction(
 	srcPath: string,
 	document: vscode.TextDocument,
 	functionSymbol: vscode.DocumentSymbol,
@@ -420,77 +441,91 @@ export async function generateUnitTestForAFunction(
 	method: string,
 	historyPath: string,
 	expLogPath: string,
-	showGeneratedCode: boolean = true
-): Promise<string> {
-
+	showGeneratedCode: boolean = true,
+	config: Partial<GenerationConfig> = defaultConfig // Add configuration parameter
+  ): Promise<string> {
+	// Merge provided config with defaults
+	const activeConfig = { ...defaultConfig, ...config };
+	
 	if (method === "") {
-		method = model;
+	  method = model;
 	}
 	console.log(`Generating unit test for ${method} in ${fullFileName}`);
-	console.log(`MAX_ROUNDS: ${MAX_ROUNDS}`);
-	console.log(`historyPath: ${historyPath}`);
-	console.log(`expLogPath: ${expLogPath}`);
-	// need give default value if thoes values are empty
+	
 	try {
-		const { languageId, fileName, expData } = await initializeTestGeneration(
-			document,
-			functionSymbol,
-			method,
-			fullFileName
-		);
+	  const { languageId, fileName, expData } = await initializeTestGeneration(
+		document,
+		functionSymbol,
+		method,
+		fullFileName
+	  );
+  
+	  let collectedData = {};
+	  // Step 1: Collect Info
 		const startTime = Date.now();
-		const collectedData = await collectInfo(document, functionSymbol, languageId, fileName, method);
-		expData.push({
-			llmInfo: null,
-			process: "collectInfo",
-			time: (Date.now() - startTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: functionSymbol.name,
-			errMsag: ""
-		});
-		const testCode = await generateInitialTestCode(
-			document,
-			functionSymbol,
-			collectedData,
-			languageId,
-			fullFileName,
-			method,
-			model,
-			expData
+		collectedData = await collectInfo(
+		  document,
+		  functionSymbol,
+		  languageId,
+		  fileName,
+		  method
 		);
-		
+		expData.push({
+		  llmInfo: null,
+		  process: "collectInfo",
+		  time: (Date.now() - startTime).toString(),
+		  method,
+		  fileName: fullFileName,
+		  function: functionSymbol.name,
+		  errMsag: ""
+		});
+  
+	  // Step 2: Initial Test Generation
+	  let testCode = "";
+		testCode = await generateInitialTestCode(
+		  document,
+		  functionSymbol,
+		  collectedData,
+		  languageId,
+		  fullFileName,
+		  method,
+		  model,
+		  expData
+		);
+
+	  
+	  	// Step 3: Diagnostic Fix
 		let diagnosticReport: DiagnosticReport | null = null;
-		let finalCode: string = "";
-		if (isBaseline(method)) {
-			finalCode = testCode;
-		} else {
-			const fixstartTime = Date.now();
-			const report = await fixDiagnostics(
-				srcPath,
-				testCode,
-				collectedData,
-				method,
-				languageId,
-				model,
-				historyPath,
-				fullFileName,
-				expData,
-				MAX_ROUNDS,
-				showGeneratedCode
-			);
-			diagnosticReport = report.diagnosticReport;
-			finalCode = report.finalCode;
-			expData.push({
-				llmInfo: null,
-				process: "fixDiagnostics",
-				time: (Date.now() - fixstartTime).toString(),
-				method,
-				fileName: fullFileName,
-				function: functionSymbol.name,
-				errMsag: ""
-			});
-		}
+		let finalCode: string = testCode;
+	  
+		// const fixstartTime = Date.now();
+		// const report = await fixDiagnostics(
+		//   srcPath,
+		//   testCode,
+		//   collectedData,
+		//   method,
+		//   languageId,
+		//   model,
+		//   historyPath,
+		//   fullFileName,
+		//   expData,
+		//   MAX_ROUNDS,
+		//   showGeneratedCode
+		// );
+		// diagnosticReport = report.diagnosticReport;
+		// finalCode = report.finalCode;
+		// expData.push({
+		//   llmInfo: null,
+		//   process: "fixDiagnostics",
+		//   time: (Date.now() - fixstartTime).toString(),
+		//   method,
+		//   fileName: fullFileName,
+		//   function: functionSymbol.name,
+		//   errMsag: ""
+		// });
+  
+	  // Step 4: Save Results
+
 		// Save diagnostic report
 		const reportPath = path.join(expLogPath, method, `${fileName}_diagnostic_report.json`);
 		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
@@ -498,14 +533,14 @@ export async function generateUnitTestForAFunction(
 
 		await saveGeneratedCodeToFolder(finalCode, fullFileName);
 		await saveExperimentData(expData, expLogPath, fileName, method);
-
-		return finalCode;
+  
+	  return finalCode;
 	} catch (error) {
-		console.error('Failed to generate unit test:', error);
-		vscode.window.showErrorMessage('Failed to generate unit test!');
-		return '';
+	  console.error('Failed to generate unit test:', error);
+	  vscode.window.showErrorMessage('Failed to generate unit test!');
+	  return '';
 	}
-}
+  }
 
 async function saveExperimentData(expData: ExpLogs[], expLogPath: string, fileName: string, method: string) {
 	const jsonFilePath = path.join(expLogPath, method, `${fileName}_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}.json`);

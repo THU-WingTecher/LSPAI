@@ -44,10 +44,24 @@ function initializeSeededRandom(seed: number) {
     };
 }
 
-async function _experiment(srcPath: string, language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
-	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
-	const folderPath = path.join(workspace, RESULTS_FOLDER_PREFIX + generateTimestampString());
-	const expLogPath = path.join(folderPath, "logs");
+export async function _experiment(srcPath: string, language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
+
+    let folderPath: string;
+    let expLogPath: string;
+    if (!vscode.workspace.workspaceFolders) {
+        folderPath = path.join(srcPath, RESULTS_FOLDER_PREFIX + generateTimestampString());
+        expLogPath = path.join(folderPath, "logs");
+        const projectName = path.basename(srcPath);
+        if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+            srcPath = path.join(srcPath, SRC_PATHS[projectName as ProjectName]);
+        } else {
+            srcPath = path.join(srcPath, SRC_PATHS.DEFAULT);
+        }
+    } else {
+        const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
+        folderPath = path.join(workspace, RESULTS_FOLDER_PREFIX + generateTimestampString());
+        expLogPath = path.join(folderPath, "logs");
+    }
 
     console.log(`Testing the folder of ${srcPath}`);
     console.log(`saving the result to ${folderPath}`);

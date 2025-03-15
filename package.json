@@ -42,6 +42,11 @@
         "title": "LSPAI: Python-Experiment"
       },
       {
+        "command": "lspAi.GoExperiment",
+        "title": "LSPAI: Go-Experiment"
+      },
+      
+      {
         "command": "extension.generateUnitTest",
         "title": "LSPAI: Generate Unit Test"
       },
@@ -96,6 +101,12 @@
           "default": "deepseek-chat",
           "description": "Model to use for code generation"
         },
+        "lspAi.promptType": {
+          "type": "string",
+          "default": "basic",
+          "description": "Prompt type to use for code generation",
+          "enum": ["basic", "detailed", "concise"]
+        },
         "lspAi.maxRound": {
           "type": "number",
           "default": 5,
@@ -112,7 +123,7 @@
     "lint": "eslint src",
     "build": "tsc",
     "test": "node ./out/test/runTest.js",
-    "experiment": "npm run build && NODE_PATH=./node_modules mocha ./out/runExp.js"
+    "experiment": "npm run compile && node ./out/test/runExperiment.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

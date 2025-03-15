@@ -1,14 +1,8 @@
-import { ContextInfo } from "./generate";
-import { isBaseline } from "./experiment";
-
-export interface ChatMessage {
-    role: string;
-    content: string;
-}
-
-export interface Prompt {
-    messages: ChatMessage[];
-}
+import { ContextInfo } from "../generate";
+import { isBaseline } from "../experiment";
+import { JavaUnitTestTemplate, GoUnitTestTemplate, PythonUnitTestTemplate } from "./template";
+import { ChatMessage, Prompt } from "./ChatMessage";
+import { currentPromptType, PromptType } from "../config";
 
 export function constructDiagnosticPrompt(unit_test: string, diagnosticMessages: string, method_sig: string, class_name: string, testcode: string): string {
     return `
@@ -21,6 +15,19 @@ Instruction
 The errotic code is:
 \`\`\`
 ${unit_test}
+\`\`\`
+`;
+}
+
+
+export function BaseUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
+    return `
+The focal method is \`${functionName}\`.
+Based on the provided information, you need to generate a unit test following below format:
+
+The source code of the focal method is:
+\`\`\`
+${code}
 \`\`\`
 `;
 }
@@ -44,72 +51,6 @@ export function FixSystemPrompt(language: string): string {
     return ``;
 }
 
-// function DependentClassesPrompt(defUseMapString: string): string {
-// 	// System prompt from ChatUnitTest
-//     return `
-// 	The brief information of dependent class `` is :
-
-// 		#### Guidelines for Generating Unit Tests
-// 		1. When generating Unit test of the code, if there is unseen field, method, or variable, Please find the related source code from the following list and use it to generate the unit test.
-// 		${defUseMapString}
-//     `;
-// }
-export function JavaUnitTestTemplate(FileName: string, packageString: string): string {
-    return `
-Based on the provided information, you need to generate a unit test using Junit5, and Mock3.
-\`\`\`
-${packageString}
-{Replace With Needed Imports}
-
-public class ${FileName} {
-    {Replace with needed fields}
-    {Write your test function here}
-}
-\`\`\`
-`;
-}
-export function GoUnitTestTemplate(FileName: string, packageString: string): string {
-    return `
-Based on the provided information, you need to generate a unit test using Go's testing package.
-The generated test code will be located at the same directory with target code. Therefore, you don't have to import target project.
-\`\`\`
-${packageString}
-
-import (
-    "testing"
-    {Replace with needed imports}
-)
-
-func Test${FileName}(t *testing.T) {
-    {Replace with needed setup}
-    {Write your test function here}
-}
-\`\`\`
-`;
-}
-
-export function PythonUnitTestTemplate(FileName: string, packageString: string, importString: string): string {
-    return `
-Based on the provided information, you need to generate a unit test using Python's unittest framework.
-\`\`\`
-import unittest
-${importString}
-from {Replace with needed imports} import {FileName}
-
-class Test${FileName}(unittest.TestCase):
-    
-    def setUp(self):
-        {Replace with needed setup}
-
-    def test_{FileName}(self):
-        {Write your test function here}
-
-if __name__ == '__main__':
-    unittest.main()
-\`\`\`
-`;
-}
-
 export function OurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string, refCodes: string): string {
     //     ${functionContext} is deleted.
     return `
@@ -126,17 +67,53 @@ ${refCodes}
 `;
 }
 
-export function BaseUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
-    return `
-The focal method is \`${functionName}\`.
-Based on the provided information, you need to generate a unit test following below format:
 
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-`;
-}
+  // Function to build different prompts based on type
+  function buildPromptByType(
+    type: PromptType,
+    functionName: string,
+    class_name: string,
+    functionContext: string,
+    code: string,
+    FileName: string,
+    packageString: string
+  ): string {
+    switch (type) {
+      case PromptType.BASIC:
+        return `
+  The focal method is \`${functionName}\` in the \`${class_name}\`.
+  The source code of the focal method is:
+  \`\`\`
+  ${code}
+  \`\`\`
+  ${JavaUnitTestTemplate(FileName, packageString)}`;
+  
+      case PromptType.DETAILED:
+        return `
+  Detailed Analysis Request:
+  Method: \`${functionName}\`
+  Class: \`${class_name}\`
+  Context Information:
+  ${functionContext}
+  
+  Please analyze the following source code and create comprehensive unit tests:
+  \`\`\`
+  ${code}
+  \`\`\`
+  ${JavaUnitTestTemplate(FileName, packageString)}
+  Consider edge cases and boundary conditions in your tests.`;
+  
+      case PromptType.CONCISE:
+        return `
+  Test \`${functionName}\` in \`${class_name}\`:
+  \`\`\`
+  ${code}
+  \`\`\`
+  ${JavaUnitTestTemplate(FileName, packageString)}`;
+    }
+  }
+
+  
 export function LSPAIUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, importString: string, FileName: string, refCodes: string): string {
 
     if (languageId === 'java') {
@@ -145,6 +122,15 @@ export function LSPAIUserPrompt(code: string, languageId: string, functionContex
     //     \`\`\`
     //     ${refCodes}
     //     \`\`\`` : ''}
+        return buildPromptByType(
+            currentPromptType, // Default type, can be passed as an argument
+            functionName,
+            class_name,
+            functionContext,
+            code,
+            FileName,
+            packageString
+        );
         return `
 The focal method is \`${functionName}\` in the \`${class_name}\`,
 ${functionContext}
