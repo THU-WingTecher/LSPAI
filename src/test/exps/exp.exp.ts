@@ -25,6 +25,7 @@ suite('Extension Test Suite', () => {
     
         // const promptObj: Prompt = { messages: chatMessages };
         const result = await invokeLLM(chatMessages, []);
+        console.log(`${currentModel} Result: ${result}`);
         assert.strictEqual(result.length > 0, true, `Result should not be empty, current model : ${currentModel}`);
     }); 
 

@@ -82,7 +82,8 @@ export async function callLocalLLM(promptObj: any, logObj: any): Promise<string>
 	}
   }
 
-export async function invokeLLM(promptObj: any, logObj: any): Promise<string> {
+// ... existing code ...
+export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 3, retryDelay = 2000): Promise<string> {
 	const error = getModelConfigError();
 	if (error) {
 		vscode.window.showErrorMessage(error);
@@ -98,17 +99,42 @@ export async function invokeLLM(promptObj: any, logObj: any): Promise<string> {
 	}
 
 	const provider = configInstance.provider;
-	switch (provider) {
-		case 'openai':
-			return callOpenAi(promptObj, logObj);
-		case 'local':
-			return callLocalLLM(promptObj, logObj);
-		case 'deepseek':
-			return callDeepSeek(promptObj, logObj);
-		default:
-			vscode.window.showErrorMessage('Unsupported provider!');
-			return "";
+	
+	let lastError: Error | null = null;
+	for (let attempt = 1; attempt <= maxRetries; attempt++) {
+		try {
+			switch (provider) {
+				case 'openai':
+					return await callOpenAi(promptObj, logObj);
+				case 'local':
+					return await callLocalLLM(promptObj, logObj);
+				case 'deepseek':
+					return await callDeepSeek(promptObj, logObj);
+				default:
+					vscode.window.showErrorMessage('Unsupported provider!');
+					return "";
+			}
+		} catch (error) {
+			lastError = error as Error;
+			console.log(`Attempt ${attempt}/${maxRetries} failed: ${error}`);
+			
+			if (attempt < maxRetries) {
+				// Add exponential backoff with jitter for more robust retrying
+				const jitter = Math.random() * 1000;
+				const delay = retryDelay * Math.pow(2, attempt - 1) + jitter;
+				console.log(`Retrying in ${Math.round(delay / 1000)} seconds...`);
+				await new Promise(resolve => setTimeout(resolve, delay));
+			}
+		}
 	}
+	
+	// If we've exhausted all retries, throw the last error
+	if (lastError) {
+		vscode.window.showErrorMessage(`Failed after ${maxRetries} attempts: ${lastError.message}`);
+		throw lastError;
+	}
+	
+	return "";
 }
 
 export async function callDeepSeek(promptObj: any, logObj: any): Promise<string> {
@@ -132,7 +158,7 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 			model: modelName,
 			messages: promptObj
 		});
-
+		console.log('invokeLLM::callDeepSeek::response', response);
 		const result = response.choices[0].message.content! + "<think>" + ((response.choices[0].message as any).reasoning_content || '');
 		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
