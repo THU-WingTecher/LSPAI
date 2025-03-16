@@ -28,3 +28,4 @@ package-lock.json
 *.tar.gz
 venv/
 experiments/data
+test-config.json
