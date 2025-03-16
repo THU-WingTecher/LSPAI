@@ -83,6 +83,8 @@ ${refCodes}
         return `
   The focal method is \`${functionName}\` in the \`${class_name}\`.
   The source code of the focal method is:
+  Please analyze the following source code and create comprehensive unit tests:
+  Consider edge cases and boundary conditions in your tests.
   \`\`\`
   ${code}
   \`\`\`
