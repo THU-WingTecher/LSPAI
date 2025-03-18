@@ -2,7 +2,43 @@ import { ContextInfo } from "../generate";
 import { isBaseline } from "../experiment";
 import { JavaUnitTestTemplate, GoUnitTestTemplate, PythonUnitTestTemplate } from "./template";
 import { ChatMessage, Prompt } from "./ChatMessage";
-import { currentPromptType, PromptType } from "../config";
+import { getConfigInstance, PromptType } from "../config";
+import { ContextTerm } from "../agents/contextSelector";
+import path from "path";
+import fs from "fs";
+import ini from "ini";
+import { getPackageStatement } from "../retrieve";
+import * as vscode from 'vscode';
+
+export function generateTestWithContext(document: vscode.TextDocument, source_code: string, context_info: ContextTerm[], fileName: string): ChatMessage[] {
+    // for ContextTerm, we only need term and context(if need_context is true) 
+    const result = [];
+    for (const item of context_info) {
+        if (item.need_context) {
+            result.push(`\n## Source Code of ${item.term}\n${item.context}`);
+        }
+        if (item.need_example) {
+            result.push(`\n## Example of ${item.term}\n${item.example}`);
+        }
+    }
+    const context_info_str = result.join('\n');
+    const packageStatement = getPackageStatement(document, document.languageId);
+	// const importStatement = getImportStatement(document, document.languageId, functionSymbol);
+    const configPath = path.join(__dirname, "..", "..", "templates", "contextSelector.ini");
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = ini.parse(configData) as ContextSelectorConfig;
+    const systemPrompt = config.prompts.test_generation_system;
+    const userPrompt = config.prompts.test_generation_user
+        .replace('{source_code}', source_code)
+        .replace('{context_info}', context_info_str)
+        .replace('{unit_test_template}', JavaUnitTestTemplate(fileName, packageStatement ? packageStatement[0] : ""));
+    
+    const promptObj = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+    ];
+    return promptObj;
+}
 
 export function constructDiagnosticPrompt(unit_test: string, diagnosticMessages: string, method_sig: string, class_name: string, testcode: string): string {
     return `
@@ -76,18 +112,19 @@ ${refCodes}
     functionContext: string,
     code: string,
     FileName: string,
-    packageString: string
+    packageString: string,
+    refCodes: string
   ): string {
     switch (type) {
       case PromptType.BASIC:
         return `
   The focal method is \`${functionName}\` in the \`${class_name}\`.
   The source code of the focal method is:
-  Please analyze the following source code and create comprehensive unit tests:
-  Consider edge cases and boundary conditions in your tests.
   \`\`\`
   ${code}
   \`\`\`
+  Please analyze the following source code and create comprehensive unit tests:
+  Consider edge cases and boundary conditions in your tests.
   ${JavaUnitTestTemplate(FileName, packageString)}`;
   
       case PromptType.DETAILED:
@@ -97,7 +134,10 @@ ${refCodes}
   Class: \`${class_name}\`
   Context Information:
   ${functionContext}
-  
+  Reference Code:
+  ${refCodes.length > 0 ? `\`\`\`
+  ${refCodes}
+  \`\`\`` : ''}
   Please analyze the following source code and create comprehensive unit tests:
   \`\`\`
   ${code}
@@ -125,13 +165,14 @@ export function LSPAIUserPrompt(code: string, languageId: string, functionContex
     //     ${refCodes}
     //     \`\`\`` : ''}
         return buildPromptByType(
-            currentPromptType, // Default type, can be passed as an argument
+            getConfigInstance().promptType, // Default type, can be passed as an argument
             functionName,
             class_name,
             functionContext,
             code,
             FileName,
-            packageString
+            packageString,
+            refCodes
         );
         return `
 The focal method is \`${functionName}\` in the \`${class_name}\`,
@@ -240,12 +281,16 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
 	let prompt = "";
 	const systemPromptText = ChatUnitTestSystemPrompt(data.languageId);
 	const textCode = data.SourceCode;
-
+    console.log("method", method);
 	if (!isBaseline(method)) {
+        console.log("dependentContext", data.dependentContext);
 		dependentContext = data.dependentContext;
 		mainFunctionDependencies = data.mainFunctionDependencies;
 		mainfunctionParent = data.mainfunctionParent;
-		prompt = LSPAIUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName, data.referenceCodes);
+		prompt = LSPAIUserPrompt(textCode, data.languageId, 
+            dependentContext, data.functionSymbol.name, 
+            mainfunctionParent, dependentContext, data.packageString, 
+            data.importString, data.fileName, data.referenceCodes);
 	} else {
 		prompt = ChatUnitTestBaseUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName);
 	}
@@ -259,4 +304,16 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
 	const promptObj: Prompt = { messages: chatMessages };
 
 	return Promise.resolve(promptObj.messages);
+}export interface ContextSelectorConfig {
+    general: {
+        max_terms: number;
+        relevance_threshold: number;
+    };
+    prompts: {
+        identify_terms_system: string;
+        identify_terms_user: string;
+        test_generation_user: string;
+        test_generation_system: string;
+    };
 }
+

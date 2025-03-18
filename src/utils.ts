@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { assert } from 'console';
 import { getPackageStatement } from './retrieve';
+import { getConfigInstance } from './config';
 
 // patterns.ts
 
@@ -64,7 +65,7 @@ export function isStandardClass(uri: string, language: string): boolean {
     return patterns.some(pattern => decodedUri.includes(pattern));
 }
 
-async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+export async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
 	const symbols = await Promise.race([
 		vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
 			'vscode.executeDocumentSymbolProvider',
@@ -73,28 +74,6 @@ async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vsc
 		new Promise<vscode.DocumentSymbol[]>(resolve => setTimeout(() => resolve([]), 5000))
 	]);
 	return symbols || [];
-}
-
-export async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
-    const allSymbols: vscode.DocumentSymbol[] = [];
-    // console.log("sending request to get all symbols");
-    const symbols = await customExecuteDocumentSymbolProvider(uri);
-    // console.log(`uri = ${uri}, symbols = ${symbols}`);
-    function collectSymbols(symbols: vscode.DocumentSymbol[]) {
-        // console.log("collecting...")
-        for (const symbol of symbols) {
-            allSymbols.push(symbol);
-            if (symbol.children.length > 0) {
-                collectSymbols(symbol.children);
-            }
-        }
-    }
-
-    if (symbols) {
-        collectSymbols(symbols);
-    }
-
-    return allSymbols;
 }
 
 export function parseCode(response: string): string {
@@ -175,7 +154,13 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
     //     return '';
     // }
     let detail = '';
-    if (getFullInfo && document.getText(symbol.range).split('\n').length < 40 ) {
+    if (!getConfigInstance().summarizeContext) {
+        return removeComments(document.getText(symbol.range));
+    }
+    // if (getFullInfo && document.getText(symbol.range).split('\n').length < 40 ) {
+    //     return removeComments(document.getText(symbol.range));
+    // } 
+    if (getFullInfo) {
         return removeComments(document.getText(symbol.range));
     } 
     if (symbol.kind === vscode.SymbolKind.Class) {
@@ -312,6 +297,7 @@ export async function closeActiveEditor(document:vscode.TextDocument){
     //     }
     // }
 }
+
 export function isValidFunctionSymbol(functionSymbol: vscode.DocumentSymbol): boolean {
 	if (!functionSymbol.name) {
 		vscode.window.showErrorMessage('Function symbol has no name!');
@@ -323,6 +309,62 @@ export function isValidFunctionSymbol(functionSymbol: vscode.DocumentSymbol): bo
 	}
 	return true;
 }
+
+export function formatToJSON(input: string): any {
+    // Remove any leading/trailing whitespace
+    let cleanInput = input.trim();
+
+    // If the input is wrapped in markdown code blocks, remove them
+    cleanInput = cleanInput.replace(/^```[a-z]*\n|\n```$/g, '');
+
+    // Handle escaped characters
+    const unescapeString = (str: string): string => {
+        return str
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\\t/g, '\t')
+            .replace(/\\r/g, '\r')
+            .replace(/\\\\/g, '\\');
+    };
+
+    try {
+        // First attempt: direct JSON parse
+        return JSON.parse(cleanInput);
+    } catch (e) {
+        try {
+            // Second attempt: Handle escaped JSON strings
+            return JSON.parse(unescapeString(cleanInput));
+        } catch (e2) {
+            try {
+                // Third attempt: Handle single-quoted JSON
+                const doubleQuoted = cleanInput.replace(/'/g, '"');
+                return JSON.parse(doubleQuoted);
+            } catch (e3) {
+                try {
+                    // Fourth attempt: Handle literal string representation
+                    // For cases like "{\n  \"key\": \"value\"\n}"
+                    const evaluated = eval(`(${cleanInput})`);
+                    if (typeof evaluated === 'object') {
+                        return evaluated;
+                    }
+                    throw new Error('Evaluated result is not an object');
+                } catch (e4) {
+                    // Final attempt: Try to extract JSON-like structure
+                    const jsonMatch = cleanInput.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        try {
+                            return JSON.parse(jsonMatch[0]);
+                        } catch (e5) {
+                            throw new Error(`Failed to parse JSON after all attempts: ${e5}`);
+                        }
+                    }
+                    throw new Error('No valid JSON structure found in input');
+                }
+            }
+        }
+    }
+}
+
 
 
 

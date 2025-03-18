@@ -5,12 +5,20 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-
+import { customExecuteDocumentSymbolProvider } from './utils';
 export let doc: vscode.TextDocument;
 export let editor: vscode.TextEditor;
 export let documentEol: string;
 export let platformEol: string;
 
+export async function getSymbolByLocation(document: vscode.TextDocument, location: vscode.Position): Promise<vscode.DocumentSymbol | null> {
+    const symbols = await getAllSymbols(document.uri);
+    const shortestSymbol = getShortestSymbol(symbols, new vscode.Range(location, location));
+    if (shortestSymbol) {
+        return shortestSymbol;
+    }
+    return null;
+}
 /**
  * Activates the vscode.lsp-sample extension
  */
@@ -22,6 +30,7 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 	}	
 	await ext.activate();
 	if (docUri) {
+        console.log("activate docUri", docUri);
 		try {
 			doc = await vscode.workspace.openTextDocument(docUri);
 			editor = await vscode.window.showTextDocument(doc);
@@ -50,3 +59,45 @@ export async function setTestContent(content: string): Promise<boolean> {
 	);
 	return editor.edit(eb => eb.replace(all, content));
 }
+
+export async function getReference(symbol: vscode.DocumentSymbol): Promise<string> {
+    const reference = symbol.children.find(child => child.name === 'Reference');
+    if (reference) {
+        return reference.children[0].name;
+    }
+    return '';
+}
+export async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+    const allSymbols: vscode.DocumentSymbol[] = [];
+    // console.log("sending request to get all symbols");
+    const symbols = await customExecuteDocumentSymbolProvider(uri);
+    // console.log(`uri = ${uri}, symbols = ${symbols}`);
+    function collectSymbols(symbols: vscode.DocumentSymbol[]) {
+        // console.log("collecting...")
+        for (const symbol of symbols) {
+            allSymbols.push(symbol);
+            if (symbol.children.length > 0) {
+                collectSymbols(symbol.children);
+            }
+        }
+    }
+
+    if (symbols) {
+        collectSymbols(symbols);
+    }
+
+    return allSymbols;
+}
+
+export function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
+    let shortestSymbol: vscode.DocumentSymbol | null = null;
+    for (const symbol of symbols) {
+        if (symbol.range.contains(range)) {
+            if (!shortestSymbol || (symbol.range.end.line - symbol.range.start.line) < (shortestSymbol.range.end.line - shortestSymbol.range.start.line)) {
+                shortestSymbol = symbol;
+            }
+        }
+    }
+    return shortestSymbol;
+}
+

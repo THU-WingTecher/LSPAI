@@ -6,10 +6,15 @@ export async function run(): Promise<void> {
 	// Create the mocha test
     const mocha = new Mocha({
         ui: 'tdd',
-        timeout: 10000,  // Set timeout to 10 seconds
+        timeout: 0,  // Set timeout to 10 seconds
         color: true
     });
-
+	let testFilesReg = '**/**.test.js';
+	console.log("process.env.npm_config_testfile", process.env.npm_config_testfile);
+	if (process.env.npm_config_testfile) {
+		testFilesReg = `**/${process.env.npm_config_testfile}.test.js`;
+	}
+	console.log("testFilesReg", testFilesReg);
     const testsRoot = path.resolve(__dirname, '..');
 
 	try {
@@ -20,7 +25,7 @@ export async function run(): Promise<void> {
 		await new Promise(resolve => setTimeout(resolve, 5000));
 
 		return new Promise((c, e) => {
-			glob('**/**.test.js', { cwd: testsRoot }, (err, files) => {
+			glob(testFilesReg, { cwd: testsRoot }, (err, files) => {
 				if (err) {
 					return e(err);
 				}

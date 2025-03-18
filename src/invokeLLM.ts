@@ -2,7 +2,9 @@ import * as vscode from "vscode";
 import { OpenAI } from "openai";
 import { HttpsProxyAgent } from "https-proxy-agent/dist";
 import { Ollama } from 'ollama';
-import { configInstance } from "./config";
+import { getConfigInstance } from "./config";
+import * as fs from 'fs';
+import * as path from 'path';
 
 export const TOKENTHRESHOLD = 2000; // Define your token threshold here
 
@@ -33,24 +35,24 @@ export class TokenLimitExceededError extends Error {
 // }
 
 export function getModelName(): string {
-	return configInstance.model.split("_").pop()!;
+	return getConfigInstance().model.split("_").pop()!;
 }
 
 export function getModelConfigError(): string | undefined {
-	const provider = configInstance.provider;
+	const provider = getConfigInstance().provider;
 	switch (provider) {
 		case 'openai':
-			if (!configInstance.openaiApiKey) {
+			if (!getConfigInstance().openaiApiKey) {
 				return 'OpenAI API key is not configured. Please set lspAi.openaiApiKey in settings.';
 			}
 			break;
 		case 'local':
-			if (!configInstance.localLLMUrl) {
+			if (!getConfigInstance().localLLMUrl) {
 				return 'Local LLM URL is not configured. Please set lspAi.localLLMUrl in settings.';
 			}
 			break;
 		case 'deepseek':
-			if (!configInstance.deepseekApiKey) {
+			if (!getConfigInstance().deepseekApiKey) {
 				return 'Deepseek API key is not configured. Please set lspAi.deepseekApiKey in settings.';
 			}
 			break;
@@ -62,23 +64,23 @@ export async function callLocalLLM(promptObj: any, logObj: any): Promise<string>
 	// const modelName = getModelName(method);
 	const modelName = getModelName();
 	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
-	const ollama = new Ollama({ host: configInstance.localLLMUrl })
+	const ollama = new Ollama({ host: getConfigInstance().localLLMUrl });
 	try {
 		const response = await ollama.chat({
 			model: modelName,
 			messages: promptObj,
 			stream: false,
-		})
-	const result = await response;
-	const content = result.message.content;
-	const tokenUsage = result.prompt_eval_count;
-    logObj.tokenUsage = tokenUsage;
-    logObj.result = result;
-	// console.log("Response content:", content);
-	return content;
+		});
+		const result = await response;
+		const content = result.message.content;
+		const tokenUsage = result.prompt_eval_count;
+    	logObj.tokenUsage = tokenUsage;
+    	logObj.result = result;
+		// console.log("Response content:", content);
+		return content;
 	} catch (error) {
-	  console.error("Error sending chat request:", error);
-	  throw error;
+		console.error("Error sending chat request:", error);
+		throw error;
 	}
   }
 
@@ -98,22 +100,37 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 3, ret
 		throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
 	}
 
-	const provider = configInstance.provider;
+	const provider = getConfigInstance().provider;
 	
 	let lastError: Error | null = null;
 	for (let attempt = 1; attempt <= maxRetries; attempt++) {
 		try {
+			let response: string;
 			switch (provider) {
 				case 'openai':
-					return await callOpenAi(promptObj, logObj);
+					response = await callOpenAi(promptObj, logObj);
+					break;
 				case 'local':
-					return await callLocalLLM(promptObj, logObj);
+					response = await callLocalLLM(promptObj, logObj);
+					break;
 				case 'deepseek':
-					return await callDeepSeek(promptObj, logObj);
+					response = await callDeepSeek(promptObj, logObj);
+					break;
 				default:
-					vscode.window.showErrorMessage('Unsupported provider!');
-					return "";
+					console.error("invokeLLM::provider::Wrong Provider", provider);
+					throw new Error("Unsupported provider!");
 			}
+			
+			// Log the prompt and response
+			const logData = {
+				prompt: promptObj[1].content,
+				response: response,
+				timestamp: new Date().toISOString()
+			};
+			const logFilePath = path.join(getConfigInstance().logSavePath, 'llm_logs.json');
+			fs.appendFileSync(logFilePath, JSON.stringify(logData) + '\n');
+
+			return response;
 		} catch (error) {
 			lastError = error as Error;
 			console.log(`Attempt ${attempt}/${maxRetries} failed: ${error}`);
@@ -143,7 +160,7 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 	const modelName = getModelName();
 	logObj.prompt = promptObj[1].content;
 	
-	const apiKey = configInstance.deepseekApiKey;
+	const apiKey = getConfigInstance().deepseekApiKey;
 	
 	if (!apiKey) {
 		throw new Error('Deepseek API key not configured. Please set it in VS Code settings.');
@@ -158,7 +175,7 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 			model: modelName,
 			messages: promptObj
 		});
-		console.log('invokeLLM::callDeepSeek::response', response);
+		console.log('invokeLLM::callDeepSeek::response', JSON.stringify(response, null, 2));
 		const result = response.choices[0].message.content! + "<think>" + ((response.choices[0].message as any).reasoning_content || '');
 		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
@@ -174,8 +191,8 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 
 export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
 
-	const proxy = configInstance.proxyUrl;
-	const apiKey = configInstance.openaiApiKey;
+	const proxy = getConfigInstance().proxyUrl;
+	const apiKey = getConfigInstance().openaiApiKey;
 	// console.log('invokeLLM::callOpenAi::proxy', proxy);
 	// console.log('invokeLLM::callOpenAi::apiKey', apiKey);
 	if (!apiKey) {

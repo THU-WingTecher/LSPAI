@@ -6,25 +6,26 @@ import {
     resolveCliArgsFromVSCodeExecutablePath,
 } from '@vscode/test-electron';
 
+
 // Define types locally instead of importing from config.ts
 export enum PromptType {
     BASIC = 'basic',
     DETAILED = 'detailed',
     CONCISE = 'concise'
-}
-
- // Add private configuration interface
- interface PrivateConfig {
+  }
+  
+  // Add private configuration interface
+  interface PrivateConfig {
     openaiApiKey: string;
     deepseekApiKey: string;
     localLLMUrl: string;
     proxyUrl?: string;
-}
-
-export type Provider = 'openai' | 'local' | 'deepseek';
-
-// Define default test configuration
-const DEFAULT_TEST_CONFIG = {
+  }
+  
+  export type Provider = 'openai' | 'local' | 'deepseek';
+  
+  
+  const DEFAULT_TEST_CONFIG = {
     MODEL: 'deepseek-chat',
     PROVIDER: 'deepseek' as Provider,
     EXP_PROB: '0.2',
@@ -32,7 +33,40 @@ const DEFAULT_TEST_CONFIG = {
     PARALLEL_COUNT: '4',
     MAX_ROUND: '5',
     PROMPT_TYPE: PromptType.BASIC
-};
+  };
+  
+  // Function to load private configuration
+  export function loadPrivateConfig(): PrivateConfig {
+    // First try to load from environment variables
+    const fromEnv = {
+        openaiApiKey: process.env.TEST_OPENAI_API_KEY,
+        deepseekApiKey: process.env.TEST_DEEPSEEK_API_KEY,
+        localLLMUrl: process.env.TEST_LOCAL_LLM_URL,
+        proxyUrl: process.env.TEST_PROXY_URL
+    };
+  
+    // If any required values are missing, try to load from config file
+    if (!fromEnv.openaiApiKey || !fromEnv.deepseekApiKey || !fromEnv.localLLMUrl) {
+        try {
+            // Try to load from a local config file that's git-ignored
+            const configPath = path.join(__dirname, '../../test-config.json');
+            const config = require(configPath);
+            return {
+                openaiApiKey: config.openaiApiKey || fromEnv.openaiApiKey,
+                deepseekApiKey: config.deepseekApiKey || fromEnv.deepseekApiKey,
+                localLLMUrl: config.localLLMUrl || fromEnv.localLLMUrl,
+                proxyUrl: config.proxyUrl || fromEnv.proxyUrl
+            };
+        } catch (error) {
+            console.log('error', error);
+            console.error('Failed to load private configuration file');
+            throw new Error('Missing required API keys and URLs. Please set them either through environment variables or test-config.json');
+        }
+    }
+  
+    return fromEnv as PrivateConfig;
+  }
+
 
 interface CommandLineArgs {
     srcPath: string;
@@ -43,6 +77,7 @@ interface CommandLineArgs {
     parallelCount?: string;
     maxRound?: string;
     promptType?: PromptType;
+    summarizeContext?: string;
 }
 
 function parseCommandLineArgs(): CommandLineArgs {
@@ -67,7 +102,8 @@ Example: npm run experiment /path/to/source gpt-4o-mini openai 0.2 0 8 5 detaile
         timeout: args[4] ?? String(DEFAULT_TEST_CONFIG.TIMEOUT),
         parallelCount: args[5] ?? String(DEFAULT_TEST_CONFIG.PARALLEL_COUNT),
         maxRound: args[6] ?? String(DEFAULT_TEST_CONFIG.MAX_ROUND),
-        promptType: validatePromptType(args[7] ?? DEFAULT_TEST_CONFIG.PROMPT_TYPE)
+        promptType: validatePromptType(args[7] ?? DEFAULT_TEST_CONFIG.PROMPT_TYPE),
+        summarizeContext: args[8] ?? 'true'
     };
 
     // Validate numeric values
@@ -114,38 +150,6 @@ function validateProvider(value: string): Provider {
     return DEFAULT_TEST_CONFIG.PROVIDER;
 }
 
-
-// Function to load private configuration
-function loadPrivateConfig(): PrivateConfig {
-    // First try to load from environment variables
-    const fromEnv = {
-        openaiApiKey: process.env.TEST_OPENAI_API_KEY,
-        deepseekApiKey: process.env.TEST_DEEPSEEK_API_KEY,
-        localLLMUrl: process.env.TEST_LOCAL_LLM_URL,
-        proxyUrl: process.env.TEST_PROXY_URL
-    };
-
-    // If any required values are missing, try to load from config file
-    if (!fromEnv.openaiApiKey || !fromEnv.deepseekApiKey || !fromEnv.localLLMUrl) {
-        try {
-            // Try to load from a local config file that's git-ignored
-            const configPath = path.join(__dirname, '../../test-config.json');
-            const config = require(configPath);
-            return {
-                openaiApiKey: config.openaiApiKey || fromEnv.openaiApiKey,
-                deepseekApiKey: config.deepseekApiKey || fromEnv.deepseekApiKey,
-                localLLMUrl: config.localLLMUrl || fromEnv.localLLMUrl,
-                proxyUrl: config.proxyUrl || fromEnv.proxyUrl
-            };
-        } catch (error) {
-            console.log('error', error);
-            console.error('Failed to load private configuration file');
-            throw new Error('Missing required API keys and URLs. Please set them either through environment variables or test-config.json');
-        }
-    }
-
-    return fromEnv as PrivateConfig;
-}
 async function main() {
     try {
         const extensionDevelopmentPath = path.resolve(__dirname, '../../../');
@@ -155,7 +159,8 @@ async function main() {
         const args = parseCommandLineArgs();
         console.log('test::runExperiment::args', args);
         // Download VS Code, unzip it, and run the integration test
-        const vscodeExecutablePath = await downloadAndUnzipVSCode('1.98.2');
+        const vscodeExecutablePath = await downloadAndUnzipVSCode('1.97.0');   // '1.98.2', '1.97.0', '1.96.0', '1.95.0'];
+
         const [cliPath, ...vscodeArgs] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);
     
         // Install required extensions
@@ -186,6 +191,7 @@ async function main() {
                 TEST_MAX_ROUND: args.maxRound ?? DEFAULT_TEST_CONFIG.MAX_ROUND,
                 TEST_PROMPT_TYPE: args.promptType ?? DEFAULT_TEST_CONFIG.PROMPT_TYPE,
                 TEST_OPENAI_API_KEY: privateConfig.openaiApiKey,
+                TEST_SUMMARIZE_CONTEXT: args.summarizeContext ?? 'true', // Add this line
                 TEST_DEEPSEEK_API_KEY: privateConfig.deepseekApiKey,
                 TEST_LOCAL_LLM_URL: privateConfig.localLLMUrl,
                 TEST_PROXY_URL: privateConfig.proxyUrl
