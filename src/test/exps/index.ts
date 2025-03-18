@@ -3,7 +3,8 @@ import Mocha from 'mocha';
 import glob from 'glob';
 import { _experiment } from '../../experiment';
 import { activate } from '../../lsp';
-import { configInstance } from '../../config';
+import { getConfigInstance } from '../../config';
+
 export async function run(): Promise<void> {
     const mocha = new Mocha({
         ui: 'tdd',
@@ -37,7 +38,7 @@ export async function run(): Promise<void> {
 								await activate();
 								const language = "java";
 								console.log("running experiment");
-								const results = await _experiment(srcPath, language, [...configInstance.methodsForExperiment]);
+								const results = await _experiment(srcPath, language, [...getConfigInstance().methodsForExperiment]);
                                 console.log("experiment results", results);
                             } catch (expError) {
                                 e(expError);

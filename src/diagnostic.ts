@@ -1,7 +1,9 @@
 // diagnostic.ts
 import * as vscode from 'vscode';
 import * as path from 'path';
-import {DecodedToken, getDecodedTokensFromLine, getDecodedTokensFromRange, retrieveDef} from './token';
+import {DecodedToken, getDecodedTokensFromLine, getDecodedTokensFromRange} from './token';
+import { retrieveDef } from './retrieve';
+import { retrieveDefs } from './retrieve';
 import {closeActiveEditor} from './utils';
 import {processParentDefinition, constructSymbolRelationShip, classifyTokenByUri} from './retrieve';
 import { isBaseline } from './experiment';
@@ -12,7 +14,7 @@ export enum DiagnosticTag {
 }
 
 function chooseDiagnostic(diag: vscode.Diagnostic): boolean {
-    return diag.severity <= vscode.DiagnosticSeverity.Warning
+    return diag.severity <= vscode.DiagnosticSeverity.Warning;
 }
 
 export function getSeverityString(severity: vscode.DiagnosticSeverity): string {
@@ -152,7 +154,7 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
         // Retrieve decoded tokens for the specific line
         const decodedTokens = await getDecodedTokensFromLine(document, diag.range.start.line);
         console.log(`Retrieved decoded tokens for line ${diag.range.start.line}:`, decodedTokens.map(token => token.word));
-        await retrieveDef(document, decodedTokens);
+        await retrieveDefs(document, decodedTokens);
         dependencyTokens.push(...decodedTokens);
         // const diagnosticMessage = `${getSeverityString(diag.severity)} in ${document.getText(diag.range)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
         const diagnosticMessage = `${getSeverityString(diag.severity)} at : ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;

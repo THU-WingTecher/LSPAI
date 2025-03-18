@@ -10,7 +10,7 @@
 
 export function JavaUnitTestTemplate(FileName: string, packageString: string): string {
     return `
-Based on the provided information, you need to generate a unit test using Junit5, and Mock3.
+Based on the provided information, you need to generate a unit test using Junit5, and Mockito.
 \`\`\`
 ${packageString}
 {Replace With Needed Imports}

@@ -27,5 +27,6 @@ temp/
 package-lock.json
 *.tar.gz
 venv/
+logs/
 experiments/data
 test-config.json

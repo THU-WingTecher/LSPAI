@@ -1,31 +1,15 @@
 import * as vscode from 'vscode';
 import { DecodedToken, getSymbolKindString } from './token';
-import { getSymbolDetail, isStandardClass } from './utils';
+import { getSymbolDetail, isStandardClass, removeComments } from './utils';
+import { getAllSymbols } from './lsp';
 import path from 'path';
+import { getConfigInstance, Configuration } from './config';
 
-async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
-    const allSymbols: vscode.DocumentSymbol[] = [];
-    const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-        'vscode.executeDocumentSymbolProvider',
-        uri
-    );
-
-    function collectSymbols(symbols: vscode.DocumentSymbol[]) {
-        for (const symbol of symbols) {
-            allSymbols.push(symbol);
-            if (symbol.children.length > 0) {
-                collectSymbols(symbol.children);
-            }
-        }
-    }
-
-    if (symbols) {
-        collectSymbols(symbols);
-    }
-
-    return allSymbols;
+export function getSourcCodes(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): string {
+    const functionRange = functionSymbol.range;
+    const text = document.getText(functionRange);
+    return removeComments(text);
 }
-
 
 export function getReturnTokens(
     document: vscode.TextDocument,
@@ -76,6 +60,7 @@ export function getReturnTokens(
     
     return returnedTokens;
 }
+
 export async function getMethodOrFunctionsParamTokens(document: vscode.TextDocument, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
     
     const functionSignature = functionSymbol.name;
@@ -88,58 +73,98 @@ export async function getMethodOrFunctionsParamTokens(document: vscode.TextDocum
     return methodOrFunctionParamTokens;
 }
 
-
-
-async function followSymbolDataFlowAndCollectDependency(document: vscode.TextDocument, DefUseMap: DecodedToken[], functionSymbol: vscode.DocumentSymbol, targetToken: DecodedToken): Promise<DecodedToken[]> {
-    const collectedDependencies: DecodedToken[] = [];
-    for (const token of DefUseMap) {
-        if (token.line === targetToken.line) {
-            collectedDependencies.push(token);
+/**
+ * Traverses the tokenMap to load definitions and handle tokens without definitions
+ * @param tokenMap - Map containing tokens grouped by URI
+ * @returns Processed tokens with their definitions
+ */
+export async function processTokenDefinitions(tokenMap: Map<string, DecodedToken[]>): Promise<Map<string, DecodedToken[]>> {
+    const processedMap = new Map<string, DecodedToken[]>();
+    
+    // Iterate through each URI in the tokenMap
+    for (const [uri, tokens] of tokenMap.entries()) {
+        console.log(`Processing tokens for URI: ${uri}`);
+        const symbols = await getAllSymbols(vscode.Uri.parse(uri));
+        const validTokens: DecodedToken[] = [];
+        
+        // Process each token in the current URI
+        for (const token of tokens) {
+            try {
+                // Try to open the document containing the token
+                const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(uri));
+                const defSymbol = symbols.find(s => s.range.contains(new vscode.Position(token.line, token.startChar))) || null;
+                if (defSymbol) {
+                    token.defSymbol = defSymbol;
+                    // 1. Load its definition and code using getSymbolDetail
+                    const symbolDetail = await getSymbolDetail(document, token.defSymbol!, true);
+                    token.context = symbolDetail;
+                    validTokens.push(token);
+                } else {
+                    console.log(`No symbol found for token: ${token.word} in ${uri}`);
+                }
+            } catch (error) {
+                // Handle errors during processing
+                console.error(`Error processing token ${token.word} in ${uri}:`, error);
+                // 2. Log error and remove from data structure
+                console.log(`Removing token due to error: ${token.word} in ${uri}`);
+            }
         }
-        if (token.modifiers && token.modifiers[0] == "declaration") {
-            collectedDependencies.push(token);
+        
+        // Only add to processed map if there are valid tokens
+        if (validTokens.length > 0) {
+            processedMap.set(uri, validTokens);
         }
     }
-    return collectedDependencies;
+    
+    console.log(`Processed ${processedMap.size} URIs with valid definitions`);
+    return processedMap;
 }
 
+// Usage example:
+// const tokenMap = await classifyTokenByUri(document, DefUseMap);
+// console.log('collectinfo::tokenMap', Array.from(tokenMap.values()).map(t => t.map(t => t.word)));
+// const processedTokenMap = await processTokenDefinitions(tokenMap);
 
 export async function getDependentContext(
     document: vscode.TextDocument,
     DefUseMap: DecodedToken[],
-    functionSymbol: vscode.DocumentSymbol
+    functionSymbol: vscode.DocumentSymbol,
+    summarizeContext: boolean = true // New parameter with default value
 ): Promise<DpendenceAnalysisResult> { 
-    // Fetch both token arrays concurrently
-    const [methodOrFunctionParamTokens, returnTokens] = await Promise.all([
-        getMethodOrFunctionsParamTokens(document, DefUseMap, functionSymbol),
-        getReturnTokens(document, DefUseMap, functionSymbol)
-    ]);
 
-    // Combine the token arrays
-    const combinedTokens = [...methodOrFunctionParamTokens, ...returnTokens];
+    // const uniqueTokensMap = new Map<string, DecodedToken>();
+    // // console.log('collectinfo::DefUseMap', DefUseMap);
+    // for (const token of DefUseMap) {
+    //     if (!uniqueTokensMap.has(token.id)) {
+    //         uniqueTokensMap.set(token.id, token);
+    //     }
+    // }
+    // const uniqueTokens = Array.from(uniqueTokensMap.values());
+    // // console.log('collectinfo::uniqueTokens', uniqueTokens);
+    // // Collect dependencies for all unique tokens in parallel
+    // const dependenciesArrays = await Promise.all(uniqueTokens.map(token => 
+    //     followSymbolDataFlowAndCollectDependency(document, DefUseMap, functionSymbol, token)
+    // ));
+    // // console.log('collectinfo::dependenciesArrays', dependenciesArrays);
+    // // Flatten the array of dependencies
+    // const dependenciesArray = dependenciesArrays.flat();
 
-    // Remove duplicate tokens based on a unique key (e.g., word, line, startChar)
-    const uniqueTokensMap = new Map<string, DecodedToken>();
-    for (const token of combinedTokens) {
-        if (!uniqueTokensMap.has(token.id)) {
-            uniqueTokensMap.set(token.id, token);
-        }
-    }
-    const uniqueTokens = Array.from(uniqueTokensMap.values());
-
-    // Collect dependencies for all unique tokens in parallel
-    const dependenciesPromises = uniqueTokens.map(token => 
-        followSymbolDataFlowAndCollectDependency(document, DefUseMap, functionSymbol, token)
-    );
-    const dependenciesArrays = await Promise.all(dependenciesPromises);
-
-    // Flatten the array of dependencies
-    const dependenciesArray = dependenciesArrays.flat();
-
-    // Classify tokens by URI and generate the hierarchy
-    const tokenMap = await classifyTokenByUri(document, dependenciesArray);
-    const result = await processAndGenerateHierarchy(document, functionSymbol, tokenMap, DefUseMap);
-
+    // const uniqueDependenciesMap = new Map<string, DecodedToken>();
+    // // console.log('collectinfo::DefUseMap', DefUseMap);
+    // for (const token of dependenciesArray) {
+    //     if (!uniqueDependenciesMap.has(token.id)) {
+    //         uniqueDependenciesMap.set(token.id, token);
+    //     }
+    // }
+    // // Classify tokens by URI and generate the hierarchy
+    // const uniqueDependencies = Array.from(uniqueDependenciesMap.values());
+    // const uniqueDependenciesWithDef = await retrieveDef(document, DefUseMap, true);
+    const tokenMap = await classifyTokenByUri(document, DefUseMap);
+    console.log('collectinfo::tokenMap', Array.from(tokenMap.values()).map(t => t.map(t => t.word)));
+    // Use the summarizeContext parameter to determine whether to summarize or provide full context
+    const processedTokenMap = await processTokenDefinitions(tokenMap);
+    const result = await processAndGenerateHierarchy(document, functionSymbol, processedTokenMap);
+    // console.log('collectinfo::result', result);
     return result;
 }
 
@@ -150,6 +175,10 @@ async function getOuterSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]
     );
 }
 
+async function getSymbolByLocation(document: vscode.TextDocument, location: vscode.Position): Promise<vscode.DocumentSymbol | null> {
+    const symbols = await getAllSymbols(document.uri);
+    return symbols.find(s => s.range.contains(location)) || null;
+}
 interface ParentDefinition {
     parent: vscode.DocumentSymbol;
     uri: string;
@@ -246,8 +275,19 @@ function mapFilteredSymbols(
 }
 
 function isInWorkspace(uriString: string): boolean {
-    const workspaceFolders = vscode.workspace.workspaceFolders || [];
-    return workspaceFolders.some(folder => uriString.startsWith(folder.uri.toString()));
+    if (uriString) {
+        if (Configuration.isTestingEnvironment() || Configuration.isExperimentEnvironment()) {
+            const srcPath = vscode.Uri.parse(getConfigInstance().workspace);
+            // console.log('collectinfo::isInWorkspace', uriString, getConfigInstance().srcPath);
+            // console.log(vscode.Uri.parse(getConfigInstance().srcPath).fsPath);
+            // console.log(vscode.Uri.parse(getConfigInstance().srcPath));
+            return uriString.startsWith(srcPath.toString());
+        } else {
+            const workspaceFolders = vscode.workspace.workspaceFolders || [];
+            return workspaceFolders.some(folder => uriString.startsWith(folder.uri.toString()));
+        }
+    }
+    return false;
 }
 
 export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMap: DecodedToken[]): Promise<Map<string, DecodedToken[]>> {
@@ -256,12 +296,17 @@ export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMa
     const tokenMap = new Map<string, DecodedToken[]>();
 
     for (const token of DefUseMap) {
+        console.log('collectinfo::token', token);
         const uri = token.definition?.[0]?.uri.toString();
+        console.log('collectinfo::uri', uri);
+        console.log('collectinfo::isInWorkspace', isInWorkspace(uri));
         if (uri && isInWorkspace(uri)) {
+            console.log('collectinfo::uri and isInWorkspace', uri, isInWorkspace(uri));
             if (!tokenMap.has(uri)) {
                 tokenMap.set(uri, []);
             }
             const tokens = tokenMap.get(uri)!;
+            // console.log('collectinfo::tokens', tokens);
             try {
                 if (token.line !== undefined && token.startChar !== undefined) {
                     if (!tokens.some(t => t.line === token.line && t.startChar === token.startChar)) {
@@ -274,6 +319,8 @@ export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMa
                 console.error(`Error processing token: ${JSON.stringify(token)}`, error);
             }
 
+        } else {
+            console.log(`collectinfo::${token.word} is not in workspace: ${uri}`);
         }
     }
     return tokenMap;
@@ -374,9 +421,9 @@ function getPackageOrUri(document: vscode.TextDocument, symbol: vscode.DocumentS
 }
 
 export interface DpendenceAnalysisResult {
-    dependencies: string;
-    mainFunctionDependencies: string;
-    mainfunctionParent: string; // Replace with the actual type
+    dependencies: string[];
+    mainFunctionDependencies: string[];
+    mainfunctionParent: string[]; // Replace with the actual type
 }
     /**
      * Recursively processes a ParentDefinition and its children to build the hierarchy string.
@@ -385,34 +432,39 @@ export interface DpendenceAnalysisResult {
      * @param indent - The current indentation level for formatting.
      * @returns A string representing the processed hierarchy.
      */
-export async function processParentDefinition(def: ParentDefinition, indent: string = '', context: string = "dependent", getFullInfo: boolean = false): Promise<string> {
-    try {
-        // Open the document containing the symbol
-        const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(def.uri));
-        
-        // Retrieve detailed information about the parent symbol
-        const parentDetail = await getSymbolDetail(document, def.parent, getFullInfo);
-        const packagOrName = getPackageOrUri(document, def.parent);
-        const symboltype = getSymbolKindString(def.parent.kind);
-        // Prepend the descriptive sentence
-        let result = '';
-        if (indent === '') {
-            result += `${indent}The brief information of dependent ${symboltype} \`${packagOrName}\` is \`\`\`\n${indent}${parentDetail}\n`;
-        } else {
-            result += `${indent}${parentDetail}\n`;
+    export async function processParentDefinition(def: ParentDefinition, indent: string = '', context: string = "dependent", getFullInfo: boolean = false): Promise<string[]> {
+        try {
+            // Open the document containing the symbol
+            const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(def.uri));
+            
+            // Retrieve detailed information about the parent symbol
+            const parentDetail = await getSymbolDetail(document, def.parent, getFullInfo);
+            const packagOrName = getPackageOrUri(document, def.parent);
+            const symboltype = getSymbolKindString(def.parent.kind);
+            
+            // Initialize results array
+            let results: string[] = [];
+            
+            // Create the parent entry
+            if (indent === '') {
+                results.push(`${indent}The brief information of dependent ${symboltype} \`${packagOrName}\` is \`\`\`\n${indent}${parentDetail}\n${indent}\`\`\``);
+            } else {
+                results.push(`${indent}${parentDetail}\n${indent}\`\`\``);
+            }
+    
+            // Iterate through each child ParentDefinition
+            for (const childDef of def.children) {
+                // Recursively process the child definitions with increased indentation
+                const childResults = await processParentDefinition(childDef, indent + '  ', context, getFullInfo);
+                results = results.concat(childResults);
+            }
+    
+            return results;
+        } catch (error) {
+            console.error(`Error processing symbol ${def.parent.name} in ${def.uri}:`, error);
+            return [`${indent}The brief information of dependent class \`${def.parent.name}\` is \n${indent}${def.parent.name} (Error retrieving details)\n`];
         }
-        // Iterate through each child ParentDefinition
-        for (const childDef of def.children) {
-            // Recursively process the child definitions with increased indentation
-            result += await processParentDefinition(childDef, indent + '  ', context, getFullInfo);
-        }
-        result += `${indent}\`\`\``;
-        return result;
-    } catch (error) {
-        console.error(`Error processing symbol ${def.parent.name} in ${def.uri}:`, error);
-        return `${indent}The brief information of dependent class \`${def.parent.name}\` is \n${indent}${def.parent.name} (Error retrieving details)\n`;
     }
-}
 
 /**
  * Processes class definitions and generates a formatted hierarchy string with detailed information.
@@ -425,21 +477,18 @@ export async function processAndGenerateHierarchy(
     document: vscode.TextDocument,
     mainFunctionsymbol: vscode.DocumentSymbol,
     tokenMap: Map<string, DecodedToken[]>,
-    DefUseMap: DecodedToken[]
 ): Promise<DpendenceAnalysisResult> {
     // Retrieve all definitions
     const allDef: ParentDefinition[] = await constructSymbolRelationShip(tokenMap);
     const getFullinfo = document.languageId !== "java";
-    let mainFunctionDependencies = "";
-    let mainfunctionParent = "";
-    // Initialize an empty string to build the hierarchy
-    let dependencies = '';
+    let mainFunctionDependencies: string[] = [];  // Changed to array
+    let mainfunctionParent: string[] = [];       // Already an array
+    let dependencies: string[] = [];              // Changed to array
 
-
-    // Process each top-level ParentDefinition
     for (const def of allDef) {
         const currDependencies = await processParentDefinition(def, '', "dependent", getFullinfo);
-        dependencies += currDependencies;
+        dependencies.push(...currDependencies); 
+        console.log('collectinfo::currDependencies', currDependencies);
         // Check if the current definition or its children contain the main function
         async function containsMainFunction(def: ParentDefinition): Promise<boolean> {
             if (def.parent.name === mainFunctionsymbol.name) {
@@ -454,24 +503,20 @@ export async function processAndGenerateHierarchy(
         }
 
         if (await containsMainFunction(def)) {
-            mainFunctionDependencies = currDependencies;
-            mainFunctionDependencies = currDependencies.replace(/The brief information of dependent class/g, "The brief information of current class");
-            mainfunctionParent = def.parent.name;
+            mainFunctionDependencies.push(
+                currDependencies[0].replace(/The brief information of dependent class/g, 
+                    "The brief information of current class")
+            );
+            mainfunctionParent.push(def.parent.name);
         }
         // Add an empty line for better readability between different top-level definitions
-        dependencies += '\n';
     }
-
-    // Output the hierarchy string (e.g., log it or display in a VSCode output channel)
-    if (mainFunctionsymbol.name === mainfunctionParent) {
-        mainfunctionParent = path.relative(vscode.workspace.rootPath!, document.uri.path);
+    if (mainFunctionsymbol.name === mainfunctionParent[0]) {
+        mainfunctionParent = [path.relative(vscode.workspace.rootPath!, document.uri.path)];
     }
-    console.log(dependencies);
-    // // Optionally, display in an output channel
-    // const outputChannel = vscode.window.createOutputChannel('Symbol Hierarchy');
-    // outputChannel.appendLine(dependencies);
-    // outputChannel.show();
     
+    console.log(dependencies);
+    // Output the hierarchy string (e.g., log it or display in a VSCode output channel)
     return { dependencies, mainFunctionDependencies, mainfunctionParent };
 }
 
@@ -500,7 +545,7 @@ function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vs
     }
 
     const workspacePath = workspaceFolders[0].uri.fsPath;
-    let importStatement = document.uri.fsPath.replace(workspacePath, '')
+    let importStatement = document.uri.fsPath.replace(workspacePath, '');
     // Check if the import statement starts with a '/', and remove it if it does
     if (importStatement.startsWith('/')) {
         importStatement = importStatement.substring(1);
@@ -510,7 +555,7 @@ function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vs
     if (symbol) {
         res.replace("import *", `import ${document.getText(symbol.selectionRange)}`);
     }
-    return res
+    return res;
 }
 
 export function getImportStatement(document: vscode.TextDocument, language: string, symbol: vscode.DocumentSymbol | null = null): string {
@@ -561,6 +606,77 @@ export async function summarizeClass(document: vscode.TextDocument, classSymbol:
     }
     return result;
 }
+export async function retrieveDefs(document: vscode.TextDocument, decodedTokens: DecodedToken[], skipDefinition: boolean = false): Promise<DecodedToken[]> {
+    // console.log('Retrieving Def from Decoded tokens:', decodedTokens);
+    const defTokens: DecodedToken[] = [];
+    if (decodedTokens) {
+        for (const token of decodedTokens) {
+            const defToken = await retrieveDef(document, token, skipDefinition);
+            defTokens.push(defToken);
+        }
+    }
+    return defTokens;
+}
+// export async function getDecodedTokensForLine(editor: vscode.TextEditor, lineNumber: number): Promise<DecodedToken[]> {
+//     if (!editor || !editor.document) {
+//         vscode.window.showErrorMessage('Invalid editor or document.');
+//         return [];
+//     }
+//     const document = editor.document;
+//     if (lineNumber < 0 || lineNumber >= document.lineCount) {
+//         vscode.window.showErrorMessage('Line number out of range.');
+//         return [];
+//     }
+//     // Define the range for the entire line
+//     const line = document.lineAt(lineNumber);
+//     const range = new vscode.Range(line.range.start, line.range.end);
+//     try {
+//         // Retrieve semantic tokens for the specified range
+//         const tokens: vscode.SemanticTokens | undefined = await vscode.commands.executeCommand(
+//             'vscode.provideDocumentRangeSemanticTokens',
+//             document.uri,
+//             range
+//         );
+//         // Retrieve the semantic tokens legend
+//         const tokensLegend: vscode.SemanticTokensLegend | undefined = await vscode.commands.executeCommand(
+//             'vscode.provideDocumentRangeSemanticTokensLegend',
+//             document.uri,
+//             range
+//         );
+//         if (!tokens || !tokensLegend) {
+//             vscode.window.showErrorMessage('Failed to retrieve semantic tokens or legend.');
+//             return [];
+//         }
+//         // Decode the semantic tokens
+//         const decodedTokens = await decodeSemanticTokens(Array.from(tokens.data), tokensLegend, lineNumber);
+//         const decodedTokensWithDefUse = await retrieveDef(editor, decodedTokens);
+//         return decodedTokensWithDefUse;
+//     } catch (error) {
+//         console.error('Error retrieving semantic tokens:', error);
+//         vscode.window.showErrorMessage('An error occurred while retrieving semantic tokens.');
+//         return [];
+//     }
+// }
+
+export async function retrieveDef(document: vscode.TextDocument, decodedToken: DecodedToken, skipDefinition: boolean = false): Promise<DecodedToken> {
+    if (decodedToken) {
+        const startPos = new vscode.Position(decodedToken.line, decodedToken.startChar);
+        const endPos = new vscode.Position(decodedToken.line, decodedToken.startChar + decodedToken.length);
+        const range = new vscode.Range(startPos, endPos);
+        decodedToken.word = document.getText(range);
+        if (skipDefinition) {
+            decodedToken.definition = [];
+        } else {
+            const definition = await vscode.commands.executeCommand<Array<vscode.Location>>(
+                'vscode.executeDefinitionProvider',
+                document.uri,
+                startPos
+            );
+            decodedToken.definition = definition;
+        }
+    }
+    return decodedToken;
+}
 // Example usage
 // (async () => {
 //     // Example tokenMap and DefUseMap (populate these as per your application's logic)
@@ -569,4 +685,5 @@ export async function summarizeClass(document: vscode.TextDocument, classSymbol:
     
 //     const tokenMap = await classifyTokenByUri(editor, DefUseMap);
 //     await processAndGenerateHierarchy(tokenMap, DefUseMap);
-// })();
+// })();    
+

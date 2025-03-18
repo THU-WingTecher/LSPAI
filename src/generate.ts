@@ -9,15 +9,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { LLMLogs, ExpLogs } from './log';
 import { invokeLLM } from "./invokeLLM";
-import { genPrompt, constructDiagnosticPrompt, FixSystemPrompt } from "./prompts/promptBuilder";
+import { genPrompt, constructDiagnosticPrompt, FixSystemPrompt, generateTestWithContext } from "./prompts/promptBuilder";
 import { ChatMessage, Prompt } from "./prompts/ChatMessage";
-import { getAllSymbols, isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
+import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
+import { getAllSymbols } from './lsp';
 import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
 import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate } from './fileHandler';
 import { error } from 'console';
 import * as os from 'os';
-import { currentModel, maxRound } from './config';
+import { getConfigInstance, GenerationType } from './config';
 import { showGeneratedCodeWithPreview, getTempDirAtCurWorkspace } from './fileHandler';
+import { getContextSelectorInstance } from './agents/contextSelector';
 
 export interface ContextInfo {
 	dependentContext: string;
@@ -61,10 +63,11 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 
 		console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
 		DefUseMap = await extractUseDefInfo(document, functionSymbol);
+		// console.log('collectinfo::DefUseMap', DefUseMap);
 		const DependenciesInformation: DpendenceAnalysisResult = await getDependentContext(document, DefUseMap, functionSymbol);
-		dependentContext = DependenciesInformation.dependencies;
-		mainFunctionDependencies = DependenciesInformation.mainFunctionDependencies;
-		mainfunctionParent = DependenciesInformation.mainfunctionParent;
+		dependentContext = DependenciesInformation.dependencies.join('\n');
+		mainFunctionDependencies = DependenciesInformation.mainFunctionDependencies.join('\n');
+		mainfunctionParent = DependenciesInformation.mainfunctionParent.join('\n');
 		referenceCodes = await getReferenceInfo(document, functionSymbol.selectionRange);
 
 	}
@@ -79,7 +82,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 		referenceCodes: referenceCodes,
 		packageString: packageStatement ? packageStatement[0] : '',
 		importString: importStatement ? importStatement : ''
-	}
+	};
 }
 
 export async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<string> {
@@ -111,7 +114,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
 	const pathParts = workspace.split("/");
 	const projectName = pathParts[pathParts.length - 1];
-	const model = currentModel;
+	const model = getConfigInstance().model;
 	const folderPath = path.join(getTempDirAtCurWorkspace(), projectName, model);
 	const historyPath = path.join(folderPath, "history");
 	const expLogPath = path.join(folderPath, "logs");
@@ -126,7 +129,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 		document, 
 		functionSymbol, 
 		model,
-		maxRound, // MAX_ROUNDS
+		getConfigInstance().maxRound, // MAX_ROUNDS
 		fileName, // fullFileName
 		"", // method
 		historyPath,
@@ -391,7 +394,9 @@ async function fixDiagnostics(
 		diagnostics = result?.diagnostics || [];
 		finalCode = result?.code || finalCode;
 		curSavePoint = result?.savePoint || curSavePoint;
-		if (!diagnostics) break;
+		if (!diagnostics) {
+			break;
+		}
 		
 	}
 
@@ -459,43 +464,90 @@ interface StepConfig {
 		method,
 		fullFileName
 	  );
-  
+	  let testCode = "";
 	  let collectedData = {};
 	  // Step 1: Collect Info
-		const startTime = Date.now();
-		collectedData = await collectInfo(
-		  document,
-		  functionSymbol,
-		  languageId,
-		  fileName,
-		  method
-		);
-		expData.push({
-		  llmInfo: null,
-		  process: "collectInfo",
-		  time: (Date.now() - startTime).toString(),
-		  method,
-		  fileName: fullFileName,
-		  function: functionSymbol.name,
-		  errMsag: ""
-		});
-  
-	  // Step 2: Initial Test Generation
-	  let testCode = "";
-		testCode = await generateInitialTestCode(
-		  document,
-		  functionSymbol,
-		  collectedData,
-		  languageId,
-		  fullFileName,
-		  method,
-		  model,
-		  expData
-		);
+	  const startTime = Date.now();
+	  collectedData = await collectInfo(
+							document,
+							functionSymbol,
+							languageId,
+							fileName,
+							method
+							);
+	  expData.push({
+	  llmInfo: null,
+	  process: "collectInfo",
+	  time: (Date.now() - startTime).toString(),
+	  method,
+	  fileName: fullFileName,
+	  function: functionSymbol.name,
+	  errMsag: ""
+	  });
+	  switch (getConfigInstance().generationType) {
+		case GenerationType.ORIGINAL:
+
+	
+		// Step 2: Initial Test Generation
+			testCode = await generateInitialTestCode(
+			document,
+			functionSymbol,
+			collectedData,
+			languageId,
+			fullFileName,
+				method,
+				model,
+				expData
+			);
+			break;
+		case GenerationType.AGENT:
+			const contextSelector = await getContextSelectorInstance(
+				document, 
+				functionSymbol);
+			const ContextStartTime = Date.now();
+			const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+			const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
+			expData.push({
+				llmInfo: logObjForIdentifyTerms,
+				process: "identifyContextTerms",
+				time: (Date.now() - ContextStartTime).toString(),
+				method,
+				fileName: fullFileName,
+				function: functionSymbol.name,
+				errMsag: ""
+				});
+			const gatherContextStartTime = Date.now();
+			const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
+			expData.push({
+				llmInfo: null,
+				process: "gatherContext",
+				time: (Date.now() - gatherContextStartTime).toString(),
+				method,
+				fileName: fullFileName,
+				function: functionSymbol.name,
+				errMsag: ""
+			});
+			console.log("enrichedTerms", enrichedTerms);
+			const generateTestWithContextStartTime = Date.now();
+			const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
+			const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+			testCode = await invokeLLM(promptObj, logObj);
+			testCode = parseCode(testCode);
+			expData.push({	
+				llmInfo: logObj,
+				process: "generateTestWithContext",
+				time: (Date.now() - generateTestWithContextStartTime).toString(),
+				method,
+				fileName: fullFileName,
+				function: functionSymbol.name,
+				errMsag: ""
+			});
+			break;
+	  }
 
 	  
 	  	// Step 3: Diagnostic Fix
-		let diagnosticReport: DiagnosticReport | null = null;
+		// let diagnosticReport: DiagnosticReport | null = null;
 		let finalCode: string = testCode;
 	  
 		// const fixstartTime = Date.now();
@@ -523,13 +575,13 @@ interface StepConfig {
 		//   function: functionSymbol.name,
 		//   errMsag: ""
 		// });
+		// fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
   
 	  // Step 4: Save Results
 
 		// Save diagnostic report
 		const reportPath = path.join(expLogPath, method, `${fileName}_diagnostic_report.json`);
 		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
 
 		await saveGeneratedCodeToFolder(finalCode, fullFileName);
 		await saveExperimentData(expData, expLogPath, fileName, method);

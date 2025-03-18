@@ -4,7 +4,7 @@ import {
 	reExperiment
 } from './experiment';
 import { generateUnitTestForSelectedRange } from './generate';
-import { methodsForExperiment, currentModel, maxRound, currentExpProb, currentParallelCount, currentTimeout } from './config';
+import { getConfigInstance } from './config';
 import { collectTrainData, main } from './train/collectTrainData';
 import * as fs from 'fs';
 import path from 'path';
@@ -17,11 +17,11 @@ export async function activate(context: vscode.ExtensionContext) {
 	} else {
 		console.log(`No workspace found`);
 	}
-	console.log(`Model: ${currentModel}`);
-	console.log(`Methods: ${methodsForExperiment}`);
-	console.log(`Max Rounds: ${maxRound}`);
-	console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
-	console.log(`PARALLEL: ${currentParallelCount}`);
+	console.log(`Model: ${getConfigInstance().model}`);
+	console.log(`Methods: ${getConfigInstance().methodsForExperiment}`);
+	console.log(`Max Rounds: ${getConfigInstance().maxRound}`);
+	console.log(`EXP_PROB_TO_TEST: ${getConfigInstance().expProb}`);
+	console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 
 
 	
@@ -59,7 +59,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {
 		vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
 		const language = "java";
-		await experiment(language, methodsForExperiment);
+		await experiment(language, getConfigInstance().methodsForExperiment);
 		// Handle results...
 	});
 	context.subscriptions.push(disposable_exp);
@@ -68,13 +68,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "go";
-		await experiment(language, methodsForExperiment);
+		await experiment(language, getConfigInstance().methodsForExperiment);
 	});
 	context.subscriptions.push(disposable2);
 
 	const Pydisposable2 = await vscode.commands.registerCommand('lspAi.PythonExperiment', async () => {
 		const language = "python";
-		await experiment(language, methodsForExperiment);
+		await experiment(language, getConfigInstance().methodsForExperiment);
 	});
 
 	context.subscriptions.push(Pydisposable2);
@@ -83,10 +83,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		const language = "java";
-		const currentGenMethods = ["deepseek-reasoner"]
+		const currentGenMethods = ["deepseek-reasoner"];
 		const currentTestPath = `/LSPAI/experiments/projects/commons-cli/results_2_26_2025__11_45_35`;
 		// inspect whether the currentTestPath is endswith any of currentGenMethod
-		const isModelSynced = currentGenMethods.some(method => method.endsWith(currentModel));
+		const isModelSynced = currentGenMethods.some(method => method.endsWith(getConfigInstance().model));
 		if (!isModelSynced) {
 			vscode.window.showErrorMessage('Current Model Setting is not correct.');
 			return;
@@ -129,12 +129,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const showSettingsDisposable = vscode.commands.registerCommand('lspAi.showSettings', () => {
 		const settings = [
-			`Model: ${currentModel}`,
-			`Methods: ${methodsForExperiment}`,
-			`Max Rounds: ${maxRound}`,
-			`Experiment Probability: ${currentExpProb}`,
-			`Parallel Count: ${currentParallelCount}`,
-			`Timeout: ${currentTimeout}`
+			`Model: ${getConfigInstance().model}`,
+			`Methods: ${getConfigInstance().methodsForExperiment}`,
+			`Max Rounds: ${getConfigInstance().maxRound}`,
+			`Experiment Probability: ${getConfigInstance().expProb}`,
+			`Parallel Count: ${getConfigInstance().parallelCount}`,
+			`Timeout: ${getConfigInstance().timeoutMs}`
 		];
 		
 		vscode.window.showInformationMessage('Current Settings:', {

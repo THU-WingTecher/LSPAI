@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { generateUnitTestForAFunction } from '../generate';
-import { currentModel, maxRound } from '../config';
+import { getConfigInstance } from '../config';
 import { getTempDirAtCurWorkspace } from '../fileHandler';
 
 
@@ -41,18 +41,18 @@ suite('Extension Test Suite', () => {
         // Setup output paths
         const projectName = path.basename(srcPath);
         const outputDir = getTempDirAtCurWorkspace();
-        const historyPath = path.join(outputDir, projectName, currentModel, 'history');
-        const expLogPath = path.join(outputDir, projectName, currentModel, 'logs');
+        const historyPath = path.join(outputDir, projectName, getConfigInstance().model, 'history');
+        const expLogPath = path.join(outputDir, projectName, getConfigInstance().model, 'logs');
 
         // Generate the test
         const result = await generateUnitTestForAFunction(
             srcPath,
             document,
             functionSymbol,
-            currentModel,
-            maxRound,
+            getConfigInstance().model,
+            getConfigInstance().maxRound,
             targetFile,
-            currentModel,
+            "",
             historyPath,
             expLogPath,
             false // Don't show preview

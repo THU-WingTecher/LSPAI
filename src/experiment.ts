@@ -2,11 +2,11 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BASELINE } from "./invokeLLM";
-import { getAllSymbols } from './utils';
+import { getAllSymbols } from './lsp';
 import { findFiles, generateFileNameForDiffLanguage, generateTimestampString } from './fileHandler';
 import { getLanguageSuffix } from './language';
 import { generateUnitTestForAFunction } from './generate';
-import { currentExpProb, currentParallelCount, currentModel, currentTimeout } from './config';
+import { getConfigInstance, SRC_PATHS } from './config';
 // Constants for experiment settings
 const MIN_FUNCTION_LINES = 4;
 export const DEFAULT_FILE_ENCODING = 'utf8';
@@ -20,15 +20,6 @@ export const NAIVE_PREFIX = "naive_";
 // Constants for time formatting
 const TIME_ZONE = 'CST';
 export const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
-
-// Constants for specific project paths
-export const SRC_PATHS = {
-	"commons-cli": '/src/main/',
-	"commons-csv": 'src/main/',
-    "black": '/src',
-    "crawl4ai": '/crawl4ai',
-    DEFAULT: '/'
-} as const;
 
 export type ProjectName = keyof typeof SRC_PATHS;
 
@@ -50,6 +41,9 @@ export async function _experiment(srcPath: string, language: string, methods: st
     let expLogPath: string;
     if (!vscode.workspace.workspaceFolders) {
         folderPath = path.join(srcPath, RESULTS_FOLDER_PREFIX + generateTimestampString());
+        getConfigInstance().updateConfig({
+            savePath: folderPath
+        });
         expLogPath = path.join(folderPath, "logs");
         const projectName = path.basename(srcPath);
         if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
@@ -61,16 +55,19 @@ export async function _experiment(srcPath: string, language: string, methods: st
         const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
         folderPath = path.join(workspace, RESULTS_FOLDER_PREFIX + generateTimestampString());
         expLogPath = path.join(folderPath, "logs");
+        getConfigInstance().updateConfig({
+            savePath: folderPath
+        });
     }
 
     console.log(`Testing the folder of ${srcPath}`);
     console.log(`saving the result to ${folderPath}`);
-    console.log(`Model: ${currentModel}`);
+    console.log(`Model: ${getConfigInstance().model}`);
     console.log(`Methods: ${methods}`);
     console.log(`Max Rounds: ${MAX_ROUNDS}`);
     console.log(`Experiment Log Folder: ${expLogPath}`);
-    console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
-    console.log(`PARALLEL: ${currentParallelCount}`);
+    console.log(`EXP_PROB_TO_TEST: ${getConfigInstance().expProb}`);
+    console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 	const suffix = getLanguageSuffix(language); 
 	const Files: string[] = [];
 	findFiles(srcPath, Files, language, suffix);	
@@ -91,7 +88,7 @@ export async function _experiment(srcPath: string, language: string, methods: st
 					if (isSymbolLessThanLines(symbol)){
 						continue;
 					}
-					if (seededRandom() < currentExpProb) { 
+					if (seededRandom() < getConfigInstance().expProb) { 
 						symbolDocumentMap.push({ symbol, document });
 					}
 				}
@@ -103,23 +100,23 @@ export async function _experiment(srcPath: string, language: string, methods: st
     
 	for (const method of methods) {
 		console.log(`#### Starting experiment for method: ${method}`);
-		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
+		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, getConfigInstance().parallelCount);
 	}
 	console.log('#### Experiment completed!');
 
     console.log(`Testing the folder of ${srcPath}`);
     console.log(`saving the result to ${folderPath}`);
-    console.log(`Model: ${currentModel}`);
+    console.log(`Model: ${getConfigInstance().model}`);
     console.log(`Methods: ${methods}`);
     console.log(`Max Rounds: ${MAX_ROUNDS}`);
     console.log(`Experiment Log Folder: ${expLogPath}`);
-    console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
-    console.log(`PARALLEL: ${currentParallelCount}`);
+    console.log(`EXP_PROB_TO_TEST: ${getConfigInstance().expProb}`);
+    console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 	return generatedResults;
 }
 
 export function isGenerated(document: vscode.TextDocument, target: vscode.DocumentSymbol, origFolderPath: string, tempFolderPath: string): boolean {
-	const res = generateFileNameForDiffLanguage(document, target, tempFolderPath, document.languageId, [])
+	const res = generateFileNameForDiffLanguage(document, target, tempFolderPath, document.languageId, []);
 	if (fs.existsSync(res.fileName.replace(tempFolderPath, origFolderPath))) {
 		return true;
 	} else {
@@ -138,11 +135,11 @@ export async function reExperiment(language: string, methods: string[], origFile
     const tempFolderPath = path.join(origFilePath, 'temp');
     console.log(`Re Experimenting the folder of ${origFilePath}`);
     console.log(`saving the result to ${tempFolderPath}`);
-    console.log(`Model: ${currentModel}`);
+    console.log(`Model: ${getConfigInstance().model}`);
     console.log(`Methods: ${methods}`);
     console.log(`Max Rounds: ${MAX_ROUNDS}`);
-    console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
-    console.log(`PARALLEL: ${currentParallelCount}`);
+    console.log(`EXP_PROB_TO_TEST: ${getConfigInstance().expProb}`);
+    console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 	const suffix = getLanguageSuffix(language); 
 	const Files: string[] = [];
 	const Generated: string[] = [];
@@ -165,7 +162,7 @@ export async function reExperiment(language: string, methods: string[], origFile
                         if (isSymbolLessThanLines(symbol)){
                             continue;
                         }
-                        if (seededRandom() < currentExpProb) { 
+                        if (seededRandom() < getConfigInstance().expProb) { 
                             if (isGenerated(document, symbol, path.join(origFilePath, method), path.join(tempFolderPath, method))){
                                 continue;
                             }
@@ -178,7 +175,7 @@ export async function reExperiment(language: string, methods: string[], origFile
         }
 		const generatedResults: { [key: string]: boolean[] } = {};
 		console.log(`#### Starting experiment for method: ${method}`);
-		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, currentSrcPath, origFilePath, language, method, currentParallelCount);
+		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, currentSrcPath, origFilePath, language, method, getConfigInstance().parallelCount);
 	}
 	console.log('#### Experiment completed!');
 }
@@ -273,7 +270,7 @@ async function parallelGenUnitTestForSymbols(
 	const historyPath = path.join(currentTestPath, "history");
     const folderPath = path.join(currentTestPath, method);    
 	const expLogPath = path.join(currentTestPath, "logs");
-    const filePaths: string[] = []
+    const filePaths: string[] = [];
     if (language === 'go') {
         const res = goSpecificEnvGen(folderPath, language, currentSrcPath);
     }
@@ -289,7 +286,7 @@ async function parallelGenUnitTestForSymbols(
 				currentSrcPath,
                 document, 
                 symbol, 
-                currentModel,
+                getConfigInstance().model,
                 MAX_ROUNDS,
                 fileName, 
                 method,
@@ -303,7 +300,7 @@ async function parallelGenUnitTestForSymbols(
         await Promise.all(symbolTasks.map(task => 
             Promise.race([
                 task,
-                sleep(currentTimeout).then(() => console.warn('Timeout exceeded for symbol processing'))
+                sleep(getConfigInstance().timeoutMs).then(() => console.warn('Timeout exceeded for symbol processing'))
             ])
         ));
     }

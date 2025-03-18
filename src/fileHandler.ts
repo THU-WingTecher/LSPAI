@@ -100,26 +100,26 @@ export function generateFileNameForDiffLanguage(document: vscode.TextDocument, s
     let disposableSuffix;
     switch (language) {
         case "go":
-            const testFileFormatForGo = "_test"
+            const testFileFormatForGo = "_test";
             fileName = `${fileSig}${testFileFormatForGo}.${suffix}`;
             baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
             disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
             break;
         case "java":
-            const testFileFormatForJava = "Test"
+            const testFileFormatForJava = "Test";
             fileName = `${fileSig}${testFileFormatForJava}.${suffix}`;
             baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
             disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
             break;
         default:
-            const uniTestFileFormat = "_test"
+            const uniTestFileFormat = "_test";
             fileName = `${fileSig}${uniTestFileFormat}.${suffix}`;
             baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
             disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
             break;
     }
 
-    return {document, symbol, fileName : getUniqueFileName(folderPath, baseName, disposableSuffix, generated)}
+    return { document, symbol, fileName: getUniqueFileName(folderPath, baseName, disposableSuffix, generated) };
 }
 
 export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
@@ -127,9 +127,9 @@ export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol
     const funcName = document.getText(symbol.selectionRange);
     const finalName = `${fileName}_${funcName}`;
     if (language === 'java') {
-        const packageStatements = getPackageStatement(document, document.languageId)
+        const packageStatements = getPackageStatement(document, document.languageId);
         const packageStatement = packageStatements ? packageStatements[0] : '';
-        const packageFolder = packageStatement.replace(";","").split(' ')[1].replace(/\./g, '/');
+        const packageFolder = packageStatement.replace(";", "").split(' ')[1].replace(/\./g, '/');
         return `${packageFolder}/${finalName}`;
     } else if (language === 'go'){
         const relPath = path.relative(vscode.workspace.rootPath!, document.fileName);
