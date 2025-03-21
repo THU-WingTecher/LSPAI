@@ -176,10 +176,10 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 			messages: promptObj
 		});
 		console.log('invokeLLM::callDeepSeek::response', JSON.stringify(response, null, 2));
-		const result = response.choices[0].message.content! + "<think>" + ((response.choices[0].message as any).reasoning_content || '');
+		const result = response.choices[0].message.content!;
 		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
-		logObj.result = result;
+		logObj.result = result + "<think>" + ((response.choices[0].message as any).reasoning_content || '');;
 		// console.log('Generated test code:', result);
 		// console.log('Token usage:', tokenUsage);
 		return result;
