@@ -310,8 +310,24 @@ export function isValidFunctionSymbol(functionSymbol: vscode.DocumentSymbol): bo
 	return true;
 }
 
+function extractCodeBetweenBackticks(text: string): string[] {
+    const codeBlocks: string[] = [];
+    const regex = /```(?:\w+)?\n([\s\S]*?)```/g;
+    
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        codeBlocks.push(match[1].trim());
+    }
+    
+    return codeBlocks;
+}
+
 export function formatToJSON(input: string): any {
     // Remove any leading/trailing whitespace
+    const codeBlocks = extractCodeBetweenBackticks(input);
+    if (codeBlocks.length > 0) {
+        return JSON.parse(codeBlocks[0]);
+    }
     let cleanInput = input.trim();
 
     // If the input is wrapped in markdown code blocks, remove them
@@ -367,6 +383,23 @@ export function formatToJSON(input: string): any {
 
 
 
+export function extractArrayFromJSON(jsonContent: any): any[] {
+    // If it's already an array, return it
+    if (Array.isArray(jsonContent)) {
+        return jsonContent;
+    }
+    
+    // If it's an object with a single key containing an array
+    if (typeof jsonContent === 'object' && jsonContent !== null) {
+        const values = Object.values(jsonContent);
+        if (values.length === 1 && Array.isArray(values[0])) {
+            return values[0];
+        }
+    }
+    
+    // If neither format matches, return empty array
+    return [];
+}
 
 // type UseMap = Map<vscode.DocumentSymbol, Array<vscode.Location>>;
 // type DefMap = Map<vscode.DocumentSymbol, vscode.Location | null>;

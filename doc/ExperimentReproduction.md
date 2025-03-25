@@ -655,6 +655,33 @@ The extracted dataset will have this structure:
    Ctrl + Shift + P -> LSPAI::Java-Experiment
    ```
 
+   If you are reproducing the experiment, by commandline interface, not debuggin mode. 
+   The java language server cannot automatically add the test file to class path, therefore you need to manually add test path in the pom.xml file. 
+   For example, 
+   // We should move file to the 
+    // ${project.basedir}/src/lspai/test/java --> to get the correct and fast diagnostics
+    // <plugin>
+    //     <groupId>org.codehaus.mojo</groupId>
+    //     <artifactId>build-helper-maven-plugin</artifactId>
+    //     <version>3.5.0</version>
+    //     <executions>
+    //         <execution>
+    //             <id>add-test-source</id>
+    //             <phase>generate-test-sources</phase>
+    //             <goals>
+    //                 <goal>add-test-source</goal>
+    //             </goals>
+    //             <configuration>
+    //                 <sources>
+    //                     <!-- Add your additional test source directory -->
+    //                     <source>${project.basedir}/src/test/java</source>
+    //                     <source>${project.basedir}/src/lspai/test/java</source>
+    //                 </sources>
+    //             </configuration>
+    //         </execution>
+    //     </executions>
+    // </plugin>
+
    ##### B. Reproduce with Provided Dataset
 
    Once the environment is set up and the unit tests are prepared, you can proceed to reproduce experiments using the provided dataset.

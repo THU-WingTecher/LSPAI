@@ -71,7 +71,7 @@ export async function getReferenceInfo(document: vscode.TextDocument, range: vsc
         const refDocument = await vscode.workspace.openTextDocument(ref.uri);
         // Skip test files if requested
         if (skipTestCode && isTestFile(ref.uri, refDocument)) {
-            console.log(`Skipping test file: ${ref.uri.fsPath}`);
+            // console.log(`Skipping test file: ${ref.uri.fsPath}`);
             continue;
         // console.log('symbolUsage', symbolUsage);
         }
@@ -158,8 +158,10 @@ export async function getSymbolUsageInfo(document: vscode.TextDocument, decodedT
         }
 
         const refDocument = await vscode.workspace.openTextDocument(firstDefinition.uri);
-        const refInfo = await getReferenceInfo(refDocument, firstDefinition.range, 15);
-        referenceCodes.push(refInfo);
+        if (firstDefinition.range){
+            const refInfo = await getReferenceInfo(refDocument, firstDefinition.range, 15);
+            referenceCodes.push(refInfo);
+        }
     }
 
     // Return the combined reference codes

@@ -18,6 +18,7 @@
   "extensionDependencies": [
     "ms-python.python",
     "ms-python.vscode-pylance",
+    "oracle.oracle-java",
     "redhat.java",
     "golang.go"
   ],
@@ -56,12 +57,21 @@
       {
         "command": "lspAi.showSettings",
         "title": "LSPAI: Show Current Settings"
+      },
+      {
+        "command": "extension.diagnostic",
+        "title": "LSPAI: Diagnostic"
       }
     ],
     "menus": {
       "editor/context": [
         {
           "command": "extension.generateUnitTest",
+          "when": "editorTextFocus",
+          "group": "navigation"
+        },
+        {
+          "command": "extension.diagnostic",
           "when": "editorTextFocus",
           "group": "navigation"
         }
