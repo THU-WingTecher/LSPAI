@@ -107,8 +107,12 @@ function getClassNameFromDocument(document: vscode.TextDocument): string {
   
   // Helper function to clean up symbol names
   function getCleanedSymbolName(symbol: vscode.DocumentSymbol): string {
-    return symbol.name.replace(/\.\.\./g, '[]').replace(/<.*>/g, '').replace(/<T>/g, "").trim();
-  }
+    return symbol.name
+        .replace(/\.\.\./g, '[]')
+        .replace(/<T>/g, '')  // Remove <T> first
+        .replace(/<.*>/g, '') // Then handle other generic types
+        .trim();  
+    }
   
   // Find all matches
 async function loadChatUnitestTaskList(tasklist: string, symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[]){
@@ -122,23 +126,31 @@ async function loadChatUnitestTaskList(tasklist: string, symbolDocumentMaps: {do
         additionalCases = ['create()', 'create(CSVFormat)', 'build()'];
     } else if (getConfigInstance().workspace.includes("commons-cli")) {
         additionalCases.push(...symbolDocumentMaps.filter(({document, symbol}) => getCleanedSymbolName(symbol).startsWith("getParsedOptionValue(char")).map(symbol => symbol.symbol.name));
+        additionalCases.push('addArg(String)', "addOption(Option)", "build()");
     }
     for (const entry of symbolDocumentMaps) {
+        console.log(entry.document.uri.path);
+        // if (entry.document.uri.path.includes("CommandLine")) {
+        //     console.log(entry.document.uri.path);
+        //     console.log("--------------------------------");
+        //     console.log(entry.symbol.name, getCleanedSymbolName(entry.symbol));
+        // }
         const className = getClassNameFromDocument(entry.document);
         const cleanedSymbol = getCleanedSymbolName(entry.symbol);
+
         const matched = json[className]?.includes(cleanedSymbol) ?? false;
 
         const methods = json[className];
         if (methods && methods.includes(cleanedSymbol)) {
           matchedSymbols.push(entry);
-        }
-
-        if (additionalCases.includes(cleanedSymbol)) {
+        } else if (entry.document.uri.path.includes("CommandLine")) {
+            matchedSymbols.push(entry);
+        }else if (additionalCases.includes(cleanedSymbol)) {
             matchedSymbols.push(entry);
         }
-        // console.log(`Checking class: ${className}`);
-        // console.log(`  Symbol: ${cleanedSymbol}`);
-        // console.log(`  Match found: ${matched}`);
+        console.log(`Checking class: ${className}`);
+        console.log(`  Symbol: ${cleanedSymbol}`);
+        console.log(`  Match found: ${matched}`);
       }
 
       let finalResult = matchedSymbols.map(({document, symbol}) => {
@@ -171,6 +183,6 @@ async function loadChatUnitestTaskList(tasklist: string, symbolDocumentMaps: {do
     // console.log(intersected);
     console.log("missing", missing);
     assert.ok(missing.length === 0, 'missing methods should be empty');
-
+    console.log("chatUnittest is tested for methods number", flattedJson.length);
     return matchedSymbols;
 }
