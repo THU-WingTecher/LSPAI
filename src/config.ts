@@ -10,9 +10,36 @@ export enum PromptType {
 }
 
 export enum GenerationType {
+    NAIVE = 'naive',
     ORIGINAL = 'original',
     AGENT = 'agent',
+    EXPERIMENTAL = 'experimental'
 }
+
+export enum FixType {
+    ORIGINAL = 'original',
+    GROUPED = 'grouped',
+    EXPERIMENTAL = 'experimental'
+}
+// Constants for experiment settings
+export const MIN_FUNCTION_LINES = -1;
+export const DEFAULT_FILE_ENCODING = 'utf8';
+export const MAX_ROUNDS = 5;
+
+// Constants for file paths and extensions
+export const INTERMEDIATE_FOLDER_PREFIX = 'temp_';
+export const RESULTS_FOLDER_PREFIX = 'results_';
+export const NAIVE_PREFIX = "naive_";
+
+// Constants for time formatting
+const TIME_ZONE = 'CST';
+export const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
+
+export type ProjectName = keyof typeof SRC_PATHS;
+
+// Add these constants near the top with other constants
+const SEED = 12345; // Fixed seed for reproducibility
+let seededRandom: () => number;
 
 export type Provider = 'openai' | 'local' | 'deepseek';
 
@@ -49,12 +76,15 @@ export function loadPrivateConfig(configPath: string = path.join(__dirname, '../
 
 const DEFAULT_CONFIG = {
     expProb: 0.2,
+    testNumber: 5,
     parallelCount: 1,
     model: 'deepseek-chat',
     provider: 'deepseek' as Provider,
     timeoutMs: 600 * 1000,
     promptType: PromptType.BASIC,
-    maxRound: 5
+    fixType: FixType.ORIGINAL,
+    generationType: GenerationType.ORIGINAL,
+    maxRound: 3
 };
  // Add private configuration interface
  export interface PrivateConfig {
@@ -71,7 +101,7 @@ export class Configuration {
     private constructor() {
         this.config = this.loadConfiguration();
         console.log('Current Environment:', process.env.NODE_ENV);
-        console.log('config::config', this.config);
+        // console.log('config::config', this.config);
         this.adjustTimeout();
     }
 
@@ -99,6 +129,13 @@ export class Configuration {
     }
 
     public updateConfig(newConfig: Partial<Configuration>): void {
+        if (newConfig.logSavePath) {
+            throw new Error('logSavePath is not allowed to be manually set, it will be automatically generated');
+        }
+        if (newConfig.historyPath) {
+            throw new Error('historyPath is not allowed to be manually set, it will be automatically generated');
+        }
+        console.log('config::updateConfig', newConfig);
         this.config = { ...this.config, ...newConfig };
         if (newConfig.savePath) {
             this.createSavePathIfNotExists(this.config.savePath);
@@ -170,6 +207,8 @@ export class Configuration {
                 timeoutMs: DEFAULT_CONFIG.timeoutMs,
                 parallelCount: DEFAULT_CONFIG.parallelCount,
                 maxRound: DEFAULT_CONFIG.maxRound,
+                testNumber: DEFAULT_CONFIG.testNumber,
+                expProb: DEFAULT_CONFIG.expProb
             };
         } else {
             const config = vscode.workspace.getConfiguration('lspAi');
@@ -236,6 +275,10 @@ export class Configuration {
         return this.config.generationType;
     }
 
+    public get fixType(): FixType {
+        return this.config.fixType;
+    }
+
     // Getters
     public get expProb(): number {
         return this.config.expProb;
@@ -279,6 +322,10 @@ export class Configuration {
 
     public get proxyUrl(): string | undefined {
         return this.config.proxyUrl;
+    }
+
+    public get testNumber(): number {
+        return this.config.testNumber;
     }
 
     public get methodsForExperiment(): string[] {

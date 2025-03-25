@@ -1,25 +1,19 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from "./token";
 import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement, summarizeClass} from "./retrieve";
 import {getReferenceInfo} from "./reference";
 import { TokenLimitExceededError } from "./invokeLLM";
-import { isBaseline } from "./experiment";
-
-import * as fs from 'fs';
-import * as path from 'path';
 import { LLMLogs, ExpLogs } from './log';
 import { invokeLLM } from "./invokeLLM";
-import { genPrompt, constructDiagnosticPrompt, FixSystemPrompt, generateTestWithContext } from "./prompts/promptBuilder";
-import { ChatMessage, Prompt } from "./prompts/ChatMessage";
+import { genPrompt, generateTestWithContext, inspectTest } from "./prompts/promptBuilder";
 import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
-import { getAllSymbols } from './lsp';
-import { getDiagnosticsForFilePath, DiagnosticsToString } from './diagnostic';
-import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate } from './fileHandler';
-import { error } from 'console';
-import * as os from 'os';
+import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate, saveExperimentData } from './fileHandler';
 import { getConfigInstance, GenerationType } from './config';
-import { showGeneratedCodeWithPreview, getTempDirAtCurWorkspace } from './fileHandler';
+import { getTempDirAtCurWorkspace } from './fileHandler';
 import { getContextSelectorInstance } from './agents/contextSelector';
+import { DiagnosticReport, fixDiagnostics } from './fix';
 
 export interface ContextInfo {
 	dependentContext: string;
@@ -34,21 +28,6 @@ export interface ContextInfo {
 	importString: string;
 }
 
-export interface DiagnosticRound {
-	round: number;
-	diagnosticsFixed: number;
-	remainingDiagnostics: number;
-	diagnosticMessages: string[];
-}
-
-export interface DiagnosticReport {
-	initialDiagnostics: number;
-	finalDiagnostics: number;
-	totalRounds: number;
-	fixSuccess: boolean;
-	roundHistory: DiagnosticRound[];
-}
-
 export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string, method: string): Promise<ContextInfo> {
 	let mainFunctionDependencies = "";
 	let dependentContext = "";
@@ -59,7 +38,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 	const packageStatement = getPackageStatement(document, document.languageId);
 	const importStatement = getImportStatement(document, document.languageId, functionSymbol);
 
-	if (!isBaseline(method)) {
+	if (getConfigInstance().generationType !== GenerationType.NAIVE) {
 
 		console.log('Inspecting all linked usages of inner symbols under function:', functionSymbol.name);
 		DefUseMap = await extractUseDefInfo(document, functionSymbol);
@@ -121,7 +100,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	const functionSymbol = getFunctionSymbol(symbols, position)!;
 	
 	// Generate the file paths
-	const { fileName } = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId, []);
+	const { fileName } = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId, [], 0);
 	
 	// Call generateUnitTestForAFunction with all required parameters
 	const finalCode = await generateUnitTestForAFunction(
@@ -214,229 +193,8 @@ async function generateInitialTestCode(
 		throw error;
 	}
 }
-
-async function performFixingRound(
-	srcPath: string,
-	round: number,
-	curSavePoint: string,
-	currentCode: string,
-	diagnostics: vscode.Diagnostic[],
-	collectedData: any,
-	method: string,
-	languageId: string,
-	model: string,
-	historyPath: string,
-	fullFileName: string,
-	expData: ExpLogs[]
-): Promise<{ code: string, savePoint: string, diagnostics: vscode.Diagnostic[] } | null> {
-	console.log(`\n--- Round ${round} ---`);
-	
-	// Get diagnostic messages
-	const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method);
-	if (!diagnosticMessages.length) {
-		console.error('No diagnostic messages found!');
-		return null;
-	}
-
-	// Construct prompt for fixing
-	const diagnosticPrompts = constructDiagnosticPrompt(
-		currentCode,
-		diagnosticMessages.join('\n'),
-		collectedData.functionSymbol.name,
-		collectedData.mainfunctionParent,
-		collectedData.SourceCode
-	);
-	console.log('Constructed Diagnostic Messages:', diagnosticMessages);
-
-	// Prepare chat messages
-	const chatMessages: ChatMessage[] = [
-		{ role: "system", content: FixSystemPrompt(languageId) },
-		{ role: "user", content: diagnosticPrompts }
-	];
-
-	// Get AI response
-	const fixlogObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: model};
-	const fixStartTime = Date.now();
-	let aiResponse: string;
-
-	try {
-		aiResponse = await invokeLLM(chatMessages, fixlogObj);
-		expData.push({
-			llmInfo: fixlogObj,
-			process: `FixWithLLM_${round}`,
-			time: (Date.now() - fixStartTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: collectedData.functionSymbol.name,
-			errMsag: diagnosticMessages.join('\n')
-		});
-	} catch (error) {
-		if (error instanceof TokenLimitExceededError) {
-			console.warn('Token limit exceeded, continuing...');
-		}
-		expData.push({
-			llmInfo: fixlogObj,
-			process: error instanceof TokenLimitExceededError ? "TokenLimitation" : "UnknownError",
-			time: (Date.now() - fixStartTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: collectedData.functionSymbol.name,
-			errMsag: ""
-		});
-		return null;
-	}
-
-	// Parse and save the fixed code
-	const fixedCode = parseCode(aiResponse);
-	const saveStartTime = Date.now();
-	
-	try {
-		const newSavePoint = await saveToIntermediate(
-			fixedCode,
-			srcPath,
-			fullFileName.split(method)[1],
-			path.join(historyPath, method, round.toString()),
-			languageId
-		);
-		
-		expData.push({
-			llmInfo: null,
-			process: "saveGeneratedCodeToFolder",
-			time: (Date.now() - saveStartTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: collectedData.functionSymbol.name,
-			errMsag: ""
-		});
-
-		// Get updated diagnostics
-		const diagStartTime = Date.now();
-		const newDiagnostics = await getDiagnosticsForFilePath(newSavePoint);
-		expData.push({
-			llmInfo: null,
-			process: "getDiagnosticsForFilePath",
-			time: (Date.now() - diagStartTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: collectedData.functionSymbol.name,
-			errMsag: ""
-		});
-
-		console.log(`Remaining Diagnostics after Round ${round}:`, newDiagnostics.length);
-		
-		return {
-			code: fixedCode,
-			savePoint: newSavePoint,
-			diagnostics: newDiagnostics
-		};
-	} catch (error) {
-		console.error('Failed to save or validate fixed code:', error);
-		return null;
-	}
-}
-
-async function fixDiagnostics(
-	srcPath: string,
-	testCode: string,
-	collectedData: any,
-	method: string,
-	languageId: string,
-	model: string,
-	historyPath: string,
-	fullFileName: string,
-	expData: ExpLogs[],
-	MAX_ROUNDS: number,
-	showGeneratedCode: boolean		
-): Promise<{ finalCode: string, success: boolean, diagnosticReport: DiagnosticReport }> {
-	
-	let round = 0;
-	let finalCode = testCode;
-	let curSavePoint = await saveToIntermediate(
-		finalCode,
-		srcPath,
-		fullFileName.split(method)[1],
-		path.join(historyPath, method, round.toString()),
-		languageId
-	);
-	if (showGeneratedCode) {
-		await showGeneratedCodeWithPreview(curSavePoint);
-	}
-
-	let diagnostics = await getDiagnosticsForFilePath(curSavePoint);
-	const initialDiagnosticCount = diagnostics.length;
-	const diagnosticHistory: DiagnosticRound[] = [];
-
-	while (round < MAX_ROUNDS && diagnostics.length > 0) {
-		round++;
-		// Record diagnostic changes for this round
-		diagnosticHistory.push({
-			round,
-			diagnosticsFixed: diagnostics.length - diagnostics.length,
-			remainingDiagnostics: diagnostics.length,
-			diagnosticMessages: await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method)
-		});
-		
-		const result = await performFixingRound(
-			srcPath,
-			round,
-			curSavePoint,
-			finalCode,
-			diagnostics,
-			collectedData,
-			method,
-			languageId,
-			model,
-			historyPath,
-			fullFileName,
-			expData
-		);
-		
-		diagnostics = result?.diagnostics || [];
-		finalCode = result?.code || finalCode;
-		curSavePoint = result?.savePoint || curSavePoint;
-		if (!diagnostics) {
-			break;
-		}
-		
-	}
-
-	const diagnosticReport: DiagnosticReport = {
-		initialDiagnostics: initialDiagnosticCount,
-		finalDiagnostics: diagnostics.length,
-		totalRounds: round,
-		fixSuccess: diagnostics.length === 0,
-		roundHistory: diagnosticHistory
-	};
-
-	return {
-		finalCode,
-		success: diagnostics.length === 0,
-		diagnosticReport
-	};
-}
-
-// Main function
-interface StepConfig {
-	enabled: boolean;
-	params?: Record<string, any>;
-  }
   
-  interface GenerationConfig {
-	collectInfo: StepConfig;
-	initialGeneration: StepConfig;
-	diagnosticsFix: StepConfig;
-	saveResults: StepConfig;
-  }
-  
-  // Default configuration
-  const defaultConfig: GenerationConfig = {
-	collectInfo: { enabled: true },
-	initialGeneration: { enabled: true },
-	diagnosticsFix: { enabled: true },
-	saveResults: { enabled: true }
-  };
-  
-  export async function generateUnitTestForAFunction(
+export async function generateUnitTestForAFunction(
 	srcPath: string,
 	document: vscode.TextDocument,
 	functionSymbol: vscode.DocumentSymbol,
@@ -447,47 +205,43 @@ interface StepConfig {
 	historyPath: string,
 	expLogPath: string,
 	showGeneratedCode: boolean = true,
-	config: Partial<GenerationConfig> = defaultConfig // Add configuration parameter
-  ): Promise<string> {
-	// Merge provided config with defaults
-	const activeConfig = { ...defaultConfig, ...config };
-	
-	if (method === "") {
-	  method = model;
-	}
-	console.log(`Generating unit test for ${method} in ${fullFileName}`);
-	
-	try {
-	  const { languageId, fileName, expData } = await initializeTestGeneration(
-		document,
-		functionSymbol,
-		method,
-		fullFileName
-	  );
-	  let testCode = "";
-	  let collectedData = {};
-	  // Step 1: Collect Info
-	  const startTime = Date.now();
-	  collectedData = await collectInfo(
-							document,
-							functionSymbol,
-							languageId,
-							fileName,
-							method
-							);
-	  expData.push({
-	  llmInfo: null,
-	  process: "collectInfo",
-	  time: (Date.now() - startTime).toString(),
-	  method,
-	  fileName: fullFileName,
-	  function: functionSymbol.name,
-	  errMsag: ""
-	  });
-	  switch (getConfigInstance().generationType) {
-		case GenerationType.ORIGINAL:
+): Promise<string> {
+// Merge provided config with defaults
 
-	
+if (method === "") {
+	method = model;
+}
+console.log(`Generating unit test for ${method} in ${fullFileName}`);
+
+try {
+	const { languageId, fileName, expData } = await initializeTestGeneration(
+			document,
+			functionSymbol,
+			method,
+			fullFileName
+			);
+	let testCode = "";
+	let collectedData = {};
+	// Step 1: Collect Info
+	const startTime = Date.now();
+	collectedData = await collectInfo(
+						document,
+						functionSymbol,
+						languageId,
+						fileName,
+						method
+						);
+	expData.push({
+	llmInfo: null,
+	process: "collectInfo",
+	time: (Date.now() - startTime).toString(),
+	method,
+	fileName: fullFileName,
+	function: functionSymbol.name,
+	errMsag: ""
+	});
+	switch (getConfigInstance().generationType) {
+		case GenerationType.ORIGINAL:
 		// Step 2: Initial Test Generation
 			testCode = await generateInitialTestCode(
 			document,
@@ -498,6 +252,14 @@ interface StepConfig {
 				method,
 				model,
 				expData
+			);
+			testCode = parseCode(testCode);
+			await saveToIntermediate(
+				testCode,
+				srcPath,
+				fullFileName.split(method)[1],
+				path.join(historyPath, method, "initial"),
+				languageId
 			);
 			break;
 		case GenerationType.AGENT:
@@ -533,6 +295,13 @@ interface StepConfig {
 			const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 			testCode = await invokeLLM(promptObj, logObj);
 			testCode = parseCode(testCode);
+			await saveToIntermediate(
+				testCode,
+				srcPath,
+				fullFileName.split(method)[1],
+				path.join(historyPath, method, "initial"),
+				languageId
+			);
 			expData.push({	
 				llmInfo: logObj,
 				process: "generateTestWithContext",
@@ -543,91 +312,132 @@ interface StepConfig {
 				errMsag: ""
 			});
 			break;
-	  }
+		case GenerationType.EXPERIMENTAL:
+			const contextSelector_experimental = await getContextSelectorInstance(
+				document, 
+				functionSymbol);
+			const ContextStartTime_experimental = Date.now();
+			const logObjForIdentifyTerms_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+			const identifiedTerms_experimental = await contextSelector_experimental.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms_experimental);
+			expData.push({
+				llmInfo: logObjForIdentifyTerms_experimental,
+				process: "identifyContextTerms",
+				time: (Date.now() - ContextStartTime_experimental).toString(),
+				method,
+				fileName: fullFileName,
+				function: functionSymbol.name,
+				errMsag: ""
+				});
+			const gatherContextStartTime_experimental = Date.now();
+			const enrichedTerms_experimental = await contextSelector_experimental.gatherContext(identifiedTerms_experimental);
+			expData.push({
+				llmInfo: null,
+				process: "gatherContext",
+				time: (Date.now() - gatherContextStartTime_experimental).toString(),
+				method,
+				fileName: fullFileName,
+				function: functionSymbol.name,
+				errMsag: ""
+			});
+			console.log("enrichedTerms_experimental", enrichedTerms_experimental);
+			const generateTestWithContextStartTime_experimental = Date.now();
+			const promptObj_experimental = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms_experimental, fileName);
+			const logObj_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+			testCode = await invokeLLM(promptObj_experimental, logObj_experimental);
+			testCode = parseCode(testCode);
+			await saveToIntermediate(
+				testCode,
+				srcPath,
+				fullFileName.split(method)[1],
+				path.join(historyPath, method, "initial"),
+				languageId
+			);
+			expData.push({	
+				llmInfo: logObj_experimental,
+				process: "generateTestWithContext",
+				time: (Date.now() - generateTestWithContextStartTime_experimental).toString(),
+				method,
+				fileName: fullFileName,
+				function: functionSymbol.name,
+				errMsag: ""
+			});
 
-	  
-	  	// Step 3: Diagnostic Fix
-		// let diagnosticReport: DiagnosticReport | null = null;
-		let finalCode: string = testCode;
-	  
-		// const fixstartTime = Date.now();
-		// const report = await fixDiagnostics(
-		//   srcPath,
-		//   testCode,
-		//   collectedData,
-		//   method,
-		//   languageId,
-		//   model,
-		//   historyPath,
-		//   fullFileName,
-		//   expData,
-		//   MAX_ROUNDS,
-		//   showGeneratedCode
-		// );
-		// diagnosticReport = report.diagnosticReport;
-		// finalCode = report.finalCode;
-		// expData.push({
-		//   llmInfo: null,
-		//   process: "fixDiagnostics",
-		//   time: (Date.now() - fixstartTime).toString(),
-		//   method,
-		//   fileName: fullFileName,
-		//   function: functionSymbol.name,
-		//   errMsag: ""
-		// });
-		// fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
-  
-	  // Step 4: Save Results
-
-		// Save diagnostic report
-		const reportPath = path.join(expLogPath, method, `${fileName}_diagnostic_report.json`);
-		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-
-		await saveGeneratedCodeToFolder(finalCode, fullFileName);
-		await saveExperimentData(expData, expLogPath, fileName, method);
-  
-	  return finalCode;
-	} catch (error) {
-	  console.error('Failed to generate unit test:', error);
-	  vscode.window.showErrorMessage('Failed to generate unit test!');
-	  return '';
+			const inspectTestStartTime = Date.now();
+			const promptObj_inspectTest = inspectTest(document.getText(functionSymbol.range), testCode);
+			const logObj_inspectTest: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+			testCode = await invokeLLM(promptObj_inspectTest, logObj_inspectTest);
+			testCode = parseCode(testCode);
+			await saveToIntermediate(
+				testCode,
+				srcPath,
+				fullFileName.split(method)[1],
+				path.join(historyPath, method, "after_inspect"),
+				languageId
+			);
+			expData.push({	
+				llmInfo: logObj_inspectTest,
+				process: "inspectTest",
+				time: (Date.now() - inspectTestStartTime).toString(),
+				method,
+				fileName: fullFileName,
+				function: functionSymbol.name,
+				errMsag: ""
+			});
+			
+			break;
 	}
-  }
 
-async function saveExperimentData(expData: ExpLogs[], expLogPath: string, fileName: string, method: string) {
-	const jsonFilePath = path.join(expLogPath, method, `${fileName}_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}.json`);
-
-	// Prepare the data to be saved
-    const formattedData = expData.map(log => ({
-		method: log.method,
-		process: log.process,
-		time: log.time,
-		fileName: log.fileName,
-		function: log.function,
-		errMsag: log.errMsag,
-		llmInfo: log.llmInfo ? {
-			tokenUsage: log.llmInfo.tokenUsage,
-			result: log.llmInfo.result,
-			prompt: log.llmInfo.prompt,
-			model: log.llmInfo.model
-		} : null
-    }));
-
-	const dir = path.dirname(jsonFilePath);
-	if (!fs.existsSync(dir)) {
-		fs.mkdirSync(dir, { recursive: true });
-	}
-
-    // Check if file exists and initialize empty array if not
-	let jsonContent = [];
-	if (fs.existsSync(jsonFilePath)) {
-		jsonContent = JSON.parse(fs.readFileSync(jsonFilePath, 'utf8'));
-	}
 	
-	// Append the current experiment's data
-	jsonContent.push(...formattedData);
+	// Step 3: Diagnostic Fix
+	let diagnosticReport: DiagnosticReport | null = null;
+	let finalCode: string = testCode;
 	
-    // Write the updated data
-	fs.writeFileSync(jsonFilePath, JSON.stringify(jsonContent, null, 2), 'utf8');
-	console.log(`Experiment data saved to ${jsonFilePath}`);
+	const fixstartTime = Date.now();
+	const report = await fixDiagnostics(
+		srcPath,
+		testCode,
+		collectedData,
+		method,
+		languageId,
+		model,
+		historyPath,
+		fullFileName,
+		expData,
+		MAX_ROUNDS,
+		showGeneratedCode
+	);
+	diagnosticReport = report.diagnosticReport;
+	finalCode = report.finalCode;
+	expData.push({
+		llmInfo: null,
+		process: "fixDiagnostics",
+		time: (Date.now() - fixstartTime).toString(),
+		method,
+		fileName: fullFileName,
+		function: functionSymbol.name,
+		errMsag: ""
+	});
+	
+	// Step 4: Save Results
+	
+	// Save diagnostic report
+	const reportPath = path.join(expLogPath, method, `${fileName}_diagnostic_report.json`);
+	fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+	console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
+	fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
+
+	await saveGeneratedCodeToFolder(finalCode, fullFileName);
+	await saveExperimentData(expData, expLogPath, fileName, method);
+
+	if (report.success) {
+		return finalCode;
+	} else {
+		return '';
+	}
+} catch (error) {
+	console.error('Failed to generate unit test:', error);
+	vscode.window.showErrorMessage('Failed to generate unit test!');
+	return '';
 }
+}
+

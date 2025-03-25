@@ -6,17 +6,17 @@ import { invokeLLM } from '../invokeLLM';
 import { DecodedToken, getDecodedTokensFromSybol } from '../token';
 import { retrieveDef } from '../retrieve';
 import { getReferenceInfo } from '../reference';
-import { getSymbolDetail, formatToJSON } from '../utils';
+import { getSymbolDetail, formatToJSON, extractArrayFromJSON } from '../utils';
 import { getAllSymbols } from '../lsp';
 import { activate, getSymbolByLocation } from '../lsp';
 import { clear } from 'console';
 import { ContextSelectorConfig } from '../prompts/promptBuilder';
 export interface ContextTerm {
-    term: string;
+    name: string;
     context?: string; // Optional context once retrieved
     example?: string; // Optional example once retrieved
     need_example?: boolean; // Whether the term needs example code
-    need_context?: boolean; // Whether the term needs context
+    need_definition?: boolean; // Whether the term needs context
 }
 
 export class ContextSelector {
@@ -74,6 +74,8 @@ export class ContextSelector {
                     identify_terms_user: "Analyze the following code and identify the top {max_terms} most important terms, functions, or concepts that would require additional context to write effective unit tests:\n\n{source_code}",
                     test_generation_user: "Focal method and its source code to test:\n\n{source_code}. Important terms' context information:\n\n{context_info}",
                     test_generation_system: "You are an expert software engineer specializing in unit testing. Your task is to generate comprehensive and effective unit tests that maximize coverage of the given focal methods. Analyze the provided focal method and ensure the generated tests cover as many lines as possible. Use the important terms or source codes as references to align with expected behavior. Follow the unit test format strictly, as provided. Ensure edge cases, boundary values, and possible failure points are tested. The test structure must be clean, maintainable, and efficient. Only output Code which wrapped by ```, and do not include any other text.",
+                    test_inspection_system: "System prompt for test inspection",
+                    test_inspection_user: "User prompt for test inspection"
                 }
             };
         }
@@ -94,9 +96,8 @@ export class ContextSelector {
     public async identifyContextTerms(sourceCode: string, logObj: any): Promise<ContextTerm[]> {
         
         // Prepare prompt using the template from config
-        const systemPrompt = this.config.prompts.identify_terms_system;
+        const systemPrompt = this.config.prompts.identify_terms_system.replace('{max_terms}', this.config.general.max_terms.toString());
         const userPrompt = this.config.prompts.identify_terms_user
-            .replace('{max_terms}', this.config.general.max_terms.toString())
             .replace('{source_code}', sourceCode);
         
         const promptObj = [
@@ -119,20 +120,20 @@ export class ContextSelector {
      * Parses LLM response to extract context terms
      * Handles JSON format and falls back to regex if needed
      */
-    private parseContextTermsFromResponse(response: string): ContextTerm[] {
+    public parseContextTermsFromResponse(response: string): ContextTerm[] {
 
         const result: ContextTerm[] = [];
         const jsonContent = formatToJSON(response);
-        
-        for (const term of jsonContent) {
-            console.log("term", term);
-            const termWithoutArgs = term.term.replace(/\(.*?\)/g, ''); // Remove argument parts
+        const jsonArray = extractArrayFromJSON(jsonContent);
+        for (const term of jsonArray) {
+            console.log("name", term);
+            const termWithoutArgs = term.name.replace(/\(.*?\)/g, ''); // Remove argument parts
             const methodName = termWithoutArgs.split('.').pop();
             for (const token of this.tokens) {
                 if (token.word === methodName) {
                     result.push({
-                        term: token.word,
-                        need_context: term.need_context,
+                        name: token.word,
+                        need_definition: term.need_definition,
                         need_example: term.need_example,
                         context: "",
                         example: "",
@@ -159,10 +160,10 @@ export class ContextSelector {
         for (const term of terms) {
             // Prepare prompt using the template from config
             // find the symbol of term in AllTokens 
-            const targetToken = this.tokens.find(token => token.word === term.term);
+            const targetToken = this.tokens.find(token => token.word === term.name);
             let enriched = false;
             if (targetToken) {
-                // await activate(this.document.uri);
+                await activate(this.document.uri);
                 const currentToken = await retrieveDef(this.document, targetToken);
                 const symbols = await getAllSymbols(this.document.uri);
                 if (currentToken.definition && currentToken.definition.length > 0) {
@@ -171,7 +172,7 @@ export class ContextSelector {
                         term.example = await getReferenceInfo(defSymbolDoc, currentToken.definition[0].range);
                         enriched = true;
                     }
-                    if (term.need_context) {
+                    if (term.need_definition) {
                         currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
                         if (currentToken.defSymbol) {
                             term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, true);

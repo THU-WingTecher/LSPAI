@@ -6,7 +6,7 @@ import { getConfigInstance } from "./config";
 import * as fs from 'fs';
 import * as path from 'path';
 
-export const TOKENTHRESHOLD = 2000; // Define your token threshold here
+export const TOKENTHRESHOLD = 3000; // Define your token threshold here
 
 export const BASELINE = "naive";
 
@@ -94,11 +94,13 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 3, ret
 	}
 
 	// console.log('invokeLLM::promptObj', promptObj);
+	console.log('invokeLLM::promptObj_system', promptObj[0].content);
+	console.log('invokeLLM::promptObj_user', promptObj[1].content);
 	const messageTokens = promptObj[1].content.split(/\s+/).length;
 	// console.log("Invoking . . .");
-	if (messageTokens > TOKENTHRESHOLD) {
-		throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
-	}
+	// if (messageTokens > TOKENTHRESHOLD) {
+	// 	throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
+	// }
 
 	const provider = getConfigInstance().provider;
 	

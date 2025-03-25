@@ -10,6 +10,7 @@ export async function run(): Promise<void> {
         color: true
     });
 	let testFilesReg = '**/**.test.js';
+	console.log('process.env.argv', process.argv);
 	console.log("process.env.npm_config_testfile", process.env.npm_config_testfile);
 	if (process.env.npm_config_testfile) {
 		testFilesReg = `**/${process.env.npm_config_testfile}.test.js`;

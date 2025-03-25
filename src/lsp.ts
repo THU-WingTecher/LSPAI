@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { customExecuteDocumentSymbolProvider } from './utils';
+import { sleep } from './helper';
 export let doc: vscode.TextDocument;
 export let editor: vscode.TextEditor;
 export let documentEol: string;
@@ -29,8 +30,8 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 		throw new Error('Extension not found');
 	}	
 	await ext.activate();
+    console.log("activate docUri", docUri);
 	if (docUri) {
-        console.log("activate docUri", docUri);
 		try {
 			doc = await vscode.workspace.openTextDocument(docUri);
 			editor = await vscode.window.showTextDocument(doc);
@@ -41,9 +42,6 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 	}
 }
 
-async function sleep(ms: number) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 export const getDocPath = (p: string) => {
 	return path.resolve(__dirname, '../manual-testing-sandbox', p);

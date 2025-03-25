@@ -6,15 +6,19 @@ import { retrieveDef } from './retrieve';
 import { retrieveDefs } from './retrieve';
 import {closeActiveEditor} from './utils';
 import {processParentDefinition, constructSymbolRelationShip, classifyTokenByUri} from './retrieve';
-import { isBaseline } from './experiment';
 import { getSymbolUsageInfo } from './reference';
+import { activate } from './lsp';
+import { get } from 'http';
+import { eraseContent } from './fileHandler';
+import { GenerationType } from './config';
+import { getConfigInstance } from './config';
 export enum DiagnosticTag {
     Unnecessary = 1,
     Deprecated
 }
 
 function chooseDiagnostic(diag: vscode.Diagnostic): boolean {
-    return diag.severity <= vscode.DiagnosticSeverity.Warning;
+    return diag.severity < vscode.DiagnosticSeverity.Warning;
 }
 
 export function getSeverityString(severity: vscode.DiagnosticSeverity): string {
@@ -32,20 +36,160 @@ export function getSeverityString(severity: vscode.DiagnosticSeverity): string {
     }
 } 
 
-export async function getDiagnosticsForFilePath(filePath: string): Promise<vscode.Diagnostic[]> {
-    const uri = vscode.Uri.file(filePath);
+export async function getCodeAction(uri: vscode.Uri, diag: vscode.Diagnostic): Promise<vscode.CodeAction[]> {
+    const codeActions = await vscode.commands.executeCommand('vscode.executeCodeActionProvider', uri, diag.range);
+    return codeActions as vscode.CodeAction[];
+}
+
+export async function applyCodeActions(targetUri: vscode.Uri, codeActions: vscode.CodeAction[]) {
+    // Filter for quick fix actions only
+    const quickFixes = codeActions.filter(action => 
+        action.kind && action.kind.contains(vscode.CodeActionKind.QuickFix)
+    );
+    console.log('quickFixes', quickFixes);
+    // Apply each quick fix
+    for (const fix of quickFixes) {
+        console.log('fix', fix);
+        if (fix.edit) {
+            // Double check we're only modifying the target file
+            const edits = fix.edit.entries();
+            const isTargetFileOnly = edits.every(([uri]) => uri.fsPath === targetUri.fsPath);
+            
+            if (isTargetFileOnly) {
+                await vscode.workspace.applyEdit(fix.edit);
+            }
+        }
+    }
+}
+
+export function groupDiagnosticsByMessage(diagnostics: vscode.Diagnostic[]): Map<string, vscode.Diagnostic[]> {
+    const groupedDiagnostics = new Map<string, vscode.Diagnostic[]>();
+    
+    for (const diag of diagnostics) {
+        if (diag.relatedInformation){
+            for (const info of diag.relatedInformation){
+                console.log('info', info);
+            }
+        }
+        const key = diag.message;
+        if (!groupedDiagnostics.has(key)) {
+            groupedDiagnostics.set(key, []);
+        }
+        groupedDiagnostics.get(key)!.push(diag);
+    }
+
+    return groupedDiagnostics;
+}
+
+export function groupedDiagnosticsToString(groupedDiagnostics: Map<string, vscode.Diagnostic[]>, document: vscode.TextDocument): string[] {
+    const result: string[] = [];
+    console.log('Grouped Diagnostics by Message:');
+    console.log('==============================');
+    for (const [message, diagList] of groupedDiagnostics) {
+        result.push(`\nMessage: "${message}"`);
+        result.push(`Number of occurrences: ${diagList.length}`);
+        result.push('Locations:');
+        diagList.forEach((diag, index) => {
+            result.push(`  ${index + 1}. Line ${diag.range.start.line + 1}, ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)}`);
+        });
+        result.push('------------------------------');
+    }
+    return result;
+}
+
+
+export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vscode.Diagnostic[], method: string): Promise<string[]> {
+    // Open the document
     const document = await vscode.workspace.openTextDocument(uri);
-    const text = document.getText();
+
+    // // Attempt to find an active editor for the document
+
+    // // Close the editor if found
+
+    // if (!editor) {
+    //     vscode.window.showErrorMessage('No active editor found for the given URI.');
+    //     return [];
+    // }
+
+    // Filter diagnostics by severity (Error > Warning > Information > Hint)
+    const sortedDiagnostics = vscodeDiagnostics.filter(diag => diag.severity < vscode.DiagnosticSeverity.Warning);
+    console.log(sortedDiagnostics.map(diag => diag.message));
+
+    // Process each diagnostic separately
+    const diagnosticMessages: string[] = [];
+    diagnosticMessages.push('The error messages are:\n \`\`\`');
+    const dependencyTokens: DecodedToken[] = [];
+    for (const diag of sortedDiagnostics) {
+        // Retrieve decoded tokens for the specific line
+        const decodedTokens = await getDecodedTokensFromLine(document, diag.range.start.line);
+        console.log(`Retrieved decoded tokens for line ${diag.range.start.line}:`, decodedTokens.map(token => token.word));
+        await retrieveDefs(document, decodedTokens);
+        dependencyTokens.push(...decodedTokens);
+        // const diagnosticMessage = `${getSeverityString(diag.severity)} in ${document.getText(diag.range)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
+        const diagnosticMessage = `${getSeverityString(diag.severity)} at : ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
+        console.log(`Pushing Diagnostic message: ${diagnosticMessage}`);
+        diagnosticMessages.push(diagnosticMessage);
+        const relInfo = getDiagnosticRelatedInfo(uri, diag);
+        if (relInfo){
+            diagnosticMessages.push(relInfo);
+        }
+    }
+    try {
+        const tokenMap = await classifyTokenByUri(document, dependencyTokens);
+            
+        // Retrieve symbol details for each token
+        if (getConfigInstance().generationType !== GenerationType.NAIVE) {
+            console.log('Processing symbol relationships...');
+            const symbolMaps = await constructSymbolRelationShip(tokenMap);
+            let dependencies = "\`\`\`\nRefer below information and fix the error\n\`\`\`";
+            for (const def of symbolMaps) {
+                console.log('Processing symbol map:', def);
+                const currDependencies = await processParentDefinition(def, '', "dependent", true);
+                dependencies += currDependencies;
+            }
+            if (dependencyTokens.length > 0) {
+                const refString = await getSymbolUsageInfo(document, dependencyTokens);
+                diagnosticMessages.push(refString);
+            }
+            if (symbolMaps.length > 0) {
+                diagnosticMessages.push(dependencies);
+            } else {
+                console.warn('No symbol relationships found.');
+                console.log(diagnosticMessages.join('\n'));
+            }
+        }
+    } catch (error) {
+        console.error('Error processing diagnostics:', error);
+    }
+    diagnosticMessages.push('\`\`\`');
+    console.log(`final diagnosticMessages: ${diagnosticMessages}`);
+    // await closeActiveEditor(editor);
+    return diagnosticMessages;
+}
+
+export async function getDiagnosticsForFilePath(filePath: string): Promise<vscode.Diagnostic[]> {
+    // We should move file to the 
+    // ${project.basedir}/src/lspai/test/java --> to get the correct and fast diagnostics
+
+
+    const uri = vscode.Uri.file(filePath);
+    // const document = await vscode.workspace.openTextDocument(uri);
+    // const text = document.getText();
     	// Close the editor with the saved version
     // console.log(text)
-    const diagnostics = await getDiagnosticsForUri(uri);
+    await activate(uri);
+    // const diagnostics = await getDiagnosticsForUri(uri);
+    const diagnostics = await vscode.languages.getDiagnostics(uri);
+    console.log('initial diagnostics', diagnostics.map(diag => diag.message));
     const filteredDiagnostics = diagnostics.filter(diagnostic => chooseDiagnostic(diagnostic));
+    console.log('filtered diagnostics', filteredDiagnostics.map(diag => diag.message));
+    // eraseContent(filePath);
     return filteredDiagnostics;
 }
 
 async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
-    console.log('Initial diagnostics:', vscode.languages.getDiagnostics(uri));
-
+    console.log('Initial diagnostics:', await vscode.languages.getDiagnostics(uri));
+    await activate(uri);
     return new Promise((resolve, reject) => {
         try {
             // Get initial diagnostics
@@ -126,75 +270,5 @@ function getDiagnosticRelatedInfo(uri: vscode.Uri, diag: vscode.Diagnostic): str
         }
     }
     return relatedInfo;
-}
-
-export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vscode.Diagnostic[], method: string): Promise<string[]> {
-    // Open the document
-    const document = await vscode.workspace.openTextDocument(uri);
-
-    // // Attempt to find an active editor for the document
-
-    // // Close the editor if found
-
-    // if (!editor) {
-    //     vscode.window.showErrorMessage('No active editor found for the given URI.');
-    //     return [];
-    // }
-
-    // Filter diagnostics by severity (Error > Warning > Information > Hint)
-    const sortedDiagnostics = vscodeDiagnostics.filter(diag => chooseDiagnostic(diag));
-
-    console.log(sortedDiagnostics);
-
-    // Process each diagnostic separately
-    const diagnosticMessages: string[] = [];
-    diagnosticMessages.push('The error messages are:\n \`\`\`');
-    const dependencyTokens: DecodedToken[] = [];
-    for (const diag of sortedDiagnostics) {
-        // Retrieve decoded tokens for the specific line
-        const decodedTokens = await getDecodedTokensFromLine(document, diag.range.start.line);
-        console.log(`Retrieved decoded tokens for line ${diag.range.start.line}:`, decodedTokens.map(token => token.word));
-        await retrieveDefs(document, decodedTokens);
-        dependencyTokens.push(...decodedTokens);
-        // const diagnosticMessage = `${getSeverityString(diag.severity)} in ${document.getText(diag.range)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
-        const diagnosticMessage = `${getSeverityString(diag.severity)} at : ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)} [Line ${diag.range.start.line + 1}] : ${diag.message}`;
-        console.log(`Pushing Diagnostic message: ${diagnosticMessage}`);
-        diagnosticMessages.push(diagnosticMessage);
-        const relInfo = getDiagnosticRelatedInfo(uri, diag);
-        if (relInfo){
-            diagnosticMessages.push(relInfo);
-        }
-    }
-    try {
-        const tokenMap = await classifyTokenByUri(document, dependencyTokens);
-            
-        // Retrieve symbol details for each token
-        if (!isBaseline(method)) {
-            console.log('Processing symbol relationships...');
-            const symbolMaps = await constructSymbolRelationShip(tokenMap);
-            let dependencies = "\`\`\`\nRefer below information and fix the error\n\`\`\`";
-            for (const def of symbolMaps) {
-                console.log('Processing symbol map:', def);
-                const currDependencies = await processParentDefinition(def, '', "dependent", true);
-                dependencies += currDependencies;
-            }
-            if (dependencyTokens.length > 0) {
-                const refString = await getSymbolUsageInfo(document, dependencyTokens);
-                diagnosticMessages.push(refString);
-            }
-            if (symbolMaps.length > 0) {
-                diagnosticMessages.push(dependencies);
-            } else {
-                console.warn('No symbol relationships found.');
-                console.log(diagnosticMessages.join('\n'));
-            }
-        }
-    } catch (error) {
-        console.error('Error processing diagnostics:', error);
-    }
-    diagnosticMessages.push('\`\`\`');
-    console.log(`final diagnosticMessages: ${diagnosticMessages}`);
-    // await closeActiveEditor(editor);
-    return diagnosticMessages;
 }
 

@@ -1,13 +1,10 @@
 import * as vscode from 'vscode';
-import { 
-	experiment, 
-	reExperiment
-} from './experiment';
 import { generateUnitTestForSelectedRange } from './generate';
 import { getConfigInstance } from './config';
 import { collectTrainData, main } from './train/collectTrainData';
 import * as fs from 'fs';
 import path from 'path';
+import { getCodeAction } from './diagnostic';
 export async function activate(context: vscode.ExtensionContext) {
 
 	const workspace = vscode.workspace.workspaceFolders;
@@ -24,6 +21,46 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 
 
+	const diagnosticDisposable = vscode.commands.registerCommand('extension.diagnostic', async () => {
+
+		console.log('print all workspace folders');
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		console.log('workspaceFolders', workspaceFolders);
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			vscode.window.showErrorMessage('Please open a file and select a function to generate unit test.');
+			return;
+		}
+		
+		// const filepath = "/LSPAI/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/CSVFormat_getIgnoreEmptyLines1Test.java";
+		// const uri = vscode.Uri.file(filepath);
+		const document = editor.document;
+		const diagnostics = await vscode.languages.getDiagnostics(document.uri);
+		const codeActions = await getCodeAction(document.uri, diagnostics[0]);
+		for (const diagnostic of diagnostics) {
+			console.log('diagnostics', diagnostics);
+			const codeActions = await getCodeAction(editor.document.uri, diagnostic);
+			
+			// Filter for quick fix actions only
+			const quickFixes = codeActions.filter(action => 
+				action.kind && action.kind.contains(vscode.CodeActionKind.QuickFix)
+			);
+	
+			// Apply each quick fix
+			for (const fix of quickFixes) {
+				console.log('fix', fix);
+				if (fix.edit) {
+					// Double check we're only modifying the target file
+					const edits = fix.edit.entries();
+					const isTargetFileOnly = edits.every(([uri]) => uri.fsPath === 	document.uri.fsPath);
+					
+					if (isTargetFileOnly) {
+						await vscode.workspace.applyEdit(fix.edit);
+					}
+				}
+			}
+		}
+	});
 	
 	const disposable = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
 		const editor = vscode.window.activeTextEditor;
@@ -56,51 +93,51 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(disposable);
 
-	const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {
-		vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
-		const language = "java";
-		await experiment(language, getConfigInstance().methodsForExperiment);
-		// Handle results...
-	});
-	context.subscriptions.push(disposable_exp);
+	// const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {
+	// 	vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
+	// 	const language = "java";
+	// 	await experiment(language, getConfigInstance().methodsForExperiment);
+	// 	// Handle results...
+	// });
+	// context.subscriptions.push(disposable_exp);
 
-	const disposable2 = await vscode.commands.registerCommand('lspAi.GoExperiment', async () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		const language = "go";
-		await experiment(language, getConfigInstance().methodsForExperiment);
-	});
-	context.subscriptions.push(disposable2);
+	// const disposable2 = await vscode.commands.registerCommand('lspAi.GoExperiment', async () => {
+	// 	// The code you place here will be executed every time your command is executed
+	// 	// Display a message box to the user
+	// 	const language = "go";
+	// 	await experiment(language, getConfigInstance().methodsForExperiment);
+	// });
+	// context.subscriptions.push(disposable2);
 
-	const Pydisposable2 = await vscode.commands.registerCommand('lspAi.PythonExperiment', async () => {
-		const language = "python";
-		await experiment(language, getConfigInstance().methodsForExperiment);
-	});
+	// const Pydisposable2 = await vscode.commands.registerCommand('lspAi.PythonExperiment', async () => {
+	// 	const language = "python";
+	// 	await experiment(language, getConfigInstance().methodsForExperiment);
+	// });
 
-	context.subscriptions.push(Pydisposable2);
+	// context.subscriptions.push(Pydisposable2);
 
-	const disposable4 = await vscode.commands.registerCommand('lspAi.ReExperiment', async () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		const language = "java";
-		const currentGenMethods = ["deepseek-reasoner"];
-		const currentTestPath = `/LSPAI/experiments/projects/commons-cli/results_2_26_2025__11_45_35`;
-		// inspect whether the currentTestPath is endswith any of currentGenMethod
-		const isModelSynced = currentGenMethods.some(method => method.endsWith(getConfigInstance().model));
-		if (!isModelSynced) {
-			vscode.window.showErrorMessage('Current Model Setting is not correct.');
-			return;
-		}
-		const isEndsWith = currentGenMethods.some(method => currentTestPath.endsWith(method));
-		if (isEndsWith) {
-			vscode.window.showErrorMessage('The current test path should not end gen methods.');
-			return;
-		}
+	// const disposable4 = await vscode.commands.registerCommand('lspAi.ReExperiment', async () => {
+	// 	// The code you place here will be executed every time your command is executed
+	// 	// Display a message box to the user
+	// 	const language = "java";
+	// 	const currentGenMethods = ["deepseek-reasoner"];
+	// 	const currentTestPath = `/LSPAI/experiments/projects/commons-cli/results_2_26_2025__11_45_35`;
+	// 	// inspect whether the currentTestPath is endswith any of currentGenMethod
+	// 	const isModelSynced = currentGenMethods.some(method => method.endsWith(getConfigInstance().model));
+	// 	if (!isModelSynced) {
+	// 		vscode.window.showErrorMessage('Current Model Setting is not correct.');
+	// 		return;
+	// 	}
+	// 	const isEndsWith = currentGenMethods.some(method => currentTestPath.endsWith(method));
+	// 	if (isEndsWith) {
+	// 		vscode.window.showErrorMessage('The current test path should not end gen methods.');
+	// 		return;
+	// 	}
 
-		await reExperiment(language, currentGenMethods, currentTestPath);
-	});
+	// 	await reExperiment(language, currentGenMethods, currentTestPath);
+	// });
 
-	context.subscriptions.push(disposable4);
+	// context.subscriptions.push(disposable4);
 
 	const collectTrainDataDisposable = await vscode.commands.registerCommand('lspAi.CollectTrainData', async () => {
 		// const dataFolder = path.join(__dirname, '../data');

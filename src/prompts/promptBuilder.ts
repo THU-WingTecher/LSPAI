@@ -1,8 +1,7 @@
 import { ContextInfo } from "../generate";
-import { isBaseline } from "../experiment";
 import { JavaUnitTestTemplate, GoUnitTestTemplate, PythonUnitTestTemplate } from "./template";
 import { ChatMessage, Prompt } from "./ChatMessage";
-import { getConfigInstance, PromptType } from "../config";
+import { getConfigInstance, PromptType, GenerationType } from "../config";
 import { ContextTerm } from "../agents/contextSelector";
 import path from "path";
 import fs from "fs";
@@ -10,15 +9,50 @@ import ini from "ini";
 import { getPackageStatement } from "../retrieve";
 import * as vscode from 'vscode';
 
+
+export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_report: string): ChatMessage[] {
+    // for ContextTerm, we only need term and context(if need_definition is true) 
+    const fixTemplatePath = path.join(__dirname, "..", "..", "templates", "fixCode.ini");
+    const fixTemplateData = fs.readFileSync(fixTemplatePath, 'utf8');
+    const fixTemplate = ini.parse(fixTemplateData);
+    const systemPrompt = fixTemplate.prompts.fix_system;
+    const userPrompt = fixTemplate.prompts.fix_user
+        .replace('{unit_test_code}', unit_test_code)
+        .replace('{diagnostic_report}', diagnostic_report)
+    
+    const promptObj = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+    ];
+    return promptObj;
+}
+
+export function inspectTest(source_code: string, unit_test_code: string): ChatMessage[] {
+    // for ContextTerm, we only need term and context(if need_definition is true) 
+    const configPath = path.join(__dirname, "..", "..", "templates", "contextSelector.ini");
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = ini.parse(configData) as ContextSelectorConfig;
+    const systemPrompt = config.prompts.test_inspection_system;
+    const userPrompt = config.prompts.test_inspection_user
+        .replace('{source_code}', source_code)
+        .replace('{unit_test_code}', unit_test_code)
+    
+    const promptObj = [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+    ];
+    return promptObj;
+}
+
 export function generateTestWithContext(document: vscode.TextDocument, source_code: string, context_info: ContextTerm[], fileName: string): ChatMessage[] {
-    // for ContextTerm, we only need term and context(if need_context is true) 
+    // for ContextTerm, we only need term and context(if need_definition is true) 
     const result = [];
     for (const item of context_info) {
-        if (item.need_context) {
-            result.push(`\n## Source Code of ${item.term}\n${item.context}`);
+        if (item.need_definition) {
+            result.push(`\n## Source Code of ${item.name}\n${item.context}`);
         }
         if (item.need_example) {
-            result.push(`\n## Example of ${item.term}\n${item.example}`);
+            result.push(`\n## Example of ${item.name}\n${item.example}`);
         }
     }
     const context_info_str = result.join('\n');
@@ -41,6 +75,7 @@ export function generateTestWithContext(document: vscode.TextDocument, source_co
 }
 
 export function constructDiagnosticPrompt(unit_test: string, diagnosticMessages: string, method_sig: string, class_name: string, testcode: string): string {
+    
     return `
 Problem : Fix the error
 Errors : ${diagnosticMessages}
@@ -282,7 +317,7 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
 	const systemPromptText = ChatUnitTestSystemPrompt(data.languageId);
 	const textCode = data.SourceCode;
     console.log("method", method);
-	if (!isBaseline(method)) {
+	if (getConfigInstance().generationType !== GenerationType.NAIVE) {
         console.log("dependentContext", data.dependentContext);
 		dependentContext = data.dependentContext;
 		mainFunctionDependencies = data.mainFunctionDependencies;
@@ -304,7 +339,11 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
 	const promptObj: Prompt = { messages: chatMessages };
 
 	return Promise.resolve(promptObj.messages);
-}export interface ContextSelectorConfig {
+}
+
+
+
+export interface ContextSelectorConfig {
     general: {
         max_terms: number;
         relevance_threshold: number;
@@ -314,6 +353,7 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
         identify_terms_user: string;
         test_generation_user: string;
         test_generation_system: string;
+        test_inspection_system: string;
+        test_inspection_user: string;
     };
 }
-

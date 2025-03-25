@@ -179,6 +179,7 @@ async function getSymbolByLocation(document: vscode.TextDocument, location: vsco
     const symbols = await getAllSymbols(document.uri);
     return symbols.find(s => s.range.contains(location)) || null;
 }
+
 interface ParentDefinition {
     parent: vscode.DocumentSymbol;
     uri: string;
@@ -296,12 +297,12 @@ export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMa
     const tokenMap = new Map<string, DecodedToken[]>();
 
     for (const token of DefUseMap) {
-        console.log('collectinfo::token', token);
+        // console.log('collectinfo::token', token);
         const uri = token.definition?.[0]?.uri.toString();
-        console.log('collectinfo::uri', uri);
-        console.log('collectinfo::isInWorkspace', isInWorkspace(uri));
+        // console.log('collectinfo::uri', uri);
+        // console.log('collectinfo::isInWorkspace', isInWorkspace(uri));
         if (uri && isInWorkspace(uri)) {
-            console.log('collectinfo::uri and isInWorkspace', uri, isInWorkspace(uri));
+            // console.log('collectinfo::uri and isInWorkspace', uri, isInWorkspace(uri));
             if (!tokenMap.has(uri)) {
                 tokenMap.set(uri, []);
             }
@@ -488,7 +489,7 @@ export async function processAndGenerateHierarchy(
     for (const def of allDef) {
         const currDependencies = await processParentDefinition(def, '', "dependent", getFullinfo);
         dependencies.push(...currDependencies); 
-        console.log('collectinfo::currDependencies', currDependencies);
+        // console.log('collectinfo::currDependencies', currDependencies);
         // Check if the current definition or its children contain the main function
         async function containsMainFunction(def: ParentDefinition): Promise<boolean> {
             if (def.parent.name === mainFunctionsymbol.name) {
