@@ -62,7 +62,9 @@ suite('Utils Test Suite', () => {
         
         symbolDocumentMaps = await loadAllTargetSymbolsFromWorkspace('java');
         console.log('We are loading tasklist of chatunitTest, symbolDocumentMaps', symbolDocumentMaps.length);
-        symbolDocumentMaps = await loadChatUnitestTaskList(tasklistPath, symbolDocumentMaps);
+        // symbolDocumentMaps = await loadChatUnitestTaskList(tasklistPath, symbolDocumentMaps);
+        const targetSymbol = "getDescription(Option)";
+        symbolDocumentMaps = extractSymbolBySymbolName(symbolDocumentMaps, targetSymbol);
         console.log('### Final Methods to be tested', symbolDocumentMaps.length);
     });
     
@@ -92,6 +94,12 @@ suite('Utils Test Suite', () => {
     });
 
 });
+
+
+
+function extractSymbolBySymbolName(symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[], symbolName: string): {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[] {
+    return symbolDocumentMaps.filter(({document, symbol}) => getCleanedSymbolName(symbol) === symbolName);
+}
 
 
 
