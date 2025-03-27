@@ -139,8 +139,8 @@ export class Configuration {
         this.config = { ...this.config, ...newConfig };
         if (newConfig.savePath) {
             this.createSavePathIfNotExists(this.config.savePath);
-            this.createSavePathIfNotExists(path.join(this.config.savePath, 'history'));
-            this.createSavePathIfNotExists(path.join(this.config.savePath, 'logs'));
+            this.createSavePathIfNotExists(path.join(this.config.savePath, '..', 'history'));
+            this.createSavePathIfNotExists(path.join(this.config.savePath, '..', 'logs'));
         }
     }
 
@@ -260,11 +260,11 @@ export class Configuration {
     }
 
     public get historyPath(): string {
-        return path.join(this.config.savePath, 'history');
+        return path.join(this.config.savePath, '..', 'history');
     }
 
     public get logSavePath(): string {
-        return path.join(this.config.savePath, 'logs');
+        return path.join(this.config.savePath, '..', 'logs');
     }
 
     public get workspace(): string {
