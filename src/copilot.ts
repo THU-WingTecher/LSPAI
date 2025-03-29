@@ -321,65 +321,66 @@ ${focalMethodSource}
   }
 }
 
-// export function parseCopilotPanelResponse(response: any){
+export function parseCopilotPanelResponse(response: any){
 
-// }
+}
 // ---------------------
 // RUN THE FULL EXAMPLE
 // ---------------------
-// async function main() {
-//   const connection = await copilotServer();
-//   await init(connection);
-//   await signIn(connection);
+async function main() {
+  const connection = await copilotServer();
+  await init(connection);
+  await signIn(connection);
 
-//   // Now that we *hopefully* have an authenticated Copilot session,
-//   // let's open a text document, then request a completion.
 
-//   const focalMethod = `function greet(name) {
-//     return "Hello, " + name;
-//   }`;
+  // Now that we *hopefully* have an authenticated Copilot session,
+  // let's open a text document, then request a completion.
+
+  const focalMethod = `function greet(name) {
+    return "Hello, " + name;
+  }`;
   
-//   const testFileName = "greet.test.js";
-//   const testTemplate = "Use Jest for testing. Each test should have descriptive names and multiple expect statements.";
-//   const langCode = "javascript";
+  const testFileName = "greet.test.js";
+  const testTemplate = "Use Jest for testing. Each test should have descriptive names and multiple expect statements.";
+  const langCode = "javascript";
   
-//   const response = await generateUnitTestsForFocalMethod(
-//     connection, // your MessageConnection
-//     focalMethod,
-//     testFileName,
-//     testTemplate,
-//     langCode
-//   );
+  // const response = await generateUnitTestsForFocalMethod(
+  //   connection, // your MessageConnection
+  //   focalMethod,
+  //   testFileName,
+  //   testTemplate,
+  //   langCode
+  // );
   
-//   if (!response || !response.items || response.items.length === 0) {
-//     console.log('No suggestions were returned by Copilot.');
-//     return;
-//   }
+  // if (!response || !response.items || response.items.length === 0) {
+  //   console.log('No suggestions were returned by Copilot.');
+  //   return;
+  // }
 
-//   const firstSuggestion = response.items[0];
-//   const suggestedTestCode = firstSuggestion.insertText || '';
+  // const firstSuggestion = response.items[0];
+  // const suggestedTestCode = firstSuggestion.insertText || '';
 
-//   console.log('Copilot suggestion chosen:', suggestedTestCode);
+  // console.log('Copilot suggestion chosen:', suggestedTestCode);
 
-//   // Step C: Actually create the test file on disk
-//   try {
-//     fs.writeFileSync(testFileName, suggestedTestCode, 'utf8');
-//     console.log(`Test file "${testFileName}" created successfully.`);
-//   } catch (err) {
-//     console.error(`Failed to create test file "${testFileName}":`, err);
-//     return;
-//   }
-//   // const docUri = '/LSPAI/src/copilot.ts'; // adapt to your local file
-//   // const docText = `function greet(name: string) {\n  return "Hello, " + name;\n}\n\n`;  
-//   // openTextDocument(docUri, docText);
+  // // Step C: Actually create the test file on disk
+  // try {
+  //   fs.writeFileSync(testFileName, suggestedTestCode, 'utf8');
+  //   console.log(`Test file "${testFileName}" created successfully.`);
+  // } catch (err) {
+  //   console.error(`Failed to create test file "${testFileName}":`, err);
+  //   return;
+  // }
+  const docUri = '/LSPAI/src/copilot.ts'; // adapt to your local file
+  const docText = `function greet(name: string) {\n  return "Hello, " + name;\n}\n\n`;  
+  openTextDocument(connection, docUri, docText);
 
-//   // // Wait a bit, then request an inline completion
-//   // await new Promise((resolve) => setTimeout(resolve, 2000));
+  // Wait a bit, then request an inline completion
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
-//   // // For example, let's request a completion at line 4, character 0
-//   // await requestInlineCompletion(docUri, 4, 0);
+  // For example, let's request a completion at line 4, character 0
+  await requestInlineCompletion(connection, docUri, 4, 0);
 
-//   // ... you can also sign out or handle partial acceptance, etc.
-// }
+  // ... you can also sign out or handle partial acceptance, etc.
+}
 
-// main().catch(console.error);
+main().catch(console.error);
