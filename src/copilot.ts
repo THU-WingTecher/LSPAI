@@ -1,5 +1,6 @@
 import { spawn, ChildProcess } from 'child_process';
 import { sign } from 'crypto';
+import * as vscode from 'vscode';
 import {
   createMessageConnection,
   MessageConnection,
@@ -80,7 +81,7 @@ export async function copilotServer() : Promise<MessageConnection> {
 // ----------------------
 // 4. INIT & SIGN-IN FLOW
 // ----------------------
-async function signIn(connection: MessageConnection){
+export async function signIn(connection: MessageConnection){
     try {
       const signInMethod = 'signIn';
       console.log('Sending signIn request...');
@@ -107,7 +108,7 @@ async function signIn(connection: MessageConnection){
         console.error('Error in SignIn:', error);
       }
     }
-async function init(connection: MessageConnection) {
+export async function init(connection: MessageConnection) {
   try {
     // 4a) Send the 'initialize' request
     const initializeParams: InitializeParams = {
@@ -237,11 +238,13 @@ async function requestInlineCompletion(connection: MessageConnection, uri: strin
  */
 export async function generateUnitTestsForFocalMethod(
   connection: MessageConnection,
-  focalMethodSource: string,
+  document: vscode.TextDocument,
+  symbol: vscode.DocumentSymbol,
   testFileName: string,
   unitTestTemplate: string,
   languageCode: string
 ): Promise<any> {
+  const focalMethodSource = document.getText(symbol.range);
   try {
     // 1) Create a “prompt” that provides context about what we want Copilot to do.
     const promptContent = `
@@ -256,12 +259,14 @@ Focal Method Source:
 ${focalMethodSource}
 
 // Goal: Write comprehensive unit tests based on the above method and template.
+// Note: There are No contents except for your response. Your Output should be a complete unit test codes without any error.
 */
 `;
 
     // 2) We’ll represent this prompt as if it were a file in the workspace.
     //    Construct a URI for it, and open the file (didOpen) so Copilot can index the text.
-    const docUri = 'file:///virtual/TestGenerationPrompt.txt';
+    // Goal : testFileName is a real file and will be generated, 
+    const docUri = 'file://' + testFileName;
     const version = 1;
 
     const textDocument: TextDocumentItem = {
@@ -316,65 +321,65 @@ ${focalMethodSource}
   }
 }
 
-export function parseCopilotPanelResponse(response: any){
+// export function parseCopilotPanelResponse(response: any){
 
-}
+// }
 // ---------------------
 // RUN THE FULL EXAMPLE
 // ---------------------
-async function main() {
-  const connection = await copilotServer();
-  await init(connection);
-  await signIn(connection);
+// async function main() {
+//   const connection = await copilotServer();
+//   await init(connection);
+//   await signIn(connection);
 
-  // Now that we *hopefully* have an authenticated Copilot session,
-  // let's open a text document, then request a completion.
+//   // Now that we *hopefully* have an authenticated Copilot session,
+//   // let's open a text document, then request a completion.
 
-  const focalMethod = `function greet(name) {
-    return "Hello, " + name;
-  }`;
+//   const focalMethod = `function greet(name) {
+//     return "Hello, " + name;
+//   }`;
   
-  const testFileName = "greet.test.js";
-  const testTemplate = "Use Jest for testing. Each test should have descriptive names and multiple expect statements.";
-  const langCode = "javascript";
+//   const testFileName = "greet.test.js";
+//   const testTemplate = "Use Jest for testing. Each test should have descriptive names and multiple expect statements.";
+//   const langCode = "javascript";
   
-  const response = await generateUnitTestsForFocalMethod(
-    connection, // your MessageConnection
-    focalMethod,
-    testFileName,
-    testTemplate,
-    langCode
-  );
+//   const response = await generateUnitTestsForFocalMethod(
+//     connection, // your MessageConnection
+//     focalMethod,
+//     testFileName,
+//     testTemplate,
+//     langCode
+//   );
   
-  if (!response || !response.items || response.items.length === 0) {
-    console.log('No suggestions were returned by Copilot.');
-    return;
-  }
+//   if (!response || !response.items || response.items.length === 0) {
+//     console.log('No suggestions were returned by Copilot.');
+//     return;
+//   }
 
-  const firstSuggestion = response.items[0];
-  const suggestedTestCode = firstSuggestion.insertText || '';
+//   const firstSuggestion = response.items[0];
+//   const suggestedTestCode = firstSuggestion.insertText || '';
 
-  console.log('Copilot suggestion chosen:', suggestedTestCode);
+//   console.log('Copilot suggestion chosen:', suggestedTestCode);
 
-  // Step C: Actually create the test file on disk
-  try {
-    fs.writeFileSync(testFileName, suggestedTestCode, 'utf8');
-    console.log(`Test file "${testFileName}" created successfully.`);
-  } catch (err) {
-    console.error(`Failed to create test file "${testFileName}":`, err);
-    return;
-  }
-  // const docUri = '/LSPAI/src/copilot.ts'; // adapt to your local file
-  // const docText = `function greet(name: string) {\n  return "Hello, " + name;\n}\n\n`;  
-  // openTextDocument(docUri, docText);
+//   // Step C: Actually create the test file on disk
+//   try {
+//     fs.writeFileSync(testFileName, suggestedTestCode, 'utf8');
+//     console.log(`Test file "${testFileName}" created successfully.`);
+//   } catch (err) {
+//     console.error(`Failed to create test file "${testFileName}":`, err);
+//     return;
+//   }
+//   // const docUri = '/LSPAI/src/copilot.ts'; // adapt to your local file
+//   // const docText = `function greet(name: string) {\n  return "Hello, " + name;\n}\n\n`;  
+//   // openTextDocument(docUri, docText);
 
-  // // Wait a bit, then request an inline completion
-  // await new Promise((resolve) => setTimeout(resolve, 2000));
+//   // // Wait a bit, then request an inline completion
+//   // await new Promise((resolve) => setTimeout(resolve, 2000));
 
-  // // For example, let's request a completion at line 4, character 0
-  // await requestInlineCompletion(docUri, 4, 0);
+//   // // For example, let's request a completion at line 4, character 0
+//   // await requestInlineCompletion(docUri, 4, 0);
 
-  // ... you can also sign out or handle partial acceptance, etc.
-}
+//   // ... you can also sign out or handle partial acceptance, etc.
+// }
 
-main().catch(console.error);
+// main().catch(console.error);

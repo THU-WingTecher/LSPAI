@@ -1,12 +1,22 @@
-// function DependentClassesPrompt(defUseMapString: string): string {
-// 	// System prompt from ChatUnitTest
-//     return `
-// 	The brief information of dependent class `` is :
-// 		#### Guidelines for Generating Unit Tests
-// 		1. When generating Unit test of the code, if there is unseen field, method, or variable, Please find the related source code from the following list and use it to generate the unit test.
-// 		${defUseMapString}
-//     `;
-// }
+import * as vscode from 'vscode';
+import { getImportStatement, getPackageStatement } from '../retrieve';
+
+export function getUnitTestTemplate(document: vscode.TextDocument, symbol:vscode.DocumentSymbol, FileName: string): string {
+    const languageId = document.languageId;
+    const packageString = getPackageStatement(document, languageId) ? getPackageStatement(document, languageId)![0] : '';
+    const packageStatement = packageString ? packageString.replace(";", "").split(' ')[1].replace(/\./g, '/') : '';
+    if (languageId === 'java') {
+        return JavaUnitTestTemplate(FileName, packageStatement);
+    } else if (languageId === 'go') {
+        return GoUnitTestTemplate(FileName, packageStatement);
+    } else if (languageId === 'python') {
+        const importString = getImportStatement(document, languageId, symbol);
+        const importStatement = importString ? importString : '';
+        return PythonUnitTestTemplate(FileName, packageStatement, importStatement);
+    } else {
+        return '';
+    }
+}
 
 export function JavaUnitTestTemplate(FileName: string, packageString: string): string {
     return `
