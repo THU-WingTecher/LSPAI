@@ -370,7 +370,7 @@ The extracted dataset will have this structure:
    git clone https://github.com/sirupsen/logrus.git
    cd logrus
    # Optional: Checkout specific commit (if applicable)
-   # git checkout <specific_version>
+   git checkout v1.9.3-10-gd1e6332
 
    # Go Setup
    go env -w GOPROXY=https://goproxy.io,direct
@@ -482,7 +482,7 @@ The extracted dataset will have this structure:
    git clone https://github.com/spf13/cobra.git
    cd cobra
    # Optional: Checkout specific commit (if applicable)
-   # git checkout <specific_version>
+   git checkout v1.7.0
 
    # Go Setup
    go env -w GOPROXY=https://goproxy.io,direct
@@ -632,6 +632,7 @@ The extracted dataset will have this structure:
    cd /LSPAI/experiments/projects
    git clone https://github.com/apache/commons-cli.git
    cd commons-cli
+   git checkout rel/commons-cli-1.9.0-135-geb541428
 
    # Java Setup
    mvn install -DskipTests -Drat.skip=true
@@ -790,7 +791,8 @@ The extracted dataset will have this structure:
    cd /LSPAI/experiments/projects
    git clone https://github.com/apache/commons-csv.git
    cd commons-csv
-
+   git checkout rel/commons-csv-1.13.0-9-g92e486ac
+   
    # Java Setup
    mvn install -DskipTests -Drat.skip=true
    mvn dependency:copy-dependencies
