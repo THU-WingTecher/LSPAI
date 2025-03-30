@@ -7,6 +7,7 @@ import { findFiles, generateFileNameForDiffLanguage, generateTimestampString } f
 import { getLanguageSuffix } from './language';
 import { generateUnitTestForAFunction } from './generate';
 import { currentExpProb, currentParallelCount, currentModel } from './config';
+import { activate } from './lsp';
 // Constants for experiment settings
 const MIN_FUNCTION_LINES = 4;
 export const DEFAULT_FILE_ENCODING = 'utf8';
@@ -46,6 +47,71 @@ function initializeSeededRandom(seed: number) {
     };
 }
 
+/**
+ * Save the symbol-document pairs to a JSON file named 'taskList.json'.
+ * 
+ * - Symbol: we store only `symbol.name`.
+ * - Document: we store the relative path (instead of absolute).
+ */
+async function saveTaskList(
+    symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[],
+    workspaceFolderPath: string,
+    outputFolderPath: string
+): Promise<void> {
+    const taskListFilePath = path.join(outputFolderPath, "taskList.json");
+
+    // Build the data to be written
+    const data = symbolDocumentMap.map(({ symbol, document }) => {
+        const relativePath = path.relative(workspaceFolderPath, document.uri.fsPath);
+        return {
+            symbolName: symbol.name,
+            sourceCode: document.getText(symbol.range),
+            lineNum: symbol.range.end.line - symbol.range.start.line,
+            relativeDocumentPath: relativePath
+        };
+    });
+
+    // Write to JSON file
+    await fs.promises.mkdir(path.dirname(taskListFilePath), { recursive: true });
+    await fs.promises.writeFile(taskListFilePath, JSON.stringify(data, null, 2), "utf8");
+    console.log(`Task list has been saved to ${taskListFilePath}`);
+}
+/**
+ * Load symbols specified in 'taskList.json' from the already collected symbol-document list.
+ * 
+ * - Reads 'taskList.json' and matches each entry against the provided allSymbols array.
+ * - If symbolName and relative path match, that pair is included in the returned array.
+ */
+async function extractSymbolDocumentMapFromTaskList(
+    workspaceFolderPath: string,
+    allCollectedSymbols: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[],
+    taskListFilePath: string
+): Promise<{ symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[]> {
+    // Read the file
+    const buffer = await fs.promises.readFile(taskListFilePath, "utf8");
+    const taskList = JSON.parse(buffer) as any;
+
+    const matchedSymbols: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[] = [];
+
+    // For each entry in taskList, find matching symbol-document in allCollectedSymbols
+    for (const taskItem of taskList) {
+        const { symbolName, sourceCode, lineNum, relativeDocumentPath } = taskItem;
+
+        // Attempt to find a corresponding item in allCollectedSymbols
+        const matched = allCollectedSymbols.find(({ symbol, document }) => {
+            const currentRelativePath = path.relative(workspaceFolderPath, document.uri.fsPath);
+            return symbol.name === symbolName && currentRelativePath === relativeDocumentPath;
+        });
+
+        if (matched) {
+            matchedSymbols.push(matched);
+        }
+    }
+
+    console.log(`Loaded ${matchedSymbols.length} matching symbol-document pairs from taskList.`);
+    return matchedSymbols;
+}
+
 async function _experiment(srcPath: string, language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
 	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
 	const folderPath = path.join(workspace, RESULTS_FOLDER_PREFIX + generateTimestampString());
@@ -69,6 +135,7 @@ async function _experiment(srcPath: string, language: string, methods: string[])
 	for (const filePath of Files) {
 		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
 		console.log(`#### Preparing symbols under file: ${filePath}`);
+        await activate(document.uri);
 		const symbols = await getAllSymbols(document.uri);
 		if (symbols) {
 			for (const symbol of symbols) {
@@ -88,11 +155,16 @@ async function _experiment(srcPath: string, language: string, methods: string[])
 		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
 	}
 	const generatedResults: { [key: string]: boolean[] } = {};
-    
-	for (const method of methods) {
-		console.log(`#### Starting experiment for method: ${method}`);
-		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
-	}
+    await saveTaskList(symbolDocumentMap, workspace, folderPath);
+    const matchedSymbols = await extractSymbolDocumentMapFromTaskList(
+        workspace,
+        symbolDocumentMap,
+        path.join(folderPath, "taskList.json")
+    );
+	// for (const method of methods) {
+	// 	console.log(`#### Starting experiment for method: ${method}`);
+	// 	generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
+	// }
 	console.log('#### Experiment completed!');
 
     console.log(`Testing the folder of ${srcPath}`);

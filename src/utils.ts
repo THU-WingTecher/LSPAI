@@ -64,7 +64,7 @@ export function isStandardClass(uri: string, language: string): boolean {
     return patterns.some(pattern => decodedUri.includes(pattern));
 }
 
-async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+export async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
 	const symbols = await Promise.race([
 		vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
 			'vscode.executeDocumentSymbolProvider',
