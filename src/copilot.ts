@@ -1,15 +1,10 @@
 import { spawn, ChildProcess } from 'child_process';
-import { sign } from 'crypto';
 import * as vscode from 'vscode';
 import {
   createMessageConnection,
   MessageConnection,
-  NotificationType,
-  RequestType,
 } from 'vscode-jsonrpc';
-import { RequestCancellationReceiverStrategy } from 'vscode-jsonrpc/lib/common/connection';
 import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
-import * as fs from 'fs';
 import {
   InitializeParams,
   InitializeRequest,
@@ -383,4 +378,4 @@ async function main() {
   // ... you can also sign out or handle partial acceptance, etc.
 }
 
-main().catch(console.error);
+// main().catch(console.error);
