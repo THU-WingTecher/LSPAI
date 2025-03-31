@@ -13,9 +13,16 @@ import {
   DidChangeConfigurationNotification,
   DidOpenTextDocumentNotification,
   TextDocumentItem,
-  Position
+  Position,
+  DidChangeTextDocumentNotification
   // You can import other LSP structures (e.g. DidChangeConfigurationNotification, etc.)
 } from 'vscode-languageserver-protocol';
+import { commentizeCode } from './utils';
+import { _generateFileNameForDiffLanguage, saveGeneratedCodeToFolder } from './fileHandler';
+import { workspace } from 'vscode';
+import { getConfigInstance } from './config';
+import { getUnitTestTemplateOnly } from './prompts/template';
+import { sleep } from './helper';
 
 // --------------------
 // 1. SPAWN THE SERVER
@@ -26,7 +33,7 @@ export async function copilotServer() : Promise<MessageConnection> {
   const copilotProcess: ChildProcess = spawn(
     'node',
     [
-      './node_modules/@github/copilot-language-server/dist/language-server.js',
+      '/LSPAI/node_modules/@github/copilot-language-server/dist/language-server.js',
       '--stdio',
     ],
     {
@@ -103,6 +110,26 @@ export async function signIn(connection: MessageConnection){
         console.error('Error in SignIn:', error);
       }
     }
+
+    
+export async function experimentWithCopilot(connection: any, symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[], workspace: string, _round: number) : Promise<any[]> {
+  const generatedResults: any[] = [];
+  const num_parallel = getConfigInstance().parallelCount;
+  for (const { document, symbol } of symbolDocumentMaps) {
+    const fileName = _generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'python', [], -1)
+    const response = await generateUnitTestsForFocalMethod(
+      connection, // your MessageConnection
+      document,
+      document.uri.fsPath.replace(workspace, ''),
+      document.getText(symbol.range),
+      fileName,
+      getUnitTestTemplateOnly(document, symbol, fileName),
+      document.languageId
+    );
+  }
+  return generatedResults;
+}
+
 export async function init(connection: MessageConnection) {
   try {
     // 4a) Send the 'initialize' request
@@ -218,7 +245,182 @@ async function requestInlineCompletion(connection: MessageConnection, uri: strin
   }
 }
 
+function testClassName(languageId: string){
+  switch (languageId){
+    case 'python':
+      return 'class Test';
+    case 'java':
+      return 'public class';
+    case 'go':
+      return 'func Test';
+    default:
+      return 'Test';
+  }
+}
 
+function findFarthestEmptyLineBeforeTarget(arr: (number | string)[], targetIndex: number): number {
+  
+  let farthestZero = -1;
+
+  for (let i = targetIndex - 1; i >= 0; i--) {
+      if (arr[i] === '') {
+          farthestZero = i;
+      } else {
+          break;
+      }
+  }
+
+  return farthestZero;
+}
+
+async function replaceImportsPlaceholder(connection: any, uriOfMethod: string, textDocument: TextDocumentItem, languageCode: string) {
+  // Find the position of the placeholder
+  
+  const placeholder = testClassName(languageCode);
+  const position = textDocument.text.indexOf(placeholder);
+  
+  if (position === -1) {
+      return textDocument.text; // No placeholder found
+  }
+
+  // Calculate the position for completion request
+  const textBeforePosition = textDocument.text.substring(0, position);
+  const lines = textBeforePosition.split('\n');
+  const line = findFarthestEmptyLineBeforeTarget(lines, lines.length );
+  
+  const character = 0; // Start of the next line
+  console.log(textDocument.text.split('\n'), textDocument.text.split('\n')[line], line)
+
+  // Request completion at the imports position
+  const completionParams = {
+      textDocument: { uri: textDocument.uri },
+      position: { line, character },
+      prompt: `the focal function is in the ${uriOfMethod} file. you need to import needed library including the ${uriOfMethod} file.`
+  };
+
+  const testText = await requestPanelCompletion(connection, completionParams);
+  
+  // Replace the placeholder with the generated imports
+  return textDocument.text.slice(0, position) + testText + textDocument.text.slice(position);
+}
+
+async function requestPanelCompletion(connection: any, params: any): Promise<string> {
+  const maxRetries = 3;  // Maximum number of retry attempts
+  const retryDelay = 1000;  // Delay between retries in milliseconds
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await connection.sendRequest('textDocument/copilotPanelCompletion', params);
+      
+      if (response?.items?.[0]?.insertText) {
+        console.log('response.items[0].insertText', response.items[0].insertText);
+        return response.items[0].insertText;
+      }
+      
+      console.log(`No suggestions returned by Copilot (attempt ${attempt}/${maxRetries})`);
+      
+      if (attempt < maxRetries) {
+        console.log(`Waiting ${retryDelay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    } catch (error) {
+      console.error(`Error in attempt ${attempt}/${maxRetries}:`, error);
+      
+      if (attempt < maxRetries) {
+        console.log(`Waiting ${retryDelay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+  }
+  
+  return ''; // Return empty string after all retries are exhausted
+}
+
+async function replaceSetupPlaceholder(connection: any, textDocument: TextDocumentItem, languageCode: string) {
+  // Find the position of the placeholder
+  const placeholder = '{Replace with needed setup}';
+  const position = textDocument.text.indexOf(placeholder);
+  
+  if (position === -1) {
+      return textDocument.text; // No placeholder found
+  }
+
+  // Calculate the position for completion request
+  const lines = textDocument.text.substring(0, position).split('\n');
+  const line = lines.length - 1;
+  const character = lines[lines.length - 1].length;
+
+  // Request completion at the imports position
+  const completionParams = {
+      textDocument: { uri: textDocument.uri },
+      position: { line, character },
+      prompt: 'Generate setup for the unit test of given focal method.'
+  };
+
+  const setUpText = await requestPanelCompletion(connection, completionParams);
+
+  // Replace the placeholder with the generated imports
+  return textDocument.text.replace(placeholder, setUpText);
+}
+
+async function waitUntilNotBusy(connection: MessageConnection): Promise<void> {
+  return new Promise((resolve) => {
+    const disposable = connection.onNotification('statusNotification', (params: any) => {
+      if (params.busy === false) {
+        // Dispose of the listener once we get a not-busy status
+        disposable.dispose();
+        resolve();
+      }
+    });
+  });
+}
+
+async function replaceTestPlaceholder(connection: any, focalMethod: string, textDocument: TextDocumentItem, languageCode: string) {
+  // Find the position of the placeholder
+  const placeholder = testClassName(languageCode);
+  const position = textDocument.text.indexOf(placeholder);
+  const testTemplate = "Use Python's unittest framework for testing. Each test should have descriptive names and multiple expect statements.";
+  const promptContent = `
+  Focal Method Source: 
+  ${focalMethod}
+  Unit Test Template:
+  ${testTemplate}`;
+
+  if (position === -1) {
+      return textDocument.text; // No placeholder found
+  }
+
+  // Calculate the position for completion request
+  const textBeforePosition = textDocument.text.substring(0, position);
+  const lines = textBeforePosition.split('\n');
+  const line = lines.length + 1; // This will be the line of "class Test"
+  console.log(textDocument.text.split('\n'), textDocument.text.split('\n')[line], line)
+  const character = 0; // Start of the next line
+  const allLines = textDocument.text.split('\n');
+  const lineIndex = allLines.findIndex(line => line.includes(placeholder));
+  // Request completion at the imports position
+  const completionParams = {
+      textDocument: { uri: textDocument.uri },
+      position: { line, character },
+      prompt: promptContent
+  };
+
+  const testText = await requestPanelCompletion(connection, completionParams);
+  // Replace the placeholder with the generated imports
+  return allLines.slice(0, lineIndex).join('\n') + testText + allLines.slice(lineIndex + 1).join('\n'); 
+}
+
+// async function requestPanelCompletion(connection: any, params: any) : Promise<string> {
+//   // await waitUntilNotBusy(connection);
+//   const response = await connection.sendRequest('textDocument/copilotPanelCompletion', params);
+//   if (!response || !response.items || response.items.length === 0 || !response.items[0].insertText) {
+//       console.log('No suggestions were returned by Copilot.');
+//       return ''; // Remove placeholder if no suggestions
+//   }
+//   // Get the first suggestion
+//   console.log('response.items[0].insertText', response.items[0].insertText);
+//   return response.items[0].insertText;
+// }
 /**
  * Generates a set of unit-test suggestions for a given focal method by leveraging
  * Copilot’s panel completion endpoint (`textDocument/copilotPanelCompletion`).
@@ -234,82 +436,101 @@ async function requestInlineCompletion(connection: MessageConnection, uri: strin
 export async function generateUnitTestsForFocalMethod(
   connection: MessageConnection,
   document: vscode.TextDocument,
-  symbol: vscode.DocumentSymbol,
-  testFileName: string,
+  uriOfMethod: string,
+  focalMethod: string,
+  fileName: string,
   unitTestTemplate: string,
   languageCode: string
 ): Promise<any> {
-  const focalMethodSource = document.getText(symbol.range);
+  console.log('generateUnitTestsForFocalMethod', uriOfMethod, focalMethod, fileName, unitTestTemplate, languageCode)
   try {
     // 1) Create a “prompt” that provides context about what we want Copilot to do.
-    const promptContent = `
-/*
-Language: ${languageCode}
-Test File: ${testFileName}
 
-Instructions / Template:
-${unitTestTemplate}
-
-Focal Method Source:
-${focalMethodSource}
-
-// Goal: Write comprehensive unit tests based on the above method and template.
-// Note: There are No contents except for your response. Your Output should be a complete unit test codes without any error.
-*/
-`;
-
+    let startContent = unitTestTemplate;
     // 2) We’ll represent this prompt as if it were a file in the workspace.
     //    Construct a URI for it, and open the file (didOpen) so Copilot can index the text.
     // Goal : testFileName is a real file and will be generated, 
-    const docUri = 'file://' + testFileName;
     const version = 1;
-
-    const textDocument: TextDocumentItem = {
-      uri: docUri,
+    await saveGeneratedCodeToFolder(startContent, fileName);  
+    const textDocument = await workspace.openTextDocument(fileName);
+    const textDocumentItem: TextDocumentItem = {
+      uri: textDocument.uri.fsPath,
       languageId: languageCode,
       version,
-      text: promptContent
+      text: textDocument.getText()
     };
 
     // Notify the server that this doc is open
     connection.sendNotification(DidOpenTextDocumentNotification.type, {
-      textDocument
-    });
+      textDocument: textDocumentItem
+    }); 
+    await vscode.workspace.openTextDocument(document.uri);
+    await vscode.window.showTextDocument(document); // Add this line to physically open the document
 
-    // 3) Build the request parameters for "panel completion."
-    //    We typically pick a position near the end of the document
-    //    so Copilot can see everything above it.
-    const lines = promptContent.split('\n');
-    const docLineCount = lines.length;
-    const lastLineIndex = docLineCount > 0 ? docLineCount - 1 : 0;
-    const lastLineLength = lines[lastLineIndex].length;
-
-    const position: Position = {
-      line: lastLineIndex,
-      character: lastLineLength
-    };
-
-    const panelCompletionParams = {
+    connection.sendNotification(DidOpenTextDocumentNotification.type, {
       textDocument: {
-        uri: docUri,
-        version
-      },
-      position,
-      // partialResultToken: 'some-optional-token'
-    };
+        uri: document.uri.fsPath,
+        languageId: document.languageId,
+        version: document.version,
+        text: document.getText()
+      }
+    }); 
 
-    // 4) Send the request to Copilot’s "panel completion" endpoint.
-    //    This should return an object with an `items` array, each item having `insertText`, etc.
-    console.log('Requesting Copilot panel completion for unit test generation...');
-    const response = await connection.sendRequest(
-      'textDocument/copilotPanelCompletion',
-      panelCompletionParams
-    );
+    // Replace imports placeholder
+    // const updatedContent = await replaceImportsPlaceholder(connection, uriOfMethod, textDocumentItem, languageCode);
+    // if (updatedContent !== textDocumentItem.text) {
+    //     // Save the updated content
+    //     await saveGeneratedCodeToFolder(updatedContent, fileName);
+    //     // Update the document
+    //     textDocumentItem.text = updatedContent;
+    //     textDocumentItem.version += 1;
+    //     // Notify the server about the change
+    //     connection.sendNotification(DidChangeTextDocumentNotification.type, {
+    //         textDocument: {
+    //             uri: textDocumentItem.uri,
+    //             version: textDocumentItem.version
+    //         },
+    //         contentChanges: [{ text: updatedContent }]
+    //     });
+    //     console.log('Updated content:', updatedContent);
+    // }
 
-    // 5) Log or return the result so you can display it to the user, etc.
-    console.log('Panel Completion Response:', JSON.stringify(response, null, 2));
+    // const secondUpdatedContent = await replaceSetupPlaceholder(connection, textDocumentItem, languageCode);
+    // if (secondUpdatedContent !== textDocumentItem.text) {
+    //     // Save the updated content
+    //     await saveGeneratedCodeToFolder(secondUpdatedContent, fileName);
+    //     // Update the document
+    //     textDocumentItem.text = secondUpdatedContent;
+    //     textDocumentItem.version += 1;
+    //     // Notify the server about the change
+    //     connection.sendNotification(DidChangeTextDocumentNotification.type, {
+    //         textDocument: {
+    //             uri: textDocumentItem.uri,
+    //             version: textDocumentItem.version
+    //         },
+    //         contentChanges: [{ text: secondUpdatedContent }]
+    //     });
+    //     console.log('Second updated content:', secondUpdatedContent);
+    // }
 
-    return response;
+    const thirdUpdatedContent = await replaceTestPlaceholder(connection, focalMethod, textDocumentItem, languageCode);
+    if (thirdUpdatedContent !== textDocumentItem.text) {
+        // Save the updated content
+        await saveGeneratedCodeToFolder(thirdUpdatedContent, fileName);
+        // Update the document
+        textDocumentItem.text = thirdUpdatedContent;
+        textDocumentItem.version += 1;
+        // Notify the server about the change
+        connection.sendNotification(DidChangeTextDocumentNotification.type, {
+            textDocument: {
+                uri: textDocumentItem.uri,
+                version: textDocumentItem.version
+            },
+            contentChanges: [{ text: thirdUpdatedContent }]
+        });
+        console.log('Third updated content:', thirdUpdatedContent);
+    }
+    return thirdUpdatedContent;
   } catch (error) {
     console.error('Error generating unit tests:', error);
     throw error;

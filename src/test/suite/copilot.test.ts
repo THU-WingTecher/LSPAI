@@ -7,18 +7,13 @@ import { getConfigInstance, GenerationType, PromptType, Provider } from '../../c
 import path from 'path';
 import { _generateFileNameForDiffLanguage, generateFileNameForDiffLanguage, generateTimestampString, saveGeneratedCodeToFolder } from '../../fileHandler';
 import { ProjectName } from '../../config';
-import fs from 'fs';
-import { METHODS } from 'http';
-import { generateUnitTestsForFocalMethod, init, signIn } from '../../copilot';
-import { copilotServer } from '../../copilot';
-import { generateUnitTestForAFunction } from '../../generate';
-import { getUnitTestTemplate } from '../../prompts/template';
+import { experimentWithCopilot, init, signIn, copilotServer } from '../../copilot';
 
 suite('Utils Test Suite', () => {
 
     let currentSrcPath: string;
     let symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[];
-    const projectPath = "/LSPAI/experiments/projects/commons-cli";
+    const projectPath = "/LSPAI/experiments/projects/black";
     const workspaceFolders = setWorkspaceFolders(projectPath);
     vscode.workspace.updateWorkspaceFolders(0, 1, {
         uri: vscode.Uri.file(projectPath),
@@ -69,7 +64,7 @@ suite('Utils Test Suite', () => {
       console.log('Current Config:', getConfigInstance());
       // console.log('symbolDocumentMaps', symbolDocumentMaps.length);
       
-      symbolDocumentMaps = await loadAllTargetSymbolsFromWorkspace('java');
+      symbolDocumentMaps = await loadAllTargetSymbolsFromWorkspace('python');
       console.log('We are loading tasklist of chatunitTest, symbolDocumentMaps', symbolDocumentMaps.length);
       });
 
@@ -92,48 +87,3 @@ suite('Utils Test Suite', () => {
       });
 
 });
-
-export async function experimentWithCopilot(connection: any, symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[], currentSrcPath: string, _round: number) : Promise<any[]> {
-  const generatedResults: any[] = [];
-  const num_parallel = getConfigInstance().parallelCount;
-  for (let i = 0; i < symbolDocumentMaps.length; i += num_parallel) {
-      const batch = symbolDocumentMaps.slice(i, i + num_parallel);
-      const symbolTasks = batch.map(async ({ document, symbol }) => {
-          console.log(`#### Processing symbol ${symbol.name}`);
-          for (let round = 0; round < getConfigInstance().testNumber; round++) {
-            const fileName = _generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'java', [], round)
-            const response = await generateUnitTestsForFocalMethod(
-              connection, // your MessageConnection
-              document,
-              symbol,
-              fileName,
-              getUnitTestTemplate(document, symbol, fileName),
-              document.languageId
-            );
-            
-            if (!response || !response.items || response.items.length === 0) {
-              console.log('No suggestions were returned by Copilot.');
-              return;
-            }
-          
-            const firstSuggestion = response.items[0];
-            const suggestedTestCode = firstSuggestion.insertText || '';
-            if (suggestedTestCode.length === 0) {
-              console.log('WARN: No suggestions were returned by Copilot.');
-              return;
-            }
-            
-            await saveGeneratedCodeToFolder(suggestedTestCode, fileName);
-            console.log(`[Progress:${i}] Unit test (${getConfigInstance().model}) for ${symbol.name}(round:${round}) generated!`);
-            break;
-          }
-      });
-      await Promise.all(symbolTasks.map(task => 
-          Promise.race([
-              task,
-              sleep(600 * 1000).then(() => console.warn('Timeout exceeded for symbol processing'))
-          ])
-      ));
-  }
-  return generatedResults;
-}

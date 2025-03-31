@@ -43,6 +43,10 @@
         "title": "LSPAI: Python-Experiment"
       },
       {
+        "command": "lspAi.CopilotExperiment",
+        "title": "LSPAI: Copilot-Experiment"
+      },
+      {
         "command": "lspAi.GoExperiment",
         "title": "LSPAI: Go-Experiment"
       },
