@@ -5,12 +5,21 @@ import { collectTrainData, main } from './train/collectTrainData';
 import * as fs from 'fs';
 import path from 'path';
 import { getCodeAction } from './diagnostic';
+import { generateUnitTestsForFocalMethod, init, signIn, copilotServer } from './copilot';
+import { GenerationType, PromptType, FixType } from './config';
+import { loadAllTargetSymbolsFromWorkspace } from './helper';
+import { experimentWithCopilot } from './copilot';
+import { generateTimestampString } from './fileHandler';
+
 export async function activate(context: vscode.ExtensionContext) {
 
 	const workspace = vscode.workspace.workspaceFolders;
 
 	if (workspace && workspace.length > 0) {	
 		console.log(`Workspace: ${workspace[0].uri.fsPath}`);
+		getConfigInstance().updateConfig({
+			workspace: workspace[0].uri.fsPath
+		});
 	} else {
 		console.log(`No workspace found`);
 	}
@@ -20,6 +29,54 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log(`EXP_PROB_TO_TEST: ${getConfigInstance().expProb}`);
 	console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 
+	// ... existing code ...
+
+	const copilotExperimentDisposable = vscode.commands.registerCommand('lspAi.CopilotExperiment', async () => {
+		try {
+		// Show progress indicator
+		await vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: "Running Copilot Experiment...",
+			cancellable: false
+		}, async (progress) => {
+			// Initialize Copilot connection
+			const connection = await copilotServer();
+			await init(connection);
+			await signIn(connection);
+	
+			// Load symbols from workspace
+			const symbolDocumentMaps = await loadAllTargetSymbolsFromWorkspace('python');
+			
+			// Update config for the experiment
+			getConfigInstance().updateConfig({
+			generationType: GenerationType.AGENT,
+			fixType: FixType.GROUPED,
+			promptType: PromptType.DETAILED,
+			savePath: path.join(
+				getConfigInstance().workspace, 
+				`results_copilot_${getConfigInstance().generationType}_${getConfigInstance().promptType}_${generateTimestampString()}`,
+				getConfigInstance().model
+			)
+			});
+	
+			// Run the experiment
+			const results = await experimentWithCopilot(
+			connection,
+			symbolDocumentMaps,
+			vscode.workspace.workspaceFolders?.[0].uri.fsPath || '',
+			0
+			);
+	
+			vscode.window.showInformationMessage('Copilot experiment completed successfully!');
+		});
+		} catch (error) {
+		vscode.window.showErrorMessage(`Failed to run Copilot experiment: ${error}`);
+		}
+	});
+	
+	context.subscriptions.push(copilotExperimentDisposable);
+  
+  // ... existing code ...
 
 	const diagnosticDisposable = vscode.commands.registerCommand('extension.diagnostic', async () => {
 
