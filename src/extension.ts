@@ -45,19 +45,21 @@ export async function activate(context: vscode.ExtensionContext) {
 			await signIn(connection);
 	
 			// Load symbols from workspace
-			const symbolDocumentMaps = await loadAllTargetSymbolsFromWorkspace('python');
-			
-			// Update config for the experiment
 			getConfigInstance().updateConfig({
 			generationType: GenerationType.AGENT,
 			fixType: FixType.GROUPED,
 			promptType: PromptType.DETAILED,
+			expProb: 1,
 			savePath: path.join(
 				getConfigInstance().workspace, 
 				`results_copilot_${getConfigInstance().generationType}_${getConfigInstance().promptType}_${generateTimestampString()}`,
 				getConfigInstance().model
 			)
 			});
+			
+			const symbolDocumentMaps = await loadAllTargetSymbolsFromWorkspace('python');
+			
+			// Update config for the experiment
 	
 			// Run the experiment
 			const results = await experimentWithCopilot(
