@@ -198,11 +198,7 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string) :
 					}
 				}
 			}
-        
 		}
-        if (symbolDocumentMap.length > 0) {
-            break;
-        }
 		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
 	}
     return symbolDocumentMap;
