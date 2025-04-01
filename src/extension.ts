@@ -147,28 +147,23 @@ export async function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		// Show progress indicator
-		await vscode.window.withProgress({
-			location: vscode.ProgressLocation.Notification,
-			title: "Generating unit test...",
-			cancellable: false
-		}, async (progress) => {
-			try {
-				const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
-				if (testCode) {
-					// Create a new untitled document with the generated code
-					const newDocument = await vscode.workspace.openTextDocument({
-						language: editor.document.languageId,
-						content: testCode
-					});
-					await vscode.window.showTextDocument(newDocument, { preview: true });
-					vscode.window.showInformationMessage('Unit test generated successfully!');
-				}
-			} catch (error) {
-				vscode.window.showErrorMessage(`Failed to generate unit test: ${error}`);
+
+		try {
+			const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
+			if (testCode) {
+				// Create a new untitled document with the generated code
+				const newDocument = await vscode.workspace.openTextDocument({
+					language: editor.document.languageId,
+					content: testCode
+				});
+				await vscode.window.showTextDocument(newDocument, { preview: true });
+				vscode.window.showInformationMessage('Unit test generated successfully!');
 			}
-		});
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to generate unit test: ${error}`);
+		}
 	});
+	
 	context.subscriptions.push(disposable);
 
 	// const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {

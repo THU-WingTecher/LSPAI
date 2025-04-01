@@ -46,6 +46,16 @@ export type Provider = 'openai' | 'local' | 'deepseek';
 // Function to load private configuration
 export function loadPrivateConfig(configPath: string = path.join(__dirname, '../../test-config.json')): PrivateConfig {
     // First try to load from environment variables
+    const config = vscode.workspace.getConfiguration('lspAi');
+    if (config) {
+        console.log('config::config', config);
+        return {
+            openaiApiKey: config.get<string>('openaiApiKey') || '',
+            deepseekApiKey: config.get<string>('deepseekApiKey') || '',
+            localLLMUrl: config.get<string>('localLLMUrl') || '',
+            proxyUrl: config.get<string>('proxyUrl') || '',
+        };
+    }
     const fromEnv = {
         openaiApiKey: process.env.TEST_OPENAI_API_KEY,
         deepseekApiKey: process.env.TEST_DEEPSEEK_API_KEY,
