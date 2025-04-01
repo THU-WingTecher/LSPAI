@@ -23,7 +23,7 @@ REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
 cd "$TARGET_PROJECT_PATH" || exit 1
 
 TARGET_DIR_DEPENDENCIES=$(find target/dependency/ -name "*.jar" | tr '\n' ':')
-LIB_DIR="/LSPAI/experiments/scripts/lib"
+LIB_DIR="/LSPAI/scripts/lib"
 LSPAI_DEPENDENCY_LIBS=$(find $LIB_DIR -name "*.jar" | tr '\n' ':')
 DEPENDENCY_LIBS=$LSPAI_DEPENDENCY_LIBS:$TARGET_DIR_DEPENDENCIES
 COMPILED_SOURCE="target/classes"
