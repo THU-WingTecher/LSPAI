@@ -1,8 +1,6 @@
 #!/bin/bash
 # set -x
-#!/bin/bash
-# overall statements : 588(go test -cover -coverprofile=cov.out, /LSPAI/experiments/logrus# python3 /LSPAI/interpret_go_out.py cov.out)
-# Check if the required parameters are provided
+
 if [ -z "$1" ]; then
     echo "Error: Target project path is missing."
     echo "Usage: $0 <target_project_path> <test_save_dir> [report_dir]"
@@ -33,7 +31,7 @@ fix_case_sensitive_collisions() {
             
             # Rename the current file by adding a numeric suffix
             counter=1
-            new_name="${filename%.*}_${counter}${filename##*.}"
+            new_name="${filename%.*}_${counter}.${filename##*.}"
             while [ -f "$(dirname "$file")/$new_name" ]; do
                 ((counter++))
                 new_name="${filename%.*}_${counter}.${filename##*.}"
@@ -68,7 +66,7 @@ fi
 
 cp "$TARGET_PROJECT_PATH/go.mod" "$TEST_DIR/"
 cp "$TARGET_PROJECT_PATH/go.sum" "$TEST_DIR/"
-
+total_files=$(find "$TEST_DIR" -type f -name "*_test.go" | wc -l)
 # Copy all source code files except test files to the current directory
 # find "$TARGET_PROJECT_PATH" -type f -name "*.go" ! -name "*_test.go" ! -path "*/results*" ! -path "*/tests*" | while read -r src; do
 #     # Create the target directory structure in the current directory
@@ -83,7 +81,11 @@ mkdir -p "$REPORT_DIR"
 
 # Create clean directory
 mkdir -p "$CLEAN_DIR"
-rm -r "$CLEAN_DIR"/*
+
+# Check if CLEAN_DIR exists and has contents before removing
+if [ -d "$CLEAN_DIR" ] && [ "$(ls -A "$CLEAN_DIR")" ]; then
+    rm -r "$CLEAN_DIR"/*
+fi
 
 # Navigate to target project path
 export GOPROXY=direct,https://proxy.golang.org
@@ -103,10 +105,8 @@ while [ $? -ne 0 ]; do
     fix_case_sensitive_collisions .
 done
 
-go mod tidy
-
 # Run tests repeatedly until there are no errors
-max_attempts=50  # Add a maximum number of attempts to prevent infinite loops
+max_attempts=100  # Add a maximum number of attempts to prevent infinite loops
 attempt=1
 
 while true; do
@@ -114,7 +114,7 @@ while true; do
     python3 "$SCRIPT_PATH" "$error_log"
     echo "$error_log"
     # Check if error_log is empty or contains no errors
-    if [[ -z "$error_log" ]] || ! echo "$error_log" | grep -q "FAIL\|panic\|error"; then
+    if [[ -z "$error_log" ]] || ! echo "$error_log" | grep -q "Error\|panic\|build failed\|setup failed"; then
         echo "Tests passed successfully on attempt $attempt"
         break
     fi
@@ -125,85 +125,89 @@ while true; do
         break
     fi
     
-    echo "Attempt $attempt failed, retrying..."
+    echo "Attempt $attempt : still have errored scripts, keep cleaning and retrying..."
     ((attempt++))
     sleep 1  # Add a small delay between attempts
 done
-# echo "Re Running Test Files"
-# COVERAGE_REPORT=${REPORT_DIR}/coverage.out
-# echo "" > $COVERAGE_REPORT
 
-# if [[ "$TARGET_PROJECT_PATH" == *cobra ]]; then
-#     go test ./... \
-#         -coverpkg=github.com/spf13/cobra,github.com/spf13/cobra/doc \
-#         -coverprofile=${COVERAGE_REPORT} \
-#         -covermode=atomic || true
-#     exit 0
-# fi
-
-    # go test -v ./...
-
-# if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then
-
-#     echo "Collecting coverage data for logrus..."
-    
-#     # Define coverage output file
-#     COVERAGE_FILE="${REPORT_DIR}/coverage.out"
-    
-#     # Run tests with coverage
-#     if go test ./... -cover -coverprofile="${COVERAGE_FILE}" -covermode=atomic; then
-#         echo "Coverage data collected successfully"
-#     else
-#         echo "Warning: Coverage collection completed with some errors"
-#     fi
-    
-#     # Generate HTML report for easier viewing (optional)
-#     if [ -f "${COVERAGE_FILE}" ]; then
-#         go tool cover -html="${COVERAGE_FILE}" -o "${REPORT_DIR}/coverage.html"
-        
-#         # Display coverage summary
-#         echo "Coverage summary:"
-#         go tool cover -func="${COVERAGE_FILE}" | tail -n 1
-#     else
-#         echo "Error: Coverage file was not generated"
-#     fi
-# fi
+go mod tidy
 
 if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then
+    echo "Collecting coverage data for logrus..."
+    covepackage="github.com/sirupsen/logrus"
+elif [[ "$TARGET_PROJECT_PATH" == *cobra ]]; then
+    echo "Collecting coverage data for cobra..."
+    covepackage="github.com/spf13/cobra,github.com/spf13/cobra/doc"
+else
+    echo "Not supported project"
+    exit 1
+fi
 
-    # go test ./... github.com/sirupsen/logrus     -cover     -coverprofile=coverage.out     -covermode=atomic || true
+# Create coverage output file with header
+echo "mode: atomic" > coverage.tmp
 
-    find -name '*_test.go' | while read -r TEST_FILE; do
-        # Get the directory of the test file
-        DIR=$(dirname "$TEST_FILE")
-        # Run the test with coverage
-        echo "Running coverage of $TEST_FILE"
-        # go test ./... -coverprofile=${REPORT_DIR}/coverage.out -run $TEST_FILE > test_output.log 2>&1
-        go test -covermode=count -coverprofile=${REPORT_DIR}/coverage.out -run $TEST_FILE > test_output.log 2>&1
-        cat ${REPORT_DIR}/coverage.out
-        # Check if coverage.out was generated
-        if [ -f ${REPORT_DIR}/coverage.out ]; then
-            COVERAGE=$(go tool cover -func=${REPORT_DIR}/coverage.out | tail -n 1)
+# Initialize counters
+passed_files=0
+total_funcs=0
+passed_funcs=0
 
+# Find all test files
+for testfile in *_test.go; do
+    echo "Processing test file: $testfile"
+    
+    # Initialize file-level success tracking
+    file_all_passed=true
+    file_func_count=0
+    
+    # Extract all test function names from the file
+    while read -r funcname; do
+        if [ ! -z "$funcname" ]; then
+            ((total_funcs++))
+            ((file_func_count++))
+            echo "Running test function: $funcname"
+            
+            # Run single test function and collect coverage
+            if go test -cover \
+                -coverpkg="$covepackage" \
+                -coverprofile=profile.out \
+                -covermode=atomic \
+                -run="^${funcname}$"; then
+                # Test passed
+                ((passed_funcs++))
+            else
+                # Test failed
+                file_all_passed=false
+            fi
+            
+            # Append coverage data if profile was generated
+            if [ -f profile.out ]; then
+                tail -n +2 profile.out >> coverage.tmp
+                rm profile.out
+            fi
         fi
-    # done
-#     # python3 /LSPAI/experiments/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
-# fi
+    done < <(grep "^func Test" "$testfile" | sed 's/^func \([Test][^ (]*\).*/\1/')
+    
+    # If all functions in file passed, increment passed_files counter
+    if [ "$file_all_passed" = true ] && [ "$file_func_count" -gt 0 ]; then
+        ((passed_files++))
+    fi
+done
 
-# cat coverage.out
-# # go test ./... -failfast=false -v -cover -coverprofile="${REPORT_DIR}/coverage.out"
-# # go tool cover -html="${REPORT_DIR}/coverage.out" -o ${REPORT_DIR}/coverage_report.html
-# python3 /LSPAI/experiments/scripts/interpret_go_out.py coverage.out
+mv coverage.tmp "${REPORT_DIR}/coverage.out"
 
-# Extract the total number of statements and covered statements from the coverage.out
-# total_statements=$(grep -oP '^\S+' "${REPORT_DIR}/coverage.out" | wc -l)
-# covered_statements=$(grep -oP '^\S+ \d+' "${REPORT_DIR}/coverage.out" | wc -l)
+# Calculate success rates
+file_success_rate=$(awk "BEGIN {printf \"%.2f\", ($passed_files / $total_files) * 100}")
+func_success_rate=$(awk "BEGIN {printf \"%.2f\", ($passed_funcs / $total_funcs) * 100}")
 
-# # Calculate coverage percentage
-# coverage_percentage=$(go tool cover -func="${REPORT_DIR}/coverage.out" | grep total | awk '{print $3}')
+# Print results
+echo "Test Results Summary:"
+echo "-------------------"
+echo "Files: $passed_files/$total_files passed ($file_success_rate%)"
+echo "Functions: $passed_funcs/$total_funcs passed ($func_success_rate%)"
+echo "-------------------"
 
-# # Print the results
-# echo "Total Statements: $total_statements"
-# echo "Covered Statements: $covered_statements"
-# echo "Coverage: $coverage_percentage"
-# Add this function near the start of the script, before the main logic
+echo "-------------------"
+
+echo "Coverage Report: ${REPORT_DIR}/coverage.out"
+python3 /LSPAI/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
+echo "-------------------"

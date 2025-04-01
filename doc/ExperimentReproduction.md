@@ -164,7 +164,7 @@ The extracted dataset will have this structure:
    ```bash
    mkdir -p /LSPAI/experiments/projects
    cd /LSPAI/experiments/projects/black # black should be substitue to crawl4ai if you proceed with crawl4ai projects
-   mv /LSPAI/experiments/data/black/* .
+   cp -r /LSPAI/experiments/data/black/* .
    ```
 
 
@@ -182,7 +182,7 @@ The extracted dataset will have this structure:
       # Python Setup
       python3 -m venv venv
       source venv/bin/activate
-      pip install coverage pytest
+      pip install coverage pytest pytest-json-report
 
       # Install dependencies
       pip install -r docs/requirements.txt
@@ -203,7 +203,7 @@ The extracted dataset will have this structure:
       # LSPAI - DS-V3
       bash /LSPAI/experiments/scripts/python_coverage.bash \
          /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/data/black/results_deepseek/deepseek-chat
+         /LSPAI/experiments/projects/black/results_deepseek/deepseek-chat
 
       # NAIVE - DS-V3
       bash /LSPAI/experiments/scripts/python_coverage.bash \
@@ -213,7 +213,7 @@ The extracted dataset will have this structure:
       # LSPAI - GPT4o
       bash /LSPAI/experiments/scripts/python_coverage.bash \
          /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/data/black/results_gpt-4o/gpt-4o
+         /LSPAI/experiments/projects/black/results_gpt-4o/gpt-4o
 
       # NAIVE - GPT4o
       bash /LSPAI/experiments/scripts/python_coverage.bash \
@@ -229,6 +229,11 @@ The extracted dataset will have this structure:
       bash /LSPAI/experiments/scripts/python_coverage.bash \
          /LSPAI/experiments/projects/black \
          /LSPAI/experiments/projects/black/results_gpt-4o-mini/naive_gpt-4o-mini
+      
+      # COPILOT
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_copilot/copilot
       ```
       
    ##### Analysis of Results
@@ -273,13 +278,13 @@ The extracted dataset will have this structure:
       # Python Setup
       python3 -m venv venv
       source venv/bin/activate
-      pip install coverage pytest
+      pip install coverage pytest selenium
 
       # Install dependencies
       # Don\'nt forget to activate venv environment
       pip install -r requirements.txt
 
-      mv /LSPAI/experiments/data/crawl4ai/* .
+      cp -r /LSPAI/experiments/data/crawl4ai/* .
       ```
 
    ##### Reproduce Experiment for CRAWL4AI Project
@@ -316,6 +321,11 @@ The extracted dataset will have this structure:
       bash /LSPAI/experiments/scripts/python_coverage.bash \
          /LSPAI/experiments/projects/crawl4ai \
          /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/naive_gpt-4o-mini
+      
+      # Copilot
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/projects/crawl4ai/results_copilot/copilot
       ```
 
    ##### Analysis of Results
