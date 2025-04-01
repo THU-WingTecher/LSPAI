@@ -73,7 +73,7 @@ suite('Context and Prompt Tests', () => {
         console.log('=== Testing with summarization ENABLED ===');
         
         // Collect info with summarization
-        collectedInfoSummarized = await collectInfo(document, methodSymbol!, 'java', 'TestClass_flatten', 'test');
+        collectedInfoSummarized = await collectInfo(document, methodSymbol!, 'java', 'TestClass_flatten');
         
         console.log('=== Collected Info (Summarized) ===');
 
@@ -91,7 +91,7 @@ suite('Context and Prompt Tests', () => {
         console.log('=== Testing with summarization DISABLED ===');
         
         // Collect info without summarization
-        collectedInfo = await collectInfo(document, methodSymbol!, 'java', 'TestClass_flatten', 'test');
+        collectedInfo = await collectInfo(document, methodSymbol!, 'java', 'TestClass_flatten');
         // collectedInfo = collectedInfoFull;
         console.log('=== Collected Info (Full) ===');
         console.log(JSON.stringify(collectedInfo.dependentContext, null, 2));
