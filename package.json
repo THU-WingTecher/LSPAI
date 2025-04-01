@@ -43,6 +43,10 @@
         "title": "LSPAI: Python-Experiment"
       },
       {
+        "command": "lspAi.CopilotExperiment",
+        "title": "LSPAI: Copilot-Experiment"
+      },
+      {
         "command": "lspAi.GoExperiment",
         "title": "LSPAI: Go-Experiment"
       },
@@ -161,6 +165,7 @@
     "typescript-eslint": "^8.16.0"
   },
   "dependencies": {
+    "@github/copilot-language-server": "^1.293.0",
     "@langchain/core": "^0.3.26",
     "@langchain/openai": "^0.3.16",
     "https-proxy-agent": "^7.0.5",

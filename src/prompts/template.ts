@@ -1,12 +1,81 @@
-// function DependentClassesPrompt(defUseMapString: string): string {
-// 	// System prompt from ChatUnitTest
-//     return `
-// 	The brief information of dependent class `` is :
-// 		#### Guidelines for Generating Unit Tests
-// 		1. When generating Unit test of the code, if there is unseen field, method, or variable, Please find the related source code from the following list and use it to generate the unit test.
-// 		${defUseMapString}
-//     `;
-// }
+import * as vscode from 'vscode';
+import { getImportStatement, getPackageStatement } from '../retrieve';
+import { getLanguageSuffix } from '../language';
+
+export function getUnitTestTemplateOnly(document: vscode.TextDocument, symbol:vscode.DocumentSymbol, FileName: string): string {
+    const languageId = document.languageId;
+    if (FileName.includes("/")){
+        FileName = FileName.split("/").pop()!;
+        const suffix = getLanguageSuffix(languageId);
+        FileName = FileName.replace("." + suffix, '');
+    }
+    const packageString = getPackageStatement(document, languageId) ? getPackageStatement(document, languageId)![0] : '';
+    let packageStatement = packageString ? packageString.replace(";", "").split(' ')[1].replace(/\./g, '/') : '';
+    if (languageId === 'java') {
+        packageStatement = packageStatement.replace(/\//g, '.') + ";";
+        return JavaUnitTestTemplateOnly(FileName, packageStatement);
+    } else if (languageId === 'go') {
+        return GoUnitTestTemplateOnly(FileName, packageStatement);
+    } else if (languageId === 'python') {
+        const importString = getImportStatement(document, languageId, symbol);
+        return PythonUnitTestTemplateOnly(FileName, packageStatement, importString);
+    } else {
+        return '';
+    }
+}
+
+export function JavaUnitTestTemplateOnly(FileName: string, packageString: string): string {
+    return `
+package ${packageString}
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.mockito.Mock;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Collections;
+import java.util.Arrays; // Added import for Arrays
+import java.util.Comparator; // Added import for Comparator
+import org.junit.jupiter.api.Test;
+import java.lang.reflect.Method;
+
+public class ${FileName} {
+
+
+
+}`;
+}
+export function GoUnitTestTemplateOnly(FileName: string, packageString: string): string {
+    // if FileName starts with lowercase, capitalize it
+    if (FileName.charAt(0) === FileName.charAt(0).toLowerCase()) {
+        FileName = FileName.charAt(0).toUpperCase() + FileName.slice(1);
+    }
+    return `
+package ${packageString}
+
+import (
+    "testing"
+)
+
+func Test${FileName}(t *testing.T) {
+
+
+
+}
+`;
+}
+
+export function PythonUnitTestTemplateOnly(FileName: string, packageString: string, importString: string): string {
+    return `
+import unittest
+${importString}
+
+class Test${FileName}(unittest.TestCase):
+    
+
+if __name__ == '__main__':
+    unittest.main()
+`;
+}
 
 export function JavaUnitTestTemplate(FileName: string, packageString: string): string {
     return `
@@ -16,8 +85,8 @@ ${packageString}
 {Replace With Needed Imports}
 
 public class ${FileName} {
-    {Replace with needed fields}
-    {Write your test function here}
+    {Replace with needed setup}
+    {Write your test test function here}
 }
 \`\`\`
 `;
@@ -48,7 +117,7 @@ Based on the provided information, you need to generate a unit test using Python
 \`\`\`
 import unittest
 ${importString}
-from {Replace with needed imports} import {FileName}
+from {Replace with needed imports}
 
 class Test${FileName}(unittest.TestCase):
     
