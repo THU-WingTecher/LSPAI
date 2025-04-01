@@ -163,12 +163,21 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
     let counter = 1;
 
     // Initial new file name with counter right before Test.${suffix}
-    let newFileName = `${baseName}_${round}_${counter}${suffix}`;
+    let newFileName;
+    if (round === -1) {
+        newFileName = `${baseName}_${counter}${suffix}`;
+    } else {
+        newFileName = `${baseName}_${round}_${counter}${suffix}`;
+    }
     
     // Check if the file name is unique by checking the folder and filePaths
     while (filePaths.map(f => f.toLowerCase()).includes(path.join(folderPath, newFileName).toLowerCase()) || fs.existsSync(path.join(folderPath, newFileName))) {
         counter++;
-        newFileName = `${baseName}_${round}_${counter}${suffix}`;
+        if (round === -1) {
+            newFileName = `${baseName}_${counter}${suffix}`;
+        } else {
+            newFileName = `${baseName}_${round}_${counter}${suffix}`;
+        }
     }
     
     // Prepare the full path for the unique file
@@ -269,6 +278,7 @@ export function generateTimestampString(): string {
 }
 
 const javaLspaiTestPath = path.join('src', 'lspai', 'test', 'java');
+
 export async function saveExperimentData(expData: ExpLogs[], expLogPath: string, fileName: string, method: string) {
 	const jsonFilePath = path.join(expLogPath, method, `${fileName}_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}.json`);
 

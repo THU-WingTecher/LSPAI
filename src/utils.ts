@@ -259,6 +259,27 @@ export function removeComments(code: string): string {
     }, code);
 }
 
+export function commentizeCode(code: string, language: string): string {
+    // it will first remove the comments inside the code, and wrap the code with the comment symbol of the language
+    // Regular expression to match comments in Go, Java, and Python
+    let result;
+    switch (language) {
+        case 'java':
+            result = "/*" + removeComments(code) + "*/";
+            break;
+        case 'python':
+            result = "''' " + removeComments(code) + " '''";
+            break;
+        case 'go':
+            result = "/* " + removeComments(code) + " */";
+            break;
+        default:
+            result = code;
+            break;
+    }
+    return result;
+}
+
 
 /**
  * Extracts detailed information for a constructor symbol.
