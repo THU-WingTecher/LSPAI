@@ -24,10 +24,10 @@ valid_files_count=0
 total_files_count=0
 
 if [[ "$TARGET_PROJECT_PATH" == *cli ]]; then
-    total_files_count=207
+    total_files_count=140
 fi
 if [[ "$TARGET_PROJECT_PATH" == *csv ]]; then
-    total_files_count=140
+    total_files_count=74
 fi
 
 total_files_count=0
