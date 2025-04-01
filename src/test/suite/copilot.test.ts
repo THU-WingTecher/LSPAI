@@ -70,7 +70,7 @@ suite('Utils Test Suite', () => {
 
       test(`Copilot Experiment`, async () => {
         const connection = await copilotServer();
-        await init(connection);
+        await init(connection, getConfigInstance().workspace);
         await signIn(connection);
 
         getConfigInstance().updateConfig({
