@@ -10,8 +10,9 @@ export function getUnitTestTemplateOnly(document: vscode.TextDocument, symbol:vs
         FileName = FileName.replace("." + suffix, '');
     }
     const packageString = getPackageStatement(document, languageId) ? getPackageStatement(document, languageId)![0] : '';
-    const packageStatement = packageString ? packageString.replace(";", "").split(' ')[1].replace(/\./g, '/') : '';
+    let packageStatement = packageString ? packageString.replace(";", "").split(' ')[1].replace(/\./g, '/') : '';
     if (languageId === 'java') {
+        packageStatement = packageStatement.replace(/\//g, '.') + ";";
         return JavaUnitTestTemplateOnly(FileName, packageStatement);
     } else if (languageId === 'go') {
         return GoUnitTestTemplateOnly(FileName, packageStatement);
@@ -25,24 +26,40 @@ export function getUnitTestTemplateOnly(document: vscode.TextDocument, symbol:vs
 
 export function JavaUnitTestTemplateOnly(FileName: string, packageString: string): string {
     return `
-${packageString}
-{Replace With Needed Imports}
+package ${packageString}
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.mockito.Mock;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Collections;
+import java.util.Arrays; // Added import for Arrays
+import java.util.Comparator; // Added import for Comparator
+import org.junit.jupiter.api.Test;
+import java.lang.reflect.Method;
 
 public class ${FileName} {
-    {Replace with needed setup}
-    {Write your test test function here}
+
+
+
 }`;
 }
 export function GoUnitTestTemplateOnly(FileName: string, packageString: string): string {
+    // if FileName starts with lowercase, capitalize it
+    if (FileName.charAt(0) === FileName.charAt(0).toLowerCase()) {
+        FileName = FileName.charAt(0).toUpperCase() + FileName.slice(1);
+    }
     return `
-${packageString}
+package ${packageString}
 
 import (
     "testing"
+)
 
 func Test${FileName}(t *testing.T) {
-    {Replace with needed setup}
-    {Write your test function here}
+
+
+
 }
 `;
 }

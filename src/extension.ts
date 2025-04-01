@@ -7,7 +7,7 @@ import path from 'path';
 import { getCodeAction } from './diagnostic';
 import { generateUnitTestsForFocalMethod, init, signIn, copilotServer } from './copilot';
 import { GenerationType, PromptType, FixType } from './config';
-import { loadAllTargetSymbolsFromWorkspace } from './helper';
+import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace, saveTaskList } from './helper';
 import { experimentWithCopilot } from './copilot';
 import { generateTimestampString } from './fileHandler';
 
@@ -32,6 +32,16 @@ export async function activate(context: vscode.ExtensionContext) {
 	// ... existing code ...
 
 	const copilotExperimentDisposable = vscode.commands.registerCommand('lspAi.CopilotExperiment', async () => {
+		const language = "go";
+		let taskListPath = "";
+
+		// if (language === "java") {
+		//  Since Java project's symbol providers are not consistent.
+		// 	const projectName = getConfigInstance().workspace.split("/").pop();
+		// 	taskListPath = `/LSPAI/experiments/data/${projectName}/taskList.json`;
+		// 	console.log(`taskListPath: ${taskListPath}`);
+		// }
+
 		try {
 		// Show progress indicator
 		await vscode.window.withProgress({
@@ -41,7 +51,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}, async (progress) => {
 			// Initialize Copilot connection
 			const connection = await copilotServer();
-			await init(connection);
+			await init(connection, getConfigInstance().workspace);
 			await signIn(connection);
 	
 			// Load symbols from workspace
@@ -56,9 +66,18 @@ export async function activate(context: vscode.ExtensionContext) {
 				getConfigInstance().model
 			)
 			});
-			
-			const symbolDocumentMaps = await loadAllTargetSymbolsFromWorkspace('python');
-			
+
+			let symbolDocumentMaps = await loadAllTargetSymbolsFromWorkspace(language);
+			if (taskListPath) {
+				console.log(`from current ${symbolDocumentMaps.length} symbolDocumentMaps,  symbols will be used.`);
+				symbolDocumentMaps = await extractSymbolDocumentMapFromTaskList(
+					getConfigInstance().workspace,
+					symbolDocumentMaps,
+					taskListPath
+				);
+				console.log(`after extracting, ${symbolDocumentMaps.length} symbolDocumentMaps will be used.`);
+			}
+			await saveTaskList(symbolDocumentMaps, getConfigInstance().workspace, getConfigInstance().savePath);
 			// Update config for the experiment
 	
 			// Run the experiment

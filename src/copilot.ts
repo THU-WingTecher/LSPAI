@@ -116,7 +116,7 @@ export async function experimentWithCopilot(connection: any, symbolDocumentMaps:
   const generatedResults: any[] = [];
   const num_parallel = getConfigInstance().parallelCount;
   for (const { document, symbol } of symbolDocumentMaps) {
-    const fileName = _generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'python', [], -1)
+    const fileName = _generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, document.languageId, [], -1)
     const response = await generateUnitTestsForFocalMethod(
       connection, // your MessageConnection
       document,
@@ -130,18 +130,18 @@ export async function experimentWithCopilot(connection: any, symbolDocumentMaps:
   return generatedResults;
 }
 
-export async function init(connection: MessageConnection) {
+export async function init(connection: MessageConnection, workspace: string) {
   try {
     // 4a) Send the 'initialize' request
     const initializeParams: InitializeParams = {
       processId: process.pid,
       workspaceFolders: [
         {
-          uri: '/LSPAI', // adapt as needed
-          name: 'MyWorkspace',
+          uri: workspace, // adapt as needed
+          name: workspace.split('/').pop() || 'MyWorkspace',
         },
       ],
-      rootUri: '/LSPAI',
+      rootUri: workspace,
       capabilities: {
         // minimal for demonstration
         workspace: { workspaceFolders: true },
@@ -375,11 +375,24 @@ async function waitUntilNotBusy(connection: MessageConnection): Promise<void> {
   });
 }
 
+function getTestTemplate(languageCode: string){
+  switch (languageCode){
+    case 'python':
+      return "Use Python's unittest framework for testing. Each test should have descriptive names and multiple expect statements.";
+    case 'java':
+      return "Do not change the Test class name. Use Junit5, and Mockito for testing. Each test should have descriptive names and multiple assert statements.";
+    case 'go':
+      return "Use Go's testing framework for testing. Each test should have descriptive names and multiple assert statements.";
+    default:
+      return "Use the appropriate testing framework for the given language.";
+  }
+}
+
 async function replaceTestPlaceholder(connection: any, focalMethod: string, textDocument: TextDocumentItem, languageCode: string) {
   // Find the position of the placeholder
   const placeholder = testClassName(languageCode);
   const position = textDocument.text.indexOf(placeholder);
-  const testTemplate = "Use Python's unittest framework for testing. Each test should have descriptive names and multiple expect statements.";
+  const testTemplate = getTestTemplate(languageCode);
   const promptContent = `
   Focal Method Source: 
   ${focalMethod}
@@ -407,6 +420,13 @@ async function replaceTestPlaceholder(connection: any, focalMethod: string, text
 
   const testText = await requestPanelCompletion(connection, completionParams);
   // Replace the placeholder with the generated imports
+
+   // For Java, preserve the class declaration line
+   if (languageCode === 'java') {
+    const classLine = allLines[lineIndex];
+    return allLines.slice(0, lineIndex).join('\n') + '\n' + classLine + '\n' + testText + allLines.slice(lineIndex + 1).join('\n');
+  }
+  
   return allLines.slice(0, lineIndex).join('\n') + testText + allLines.slice(lineIndex + 1).join('\n'); 
 }
 
@@ -445,7 +465,7 @@ export async function generateUnitTestsForFocalMethod(
   console.log('generateUnitTestsForFocalMethod', uriOfMethod, focalMethod, fileName, unitTestTemplate, languageCode)
   try {
     // 1) Create a “prompt” that provides context about what we want Copilot to do.
-
+    await init(connection, getConfigInstance().workspace);
     let startContent = unitTestTemplate;
     // 2) We’ll represent this prompt as if it were a file in the workspace.
     //    Construct a URI for it, and open the file (didOpen) so Copilot can index the text.
@@ -545,7 +565,7 @@ export function parseCopilotPanelResponse(response: any){
 // ---------------------
 async function main() {
   const connection = await copilotServer();
-  await init(connection);
+  await init(connection, getConfigInstance().workspace);
   await signIn(connection);
 
 
