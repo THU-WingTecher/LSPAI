@@ -11,6 +11,7 @@ import { generateUnitTestForAFunction } from '../../generate';
 import { ProjectName } from '../../config';
 import fs from 'fs';
 import { METHODS } from 'http';
+
 suite('Utils Test Suite', () => {
 
     let currentSrcPath: string;
@@ -153,8 +154,6 @@ suite('Utils Test Suite', () => {
     //                 getConfigInstance().maxRound,
     //                 fileName, 
     //                 getConfigInstance().model,
-    //                 getConfigInstance().historyPath,
-    //                 getConfigInstance().logSavePath,
     //                 false, // in parallel setting, we don't show code
     //             );
     //             vscode.window.showInformationMessage(`[Progress:${generatedResults.length}] Unit test (${getConfigInstance().model}) for ${symbol.name} generated!`);

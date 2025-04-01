@@ -49,12 +49,7 @@ suite('Extension Test Suite', () => {
             srcPath,
             document,
             functionSymbol,
-            getConfigInstance().model,
-            getConfigInstance().maxRound,
-            targetFile,
             "",
-            historyPath,
-            expLogPath,
             false // Don't show preview
         );
 

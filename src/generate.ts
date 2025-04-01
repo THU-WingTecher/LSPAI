@@ -10,7 +10,7 @@ import { invokeLLM } from "./invokeLLM";
 import { genPrompt, generateTestWithContext, inspectTest } from "./prompts/promptBuilder";
 import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
 import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate, saveExperimentData } from './fileHandler';
-import { getConfigInstance, GenerationType } from './config';
+import { getConfigInstance, GenerationType, PromptType, Provider, loadPrivateConfig } from './config';
 import { getTempDirAtCurWorkspace } from './fileHandler';
 import { getContextSelectorInstance } from './agents/contextSelector';
 import { DiagnosticReport, fixDiagnostics } from './fix';
@@ -28,7 +28,7 @@ export interface ContextInfo {
 	importString: string;
 }
 
-export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string, method: string): Promise<ContextInfo> {
+export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string): Promise<ContextInfo> {
 	let mainFunctionDependencies = "";
 	let dependentContext = "";
 	let mainfunctionParent = "";
@@ -93,26 +93,39 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
 	const pathParts = workspace.split("/");
 	const projectName = pathParts[pathParts.length - 1];
-	const model = getConfigInstance().model;
+	const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
+
+	const model = 'gpt-4o-mini';
+	const currentConfig = {
+		model: model,
+        provider: 'openai' as Provider,
+        expProb: 0.2,
+        generationType: GenerationType.AGENT,
+        promptType: PromptType.DETAILED,
+        workspace: workspace,
+        parallelCount: 1,
+        maxRound: 5,
+        ...privateConfig
+    }
 	const folderPath = path.join(getTempDirAtCurWorkspace(), projectName, model);
-	const historyPath = path.join(folderPath, "history");
-	const expLogPath = path.join(folderPath, "logs");
+	getConfigInstance().updateConfig(currentConfig);
+
 	const functionSymbol = getFunctionSymbol(symbols, position)!;
 	
 	// Generate the file paths
 	const { fileName } = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId, [], 0);
 	
+
 	// Call generateUnitTestForAFunction with all required parameters
+	// set the logs to specific folder, not the default one 
+	const showGeneratedCode = true;
+
 	const finalCode = await generateUnitTestForAFunction(
 		workspace,
 		document, 
 		functionSymbol, 
-		model,
-		getConfigInstance().maxRound, // MAX_ROUNDS
 		fileName, // fullFileName
-		"", // method
-		historyPath,
-		expLogPath
+		showGeneratedCode
 	);
 
 	return finalCode;
@@ -120,7 +133,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 }
 
 // Helper functions for the main generator
-async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, method: string, fullFileName: string): Promise<{ 
+async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string): Promise<{ 
 	languageId: string, 
 	fileName: string, 
 	expData: ExpLogs[] 
@@ -133,7 +146,7 @@ async function initializeTestGeneration(document: vscode.TextDocument, functionS
 		llmInfo: null, 
 		process: "start", 
 		time: "", 
-		method, 
+		method: getConfigInstance().model, 
 		fileName: fullFileName, 
 		function: functionSymbol.name, 
 		errMsag: ""
@@ -156,13 +169,11 @@ async function generateInitialTestCode(
 	collectedData: any,
 	languageId: string,
 	fileName: string,
-	method: string,
-	model: string,
 	expData: ExpLogs[]
 ): Promise<string> {
 
-	const promptObj = await genPrompt(collectedData, method, languageId);
-	const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+	const promptObj = await genPrompt(collectedData, getConfigInstance().model, languageId);
+	const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
 	const startLLMTime = Date.now();
 	try {
 		const testCode = await invokeLLM(promptObj, logObj);
@@ -171,7 +182,7 @@ async function generateInitialTestCode(
 			llmInfo: logObj,
 			process: "invokeLLM",
 			time: (Date.now() - startLLMTime).toString(),
-			method,
+			method: getConfigInstance().model,
 			fileName,
 			function: functionSymbol.name,
 			errMsag: ""
@@ -184,7 +195,7 @@ async function generateInitialTestCode(
 				llmInfo: logObj,
 				process: "TokenLimitation",
 				time: (Date.now() - startLLMTime).toString(),
-				method,
+				method: getConfigInstance().model,
 				fileName,
 				function: functionSymbol.name,
 				errMsag: ""
@@ -198,26 +209,17 @@ export async function generateUnitTestForAFunction(
 	srcPath: string,
 	document: vscode.TextDocument,
 	functionSymbol: vscode.DocumentSymbol,
-	model: string,
-	MAX_ROUNDS: number,
 	fullFileName: string,
-	method: string,
-	historyPath: string,
-	expLogPath: string,
 	showGeneratedCode: boolean = true,
 ): Promise<string> {
 // Merge provided config with defaults
-
-if (method === "") {
-	method = model;
-}
-console.log(`Generating unit test for ${method} in ${fullFileName}`);
+const model = getConfigInstance().model;
+console.log(`Generating unit test for ${model} in ${fullFileName}`);
 
 try {
 	const { languageId, fileName, expData } = await initializeTestGeneration(
 			document,
 			functionSymbol,
-			method,
 			fullFileName
 			);
 	let testCode = "";
@@ -229,13 +231,12 @@ try {
 						functionSymbol,
 						languageId,
 						fileName,
-						method
 						);
 	expData.push({
 	llmInfo: null,
 	process: "collectInfo",
 	time: (Date.now() - startTime).toString(),
-	method,
+	method: model,
 	fileName: fullFileName,
 	function: functionSymbol.name,
 	errMsag: ""
@@ -249,16 +250,14 @@ try {
 			collectedData,
 			languageId,
 			fullFileName,
-				method,
-				model,
-				expData
+			expData
 			);
 			testCode = parseCode(testCode);
 			await saveToIntermediate(
 				testCode,
 				srcPath,
-				fullFileName.split(method)[1],
-				path.join(historyPath, method, "initial"),
+				fullFileName.split(getConfigInstance().model)[1],
+				path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
 				languageId
 			);
 			break;
@@ -273,7 +272,7 @@ try {
 				llmInfo: logObjForIdentifyTerms,
 				process: "identifyContextTerms",
 				time: (Date.now() - ContextStartTime).toString(),
-				method,
+				method: model,
 				fileName: fullFileName,
 				function: functionSymbol.name,
 				errMsag: ""
@@ -284,7 +283,7 @@ try {
 				llmInfo: null,
 				process: "gatherContext",
 				time: (Date.now() - gatherContextStartTime).toString(),
-				method,
+				method: model,
 				fileName: fullFileName,
 				function: functionSymbol.name,
 				errMsag: ""
@@ -298,15 +297,15 @@ try {
 			await saveToIntermediate(
 				testCode,
 				srcPath,
-				fullFileName.split(method)[1],
-				path.join(historyPath, method, "initial"),
+				fullFileName.split(model)[1],
+				path.join(getConfigInstance().historyPath, model, "initial"),
 				languageId
 			);
 			expData.push({	
 				llmInfo: logObj,
 				process: "generateTestWithContext",
 				time: (Date.now() - generateTestWithContextStartTime).toString(),
-				method,
+				method: model,
 				fileName: fullFileName,
 				function: functionSymbol.name,
 				errMsag: ""
@@ -323,7 +322,7 @@ try {
 				llmInfo: logObjForIdentifyTerms_experimental,
 				process: "identifyContextTerms",
 				time: (Date.now() - ContextStartTime_experimental).toString(),
-				method,
+				method: model,
 				fileName: fullFileName,
 				function: functionSymbol.name,
 				errMsag: ""
@@ -334,7 +333,7 @@ try {
 				llmInfo: null,
 				process: "gatherContext",
 				time: (Date.now() - gatherContextStartTime_experimental).toString(),
-				method,
+				method: model,
 				fileName: fullFileName,
 				function: functionSymbol.name,
 				errMsag: ""
@@ -348,15 +347,15 @@ try {
 			await saveToIntermediate(
 				testCode,
 				srcPath,
-				fullFileName.split(method)[1],
-				path.join(historyPath, method, "initial"),
+				fullFileName.split(model)[1],
+				path.join(getConfigInstance().historyPath, model, "initial"),
 				languageId
 			);
 			expData.push({	
 				llmInfo: logObj_experimental,
 				process: "generateTestWithContext",
 				time: (Date.now() - generateTestWithContextStartTime_experimental).toString(),
-				method,
+				method: model,
 				fileName: fullFileName,
 				function: functionSymbol.name,
 				errMsag: ""
@@ -370,15 +369,15 @@ try {
 			await saveToIntermediate(
 				testCode,
 				srcPath,
-				fullFileName.split(method)[1],
-				path.join(historyPath, method, "after_inspect"),
+				fullFileName.split(model)[1],
+				path.join(getConfigInstance().historyPath, model, "after_inspect"),
 				languageId
 			);
 			expData.push({	
 				llmInfo: logObj_inspectTest,
 				process: "inspectTest",
 				time: (Date.now() - inspectTestStartTime).toString(),
-				method,
+				method: model,
 				fileName: fullFileName,
 				function: functionSymbol.name,
 				errMsag: ""
@@ -397,13 +396,13 @@ try {
 		srcPath,
 		testCode,
 		collectedData,
-		method,
+		model,
 		languageId,
 		model,
-		historyPath,
+		getConfigInstance().historyPath,
 		fullFileName,
 		expData,
-		MAX_ROUNDS,
+		getConfigInstance().maxRound,
 		showGeneratedCode
 	);
 	diagnosticReport = report.diagnosticReport;
@@ -412,7 +411,7 @@ try {
 		llmInfo: null,
 		process: "fixDiagnostics",
 		time: (Date.now() - fixstartTime).toString(),
-		method,
+		method: model,
 		fileName: fullFileName,
 		function: functionSymbol.name,
 		errMsag: ""
@@ -421,13 +420,13 @@ try {
 	// Step 4: Save Results
 	
 	// Save diagnostic report
-	const reportPath = path.join(expLogPath, method, `${fileName}_diagnostic_report.json`);
+	const reportPath = path.join(getConfigInstance().logSavePath, model, `${fileName}_diagnostic_report.json`);
 	fs.mkdirSync(path.dirname(reportPath), { recursive: true });
 	console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
 	fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
 
 	await saveGeneratedCodeToFolder(finalCode, fullFileName);
-	await saveExperimentData(expData, expLogPath, fileName, method);
+	await saveExperimentData(expData, getConfigInstance().logSavePath, fileName, model);
 
 	if (report.success) {
 		return finalCode;

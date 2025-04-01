@@ -54,12 +54,7 @@ export async function experiment(symbolDocumentMaps: {document: vscode.TextDocum
                     currentSrcPath,
                     document, 
                     symbol, 
-                    getConfigInstance().model,
-                    getConfigInstance().maxRound,
                     fileName, 
-                    getConfigInstance().model,
-                    getConfigInstance().historyPath,
-                    getConfigInstance().logSavePath,
                     false, // in parallel setting, we don't show code
                 );
                 if (result.length > 0) {
