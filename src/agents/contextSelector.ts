@@ -169,14 +169,18 @@ export class ContextSelector {
                 if (currentToken.definition && currentToken.definition.length > 0) {
                     const defSymbolDoc = await vscode.workspace.openTextDocument(currentToken.definition[0].uri);
                     if (term.need_example) {
-                        term.example = await getReferenceInfo(defSymbolDoc, currentToken.definition[0].range);
-                        enriched = true;
+                        if (currentToken.definition[0].range) {
+                            term.example = await getReferenceInfo(defSymbolDoc, currentToken.definition[0].range);
+                            enriched = true;
+                        }
                     }
                     if (term.need_definition) {
-                        currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
-                        if (currentToken.defSymbol) {
-                            term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, true);
-                            enriched = true;
+                        if (currentToken.definition[0].range) {
+                            currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
+                            if (currentToken.defSymbol) {
+                                term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, true);
+                                enriched = true;
+                            }
                         }
                     }
                 } else {

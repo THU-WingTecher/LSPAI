@@ -105,9 +105,10 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
         workspace: workspace,
         parallelCount: 1,
         maxRound: 5,
+		savePath: path.join(getTempDirAtCurWorkspace(), projectName, model),
         ...privateConfig
     }
-	const folderPath = path.join(getTempDirAtCurWorkspace(), projectName, model);
+	const folderPath = currentConfig.savePath;
 	getConfigInstance().updateConfig(currentConfig);
 
 	const functionSymbol = getFunctionSymbol(symbols, position)!;
@@ -122,10 +123,10 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 
 	const finalCode = await generateUnitTestForAFunction(
 		workspace,
-		document, 
-		functionSymbol, 
-		fileName, // fullFileName
-		showGeneratedCode
+		document,
+		functionSymbol,
+		fileName,
+		showGeneratedCode,
 	);
 
 	return finalCode;
@@ -213,230 +214,243 @@ export async function generateUnitTestForAFunction(
 	showGeneratedCode: boolean = true,
 ): Promise<string> {
 // Merge provided config with defaults
-const model = getConfigInstance().model;
-console.log(`Generating unit test for ${model} in ${fullFileName}`);
+return vscode.window.withProgress({
+	location: vscode.ProgressLocation.Notification,
+	title: "Generating Unit Test",
+	cancellable: true
+}, async (progress, token) => {
 
-try {
-	const { languageId, fileName, expData } = await initializeTestGeneration(
-			document,
-			functionSymbol,
-			fullFileName
-			);
-	let testCode = "";
-	let collectedData = {};
-	// Step 1: Collect Info
-	const startTime = Date.now();
-	collectedData = await collectInfo(
-						document,
-						functionSymbol,
-						languageId,
-						fileName,
-						);
-	expData.push({
-	llmInfo: null,
-	process: "collectInfo",
-	time: (Date.now() - startTime).toString(),
-	method: model,
-	fileName: fullFileName,
-	function: functionSymbol.name,
-	errMsag: ""
-	});
-	switch (getConfigInstance().generationType) {
-		case GenerationType.ORIGINAL:
-		// Step 2: Initial Test Generation
-			testCode = await generateInitialTestCode(
-			document,
-			functionSymbol,
-			collectedData,
-			languageId,
-			fullFileName,
-			expData
-			);
-			testCode = parseCode(testCode);
-			await saveToIntermediate(
-				testCode,
-				srcPath,
-				fullFileName.split(getConfigInstance().model)[1],
-				path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
-				languageId
-			);
-			break;
-		case GenerationType.AGENT:
-			const contextSelector = await getContextSelectorInstance(
-				document, 
-				functionSymbol);
-			const ContextStartTime = Date.now();
-			const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-			const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
-			expData.push({
-				llmInfo: logObjForIdentifyTerms,
-				process: "identifyContextTerms",
-				time: (Date.now() - ContextStartTime).toString(),
-				method: model,
-				fileName: fullFileName,
-				function: functionSymbol.name,
-				errMsag: ""
-				});
-			const gatherContextStartTime = Date.now();
-			const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
-			expData.push({
-				llmInfo: null,
-				process: "gatherContext",
-				time: (Date.now() - gatherContextStartTime).toString(),
-				method: model,
-				fileName: fullFileName,
-				function: functionSymbol.name,
-				errMsag: ""
-			});
-			console.log("enrichedTerms", enrichedTerms);
-			const generateTestWithContextStartTime = Date.now();
-			const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
-			const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-			testCode = await invokeLLM(promptObj, logObj);
-			testCode = parseCode(testCode);
-			await saveToIntermediate(
-				testCode,
-				srcPath,
-				fullFileName.split(model)[1],
-				path.join(getConfigInstance().historyPath, model, "initial"),
-				languageId
-			);
-			expData.push({	
-				llmInfo: logObj,
-				process: "generateTestWithContext",
-				time: (Date.now() - generateTestWithContextStartTime).toString(),
-				method: model,
-				fileName: fullFileName,
-				function: functionSymbol.name,
-				errMsag: ""
-			});
-			break;
-		case GenerationType.EXPERIMENTAL:
-			const contextSelector_experimental = await getContextSelectorInstance(
-				document, 
-				functionSymbol);
-			const ContextStartTime_experimental = Date.now();
-			const logObjForIdentifyTerms_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-			const identifiedTerms_experimental = await contextSelector_experimental.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms_experimental);
-			expData.push({
-				llmInfo: logObjForIdentifyTerms_experimental,
-				process: "identifyContextTerms",
-				time: (Date.now() - ContextStartTime_experimental).toString(),
-				method: model,
-				fileName: fullFileName,
-				function: functionSymbol.name,
-				errMsag: ""
-				});
-			const gatherContextStartTime_experimental = Date.now();
-			const enrichedTerms_experimental = await contextSelector_experimental.gatherContext(identifiedTerms_experimental);
-			expData.push({
-				llmInfo: null,
-				process: "gatherContext",
-				time: (Date.now() - gatherContextStartTime_experimental).toString(),
-				method: model,
-				fileName: fullFileName,
-				function: functionSymbol.name,
-				errMsag: ""
-			});
-			console.log("enrichedTerms_experimental", enrichedTerms_experimental);
-			const generateTestWithContextStartTime_experimental = Date.now();
-			const promptObj_experimental = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms_experimental, fileName);
-			const logObj_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-			testCode = await invokeLLM(promptObj_experimental, logObj_experimental);
-			testCode = parseCode(testCode);
-			await saveToIntermediate(
-				testCode,
-				srcPath,
-				fullFileName.split(model)[1],
-				path.join(getConfigInstance().historyPath, model, "initial"),
-				languageId
-			);
-			expData.push({	
-				llmInfo: logObj_experimental,
-				process: "generateTestWithContext",
-				time: (Date.now() - generateTestWithContextStartTime_experimental).toString(),
-				method: model,
-				fileName: fullFileName,
-				function: functionSymbol.name,
-				errMsag: ""
-			});
+	const model = getConfigInstance().model;
+	console.log(`Generating unit test for ${model} in ${fullFileName}`);
 
-			const inspectTestStartTime = Date.now();
-			const promptObj_inspectTest = inspectTest(document.getText(functionSymbol.range), testCode);
-			const logObj_inspectTest: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-			testCode = await invokeLLM(promptObj_inspectTest, logObj_inspectTest);
-			testCode = parseCode(testCode);
-			await saveToIntermediate(
-				testCode,
-				srcPath,
-				fullFileName.split(model)[1],
-				path.join(getConfigInstance().historyPath, model, "after_inspect"),
-				languageId
-			);
-			expData.push({	
-				llmInfo: logObj_inspectTest,
-				process: "inspectTest",
-				time: (Date.now() - inspectTestStartTime).toString(),
-				method: model,
-				fileName: fullFileName,
-				function: functionSymbol.name,
-				errMsag: ""
-			});
-			
-			break;
-	}
-
-	
-	// Step 3: Diagnostic Fix
-	let diagnosticReport: DiagnosticReport | null = null;
-	let finalCode: string = testCode;
-	
-	const fixstartTime = Date.now();
-	const report = await fixDiagnostics(
-		srcPath,
-		testCode,
-		collectedData,
-		model,
-		languageId,
-		model,
-		getConfigInstance().historyPath,
-		fullFileName,
-		expData,
-		getConfigInstance().maxRound,
-		showGeneratedCode
-	);
-	diagnosticReport = report.diagnosticReport;
-	finalCode = report.finalCode;
-	expData.push({
+	try {
+		progress.report({ message: "Analyzing function structure...", increment: 20 });
+		const { languageId, fileName, expData } = await initializeTestGeneration(
+				document,
+				functionSymbol,
+				fullFileName
+				);
+		let testCode = "";
+		let collectedData = {};
+		// Step 1: Collect Info
+		const startTime = Date.now();
+		collectedData = await collectInfo(
+							document,
+							functionSymbol,
+							languageId,
+							fileName,
+							);
+		expData.push({
 		llmInfo: null,
-		process: "fixDiagnostics",
-		time: (Date.now() - fixstartTime).toString(),
+		process: "collectInfo",
+		time: (Date.now() - startTime).toString(),
 		method: model,
 		fileName: fullFileName,
 		function: functionSymbol.name,
 		errMsag: ""
+		});
+		progress.report({ message: "Generating test structure...", increment: 20 });
+		progress.report({ message: "Generating test cases...", increment: 20 });
+		switch (getConfigInstance().generationType) {
+			case GenerationType.ORIGINAL:
+			// Step 2: Initial Test Generation
+			
+				testCode = await generateInitialTestCode(
+				document,
+				functionSymbol,
+				collectedData,
+				languageId,
+				fullFileName,
+				expData
+				);
+				testCode = parseCode(testCode);
+				await saveToIntermediate(
+					testCode,
+					srcPath,
+					fullFileName.split(getConfigInstance().model)[1],
+					path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
+					languageId
+				);
+				break;
+			case GenerationType.AGENT:
+				const contextSelector = await getContextSelectorInstance(
+					document, 
+					functionSymbol);
+				const ContextStartTime = Date.now();
+				const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
+				expData.push({
+					llmInfo: logObjForIdentifyTerms,
+					process: "identifyContextTerms",
+					time: (Date.now() - ContextStartTime).toString(),
+					method: model,
+					fileName: fullFileName,
+					function: functionSymbol.name,
+					errMsag: ""
+					});
+				const gatherContextStartTime = Date.now();
+				const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
+				expData.push({
+					llmInfo: null,
+					process: "gatherContext",
+					time: (Date.now() - gatherContextStartTime).toString(),
+					method: model,
+					fileName: fullFileName,
+					function: functionSymbol.name,
+					errMsag: ""
+				});
+				console.log("enrichedTerms", enrichedTerms);
+				const generateTestWithContextStartTime = Date.now();
+				const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
+				const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				testCode = await invokeLLM(promptObj, logObj);
+				testCode = parseCode(testCode);
+				await saveToIntermediate(
+					testCode,
+					srcPath,
+					fullFileName.split(model)[1],
+					path.join(getConfigInstance().historyPath, model, "initial"),
+					languageId
+				);
+				expData.push({	
+					llmInfo: logObj,
+					process: "generateTestWithContext",
+					time: (Date.now() - generateTestWithContextStartTime).toString(),
+					method: model,
+					fileName: fullFileName,
+					function: functionSymbol.name,
+					errMsag: ""
+				});
+				break;
+			case GenerationType.EXPERIMENTAL:
+				const contextSelector_experimental = await getContextSelectorInstance(
+					document, 
+					functionSymbol);
+				const ContextStartTime_experimental = Date.now();
+				const logObjForIdentifyTerms_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				const identifiedTerms_experimental = await contextSelector_experimental.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms_experimental);
+				expData.push({
+					llmInfo: logObjForIdentifyTerms_experimental,
+					process: "identifyContextTerms",
+					time: (Date.now() - ContextStartTime_experimental).toString(),
+					method: model,
+					fileName: fullFileName,
+					function: functionSymbol.name,
+					errMsag: ""
+					});
+				const gatherContextStartTime_experimental = Date.now();
+				const enrichedTerms_experimental = await contextSelector_experimental.gatherContext(identifiedTerms_experimental);
+				expData.push({
+					llmInfo: null,
+					process: "gatherContext",
+					time: (Date.now() - gatherContextStartTime_experimental).toString(),
+					method: model,
+					fileName: fullFileName,
+					function: functionSymbol.name,
+					errMsag: ""
+				});
+				console.log("enrichedTerms_experimental", enrichedTerms_experimental);
+				const generateTestWithContextStartTime_experimental = Date.now();
+				const promptObj_experimental = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms_experimental, fileName);
+				const logObj_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				testCode = await invokeLLM(promptObj_experimental, logObj_experimental);
+				testCode = parseCode(testCode);
+				await saveToIntermediate(
+					testCode,
+					srcPath,
+					fullFileName.split(model)[1],
+					path.join(getConfigInstance().historyPath, model, "initial"),
+					languageId
+				);
+				expData.push({	
+					llmInfo: logObj_experimental,
+					process: "generateTestWithContext",
+					time: (Date.now() - generateTestWithContextStartTime_experimental).toString(),
+					method: model,
+					fileName: fullFileName,
+					function: functionSymbol.name,
+					errMsag: ""
+				});
+
+				const inspectTestStartTime = Date.now();
+				const promptObj_inspectTest = inspectTest(document.getText(functionSymbol.range), testCode);
+				const logObj_inspectTest: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				testCode = await invokeLLM(promptObj_inspectTest, logObj_inspectTest);
+				testCode = parseCode(testCode);
+				await saveToIntermediate(
+					testCode,
+					srcPath,
+					fullFileName.split(model)[1],
+					path.join(getConfigInstance().historyPath, model, "after_inspect"),
+					languageId
+				);
+				expData.push({	
+					llmInfo: logObj_inspectTest,
+					process: "inspectTest",
+					time: (Date.now() - inspectTestStartTime).toString(),
+					method: model,
+					fileName: fullFileName,
+					function: functionSymbol.name,
+					errMsag: ""
+				});
+				
+				break;
+		}
+
+		
+		// Step 3: Diagnostic Fix
+		let diagnosticReport: DiagnosticReport | null = null;
+		let finalCode: string = testCode;
+		
+		const fixstartTime = Date.now();
+		progress.report({ message: "Fixing Unit Test Codes ...", increment: 20 });
+		const report = await fixDiagnostics(
+			srcPath,
+			testCode,
+			collectedData,
+			model,
+			languageId,
+			model,
+			getConfigInstance().historyPath,
+			fullFileName,
+			expData,
+			getConfigInstance().maxRound,
+			showGeneratedCode
+		);
+		diagnosticReport = report.diagnosticReport;
+		finalCode = report.finalCode;
+		expData.push({
+			llmInfo: null,
+			process: "fixDiagnostics",
+			time: (Date.now() - fixstartTime).toString(),
+			method: model,
+			fileName: fullFileName,
+			function: functionSymbol.name,
+			errMsag: ""
+		});
+		
+		// Step 4: Save Results
+		
+		// Save diagnostic report
+		progress.report({ message: "Finalizing test code...", increment: 20 });
+		const reportPath = path.join(getConfigInstance().logSavePath, model, `${fileName}_diagnostic_report.json`);
+		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+		console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
+		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
+
+		await saveGeneratedCodeToFolder(finalCode, fullFileName);
+		await saveExperimentData(expData, getConfigInstance().logSavePath, fileName, model);
+
+		if (report.success) {
+			return finalCode;
+		} else {
+				return '';
+			}
+		} catch (error) {
+			console.error('Failed to generate unit test:', error);
+			vscode.window.showErrorMessage('Failed to generate unit test!');
+			return '';
+		}
 	});
-	
-	// Step 4: Save Results
-	
-	// Save diagnostic report
-	const reportPath = path.join(getConfigInstance().logSavePath, model, `${fileName}_diagnostic_report.json`);
-	fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-	console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
-	fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
-
-	await saveGeneratedCodeToFolder(finalCode, fullFileName);
-	await saveExperimentData(expData, getConfigInstance().logSavePath, fileName, model);
-
-	if (report.success) {
-		return finalCode;
-	} else {
-		return '';
-	}
-} catch (error) {
-	console.error('Failed to generate unit test:', error);
-	vscode.window.showErrorMessage('Failed to generate unit test!');
-	return '';
-}
 }
 
