@@ -27,6 +27,9 @@ import re
 
     # stack_trace_pattern = re.compile(r'(?:panic|failed|FAIL).*?\n(?:.*?\n)*?.*?(_test\.go:\d+)', re.MULTILINE)
 
+# Print current working directory for debugging
+print(f"[DEBUG] Current working directory: {os.getcwd()}")
+
 def parse_error_log(error_log):
     # Pattern to match test file paths in stack traces
     pattern_list = [
@@ -64,17 +67,52 @@ def parse_error_log(error_log):
     print("[DEBUG] Found problematic test files:", problematic_files)
     return problematic_files
 
+# def remove_problematic_files(files):
+#     print(f"[DEBUG] Current working directory: {os.getcwd()}")
+#     for file_path in files:
+#         try:
+#             if os.path.exists(file_path):
+#                 os.remove(file_path)
+#                 print(f"[INFO] Removed: {file_path}")
+#             else:
+#                 print(f"[WARN] File not found: {file_path}")
+#         except Exception as e:
+#             print(f"[ERROR] Error removing {file_path}: {e}")
+
 def remove_problematic_files(files):
+    print(f"[DEBUG] Current working directory: {os.getcwd()}")
     for file_path in files:
         try:
             if os.path.exists(file_path):
-                os.remove(file_path)
-                print(f"[INFO] Removed: {file_path}")
+                # If file_path is a directory, search for matching test files within it
+                if os.path.isdir(file_path):
+                    base_name = os.path.basename(file_path)
+                    for root, _, files in os.walk(file_path):
+                        for f in files:
+                            if f == base_name:
+                                full_path = os.path.join(root, f)
+                                os.remove(full_path)
+                                print(f"[INFO] Removed: {full_path}")
+                else:
+                    # Regular file handling
+                    os.remove(file_path)
+                    print(f"[INFO] Removed: {file_path}")
             else:
-                print(f"[WARN] File not found: {file_path}")
+                # If direct path doesn't exist, try to find the file by name in current directory
+                base_name = os.path.basename(file_path)
+                found = False
+                for root, _, files in os.walk('.'):
+                    for f in files:
+                        if f == base_name:
+                            full_path = os.path.join(root, f)
+                            os.remove(full_path)
+                            print(f"[INFO] Removed: {full_path}")
+                            found = True
+                if not found:
+                    print(f"[WARN] File not found: {file_path}")
         except Exception as e:
             print(f"[ERROR] Error removing {file_path}: {e}")
-
+            
 def main():
     if len(sys.argv) != 2:
         print("Usage: python go_clean.py error_log")
@@ -88,8 +126,10 @@ def main():
     if problematic_files:
         print(f"[INFO] Found {len(problematic_files)} problematic test files")
         remove_problematic_files(problematic_files)
+        sys.exit(0)  # Return true (0) if files were found and removed
     else:
         print("[WARN] No problematic test files identified")
+        sys.exit(1)  # Return false (1) if no files were found
 
 if __name__ == "__main__":
     main()
