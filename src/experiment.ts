@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { BASELINE } from "./invokeLLM";
+import { BASELINE, getModelName } from "./invokeLLM";
 import { getAllSymbols } from './utils';
 import { findFiles, generateFileNameForDiffLanguage, generateTimestampString } from './fileHandler';
 import { getLanguageSuffix } from './language';
@@ -161,10 +161,10 @@ async function _experiment(srcPath: string, language: string, methods: string[])
         symbolDocumentMap,
         path.join(folderPath, "taskList.json")
     );
-	// for (const method of methods) {
-	// 	console.log(`#### Starting experiment for method: ${method}`);
-	// 	generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
-	// }
+	for (const method of methods) {
+		console.log(`#### Starting experiment for method: ${method}`);
+		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
+	}
 	console.log('#### Experiment completed!');
 
     console.log(`Testing the folder of ${srcPath}`);
@@ -333,6 +333,7 @@ async function parallelGenUnitTestForSymbols(
 	const historyPath = path.join(currentTestPath, "history");
     const folderPath = path.join(currentTestPath, method);    
 	const expLogPath = path.join(currentTestPath, "logs");
+    const showCode = false;
     const filePaths: string[] = []
     if (language === 'go') {
         const res = goSpecificEnvGen(folderPath, language, currentSrcPath);
@@ -349,12 +350,13 @@ async function parallelGenUnitTestForSymbols(
 				currentSrcPath,
                 document, 
                 symbol, 
-                currentModel,
+                getModelName(method),
                 MAX_ROUNDS,
                 fileName, 
                 method,
                 historyPath,
                 expLogPath,
+                showCode
             );
             vscode.window.showInformationMessage(`[Progress:${generatedResults.length}] Unit test (${method}) for ${symbol.name} generated!`);
             generatedResults.push(result);

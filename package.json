@@ -77,6 +77,11 @@
           "type": "number",
           "default": 5,
           "description": "Maximum number of rounds for code generation"
+        },
+        "lspAi.parallel": {
+          "type": "number",
+          "default": 1,
+          "description": "parallel count for code generation"
         }
       }
     }
