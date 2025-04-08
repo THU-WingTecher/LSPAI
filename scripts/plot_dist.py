@@ -5,34 +5,24 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# plt.rcParams['text.usetex'] = True
-# plt.rcParams['font.family'] = 'serif'
-
 # 1. Gather all JSON files
 # Adjust the pattern to match your actual file paths or naming scheme
-json_files = glob.glob("/LSPAI/experiments/data/*/taskList.json")
+json_files = glob.glob("/LSPAI/experiments/data/**/taskList.json", recursive=True)
 assert len(json_files) == 6, f"Expected 6 JSON files, got {len(json_files)}"
 data = []
 
 # 2. Loop through each JSON file, load the data, and append to a list
-project_name_mapping = {
-    "black": "BAK",
-    "cobra": "COB",
-    "logrus": "LOG",
-    "crawl4ai": "C4AI",
-    "commons-cli": "CLI",
-    "commons-csv": "CSV"
-}
-
 for file_path in json_files:
     with open(file_path, 'r', encoding='utf-8') as f:
         content = json.load(f)
     
-    original_project_name = file_path.split("/")[-2]
-    # Use the mapping to get the LaTeX formatted name
-    project_name = project_name_mapping.get(original_project_name, original_project_name)
-    
+    project_name = file_path.split("/")[-2]
+    print(project_name)
+    # Use the file's name (minus extension) as the "Project" name
+    # project_name = dirName.split("/")[-1]
+    # For each dictionary in the JSON list, extract `lineNum` as method size
     for entry in content:
+        # print(entry)
         data.append({
             "Project": project_name,
             "MethodSize": entry["lineNum"]
@@ -57,34 +47,9 @@ fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 10), sharex=False, grids
 # axes[0].set_xlabel('')
 plt.figure(figsize=(12, 6))
 
-# Create violin plot with increased font sizes and LaTeX formatting
 sns.violinplot(x='Project', y='MethodSize', data=df, palette='Set2')
-plt.ylabel('Lines of Codes', fontsize=18)  # Remove LaTeX formatting
-plt.grid(True, axis='y', linestyle='--', alpha=0.7)  # Only horizontal grid lines with dashed style
-plt.grid(True, axis='x', linestyle='--', alpha=0.7)  # Only horizontal grid lines with dashed style
-
-# Increase tick label sizes
-# plt.xticks([])  
-plt.xticks(range(len(df['Project'].unique())), df['Project'].unique(), fontsize=22)
-plt.xlabel('', fontsize=14)  # Remove LaTeX formatting
-plt.yticks(fontsize=14)
-
-# Add statistical markers
-# Calculate median and quartiles for each project
-# for i, project in enumerate(df['Project'].unique()):
-#     project_data = df[df['Project'] == project]['MethodSize']
-#     median = project_data.median()
-#     q1 = project_data.quantile(0.25)
-#     q3 = project_data.quantile(0.75)
-    
-#     # Plot median point
-#     plt.plot(i, median, 'ro', markersize=8, label='Median' if i == 0 else "")
-#     # Plot quartile points
-#     plt.plot(i, q1, 'ko', markersize=6, label='Q1/Q3' if i == 0 else "")
-#     plt.plot(i, q3, 'ko', markersize=6)
-
-# # Add legend
-# plt.legend(loc='upper right')
+# plt.title('Size Distribution')
+plt.ylabel('Lines of Code')
 # plt.xlabel('Project')
 # 3. Create a DataFrame from all your collected data
 # # 4. Get method counts per project
