@@ -147,7 +147,7 @@ fi
 # Navigate to target project path
 export GOPROXY=direct,https://proxy.golang.org
 # Optional: disable Go modules checksum database
-export GOSUMDB=off
+# export GOSUMDB=off
 cp -r $TEST_DIR/* "$CLEAN_DIR/"
 cd "$CLEAN_DIR" || exit 1
 if [ ! "$(find . -name '*.go')" ]; then
