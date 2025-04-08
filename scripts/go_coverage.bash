@@ -13,6 +13,82 @@ if [ -z "$2" ]; then
     exit 1
 fi
 
+# Input parameters
+TARGET_PROJECT_PATH=$1
+export TARGET_PROJECT_PATH
+TEST_DIR=$2
+REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
+CLEAN_DIR=${4:-"${TEST_DIR}-clean"}  # Default value if not provided
+SCRIPT_PATH="/LSPAI/scripts/go_clean.py"
+# Copy go.mod and go.sum files into TEST_DIR
+if [ ! -f "$TARGET_PROJECT_PATH/go.mod" ]; then
+    echo "Error: go.mod file not found in target project path."
+    exit 1
+fi
+
+if [ ! -f "$TARGET_PROJECT_PATH/go.sum" ]; then
+    echo "Error: go.sum file not found in target project path."
+    exit 1
+fi
+
+cp "$TARGET_PROJECT_PATH/go.mod" "$TEST_DIR/"
+cp "$TARGET_PROJECT_PATH/go.sum" "$TEST_DIR/"
+total_files=$(find "$TEST_DIR" -type f -name "*_test.go" | wc -l)
+
+if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then
+    echo "Collecting coverage data for logrus..."
+    covepackage="github.com/sirupsen/logrus"
+    covepackage1="github.com/sirupsen/logrus"
+    cycleDetect='/^import[[:space:]]*(/,/)/{/github\.com\/sirupsen\/logrus/d}'
+elif [[ "$TARGET_PROJECT_PATH" == *cobra ]]; then
+    echo "Collecting coverage data for cobra..."
+    covepackage="github.com/spf13/cobra,github.com/spf13/cobra/doc"
+    covepackage1="github.com/spf13/cobra"
+    cycleDetect='/^import[[:space:]]*(/,/)/{/github\.com\/spf13\/cobra/d}'
+else
+    echo "Not supported project"
+    exit 1
+fi
+
+remove_cycle_import() {
+    local file="$1"
+    # local TARGET_PROJECT_PATH="$2"
+    local package_to_remove=""
+    local sed_pattern=""
+    
+    # Determine which package to remove based on the file path
+    if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then
+        package_to_remove="github.com/sirupsen/logrus"
+        sed_pattern='/^import[[:space:]]*(/,/)/{/github\.com\/sirupsen\/logrus/d}'
+    elif [[ "$TARGET_PROJECT_PATH" == *cobra ]]; then
+        package_to_remove="github.com/spf13/cobra"
+        sed_pattern='/^import[[:space:]]*(/,/)/{/github\.com\/spf13\/cobra/d}'
+    else
+        echo "ERROR: Unknown project type"
+        return 1
+    fi
+    
+    echo "DEBUG: Processing $file for $package_to_remove"
+    
+    if grep -q "$package_to_remove" "$file"; then
+        echo "Found import to remove in: $file"
+        cp "$file" "${file}.bak"
+        sed -i "$sed_pattern" "$file"
+        
+        if ! cmp -s "$file" "${file}.bak"; then
+            echo "Successfully removed import from: $file"
+            echo "Before:"
+            cat "${file}.bak"
+            echo "After:"
+            cat "$file"
+        fi
+        rm "${file}.bak"
+    fi
+}
+
+export -f remove_cycle_import
+
+
 fix_case_sensitive_collisions() {
     local dir="$1"
     local collisions=0
@@ -47,26 +123,7 @@ fix_case_sensitive_collisions() {
     return $collisions
 }
 
-# Input parameters
-TARGET_PROJECT_PATH=$1
-TEST_DIR=$2
-REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
-CLEAN_DIR=${4:-"${TEST_DIR}-clean"}  # Default value if not provided
-SCRIPT_PATH="/LSPAI/scripts/go_clean.py"
-# Copy go.mod and go.sum files into TEST_DIR
-if [ ! -f "$TARGET_PROJECT_PATH/go.mod" ]; then
-    echo "Error: go.mod file not found in target project path."
-    exit 1
-fi
 
-if [ ! -f "$TARGET_PROJECT_PATH/go.sum" ]; then
-    echo "Error: go.sum file not found in target project path."
-    exit 1
-fi
-
-cp "$TARGET_PROJECT_PATH/go.mod" "$TEST_DIR/"
-cp "$TARGET_PROJECT_PATH/go.sum" "$TEST_DIR/"
-total_files=$(find "$TEST_DIR" -type f -name "*_test.go" | wc -l)
 # Copy all source code files except test files to the current directory
 # find "$TARGET_PROJECT_PATH" -type f -name "*.go" ! -name "*_test.go" ! -path "*/results*" ! -path "*/tests*" | while read -r src; do
 #     # Create the target directory structure in the current directory
@@ -90,7 +147,7 @@ fi
 # Navigate to target project path
 export GOPROXY=direct,https://proxy.golang.org
 # Optional: disable Go modules checksum database
-export GOSUMDB=off
+# export GOSUMDB=off
 cp -r $TEST_DIR/* "$CLEAN_DIR/"
 cd "$CLEAN_DIR" || exit 1
 if [ ! "$(find . -name '*.go')" ]; then
@@ -99,24 +156,45 @@ if [ ! "$(find . -name '*.go')" ]; then
 fi
 
 # Check and fix case-sensitive collisions
-fix_case_sensitive_collisions .
-while [ $? -ne 0 ]; do
-    echo "Fixed some case-sensitive collisions, checking again..."
-    fix_case_sensitive_collisions .
-done
+# fix_case_sensitive_collisions .
+# while [ $? -ne 0 ]; do
+#     echo "Fixed some case-sensitive collisions, checking again..."
+#     fix_case_sensitive_collisions .
+# done
+
+## Cycle Error Auto Fix ##
+
+find . -type f -name '*_test.go' -exec bash -c 'remove_cycle_import "$0"' {} \;
+## Cycle Error Auto Fix ##
 
 # Run tests repeatedly until there are no errors
 max_attempts=100  # Add a maximum number of attempts to prevent infinite loops
 attempt=1
+go mod tidy
+
 
 while true; do
     error_log=$(go test ./... -v 2>&1)
     python3 "$SCRIPT_PATH" "$error_log"
+    if [ $? -eq 0 ]; then
+        echo "Files were removed"
+        deleted=true
+        # Do something when files were removed
+    else
+        echo "No files were removed"
+        deleted=false
+        # Do something when no files were removed
+    fi
+
     echo "$error_log"
     # Check if error_log is empty or contains no errors
-    if [[ -z "$error_log" ]] || ! echo "$error_log" | grep -q "Error\|panic\|build failed\|setup failed"; then
-        echo "Tests passed successfully on attempt $attempt"
-        break
+    # if [[ -z "$error_log" ]] || ! echo "$error_log" | grep -q "Error\|panic\|build failed\|setup failed"; then
+    if [[ -z "$error_log" ]] || ! echo "$error_log" | grep -q "build failed\|setup failed"; then
+        if ! $deleted; then
+            echo "Tests passed successfully on attempt $attempt"
+            echo "Error log: $error_log"
+            break
+        fi
     fi
     
     # Check if maximum attempts reached
@@ -132,16 +210,6 @@ done
 
 go mod tidy
 
-if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then
-    echo "Collecting coverage data for logrus..."
-    covepackage="github.com/sirupsen/logrus"
-elif [[ "$TARGET_PROJECT_PATH" == *cobra ]]; then
-    echo "Collecting coverage data for cobra..."
-    covepackage="github.com/spf13/cobra,github.com/spf13/cobra/doc"
-else
-    echo "Not supported project"
-    exit 1
-fi
 
 # Create coverage output file with header
 echo "mode: atomic" > coverage.tmp
@@ -151,10 +219,11 @@ passed_files=0
 total_funcs=0
 passed_funcs=0
 
-# Find all test files
+# Checking whether /temp directory exist
+
+
 for testfile in *_test.go; do
     echo "Processing test file: $testfile"
-    
     # Initialize file-level success tracking
     file_all_passed=true
     file_func_count=0
@@ -165,7 +234,6 @@ for testfile in *_test.go; do
             ((total_funcs++))
             ((file_func_count++))
             echo "Running test function: $funcname"
-            
             # Run single test function and collect coverage
             if go test -cover \
                 -coverpkg="$covepackage" \
@@ -178,7 +246,7 @@ for testfile in *_test.go; do
                 # Test failed
                 file_all_passed=false
             fi
-            
+
             # Append coverage data if profile was generated
             if [ -f profile.out ]; then
                 tail -n +2 profile.out >> coverage.tmp
