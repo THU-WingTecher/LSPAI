@@ -4,7 +4,7 @@ import { getConfigInstance, FixType } from './config';
 import { groupDiagnosticsByMessage, groupedDiagnosticsToString, DiagnosticsToString, getDiagnosticsForFilePath } from './diagnostic';
 import { saveToIntermediate, showGeneratedCodeWithPreview } from './fileHandler';
 import { invokeLLM, TokenLimitExceededError } from './invokeLLM';
-import { ExpLogs, LLMLogs } from './log';
+import { ExpLogs, LLMLogs, ExpLogger } from './log';
 import { experimentalDiagnosticPrompt, constructDiagnosticPrompt, FixSystemPrompt } from './prompts/promptBuilder';
 import { parseCode } from './utils';
 
@@ -20,7 +20,7 @@ export async function performFixingRound(
 	model: string,
 	historyPath: string,
 	fullFileName: string,
-	expData: ExpLogs[]): Promise<{ code: string; savePoint: string; diagnostics: vscode.Diagnostic[]; } | null> {
+	logger: ExpLogger): Promise<{ code: string; savePoint: string; diagnostics: vscode.Diagnostic[]; } | null> {
 	console.log(`\n--- Round ${round} ---`);
 
 	// Construct prompt for fixing
@@ -60,28 +60,12 @@ export async function performFixingRound(
 
 	try {
 		aiResponse = await invokeLLM(diagnosticPrompts, fixlogObj);
-		expData.push({
-			llmInfo: fixlogObj,
-			process: `FixWithLLM_${round}`,
-			time: (Date.now() - fixStartTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: collectedData.functionSymbol.name,
-			errMsag: ""
-		});
+		logger.log(`FixWithLLM_${round}`, (Date.now() - fixStartTime).toString(), fixlogObj, "");
 	} catch (error) {
 		if (error instanceof TokenLimitExceededError) {
 			console.warn('Token limit exceeded, continuing...');
 		}
-		expData.push({
-			llmInfo: fixlogObj,
-			process: error instanceof TokenLimitExceededError ? "TokenLimitation" : "UnknownError",
-			time: (Date.now() - fixStartTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: collectedData.functionSymbol.name,
-			errMsag: ""
-		});
+		logger.log(error instanceof TokenLimitExceededError ? "TokenLimitation" : "UnknownError", (Date.now() - fixStartTime).toString(), fixlogObj, "");
 		return null;
 	}
 
@@ -98,28 +82,12 @@ export async function performFixingRound(
 			languageId
 		);
 
-		expData.push({
-			llmInfo: null,
-			process: "saveGeneratedCodeToFolder",
-			time: (Date.now() - saveStartTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: collectedData.functionSymbol.name,
-			errMsag: ""
-		});
+		logger.log("saveGeneratedCodeToFolder", (Date.now() - saveStartTime).toString(), null, "");
 
 		// Get updated diagnostics
 		const diagStartTime = Date.now();
 		const newDiagnostics = await getDiagnosticsForFilePath(newSavePoint);
-		expData.push({
-			llmInfo: null,
-			process: "getDiagnosticsForFilePath",
-			time: (Date.now() - diagStartTime).toString(),
-			method,
-			fileName: fullFileName,
-			function: collectedData.functionSymbol.name,
-			errMsag: ""
-		});
+		logger.log("getDiagnosticsForFilePath", (Date.now() - diagStartTime).toString(), null, "");
 
 		console.log(`Remaining Diagnostics after Round ${round}:`, newDiagnostics.length);
 
@@ -142,7 +110,7 @@ export async function fixDiagnostics(
 	model: string,
 	historyPath: string,
 	fullFileName: string,
-	expData: ExpLogs[],
+	logger: ExpLogger,
 	MAX_ROUNDS: number,
 	showGeneratedCode: boolean): Promise<{ finalCode: string; success: boolean; diagnosticReport: DiagnosticReport; }> {
 
@@ -186,7 +154,7 @@ export async function fixDiagnostics(
 			model,
 			historyPath,
 			fullFileName,
-			expData
+			logger
 		);
 
 		diagnostics = result?.diagnostics || [];

@@ -5,11 +5,11 @@ import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from
 import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement, summarizeClass} from "./retrieve";
 import {getReferenceInfo} from "./reference";
 import { TokenLimitExceededError } from "./invokeLLM";
-import { LLMLogs, ExpLogs } from './log';
+import { ExpLogger, LLMLogs } from './log';
 import { invokeLLM } from "./invokeLLM";
 import { genPrompt, generateTestWithContext, inspectTest } from "./prompts/promptBuilder";
 import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
-import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate, saveExperimentData } from './fileHandler';
+import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate } from './fileHandler';
 import { getConfigInstance, GenerationType, PromptType, Provider, loadPrivateConfig } from './config';
 import { getTempDirAtCurWorkspace } from './fileHandler';
 import { getContextSelectorInstance } from './agents/contextSelector';
@@ -134,24 +134,13 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 }
 
 // Helper functions for the main generator
-async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string): Promise<{ 
+async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string, logger: ExpLogger): Promise<{ 
 	languageId: string, 
-	fileName: string, 
-	expData: ExpLogs[] 
+	fileName: string
 }> {
-	const expData: ExpLogs[] = [];
 	const fileNameParts = fullFileName.split('/');
 	const fileName = fileNameParts[fileNameParts.length - 1].split('.')[0];
-	
-	expData.push({
-		llmInfo: null, 
-		process: "start", 
-		time: "", 
-		method: getConfigInstance().model, 
-		fileName: fullFileName, 
-		function: functionSymbol.name, 
-		errMsag: ""
-	});
+	logger.log("start", "", null, "");
 
 	const languageId = document.languageId;
 	console.log('Language ID:', languageId);
@@ -161,7 +150,7 @@ async function initializeTestGeneration(document: vscode.TextDocument, functionS
 		throw new Error('Invalid function symbol');
 	}
 
-	return { languageId, fileName, expData };
+	return { languageId, fileName};
 }
 
 async function generateInitialTestCode(
@@ -170,7 +159,7 @@ async function generateInitialTestCode(
 	collectedData: any,
 	languageId: string,
 	fileName: string,
-	expData: ExpLogs[]
+	logger: ExpLogger
 ): Promise<string> {
 
 	const promptObj = await genPrompt(collectedData, getConfigInstance().model, languageId);
@@ -179,56 +168,47 @@ async function generateInitialTestCode(
 	try {
 		const testCode = await invokeLLM(promptObj, logObj);
 		const parsedCode = parseCode(testCode);
-		expData.push({
-			llmInfo: logObj,
-			process: "invokeLLM",
-			time: (Date.now() - startLLMTime).toString(),
-			method: getConfigInstance().model,
-			fileName,
-			function: functionSymbol.name,
-			errMsag: ""
-		});
+		logger.log("invokeLLM", (Date.now() - startLLMTime).toString(), logObj, "");
 		return parsedCode;
 	} catch (error) {
 		if (error instanceof TokenLimitExceededError) {
 			console.warn('Token limit exceeded, continuing...');
-			expData.push({
-				llmInfo: logObj,
-				process: "TokenLimitation",
-				time: (Date.now() - startLLMTime).toString(),
-				method: getConfigInstance().model,
-				fileName,
-				function: functionSymbol.name,
-				errMsag: ""
-			});
+			logger.log("TokenLimitation", (Date.now() - startLLMTime).toString(), logObj, "");
 		}
 		throw error;
 	}
 }
-  
+
 export async function generateUnitTestForAFunction(
 	srcPath: string,
 	document: vscode.TextDocument,
 	functionSymbol: vscode.DocumentSymbol,
 	fullFileName: string,
 	showGeneratedCode: boolean = true,
+	inExperiment: boolean = false
 ): Promise<string> {
 // Merge provided config with defaults
+const model = getConfigInstance().model;
+const logger = new ExpLogger([], model, fullFileName, functionSymbol.name);
+const untitledDocument = await vscode.workspace.openTextDocument({ content: '', language: document.languageId });
+const editor = await vscode.window.showTextDocument(untitledDocument, vscode.ViewColumn.Beside);
+
 return vscode.window.withProgress({
 	location: vscode.ProgressLocation.Notification,
 	title: "Generating Unit Test",
 	cancellable: true
 }, async (progress, token) => {
 
-	const model = getConfigInstance().model;
+	
 	console.log(`Generating unit test for ${model} in ${fullFileName}`);
 
 	try {
 		progress.report({ message: "Analyzing function structure...", increment: 20 });
-		const { languageId, fileName, expData } = await initializeTestGeneration(
+		const { languageId, fileName } = await initializeTestGeneration(
 				document,
 				functionSymbol,
-				fullFileName
+				fullFileName,
+				logger
 				);
 		let testCode = "";
 		let collectedData = {};
@@ -240,15 +220,7 @@ return vscode.window.withProgress({
 							languageId,
 							fileName,
 							);
-		expData.push({
-		llmInfo: null,
-		process: "collectInfo",
-		time: (Date.now() - startTime).toString(),
-		method: model,
-		fileName: fullFileName,
-		function: functionSymbol.name,
-		errMsag: ""
-		});
+		logger.log("collectInfo", (Date.now() - startTime).toString(), null, "");
 		progress.report({ message: "Generating test structure...", increment: 20 });
 		progress.report({ message: "Generating test cases...", increment: 20 });
 		switch (getConfigInstance().generationType) {
@@ -261,7 +233,7 @@ return vscode.window.withProgress({
 				collectedData,
 				languageId,
 				fullFileName,
-				expData
+				logger
 				);
 				testCode = parseCode(testCode);
 				await saveToIntermediate(
@@ -279,26 +251,10 @@ return vscode.window.withProgress({
 				const ContextStartTime = Date.now();
 				const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 				const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
-				expData.push({
-					llmInfo: logObjForIdentifyTerms,
-					process: "identifyContextTerms",
-					time: (Date.now() - ContextStartTime).toString(),
-					method: model,
-					fileName: fullFileName,
-					function: functionSymbol.name,
-					errMsag: ""
-					});
+				logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
 				const gatherContextStartTime = Date.now();
 				const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
-				expData.push({
-					llmInfo: null,
-					process: "gatherContext",
-					time: (Date.now() - gatherContextStartTime).toString(),
-					method: model,
-					fileName: fullFileName,
-					function: functionSymbol.name,
-					errMsag: ""
-				});
+				logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
 				console.log("enrichedTerms", enrichedTerms);
 				const generateTestWithContextStartTime = Date.now();
 				const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
@@ -312,15 +268,7 @@ return vscode.window.withProgress({
 					path.join(getConfigInstance().historyPath, model, "initial"),
 					languageId
 				);
-				expData.push({	
-					llmInfo: logObj,
-					process: "generateTestWithContext",
-					time: (Date.now() - generateTestWithContextStartTime).toString(),
-					method: model,
-					fileName: fullFileName,
-					function: functionSymbol.name,
-					errMsag: ""
-				});
+				logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime).toString(), logObj, "");
 				break;
 			case GenerationType.EXPERIMENTAL:
 				const contextSelector_experimental = await getContextSelectorInstance(
@@ -329,26 +277,10 @@ return vscode.window.withProgress({
 				const ContextStartTime_experimental = Date.now();
 				const logObjForIdentifyTerms_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 				const identifiedTerms_experimental = await contextSelector_experimental.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms_experimental);
-				expData.push({
-					llmInfo: logObjForIdentifyTerms_experimental,
-					process: "identifyContextTerms",
-					time: (Date.now() - ContextStartTime_experimental).toString(),
-					method: model,
-					fileName: fullFileName,
-					function: functionSymbol.name,
-					errMsag: ""
-					});
+				logger.log("identifyContextTerms", (Date.now() - ContextStartTime_experimental).toString(), logObjForIdentifyTerms_experimental, "");
 				const gatherContextStartTime_experimental = Date.now();
 				const enrichedTerms_experimental = await contextSelector_experimental.gatherContext(identifiedTerms_experimental);
-				expData.push({
-					llmInfo: null,
-					process: "gatherContext",
-					time: (Date.now() - gatherContextStartTime_experimental).toString(),
-					method: model,
-					fileName: fullFileName,
-					function: functionSymbol.name,
-					errMsag: ""
-				});
+				logger.log("gatherContext", (Date.now() - gatherContextStartTime_experimental).toString(), null, "");
 				console.log("enrichedTerms_experimental", enrichedTerms_experimental);
 				const generateTestWithContextStartTime_experimental = Date.now();
 				const promptObj_experimental = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms_experimental, fileName);
@@ -362,15 +294,7 @@ return vscode.window.withProgress({
 					path.join(getConfigInstance().historyPath, model, "initial"),
 					languageId
 				);
-				expData.push({	
-					llmInfo: logObj_experimental,
-					process: "generateTestWithContext",
-					time: (Date.now() - generateTestWithContextStartTime_experimental).toString(),
-					method: model,
-					fileName: fullFileName,
-					function: functionSymbol.name,
-					errMsag: ""
-				});
+				logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime_experimental).toString(), logObj_experimental, "");
 
 				const inspectTestStartTime = Date.now();
 				const promptObj_inspectTest = inspectTest(document.getText(functionSymbol.range), testCode);
@@ -384,15 +308,7 @@ return vscode.window.withProgress({
 					path.join(getConfigInstance().historyPath, model, "after_inspect"),
 					languageId
 				);
-				expData.push({	
-					llmInfo: logObj_inspectTest,
-					process: "inspectTest",
-					time: (Date.now() - inspectTestStartTime).toString(),
-					method: model,
-					fileName: fullFileName,
-					function: functionSymbol.name,
-					errMsag: ""
-				});
+				logger.log("inspectTest", (Date.now() - inspectTestStartTime).toString(), logObj_inspectTest, "");
 				
 				break;
 		}
@@ -413,21 +329,13 @@ return vscode.window.withProgress({
 			model,
 			getConfigInstance().historyPath,
 			fullFileName,
-			expData,
+			logger,
 			getConfigInstance().maxRound,
 			showGeneratedCode
 		);
 		diagnosticReport = report.diagnosticReport;
 		finalCode = report.finalCode;
-		expData.push({
-			llmInfo: null,
-			process: "fixDiagnostics",
-			time: (Date.now() - fixstartTime).toString(),
-			method: model,
-			fileName: fullFileName,
-			function: functionSymbol.name,
-			errMsag: ""
-		});
+		logger.log("fixDiagnostics", (Date.now() - fixstartTime).toString(), null, "");
 		
 		// Step 4: Save Results
 		
@@ -439,7 +347,7 @@ return vscode.window.withProgress({
 		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
 
 		await saveGeneratedCodeToFolder(finalCode, fullFileName);
-		await saveExperimentData(expData, getConfigInstance().logSavePath, fileName, model);
+		logger.save(fileName);
 
 		if (report.success) {
 			return finalCode;
