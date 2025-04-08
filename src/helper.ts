@@ -250,7 +250,7 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
         throw new Error("No workspace folders found");
     }
     let testFilesPath: string;
-    const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? getConfigInstance().workspace;
+    const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
     const projectName = path.basename(workspace);
     if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
@@ -272,7 +272,7 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string) :
     }
     let testFilesPath: string;
     console.log('current workspace', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
-    const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? getConfigInstance().workspace;
+    const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
     const projectName = path.basename(workspace);
     if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {

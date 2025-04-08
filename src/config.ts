@@ -34,7 +34,7 @@ export const NAIVE_PREFIX = "naive_";
 // Constants for time formatting
 const TIME_ZONE = 'CST';
 export const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
-
+    
 export type ProjectName = keyof typeof SRC_PATHS;
 
 // Add these constants near the top with other constants
@@ -44,8 +44,26 @@ let seededRandom: () => number;
 export type Provider = 'openai' | 'local' | 'deepseek';
 
 // Function to load private configuration
-export function loadPrivateConfig(configPath: string = path.join(__dirname, '../../test-config.json')): PrivateConfig {
+export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
     // First try to load from environment variables
+    if (configPath) {
+        try {
+            console.log('loading private config from', configPath);
+            // Try to load from a local config file that's git-ignored
+            const config = require(configPath);
+            console.log('config', JSON.stringify(config));
+            return {
+                openaiApiKey: config.openaiApiKey || '',
+                deepseekApiKey: config.deepseekApiKey || '',
+                localLLMUrl: config.localLLMUrl || '',
+                proxyUrl: config.proxyUrl || ''
+            };
+        } catch (error) {
+            console.log('error', error);
+            console.error('Failed to load private configuration file');
+            throw new Error('Missing required API keys and URLs. Please set them either through environment variables or test-config.json');
+        }
+    }
     const config = vscode.workspace.getConfiguration('lspAi');
     if (config) {
         console.log('config::config', config);
@@ -56,32 +74,13 @@ export function loadPrivateConfig(configPath: string = path.join(__dirname, '../
             proxyUrl: config.get<string>('proxyUrl') || '',
         };
     }
-    const fromEnv = {
-        openaiApiKey: process.env.TEST_OPENAI_API_KEY,
-        deepseekApiKey: process.env.TEST_DEEPSEEK_API_KEY,
-        localLLMUrl: process.env.TEST_LOCAL_LLM_URL,
-        proxyUrl: process.env.TEST_PROXY_URL
-    };
-
-    // If any required values are missing, try to load from config file
-    if (!fromEnv.openaiApiKey || !fromEnv.deepseekApiKey || !fromEnv.localLLMUrl) {
-        try {
-            // Try to load from a local config file that's git-ignored
-            const config = require(configPath);
-            return {
-                openaiApiKey: config.openaiApiKey || fromEnv.openaiApiKey,
-                deepseekApiKey: config.deepseekApiKey || fromEnv.deepseekApiKey,
-                localLLMUrl: config.localLLMUrl || fromEnv.localLLMUrl,
-                proxyUrl: config.proxyUrl || fromEnv.proxyUrl
-            };
-        } catch (error) {
-            console.log('error', error);
-            console.error('Failed to load private configuration file');
-            throw new Error('Missing required API keys and URLs. Please set them either through environment variables or test-config.json');
-        }
-    }
-
-    return fromEnv as PrivateConfig;
+    
+    return {
+        openaiApiKey: '',
+        deepseekApiKey: '',
+        localLLMUrl: '',
+        proxyUrl: ''
+    } as PrivateConfig;
 }
 
 const DEFAULT_CONFIG = {

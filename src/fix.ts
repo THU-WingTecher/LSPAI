@@ -112,7 +112,7 @@ export async function fixDiagnostics(
 	fullFileName: string,
 	logger: ExpLogger,
 	MAX_ROUNDS: number,
-	showGeneratedCode: boolean): Promise<{ finalCode: string; success: boolean; diagnosticReport: DiagnosticReport; }> {
+	editor: vscode.TextEditor | null): Promise<{ finalCode: string; success: boolean; diagnosticReport: DiagnosticReport; }> {
 
 	let round = 0;
 	let finalCode = testCode;
@@ -123,9 +123,6 @@ export async function fixDiagnostics(
 		path.join(historyPath, method, round.toString()),
 		languageId
 	);
-	if (showGeneratedCode) {
-		await showGeneratedCodeWithPreview(curSavePoint);
-	}
 
 	let diagnostics = await getDiagnosticsForFilePath(curSavePoint);
 	const initialDiagnosticCount = diagnostics.length;
@@ -160,6 +157,11 @@ export async function fixDiagnostics(
 		diagnostics = result?.diagnostics || [];
 		finalCode = result?.code || finalCode;
 		curSavePoint = result?.savePoint || curSavePoint;
+		if (editor) {
+			await editor.edit(editBuilder => {
+				editBuilder.replace(new vscode.Range(0, 0, editor.document.lineCount, 0), finalCode);
+			});
+		}
 		if (!diagnostics) {
 			console.log("No diagnostics found, breaking");
 			break;
@@ -177,7 +179,7 @@ export async function fixDiagnostics(
 		fixSuccess: diagnostics.length === 0,
 		roundHistory: diagnosticHistory
 	};
-
+	
 	return {
 		finalCode,
 		success: diagnostics.length === 0,

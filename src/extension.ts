@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { generateUnitTestForSelectedRange } from './generate';
-import { getConfigInstance } from './config';
+import { Configuration, getConfigInstance } from './config';
 import { collectTrainData, main } from './train/collectTrainData';
 import * as fs from 'fs';
 import path from 'path';
@@ -15,7 +15,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const workspace = vscode.workspace.workspaceFolders;
 
-	if (workspace && workspace.length > 0) {	
+	if (!Configuration.isTestingEnvironment() && workspace && workspace.length > 0) {	
 		console.log(`Workspace: ${workspace[0].uri.fsPath}`);
 		getConfigInstance().updateConfig({
 			workspace: workspace[0].uri.fsPath
