@@ -188,10 +188,13 @@ export async function generateUnitTestForAFunction(
 	inExperiment: boolean = false
 ): Promise<string> {
 // Merge provided config with defaults
+let editor = null;
 const model = getConfigInstance().model;
 const logger = new ExpLogger([], model, fullFileName, functionSymbol.name);
 const untitledDocument = await vscode.workspace.openTextDocument({ content: '', language: document.languageId });
-const editor = await vscode.window.showTextDocument(untitledDocument, vscode.ViewColumn.Beside);
+if (showGeneratedCode) {
+	editor = await vscode.window.showTextDocument(untitledDocument, vscode.ViewColumn.Beside);
+}
 
 return vscode.window.withProgress({
 	location: vscode.ProgressLocation.Notification,
@@ -199,9 +202,7 @@ return vscode.window.withProgress({
 	cancellable: true
 }, async (progress, token) => {
 
-	
 	console.log(`Generating unit test for ${model} in ${fullFileName}`);
-
 	try {
 		progress.report({ message: "Analyzing function structure...", increment: 20 });
 		const { languageId, fileName } = await initializeTestGeneration(
@@ -213,20 +214,20 @@ return vscode.window.withProgress({
 		let testCode = "";
 		let collectedData = {};
 		// Step 1: Collect Info
-		const startTime = Date.now();
-		collectedData = await collectInfo(
-							document,
-							functionSymbol,
-							languageId,
-							fileName,
-							);
-		logger.log("collectInfo", (Date.now() - startTime).toString(), null, "");
-		progress.report({ message: "Generating test structure...", increment: 20 });
+
+		// progress.report({ message: "Generating test structure...", increment: 20 });
 		progress.report({ message: "Generating test cases...", increment: 20 });
 		switch (getConfigInstance().generationType) {
 			case GenerationType.ORIGINAL:
 			// Step 2: Initial Test Generation
-			
+				const startTime = Date.now();
+				collectedData = await collectInfo(
+									document,
+									functionSymbol,
+									languageId,
+									fileName,
+									);
+				logger.log("collectInfo", (Date.now() - startTime).toString(), null, "");
 				testCode = await generateInitialTestCode(
 				document,
 				functionSymbol,
@@ -312,8 +313,11 @@ return vscode.window.withProgress({
 				
 				break;
 		}
-
-		
+		if (editor) {
+			await editor.edit(editBuilder => {
+				editBuilder.replace(new vscode.Range(0, 0, untitledDocument.lineCount, 0), testCode);
+			});		
+		}
 		// Step 3: Diagnostic Fix
 		let diagnosticReport: DiagnosticReport | null = null;
 		let finalCode: string = testCode;
@@ -331,7 +335,7 @@ return vscode.window.withProgress({
 			fullFileName,
 			logger,
 			getConfigInstance().maxRound,
-			showGeneratedCode
+			editor
 		);
 		diagnosticReport = report.diagnosticReport;
 		finalCode = report.finalCode;
@@ -340,7 +344,7 @@ return vscode.window.withProgress({
 		// Step 4: Save Results
 		
 		// Save diagnostic report
-		progress.report({ message: "Finalizing test code...", increment: 20 });
+		progress.report({ message: "Finalizing test code...", increment: 40 });
 		const reportPath = path.join(getConfigInstance().logSavePath, model, `${fileName}_diagnostic_report.json`);
 		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
 		console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
