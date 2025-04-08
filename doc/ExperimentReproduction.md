@@ -130,10 +130,10 @@ If you followed the **Setup Guide :: Option A**, you can directly proceed with s
 Download and extract the experiment dataset:
 ```bash
 cd /LSPAI
-wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/746ec93571dd4451a0ae/?dl=1" -O experiments/experimentData.tar.gz
+wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/6035c7f930444f44917e/?dl=1" -O experiments/experimentData.tar.gz
 mkdir experiments/data
-cd experiments/data
-tar xvf ../experimentData.tar.gz
+cd experiments
+tar xvfz experimentData.tar.gz
 ```
 
 The extracted dataset will have this structure:
@@ -164,7 +164,7 @@ The extracted dataset will have this structure:
    ```bash
    mkdir -p /LSPAI/experiments/projects
    cd /LSPAI/experiments/projects/black # black should be substitue to crawl4ai if you proceed with crawl4ai projects
-   mv /LSPAI/experiments/data/black/* .
+   cp -r /LSPAI/experiments/data/black/* .
    ```
 
 
@@ -182,7 +182,7 @@ The extracted dataset will have this structure:
       # Python Setup
       python3 -m venv venv
       source venv/bin/activate
-      pip install coverage pytest
+      pip install coverage pytest pytest-json-report
 
       # Install dependencies
       pip install -r docs/requirements.txt
@@ -203,7 +203,7 @@ The extracted dataset will have this structure:
       # LSPAI - DS-V3
       bash /LSPAI/experiments/scripts/python_coverage.bash \
          /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/data/black/results_deepseek/deepseek-chat
+         /LSPAI/experiments/projects/black/results_deepseek/deepseek-chat
 
       # NAIVE - DS-V3
       bash /LSPAI/experiments/scripts/python_coverage.bash \
@@ -213,7 +213,7 @@ The extracted dataset will have this structure:
       # LSPAI - GPT4o
       bash /LSPAI/experiments/scripts/python_coverage.bash \
          /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/data/black/results_gpt-4o/gpt-4o
+         /LSPAI/experiments/projects/black/results_gpt-4o/gpt-4o
 
       # NAIVE - GPT4o
       bash /LSPAI/experiments/scripts/python_coverage.bash \
@@ -229,6 +229,11 @@ The extracted dataset will have this structure:
       bash /LSPAI/experiments/scripts/python_coverage.bash \
          /LSPAI/experiments/projects/black \
          /LSPAI/experiments/projects/black/results_gpt-4o-mini/naive_gpt-4o-mini
+      
+      # COPILOT
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_copilot/copilot
       ```
       
    ##### Analysis of Results
@@ -273,13 +278,13 @@ The extracted dataset will have this structure:
       # Python Setup
       python3 -m venv venv
       source venv/bin/activate
-      pip install coverage pytest
+      pip install coverage pytest selenium
 
       # Install dependencies
       # Don\'nt forget to activate venv environment
       pip install -r requirements.txt
 
-      mv /LSPAI/experiments/data/crawl4ai/* .
+      cp -r /LSPAI/experiments/data/crawl4ai/* .
       ```
 
    ##### Reproduce Experiment for CRAWL4AI Project
@@ -316,6 +321,11 @@ The extracted dataset will have this structure:
       bash /LSPAI/experiments/scripts/python_coverage.bash \
          /LSPAI/experiments/projects/crawl4ai \
          /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/naive_gpt-4o-mini
+      
+      # Copilot
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/projects/crawl4ai/results_copilot/copilot
       ```
 
    ##### Analysis of Results
@@ -370,7 +380,7 @@ The extracted dataset will have this structure:
    git clone https://github.com/sirupsen/logrus.git
    cd logrus
    # Optional: Checkout specific commit (if applicable)
-   git checkout v1.9.3-10-gd1e6332
+   # git checkout <specific_version>
 
    # Go Setup
    go env -w GOPROXY=https://goproxy.io,direct
@@ -482,7 +492,7 @@ The extracted dataset will have this structure:
    git clone https://github.com/spf13/cobra.git
    cd cobra
    # Optional: Checkout specific commit (if applicable)
-   git checkout v1.7.0
+   # git checkout <specific_version>
 
    # Go Setup
    go env -w GOPROXY=https://goproxy.io,direct
@@ -632,7 +642,6 @@ The extracted dataset will have this structure:
    cd /LSPAI/experiments/projects
    git clone https://github.com/apache/commons-cli.git
    cd commons-cli
-   git checkout rel/commons-cli-1.9.0-135-geb541428
 
    # Java Setup
    mvn install -DskipTests -Drat.skip=true
@@ -655,6 +664,33 @@ The extracted dataset will have this structure:
    # Trigger Java Experiment Mode
    Ctrl + Shift + P -> LSPAI::Java-Experiment
    ```
+
+   If you are reproducing the experiment, by commandline interface, not debuggin mode. 
+   The java language server cannot automatically add the test file to class path, therefore you need to manually add test path in the pom.xml file. 
+   For example, 
+   // We should move file to the 
+    // ${project.basedir}/src/lspai/test/java --> to get the correct and fast diagnostics
+    // <plugin>
+    //     <groupId>org.codehaus.mojo</groupId>
+    //     <artifactId>build-helper-maven-plugin</artifactId>
+    //     <version>3.5.0</version>
+    //     <executions>
+    //         <execution>
+    //             <id>add-test-source</id>
+    //             <phase>generate-test-sources</phase>
+    //             <goals>
+    //                 <goal>add-test-source</goal>
+    //             </goals>
+    //             <configuration>
+    //                 <sources>
+    //                     <!-- Add your additional test source directory -->
+    //                     <source>${project.basedir}/src/test/java</source>
+    //                     <source>${project.basedir}/src/lspai/test/java</source>
+    //                 </sources>
+    //             </configuration>
+    //         </execution>
+    //     </executions>
+    // </plugin>
 
    ##### B. Reproduce with Provided Dataset
 
@@ -791,8 +827,7 @@ The extracted dataset will have this structure:
    cd /LSPAI/experiments/projects
    git clone https://github.com/apache/commons-csv.git
    cd commons-csv
-   git checkout rel/commons-csv-1.13.0-9-g92e486ac
-   
+
    # Java Setup
    mvn install -DskipTests -Drat.skip=true
    mvn dependency:copy-dependencies
