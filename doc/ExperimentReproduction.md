@@ -130,10 +130,10 @@ If you followed the **Setup Guide :: Option A**, you can directly proceed with s
 Download and extract the experiment dataset:
 ```bash
 cd /LSPAI
-wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/746ec93571dd4451a0ae/?dl=1" -O experiments/experimentData.tar.gz
+wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/6035c7f930444f44917e/?dl=1" -O experiments/experimentData.tar.gz
 mkdir experiments/data
-cd experiments/data
-tar xvf ../experimentData.tar.gz
+cd experiments
+tar xvfz experimentData.tar.gz
 ```
 
 The extracted dataset will have this structure:
