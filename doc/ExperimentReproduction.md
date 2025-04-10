@@ -670,103 +670,163 @@ The extracted dataset will have this structure:
    go mod tidy
    ```
 
-   ##### Coverage Analysis
+   ##### Reproduce Experiment Results
 
    Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
 
+   **LOG - LSPAI - GPT4o**
    ```bash
    # LOG - LSPAI - GPT4o
-   bash /LSPAI/scripts/go_coverage.bash \
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/logrus \
       /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o-report/coverage.out
+   # Total Statements: 431
+   # Covered Statements: 142
+   # Coverage Percentage: 32.95%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 69
+   # Valid Files: 15
+   # Pass rate: 21.74
+   # =====================
    ```
 
-   
+   **LOG - NAIVE - GPT4o**
    ```bash
    # LOG - NAIVE - GPT4o
-   bash /LSPAI/scripts/go_coverage.bash \
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/logrus \
       /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o
-   # LSPAI - DS-V3
-   bash /LSPAI/scripts/go_coverage.bash \
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o-report/coverage.out
+   # Total Statements: 431
+   # Covered Statements: 5
+   # Coverage Percentage: 1.16%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 70
+   # Valid Files: 3
+   # Pass rate: 4.29
+   # =====================
+   ```
+
+   **LOG - Copilot - GPT4o**
+   ```bash
+   # LOG - Copilot - GPT4o
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat
+      /LSPAI/experiments/data/logrus/results_copilot/copilot
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/logrus/results_copilot/copilot-report/coverage.out
+   # Total Statements: 431
+   # Covered Statements: 8
+   # Coverage Percentage: 1.86%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 70
+   # Valid Files: 2
+   # Pass rate: 2.86
+   # =====================
+   ```
 
-   # NAIVE - DS-V3
-   bash /LSPAI/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat
-
-
-   # LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/go_coverage.bash \
+   **LOG - LSPAI - GPT4o-mini**
+   ```bash
+   # LOG - LSPAI - GPT4o-mini
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/logrus \
       /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini-report/coverage.out
+   # Total Statements: 431
+   # Covered Statements: 131
+   # Coverage Percentage: 30.39%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 69
+   # Valid Files: 10
+   # Pass rate: 14.49
+   # =====================
+   ```
 
-   # NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/go_coverage.bash \
+   **LOG - NAIVE - GPT4o-mini**
+   ```bash
+   # LOG - NAIVE - GPT4o-mini
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/logrus \
       /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini-report/coverage.out
+   # Total Statements: 431
+   # Covered Statements: 12
+   # Coverage Percentage: 2.78%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 70
+   # Valid Files: 3
+   # Pass rate: 4.29
+   # =====================
    ```
 
-   After running the above command, you will get coverage results displayed in the terminal. Here's an example output:
-
+   **LOG - LSPAI - DeepSeek-V3**
    ```bash
-   ...
-   github.com/sirupsen/logrus/writer.go:96.2,96.16 1 1
-   github.com/sirupsen/logrus/writer.go:100.45,102.2 1 0
-   Total Statements: 588
-   Covered Statements: 174
-   Coverage Percentage: 29.59%
-   ```
-   The Coverage Percentage represents the final coverage value for the Logrus project. In this case, it is 29.59%.
-
-   Note: Coverage numbers may vary depending on the environment and configuration, but you can expect that LSPAI typically shows a slightly higher coverage compared to the naive approach.
-   pass rate analysis 
-
-   ##### Valid Rate Analysis
-
-   To get the pass rate for your test files, run the following command:
-
-   ```bash
-   # LSPAI - DS-V3
-   bash /LSPAI/scripts/go_passrate.bash \
+   # LOG - LSPAI - DeepSeek-V3
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/logrus \
       /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat-report/coverage.out
+   # Total Statements: 431
+   # Covered Statements: 236
+   # Coverage Percentage: 54.76%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 69
+   # Valid Files: 28
+   # Pass rate: 40.58
+   # =====================
+   ```
 
-   # NAIVE - DS-V3
-   bash /LSPAI/scripts/go_passrate.bash \
+   **LOG - NAIVE - DeepSeek-V3**
+   ```bash
+   # LOG - NAIVE - DeepSeek-V3
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/logrus \
       /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat
-
-   # LSPAI - GPT4o
-   bash /LSPAI/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o
-
-   # NAIVE - GPT4o
-   bash /LSPAI/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o
-
-   # LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini
-
-   # NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat-report/coverage.out
+   # Total Statements: 431
+   # Covered Statements: 147
+   # Coverage Percentage: 34.11%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 70
+   # Valid Files: 15
+   # Pass rate: 21.43
+   # =====================
    ```
-
-   Example output:
-
-   ```bash
-   Total test files: 30
-   Pass rate: 21.428571428571427
-   ```
-   The Pass rate indicates the percentage of test files that passed successfully. In this case, 21.43% of the test files passed.
 
    #### Cobra Project Setup
 
@@ -785,99 +845,163 @@ The extracted dataset will have this structure:
    go mod tidy
    ```
 
-   ##### Coverage Analysis
+   ##### Reproduce Experiment Results
 
-   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Cobra, the following command can be used to perform coverage analysis:
+   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
 
+   **COB - LSPAI - GPT4o**
    ```bash
-   # LSPAI - DS-V3
-   bash /LSPAI/scripts/go_coverage.bash \
+   # COB - LSPAI - GPT4o
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat
+      /LSPAI/experiments/data/cobra/results_gpt4o/gpt-4o
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/cobra/results_gpt4o/gpt-4o-report/coverage.out
+   # Total Statements: 984
+   # Covered Statements: 155
+   # Coverage Percentage: 15.75%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 154
+   # Valid Files: 27
+   # Pass rate: 17.53
+   # =====================
+   ```
 
-   # NAIVE - DS-V3
-   bash /LSPAI/scripts/go_coverage.bash \
+   **COB - NAIVE - GPT4o**
+   ```bash
+   # COB - NAIVE - GPT4o
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat
+      /LSPAI/experiments/data/cobra/results_gpt4o/naive_gpt-4o
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/cobra/results_gpt4o/naive_gpt-4o-report/coverage.out
+   # Total Statements: 984
+   # Covered Statements: 2
+   # Coverage Percentage: 0.20%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 155
+   # Valid Files: 16
+   # Pass rate: 10.32
+   # =====================
+   ```
 
-   # LSPAI - GPT4o
-   bash /LSPAI/scripts/go_coverage.bash \
+   **COB - Copilot - GPT4o**
+   ```bash
+   # COB - Copilot - GPT4o
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o/gpt-4o
+      /LSPAI/experiments/data/cobra/results_copilot/copilot
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/cobra/results_copilot/copilot-report/coverage.out
+   # Total Statements: 984
+   # Covered Statements: 53
+   # Coverage Percentage: 5.39%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 155
+   # Valid Files: 11
+   # Pass rate: 7.10
+   # =====================
+   ```
 
-   # NAIVE - GPT4o
-   bash /LSPAI/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o/naive_gpt-4o
-
-   # LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/go_coverage.bash \
+   **COB - LSPAI - GPT4o-mini**
+   ```bash
+   # COB - LSPAI - GPT4o-mini
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/cobra \
       /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini-report/coverage.out
+   # Total Statements: 984
+   # Covered Statements: 74
+   # Coverage Percentage: 7.52%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 154
+   # Valid Files: 17
+   # Pass rate: 11.04
+   # =====================
+   ```
 
-   # NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/go_coverage.bash \
+   **COB - NAIVE - GPT4o-mini**
+   ```bash
+   # COB - NAIVE - GPT4o-mini
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/cobra \
       /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini-report/coverage.out
+   # Total Statements: 984
+   # Covered Statements: 23
+   # Coverage Percentage: 2.34%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 155
+   # Valid Files: 13
+   # Pass rate: 8.39
+   # =====================
    ```
 
-   After running the above command, you will get coverage results displayed in the terminal. Here's an example output:
-
+   **COB - LSPAI - DeepSeek-V3**
    ```bash
-   ...
-   yaml_docs_GenYamlTreeCustom1_test.go:93: Expected error due to GenYamlCustom failure, got nil
-   FAIL
-   coverage: 22.2% of statements in github.com/spf13/cobra, github.com/spf13/cobra/doc
-   FAIL    github.com/spf13/cobra/doc      0.008s
-   ```
-   The Coverage Percentage represents the final coverage value for the Logrus project. In this case, it is 22.2%.
-
-   Note: Coverage numbers may vary depending on the environment and configuration, but you can expect that LSPAI typically shows a slightly higher coverage compared to the naive approach.
-   pass rate analysis 
-
-   ##### Valid Rate Analysis
-
-   To get the pass rate for your test files, run the following command:
-
-   ```bash
-   # LSPAI - DS-V3
-   bash /LSPAI/scripts/go_passrate.bash \
+   # COB - LSPAI - DeepSeek-V3
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/cobra \
       /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat-report/coverage.out
+   # Total Statements: 984
+   # Covered Statements: 529
+   # Coverage Percentage: 53.76%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 112
+   # Valid Files: 51
+   # Pass rate: 45.54
+   # =====================
+   ```
 
-   # NAIVE - DS-V3
-   bash /LSPAI/scripts/go_passrate.bash \
+   **COB - NAIVE - DeepSeek-V3**
+   ```bash
+   # COB - NAIVE - DeepSeek-V3
+   bash /LSPAI/scripts/go_anal.bash \
       /LSPAI/experiments/projects/cobra \
       /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat
-
-   # LSPAI - GPT4o
-   bash /LSPAI/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o/gpt-4o
-
-   # NAIVE - GPT4o
-   bash /LSPAI/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o/naive_gpt-4o
-
-   # LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini
-
-   # NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini
+   
+   # Expected Result
+   # =====================
+   # Coverage Report: /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat-report/coverage.out
+   # Total Statements: 984
+   # Covered Statements: 161
+   # Coverage Percentage: 16.36%
+   # =====================
+   # Printing valid rate:
+   # =====================
+   # Total Files: 147
+   # Valid Files: 23
+   # Pass rate: 15.65
+   # =====================
    ```
-
-   Example output:
-
-   ```bash
-   Total test files: 30
-   Pass rate: 21.428571428571427
-   ```
-   The Pass rate indicates the percentage of test files that passed successfully. In this case, 21.43% of the test files passed.
 
 ### Python Projects [ BLACK, CRAWL4AI]
 
