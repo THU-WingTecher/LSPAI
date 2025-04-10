@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { generateUnitTestForSelectedRange } from './generate';
+import { generateUnitTestForSelectedRange, showDiffAndAllowSelection } from './generate';
 import { Configuration, getConfigInstance } from './config';
 import { collectTrainData, main } from './train/collectTrainData';
 import * as fs from 'fs';
@@ -10,9 +10,34 @@ import { GenerationType, PromptType, FixType } from './config';
 import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace, saveTaskList } from './helper';
 import { experimentWithCopilot } from './copilot';
 import { generateTimestampString } from './fileHandler';
+import { TelemetryService } from './telemetry/telemetryService';
 
 export async function activate(context: vscode.ExtensionContext) {
 
+	const telemetry = TelemetryService.initialize(context);
+    
+    // Check for consent
+    await telemetry.ensurePrivacyConsent();
+
+    // Example usage in your existing code
+    context.subscriptions.push(
+        vscode.commands.registerCommand('extension.generateUnitTest', async () => {
+            try {
+                // Your existing code
+                telemetry.logEvent('generateUnitTest', {
+                    success: true,
+                    duration: 1000,
+                    // other relevant data
+                });
+            } catch (error) {
+                telemetry.logError(error as Error, {
+                    command: 'generateUnitTest',
+                    // other relevant error context
+                });
+            }
+        })
+    );
+	
 	const workspace = vscode.workspace.workspaceFolders;
 
 	if (!Configuration.isTestingEnvironment() && workspace && workspace.length > 0) {	
@@ -30,7 +55,53 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 
 	// ... existing code ...
+    // const hoverProvider = vscode.languages.registerHoverProvider({ scheme: 'untitled' }, {
+    //     provideHover(document, position, token) {
+    //         // Check if this is one of our test documents
+    //         // Implementation logic for test documents
+            
+    //         const lastLineNumber = document.lineCount - 1;
+            
+    //         // Hover for Accept button
+    //         if (position.line === lastLineNumber && position.character >= document.lineAt(lastLineNumber).text.length) {
+    //             return new vscode.Hover('Accept these changes');
+    //         } 
+    //         // Hover for Reject button
+    //         else if (position.line === lastLineNumber + 1 && position.character <= 8) {
+    //             return new vscode.Hover('Reject these changes and close the document');
+    //         }
+            
+    //         return null;
+    //     }
+    // });
+    // context.subscriptions.push(hoverProvider);
+    // Handle user interaction
+    const acceptCommand = vscode.commands.registerCommand('extension.acceptChanges', async () => {
+        const originalEditor = vscode.window.activeTextEditor;
+        if (originalEditor) {
+            await originalEditor.edit(editBuilder => {
+                editBuilder.replace(new vscode.Range(0, 0, originalEditor.document.lineCount, 0), 'accepted');
+            });
+            vscode.window.showInformationMessage('Changes accepted.');
+        }
+    });
 
+    const rejectCommand = vscode.commands.registerCommand('extension.rejectChanges', () => {
+        vscode.window.showInformationMessage('Changes rejected.');
+		
+    });
+	// Add commands to the context
+	context.subscriptions.push(acceptCommand, rejectCommand);
+	// Clean up the selection change listener when done
+	// const disposable = vscode.workspace.onDidCloseTextDocument((doc) => {
+	// 	if (doc === untitledDocument) {
+	// 		acceptCommand.dispose();
+	// 		rejectCommand.dispose();
+	// 		vscode.commands.executeCommand('setContext', 'extension.showAcceptReject', false);
+	// 		// Close the document
+	// 		vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+	// 	}
+	// });
 	const copilotExperimentDisposable = vscode.commands.registerCommand('lspAi.CopilotExperiment', async () => {
 		const language = "go";
 		let taskListPath = "";
@@ -96,48 +167,153 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	
 	context.subscriptions.push(copilotExperimentDisposable);
-  
+
+	const decorationType = vscode.window.createTextEditorDecorationType({
+        backgroundColor: 'rgba(255,255,0,0.3)', // Light yellow background
+        border: '1px solid yellow'
+    });
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('extension.showInlineSuggestion', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                const range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 10)); // Example range
+                const decoration = { range, hoverMessage: 'Suggested change: ...' };
+                editor.setDecorations(decorationType, [decoration]);
+            }
+        })
+    );
   // ... existing code ...
 
 	const diagnosticDisposable = vscode.commands.registerCommand('extension.diagnostic', async () => {
 
-		console.log('print all workspace folders');
-		const workspaceFolders = vscode.workspace.workspaceFolders;
-		console.log('workspaceFolders', workspaceFolders);
-		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			vscode.window.showErrorMessage('Please open a file and select a function to generate unit test.');
-			return;
-		}
+		const newContent = `package org.apache.commons.cli;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+public class TypeHandler_getConverter_3_1Test {
+    
+    private TypeHandler typeHandler;
+    private Map<Class<?>, Converter<?, ?>> converterMap;
+
+    @BeforeEach
+    public void setUp() {
+        converterMap = new HashMap<>();
+        // Check how TypeHandler should be initialized. This assumes there's a method to register converters.
+        typeHandler = new TypeHandler(); // Update this line based on available constructors or factory methods.
+        
+        // If TypeHandler requires setting the converter map some other way, do that here instead.
+        // For example, if there's a method like typeHandler.setConverterMap(converterMap);
+    }
+    
+    @Test
+    public void testGetConverter_WithRegisteredConverter() {
+        Converter<String, ?> customConverter = mock(Converter.class);
+        converterMap.put(String.class, customConverter);
+        
+        Converter<String, ?> resultConverter = typeHandler.getConverter(String.class);
+        
+        assertEquals(customConverter, resultConverter);
+    }
+
+    @Test
+    public void testGetConverter_WithNullConverter() {
+        Converter<String, ?> resultConverter = typeHandler.getConverter(String.class);
+        
+        assertEquals(Converter.DEFAULT, resultConverter);
+    }
+
+    @Test
+    public void testGetConverter_WithIntegerClass() {
+        Converter<Integer, ?> customConverter = mock(Converter.class);
+        converterMap.put(Integer.class, customConverter);
+        
+        Converter<Integer, ?> resultConverter = typeHandler.getConverter(Integer.class);
+        
+        assertEquals(customConverter, resultConverter);
+    }
+    
+    @Test
+    public void testGetConverter_WithFloatingPointClass() {
+        Converter<Double, ?> customConverter = mock(Converter.class);
+        converterMap.put(Double.class, customConverter);
+        
+        Converter<Double, ?> resultConverter = typeHandler.getConverter(Double.class);
+        
+        assertEquals(customConverter, resultConverter);
+    }
+    
+    @Test
+    public void testGetConverter_WithBooleanClass() {
+        Converter<Boolean, ?> customConverter = mock(Converter.class);
+        converterMap.put(Boolean.class, customConverter);
+        
+        Converter<Boolean, ?> resultConverter = typeHandler.getConverter(Boolean.class);
+        
+        assertEquals(customConverter, resultConverter);
+    }
+    
+    @Test
+    public void testGetConverter_WithUnsupportedType() {
+        Converter<Object, ?> resultConverter = typeHandler.getConverter(Object.class);
+        
+        assertEquals(Converter.DEFAULT, resultConverter);
+    }
+
+    // Commenting out the reflective test until the method existence is verified
+    /*
+    @Test
+    public void testGetConverter_WithPrivateMethodReflection() throws Exception {
+        Method privateMethod = TypeHandler.class.getDeclaredMethod("somePrivateMethod", String.class);
+        privateMethod.setAccessible(true);
+        privateMethod.invoke(typeHandler, "argument");
+
+        // Assuming some behavior changes or side effects from private method invocation that can be tested after
+    }
+    */
+}`;
+		await showDiffAndAllowSelection(newContent, 'java');
+		// const editor = vscode.window.activeTextEditor;
+		// if (!editor) {
+		// 	vscode.window.showErrorMessage('Please open a file and select a function to generate unit test.');
+		// 	return;
+		// }
 		
-		// const filepath = "/LSPAI/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/CSVFormat_getIgnoreEmptyLines1Test.java";
-		// const uri = vscode.Uri.file(filepath);
-		const document = editor.document;
-		const diagnostics = await vscode.languages.getDiagnostics(document.uri);
-		const codeActions = await getCodeAction(document.uri, diagnostics[0]);
-		for (const diagnostic of diagnostics) {
-			console.log('diagnostics', diagnostics);
-			const codeActions = await getCodeAction(editor.document.uri, diagnostic);
+		// // const filepath = "/LSPAI/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/CSVFormat_getIgnoreEmptyLines1Test.java";
+		// // const uri = vscode.Uri.file(filepath);
+		// const document = editor.document;
+		// const diagnostics = await vscode.languages.getDiagnostics(document.uri);
+		// const codeActions = await getCodeAction(document.uri, diagnostics[0]);
+		// for (const diagnostic of diagnostics) {
+		// 	console.log('diagnostics', diagnostics);
+		// 	const codeActions = await getCodeAction(editor.document.uri, diagnostic);
 			
-			// Filter for quick fix actions only
-			const quickFixes = codeActions.filter(action => 
-				action.kind && action.kind.contains(vscode.CodeActionKind.QuickFix)
-			);
+		// 	// Filter for quick fix actions only
+		// 	const quickFixes = codeActions.filter(action => 
+		// 		action.kind && action.kind.contains(vscode.CodeActionKind.QuickFix)
+		// 	);
 	
-			// Apply each quick fix
-			for (const fix of quickFixes) {
-				console.log('fix', fix);
-				if (fix.edit) {
-					// Double check we're only modifying the target file
-					const edits = fix.edit.entries();
-					const isTargetFileOnly = edits.every(([uri]) => uri.fsPath === 	document.uri.fsPath);
+		// 	// Apply each quick fix
+		// 	for (const fix of quickFixes) {
+		// 		console.log('fix', fix);
+		// 		if (fix.edit) {
+		// 			// Double check we're only modifying the target file
+		// 			const edits = fix.edit.entries();
+		// 			const isTargetFileOnly = edits.every(([uri]) => uri.fsPath === 	document.uri.fsPath);
 					
-					if (isTargetFileOnly) {
-						await vscode.workspace.applyEdit(fix.edit);
-					}
-				}
-			}
-		}
+		// 			if (isTargetFileOnly) {
+		// 				await vscode.workspace.applyEdit(fix.edit);
+		// 			}
+		// 		}
+		// 	}
+		// }
 	});
 	
 	const disposable = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
@@ -147,7 +323,11 @@ export async function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-
+		telemetry.logEvent('generateUnitTest', {
+			success: true,
+			duration: 1000,
+			// other relevant data
+		});
 		try {
 			const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
 			if (testCode) {

@@ -93,19 +93,19 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
 	const pathParts = workspace.split("/");
 	const projectName = pathParts[pathParts.length - 1];
-	const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
+	const privateConfig = loadPrivateConfig('');
 
 	const model = 'gpt-4o-mini';
 	const currentConfig = {
 		model: model,
         provider: 'openai' as Provider,
         expProb: 0.2,
-        generationType: GenerationType.AGENT,
+        generationType: GenerationType.ORIGINAL,
         promptType: PromptType.DETAILED,
         workspace: workspace,
         parallelCount: 1,
         maxRound: 5,
-		savePath: path.join(getTempDirAtCurWorkspace(), projectName, model),
+		savePath: path.join(getTempDirAtCurWorkspace(), model),
         ...privateConfig
     }
 	const folderPath = currentConfig.savePath;
@@ -178,6 +178,254 @@ async function generateInitialTestCode(
 		throw error;
 	}
 }
+function getVisibleCodeWithLineNumbers(textEditor: vscode.TextEditor) {
+    let currentLine = textEditor.visibleRanges[0].start.line;
+    const endLine = textEditor.visibleRanges[0].end.line;
+    let code = '';
+
+    while (currentLine < endLine) {
+        code += `${currentLine + 1}: ${textEditor.document.lineAt(currentLine).text} \n`;
+        currentLine++;
+    }
+    return code;
+}
+
+// function applyDecoration(editor: vscode.TextEditor, line: number, suggestion: string) {
+//     const decorationType = vscode.window.createTextEditorDecorationType({
+//         after: {
+//             contentText: ` ${suggestion.substring(0, 25) + "..."}`,
+//             color: "grey",
+//         },
+//     });
+
+//     const lineLength = editor.document.lineAt(line - 1).text.length;
+//     const range = new vscode.Range(
+//         new vscode.Position(line - 1, lineLength),
+//         new vscode.Position(line - 1, lineLength),
+//     );
+
+//     const decoration = { range: range, hoverMessage: suggestion };
+
+//     editor.setDecorations(decorationType, [decoration]);
+// }
+
+function applyDecoration(editor: vscode.TextEditor, line: number, suggestion: string) {
+    const decorationType = vscode.window.createTextEditorDecorationType({
+        after: {
+            contentText: ` ${suggestion.substring(0, 25) + "..."}`,
+            color: "grey",
+        },
+    });
+
+    const lineLength = editor.document.lineAt(line - 1).text.length;
+    const range = new vscode.Range(
+        new vscode.Position(line - 1, lineLength),
+        new vscode.Position(line - 1, lineLength),
+    );
+
+    const decoration = { range: range, hoverMessage: suggestion };
+
+    editor.setDecorations(decorationType, [decoration]);
+}
+
+export async function showDiffAndAllowSelection(newContent: string, languageId: string) {
+    // Create a new untitled document with the new content
+    const untitledDocument = await vscode.workspace.openTextDocument({ content: newContent, language: languageId });
+    const editor = await vscode.window.showTextDocument(untitledDocument, vscode.ViewColumn.Beside);
+
+    // Calculate the range for the entire document
+    const fullRange = new vscode.Range(
+        editor.document.positionAt(0),
+        editor.document.positionAt(newContent.length)
+    );
+
+    // Highlight the entire document
+    // const highlightDecorationType = vscode.window.createTextEditorDecorationType({
+    //     backgroundColor: 'rgba(100, 200, 255, 0.1)', // Light blue background
+    // });
+    
+    // editor.setDecorations(highlightDecorationType, [fullRange]);
+
+    // // Add buttons at the end of document
+    // const buttonsDecorationType = vscode.window.createTextEditorDecorationType({
+    //     after: {
+    //         contentText: ' [Accept] [Reject]',
+    //         color: 'blue',
+    //         margin: '0 0 0 1em',
+    //     }
+    // });
+    
+    // Highlight the entire document as a change
+    const changeDecorationType = vscode.window.createTextEditorDecorationType({
+        backgroundColor: 'rgba(255, 255, 0, 0.34)', // Light yellow background
+        border: '1px solid yellow'
+    });
+
+    editor.setDecorations(changeDecorationType, [fullRange]);
+	const editPromise = editor.edit(editBuilder => {
+        const endPosition = editor.document.positionAt(newContent.length);
+        editBuilder.insert(endPosition, '\n\n');
+    });
+
+    // Wait for the edit to complete before adding decorations
+    await editPromise;
+	const rejectLineNumber = editor.document.lineCount - 1;
+	const acceptLineNumber = rejectLineNumber - 1;
+	const rejectLineLength = editor.document.lineAt(rejectLineNumber).text.length;
+	const acceptLineLength = editor.document.lineAt(acceptLineNumber).text.length;
+    const rejectPosition = new vscode.Position(rejectLineNumber, rejectLineLength);
+	const acceptPosition = new vscode.Position(acceptLineNumber, acceptLineLength);
+    // Render "Accept" and "Reject" options in the editor
+    const acceptDecorationType = vscode.window.createTextEditorDecorationType({
+        after: {
+            contentText: ' [Accept]',
+            color: 'green',
+            margin: '0 0 0 1em',
+            textDecoration: 'underline'
+        }
+    });
+    const acceptRange = new vscode.Range(acceptPosition, acceptPosition);
+    console.log(`acceptRange: ${acceptRange}`);
+    const rejectDecorationType = vscode.window.createTextEditorDecorationType({
+        after: {
+            contentText: ' [Reject]',
+            color: 'red',
+            margin: '0 0 0 1em',
+            textDecoration: 'underline'
+        }
+    });
+
+    // Place reject button on the same line as accept
+    const rejectRange = new vscode.Range(rejectPosition, rejectPosition);
+	console.log(`rejectRange: ${rejectRange}`);
+
+    editor.setDecorations(acceptDecorationType, [acceptRange]);
+    editor.setDecorations(rejectDecorationType, [rejectRange]);
+    // Get the last line position
+
+    const disposable = vscode.window.onDidChangeTextEditorSelection((event) => {
+        if (event.textEditor.document.uri.toString() !== untitledDocument.uri.toString()) {
+            return;
+        }
+        
+        const position = event.selections[0].active;
+        
+        // Check for Accept/Reject button clicks (both on last line)
+        if (position.line === acceptLineNumber) {
+			// Accept clicked
+            const lineText = editor.document.lineAt(position.line).text;
+            const lineLength = lineText.length;
+			changeDecorationType.dispose();
+			acceptDecorationType.dispose();
+			rejectDecorationType.dispose();
+			disposable.dispose();
+			vscode.window.showInformationMessage('Changes accepted');
+            }
+            // If clicked after [Accept] where [Reject] would appear
+            else if (position.line === rejectLineNumber) {
+                // Reject clicked
+                editor.edit(editBuilder => {
+                    editBuilder.delete(new vscode.Range(
+                        new vscode.Position(0, 0),
+                        new vscode.Position(editor.document.lineCount, 0)
+                    ));
+                }).then(() => {
+                    vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                    vscode.window.showInformationMessage('Changes rejected');
+                });
+                changeDecorationType.dispose();
+                acceptDecorationType.dispose();
+                rejectDecorationType.dispose();
+                disposable.dispose();
+            }
+    });
+
+    // Update hover provider to match the new button positions
+    const hoverDisposable = vscode.languages.registerHoverProvider({ scheme: 'untitled', language: languageId }, {
+        provideHover(document, position, token) {
+			console.log(`current hover: ${position.line}, ${position.character}`);
+            if (document.uri.toString() !== untitledDocument.uri.toString()) {
+                return null;
+            }
+            
+            if (position.line === acceptLineNumber) {
+                // Hover for Accept button
+                    return new vscode.Hover('Accept these changes');
+                } 
+                // Hover for Reject button
+                else if (position.line === rejectLineNumber) {
+                    return new vscode.Hover('Reject these changes and close the document');
+                }
+            
+            return null;
+        }
+    });
+    
+    // Clean up hover provider when document closes
+    const closeDisposable = vscode.workspace.onDidCloseTextDocument(doc => {
+        if (doc.uri.toString() === untitledDocument.uri.toString()) {
+            hoverDisposable.dispose();
+            disposable.dispose();
+            closeDisposable.dispose();
+        }
+    });
+}
+// export async function showDiffAndAllowSelection(newContent: string, languageId: string) {
+//     // Create a new untitled document with the new content
+//     const untitledDocument = await vscode.workspace.openTextDocument({ content: newContent, language: languageId });
+//     const editor = await vscode.window.showTextDocument(untitledDocument, vscode.ViewColumn.Beside);
+
+//     // Calculate the range for the entire document
+//     const fullRange = new vscode.Range(
+//         editor.document.positionAt(0),
+//         editor.document.positionAt(newContent.length)
+//     );
+
+// 	applyDecoration(editor, 1, "This is a Unit Test for");
+
+    // Highlight the entire document as a change
+    // const changeDecorationType = vscode.window.createTextEditorDecorationType({
+    //     backgroundColor: 'rgba(255,255,0,0.3)', // Light yellow background
+    //     border: '1px solid yellow'
+    // });
+
+    // editor.setDecorations(changeDecorationType, [fullRange]);
+
+    // // Render "Accept" and "Reject" options in the editor
+    // const acceptDecorationType = vscode.window.createTextEditorDecorationType({
+    //     after: {
+    //         contentText: ' [Accept]',
+    //         color: 'green',
+    //         margin: '0 0 0 1em',
+    //     	textDecoration: 'underline'
+    //     }
+    // });
+
+    // const rejectDecorationType = vscode.window.createTextEditorDecorationType({
+    //     after: {
+    //         contentText: ' [Reject]',
+    //         color: 'red',
+    //         margin: '0 0 0 1em',
+	// 		textDecoration: 'underline'
+    //     }
+    // });
+
+    // editor.setDecorations(acceptDecorationType, [fullRange]);
+    // editor.setDecorations(rejectDecorationType, [fullRange]);
+
+
+	// // Add event listeners for clicking on the decorations
+	// const selectionChangeDisposable = vscode.window.onDidChangeTextEditorSelection((event) => {
+	// 	const position = event.selections[0].active;
+	// 	const lineText = event.textEditor.document.lineAt(position.line).text;
+	//     console.log(`Cursor moved to line: ${position.line}, text: ${lineText}, Document: ${event.textEditor.document.uri}`);
+	// 	if (lineText.includes('[Accept]')) {
+	// 		vscode.commands.executeCommand('extension.acceptChanges');
+	// 	} else if (lineText.includes('[Reject]')) {
+	// 		vscode.commands.executeCommand('extension.rejectChanges');
+	// 	}
+	// });
+// }
 
 export async function generateUnitTestForAFunction(
 	srcPath: string,
@@ -188,13 +436,9 @@ export async function generateUnitTestForAFunction(
 	inExperiment: boolean = false
 ): Promise<string> {
 // Merge provided config with defaults
-let editor = null;
 const model = getConfigInstance().model;
 const logger = new ExpLogger([], model, fullFileName, functionSymbol.name);
-const untitledDocument = await vscode.workspace.openTextDocument({ content: '', language: document.languageId });
-if (showGeneratedCode) {
-	editor = await vscode.window.showTextDocument(untitledDocument, vscode.ViewColumn.Beside);
-}
+
 
 return vscode.window.withProgress({
 	location: vscode.ProgressLocation.Notification,
@@ -218,6 +462,7 @@ return vscode.window.withProgress({
 		// progress.report({ message: "Generating test structure...", increment: 20 });
 		progress.report({ message: "Generating test cases...", increment: 20 });
 		switch (getConfigInstance().generationType) {
+			case GenerationType.NAIVE:
 			case GenerationType.ORIGINAL:
 			// Step 2: Initial Test Generation
 				const startTime = Date.now();
@@ -313,15 +558,15 @@ return vscode.window.withProgress({
 				
 				break;
 		}
-		if (editor) {
-			await editor.edit(editBuilder => {
-				editBuilder.replace(new vscode.Range(0, 0, untitledDocument.lineCount, 0), testCode);
-			});		
+
+		if (getConfigInstance().generationType === GenerationType.NAIVE) {
+			return testCode;
 		}
+
 		// Step 3: Diagnostic Fix
 		let diagnosticReport: DiagnosticReport | null = null;
 		let finalCode: string = testCode;
-		
+
 		const fixstartTime = Date.now();
 		progress.report({ message: "Fixing Unit Test Codes ...", increment: 20 });
 		const report = await fixDiagnostics(
@@ -335,7 +580,6 @@ return vscode.window.withProgress({
 			fullFileName,
 			logger,
 			getConfigInstance().maxRound,
-			editor
 		);
 		diagnosticReport = report.diagnosticReport;
 		finalCode = report.finalCode;
@@ -351,6 +595,9 @@ return vscode.window.withProgress({
 		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
 
 		await saveGeneratedCodeToFolder(finalCode, fullFileName);
+		if (showGeneratedCode) {
+			showDiffAndAllowSelection(fullFileName, testCode);
+		}
 		logger.save(fileName);
 
 		if (report.success) {

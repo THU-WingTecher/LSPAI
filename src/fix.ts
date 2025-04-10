@@ -111,8 +111,8 @@ export async function fixDiagnostics(
 	historyPath: string,
 	fullFileName: string,
 	logger: ExpLogger,
-	MAX_ROUNDS: number,
-	editor: vscode.TextEditor | null): Promise<{ finalCode: string; success: boolean; diagnosticReport: DiagnosticReport; }> {
+	MAX_ROUNDS: number): 
+	Promise<{ finalCode: string; success: boolean; diagnosticReport: DiagnosticReport; }> {
 
 	let round = 0;
 	let finalCode = testCode;
@@ -157,11 +157,11 @@ export async function fixDiagnostics(
 		diagnostics = result?.diagnostics || [];
 		finalCode = result?.code || finalCode;
 		curSavePoint = result?.savePoint || curSavePoint;
-		if (editor) {
-			await editor.edit(editBuilder => {
-				editBuilder.replace(new vscode.Range(0, 0, editor.document.lineCount, 0), finalCode);
-			});
-		}
+		// if (editor) {
+		// 	await editor.edit(editBuilder => {
+		// 		editBuilder.replace(new vscode.Range(0, 0, editor.document.lineCount, 0), finalCode);
+		// 	});
+		// }
 		if (!diagnostics) {
 			console.log("No diagnostics found, breaking");
 			break;
