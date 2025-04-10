@@ -22,10 +22,23 @@
     "redhat.java",
     "golang.go"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "extension.acceptChanges",
+        "title": "Accept Changes"
+      },
+      {
+        "command": "extension.rejectChanges",
+        "title": "Reject Changes"
+      },
+      {
+        "command": "extension.showInlineSuggestion",
+        "title": "Show Inline Suggestion"
+      },
       {
         "command": "lspAi.JavaExperiment",
         "title": "LSPAI: Java-Experiment"
