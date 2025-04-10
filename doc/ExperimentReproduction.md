@@ -33,7 +33,7 @@
       - [Cobra Project Setup](#cobra-project-setup)
         - [Coverage Analysis](#coverage-analysis-1)
         - [Valid Rate Analysis](#valid-rate-analysis-1)
-    - [Java Projects \[Commons-Cli, commons-csv\]](#java-projects-commons-cli-commons-csv)
+    - [Java Projects \[Commons-Cli, Commons-Csv\]](#java-projects-commons-cli-commons-csv)
       - [Java Setup](#java-setup)
       - [Commons-Cli Project Setup](#commons-cli-project-setup)
         - [\[OPTIONAL\] A. Reproduce by Generating New Test Codes](#optional-a-reproduce-by-generating-new-test-codes)
@@ -58,25 +58,20 @@
 
 ## 🛠️ Setup Guide
 
-### 1. Install LSPAI Extension
+### 1. Install LSPAI from Source
 
-#### Option A: VS Code Marketplace (Coming Soon!)
-
-Download the extension from this [link](https://marketplace.visualstudio.com/items?itemName=GwihwanGo.lspAi) or search "LSPAI" in VS Code extension market.
-
-#### Option B: Build from Source
 1. Pull the image and run
    ```bash
    docker pull gwihwan/lspai:latest
-   docker run -it --name lspai lspai:latest /bin/bash
+   docker run -it --name lspai gwihwan/lspai:latest /bin/bash
    ```
 
 2. Clone and Build
    ```bash
    # Clone the repository
-   git clone https://github.com/your-repo/lspai.git
+   cd ..
+   git clone https://github.com/Gwihwan-Go/LSPAI.git
    cd LSPAI
-
    # Install dependencies
    npm install
 
@@ -86,14 +81,63 @@ Download the extension from this [link](https://marketplace.visualstudio.com/ite
 
 After installing the extension, please configure your language servers and LLM settings by following the 🛠️ Setup Guide in the [README](../README.md).
 
-## Reproduce Experiment Results 
+3. Known Issues : if you met the below error while compiling
+```bash
+node_modules/lru-cache/dist/commonjs/index.d.ts:1032:5 - error TS2416: Property 'forEach' in type 'LRUCache<K, V, FC>' is not assignable to the same property in base type 'Map<K, V>'.node_modules/lru-cache/dist/commonjs/index.d.ts:1032:5 - error TS2416: Property 'forEach' in type 'LRUCache<K, V, FC>' is not assignable to the same property in base type 'Map<K, V>'.
+```
+You can try to downgrade the version of lru-cache to 10.1.0 by running the following command:
+```bash
+npm install lru-cache@10.1.0
+```
 
-There are two ways to proceed with the experiments:
+## Generate Unit Test Codes by LSPAI
 
-### Prepare Unit Test Codes 
+### Language Server Installation
 
-#### Option A: Generate Unit Tests (Manual Method)
+1. Download the Language Server of your target language (If you pull the docker image, these are already installed.)
+   - Java: Oracle Java Extension Pack ( identifier : oracle.oracle-java)
+   - Python: Pylance and Python extension ( identifier : ms-python.vscode-pylance, ms-python.python)
+   - Go: Go extension ( identifier : golang.go)
 
+2. Language-Specific Setup (This need to be setup)
+   
+   **For Go:**
+   Enable semantic tokenization in your VS Code settings.json:
+   ```json
+   {
+     "gopls": {
+       "ui.semanticTokens": true
+     }
+   }
+   ```
+
+### Option A: Download IDE Plugin 
+
+1. Download the IDE plugin from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=LSPAI.lspai)
+2. Install the plugin
+3. SetUp LLM Configuration
+   - Open the settings.json file
+   - Add the following configuration:
+   ```json
+   {
+     "lspAi": {
+       "provider": "deepseek",    // Choose: // openai // deepseek // ollama
+       "model": "deepseek-chat",  // Choose: // gpt-4o-mini // llama3-70b // deepseek-chat
+       "openaiApiKey": "your-api-key",    // Required for OpenAI
+       "deepseekApiKey": "your-api-key",  // Required for Deepseek
+       "localLLMUrl": "http://your-ollama-server:port",  // Required for Ollama
+       "proxyUrl": "your-proxy-server"    // Optional: Configure if using a proxy
+     }
+   }
+   ```
+4. Open the target project
+5. [Optional] Project Compilation
+   - While not required, compiling your project can improve error diagnosis and auto-fixing capabilities
+5. Move cursor to the function you want to generate unit test codes
+6. Press right-click and select `LSPAI: Generate Unit Test Codes`
+7. Wait for the unit test codes to be generated
+
+### Option B: Build from Source
 Each programming language has slightly different steps. 
 Overall, you can follow these steps:
 
@@ -115,6 +159,37 @@ If you followed the **Setup Guide :: Option A**, you can directly proceed with s
    ![Change Interpreter](assets/python-select-interpreter.png)
    ![Select Interpreter](assets/interpreter_path_example.png)
 
+Known Issue: If you met the below error, this happens when the language server is not installed.
+   ![No Symbols Found Error](assets/noSymbol.png)
+Please install the language server and try again.
+
+## Reproduce Experiment Results (Table 3)
+
+Table 3 claims that LSPAI outperforms other baselines in terms of coverage, and part of valid rate compared to baselines.
+There are two ways to proceed with the experiments:
+
+### Prepare Unit Test Codes 
+
+#### Option A: Generate Unit Tests (Manual Method)
+
+> Note: Generating unit tests for every function in real-world projects is time-consuming. We provide pre-generated experiment data as an alternative (see Option B).
+
+1. Checkout the branch
+   ```bash
+   git checkout fse-industry
+   ```
+2. Recompile the project
+   ```bash
+   cd /LSPAI
+   npm install 
+   npm run compile
+   ```
+3. Launch LSPAI in Development Mode:
+   - Open `/LSPAI/src/extension.ts`
+   - Press `F5` to launch Extension Development Host
+   - Select "VS Code Extension Development" from the dropdown
+   - A new VS Code window should open
+
 4. Run the experiment:
    - Press `CTRL+SHIFT+P`
    - For Python, you should first generate venv-python version, and install necessary libraries, and select python interpreter at righ-bottom section of vscode.
@@ -123,15 +198,14 @@ If you followed the **Setup Guide :: Option A**, you can directly proceed with s
    - After the experiment ended, you can find out the result_${current_time} folder at your workspace.
    ![Final Result](assets/python-experiment-result.png)
 
-> Note: Generating unit tests for every function in real-world projects is time-consuming. We provide pre-generated experiment data as an alternative (see Option B).
-
 #### Option B: Use Pre-generated Dataset (Recommended)
 
 Download and extract the experiment dataset:
 ```bash
 cd /LSPAI
-wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/6035c7f930444f44917e/?dl=1" -O experiments/experimentData.tar.gz
+mkdir -p experiments 
 mkdir experiments/data
+wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/6035c7f930444f44917e/?dl=1" -O experiments/experimentData.tar.gz
 cd experiments
 tar xvfz experimentData.tar.gz
 ```
@@ -148,461 +222,15 @@ The extracted dataset will have this structure:
     └── logrus
 ```
 
-### Python Projects [ BLACK, CRAWL4AI]
-
-   #### Prepare Unit Test Codes
-
-   **Option A: Generate Unit Tests (Manual Method)**
-   
-   Follow above instructions.
-
-   **Option B: Use Pre-generated Dataset (Recommended)**
-
-   Download dataset by following **Prepare Unit Test Codes :: Option B**.
-
-   Run below command to move dataset to target project
-   ```bash
-   mkdir -p /LSPAI/experiments/projects
-   cd /LSPAI/experiments/projects/black # black should be substitue to crawl4ai if you proceed with crawl4ai projects
-   cp -r /LSPAI/experiments/data/black/* .
-   ```
-
-
-   #### Black Project Setup
-
-      To set up the Black project, follow these steps:
-      ```bash
-      # Clone and checkout specific version
-      mkdir -p /LSPAI/experiments/projects
-      cd /LSPAI/experiments/projects
-      git clone https://github.com/psf/black.git
-      cd black
-      git checkout 8dc912774e322a2cd46f691f19fb91d2237d06e2
-
-      # Python Setup
-      python3 -m venv venv
-      source venv/bin/activate
-      pip install coverage pytest pytest-json-report
-
-      # Install dependencies
-      pip install -r docs/requirements.txt
-      pip install -r test_requirements.txt
-      pip install click mypy_extensions packaging urllib3 pathspec platformdirs
-
-      # Configure project
-      echo "version = '00.0.0'" > src/black/_black_version.py
-      rm pyproject.toml
-
-      ```
-
-   ##### Reproduce Experiment for Black Project
-
-      To reproduce the experiments, run the following commands for each baseline (GPT-4o, GPT-4o-mini, DeepSeek):
-
-      ```bash
-      # LSPAI - DS-V3
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_deepseek/deepseek-chat
-
-      # NAIVE - DS-V3
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_deepseek/naive_deepseek-chat
-
-      # LSPAI - GPT4o
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_gpt-4o/gpt-4o
-
-      # NAIVE - GPT4o
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_gpt-4o/naive_gpt-4o
-
-      # LSPAI - GPT4o-mini
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_gpt-4o-mini/gpt-4o-mini
-
-      # NAIVE - GPT4o-mini
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_gpt-4o-mini/naive_gpt-4o-mini
-      
-      # COPILOT
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_copilot/copilot
-      ```
-      
-   ##### Analysis of Results
-
-      After running any of the above commands, you'll get output for Coverage Analysis and Passrate Analysis.
-
-      a. Coverage Analysis ( e.g., deepseek)
-
-      The printed output will show coverage results for various files. Here's an example:
-      ```
-      ...
-      src/blib2to3/pytree.py               475    315    34%
-      ------------------------------------------------------
-      TOTAL                               7588   4534    40%
-      ```
-      The **TOTAL** row represents the final coverage percentage. In this case, 40%.
-      > Note: Coverage numbers may vary based on the environment, but LSPAI typically shows a 1-2% higher coverage compared to the naive approach.
-   
-      b. Valid Rate Analysis ( The number of total functions : 440 )
-
-      The printed output also show summarized results for whole unit test code files. Here's an example:
-
-      ```
-      ...
-      ============================================================================================================ ... failed, ... passed, ... warnings, 144 errors in 7.34s =============================================================================================================
-      ...
-      ```
-      From the given the number of errors, we can calculate the Valid Rate. 
-      
-      In this case, 67.3% ((440 - 144) / 440 )
-
-
-   #### Crawl4ai Project Setup
-
-      ```bash
-      mkdir -p /LSPAI/experiments/projects
-      cd /LSPAI/experiments/projects
-      git clone https://github.com/unclecode/crawl4ai.git
-      cd crawl4ai
-      git checkout 8878b3d032fb21ce3567b34db128bfa64687198a
-
-      # Python Setup
-      python3 -m venv venv
-      source venv/bin/activate
-      pip install coverage pytest selenium
-
-      # Install dependencies
-      # Don\'nt forget to activate venv environment
-      pip install -r requirements.txt
-
-      cp -r /LSPAI/experiments/data/crawl4ai/* .
-      ```
-
-   ##### Reproduce Experiment for CRAWL4AI Project
-
-      To reproduce the experiments, run the following commands for each baseline (GPT-4o, GPT-4o-mini, DeepSeek):
-
-      ```bash
-      # LSPAI - DS-V3
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/data/crawl4ai/results_deepseek/deepseek-chat
-
-      # NAIVE - DS-V3
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/projects/crawl4ai/results_deepseek/naive_deepseek-chat
-
-      # LSPAI - GPT4o
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/data/crawl4ai/results_gpt-4o/gpt-4o
-
-      # NAIVE - GPT4o
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
-
-      # LSPAI - GPT4o-mini
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/data/crawl4ai/results_gpt-4o-mini/gpt-4o-mini
-
-      # NAIVE - GPT4o-mini
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/naive_gpt-4o-mini
-      
-      # Copilot
-      bash /LSPAI/experiments/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/projects/crawl4ai/results_copilot/copilot
-      ```
-
-   ##### Analysis of Results
-
-      After running any of the above commands, you'll get output for Coverage Analysis and Passrate Analysis.
-
-      a. Coverage Analysis ( e.g., deepseek)
-
-      The printed output will show coverage results for various files. Here's an example:
-      ```
-         ...
-      crawl4ai/utils.py                            689    334    52%
-      crawl4ai/version_manager.py                   21      1    95%
-      crawl4ai/web_crawler.py                      110     80    27%
-      --------------------------------------------------------------
-      TOTAL                                       5751   3304    43%
-         ```
-      The TOTAL row represents the overall coverage percentage (43% in this case).
-         > Note: Coverage numbers may vary based on the environment, but LSPAI typically shows a 1-2% higher coverage compared to the naive approach.
-      
-      b. Valid Rate Analysis ( The number of total functions : 377 )
-
-      The passrate analysis will summarize the number of total functions and the number of errors. Here's an example of the printed output:
-      ```
-      ...
-      ============================================================================================================ ... failed, ... passed, ... warnings, 108 errors in 20.98s =============================================================================================================
-      ...
-      ```
-      From the given the number of errors, we can calculate the Valid Rate. 
-      
-      In this case, 71.3% ((377 - 108) / 377 )
-
-### Go Projects [LOGRUS, COBRA]
-
-   #### Prepare Unit Test Codes 
-
-   Option A: Generate Unit Tests (Manual Method)
-   
-   Follow above instructions.
-
-   Option B: Use Pre-generated Dataset (Recommended)
-
-   Download dataset by following **Prepare Unit Test Codes :: Option B**.
-
-   #### Logrus Project Setup
-
-   To set up the Logrus project, follow these steps:
-   ```bash
-   # Clone and checkout a specific version
-   mkdir -p /LSPAI/experiments/projects
-   cd /LSPAI/experiments/projects
-   git clone https://github.com/sirupsen/logrus.git
-   cd logrus
-   # Optional: Checkout specific commit (if applicable)
-   # git checkout <specific_version>
-
-   # Go Setup
-   go env -w GOPROXY=https://goproxy.io,direct
-   go mod tidy
-   ```
-
-   ##### Coverage Analysis
-
-   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
-
-   ```bash
-   # LSPAI - DS-V3
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat
-
-   # NAIVE - DS-V3
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat
-
-   # LSPAI - GPT4o
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o
-
-   # NAIVE - GPT4o
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o
-
-   # LSPAI - GPT4o-mini
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini
-
-   # NAIVE - GPT4o-mini
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini
-   ```
-
-   After running the above command, you will get coverage results displayed in the terminal. Here's an example output:
-
-   ```bash
-   ...
-   github.com/sirupsen/logrus/writer.go:96.2,96.16 1 1
-   github.com/sirupsen/logrus/writer.go:100.45,102.2 1 0
-   Total Statements: 588
-   Covered Statements: 174
-   Coverage Percentage: 29.59%
-   ```
-   The Coverage Percentage represents the final coverage value for the Logrus project. In this case, it is 29.59%.
-
-   Note: Coverage numbers may vary depending on the environment and configuration, but you can expect that LSPAI typically shows a slightly higher coverage compared to the naive approach.
-   pass rate analysis 
-
-   ##### Valid Rate Analysis
-
-   To get the pass rate for your test files, run the following command:
-
-   ```bash
-   # LSPAI - DS-V3
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat
-
-   # NAIVE - DS-V3
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat
-
-   # LSPAI - GPT4o
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o
-
-   # NAIVE - GPT4o
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o
-
-   # LSPAI - GPT4o-mini
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini
-
-   # NAIVE - GPT4o-mini
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini
-   ```
-
-   Example output:
-
-   ```bash
-   Total test files: 30
-   Pass rate: 21.428571428571427
-   ```
-   The Pass rate indicates the percentage of test files that passed successfully. In this case, 21.43% of the test files passed.
-
-   #### Cobra Project Setup
-
-   To set up the Cobra project, follow these steps:
-   ```bash
-   # Clone and checkout a specific version
-   mkdir -p /LSPAI/experiments/projects
-   cd /LSPAI/experiments/projects
-   git clone https://github.com/spf13/cobra.git
-   cd cobra
-   # Optional: Checkout specific commit (if applicable)
-   # git checkout <specific_version>
-
-   # Go Setup
-   go env -w GOPROXY=https://goproxy.io,direct
-   go mod tidy
-   ```
-
-   ##### Coverage Analysis
-
-   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Cobra, the following command can be used to perform coverage analysis:
-
-   ```bash
-   # LSPAI - DS-V3
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat
-
-   # NAIVE - DS-V3
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat
-
-   # LSPAI - GPT4o
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o/gpt-4o
-
-   # NAIVE - GPT4o
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o/naive_gpt-4o
-
-   # LSPAI - GPT4o-mini
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini
-
-   # NAIVE - GPT4o-mini
-   bash /LSPAI/experiments/scripts/go_coverage.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini
-   ```
-
-   After running the above command, you will get coverage results displayed in the terminal. Here's an example output:
-
-   ```bash
-   ...
-   yaml_docs_GenYamlTreeCustom1_test.go:93: Expected error due to GenYamlCustom failure, got nil
-   FAIL
-   coverage: 22.2% of statements in github.com/spf13/cobra, github.com/spf13/cobra/doc
-   FAIL    github.com/spf13/cobra/doc      0.008s
-   ```
-   The Coverage Percentage represents the final coverage value for the Logrus project. In this case, it is 22.2%.
-
-   Note: Coverage numbers may vary depending on the environment and configuration, but you can expect that LSPAI typically shows a slightly higher coverage compared to the naive approach.
-   pass rate analysis 
-
-   ##### Valid Rate Analysis
-
-   To get the pass rate for your test files, run the following command:
-
-   ```bash
-   # LSPAI - DS-V3
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat
-
-   # NAIVE - DS-V3
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat
-
-   # LSPAI - GPT4o
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o/gpt-4o
-
-   # NAIVE - GPT4o
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o/naive_gpt-4o
-
-   # LSPAI - GPT4o-mini
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini
-
-   # NAIVE - GPT4o-mini
-   bash /LSPAI/experiments/scripts/go_passrate.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini
-   ```
-
-   Example output:
-
-   ```bash
-   Total test files: 30
-   Pass rate: 21.428571428571427
-   ```
-   The Pass rate indicates the percentage of test files that passed successfully. In this case, 21.43% of the test files passed.
-
-### Java Projects [Commons-Cli, commons-csv]
-
+### Java Projects [Commons-Cli, Commons-Csv]
 
    #### Java Setup
-
+<!-- 
    Ensure that you download the necessary libraries from the provided link:
    ```bash
    cd /LSPAI/experiments/scripts
    mvn install
-   ```
+   ``` -->
 
    Ensure that you download the necessary libraries from the provided link:
    ```bash
@@ -612,7 +240,7 @@ The extracted dataset will have this structure:
    tar xvf ../javaLib.tar.gz
    ```
 
-   After running above commands, you can observe that jar files are located at `/LSPAI/lib/`.
+   After running above commands, you can observe that jar files are located at `/LSPAI/experiments/lib/`.
    ```bash
    |-- lib`
    |   |-- jacocoagent.jar
@@ -622,16 +250,6 @@ The extracted dataset will have this structure:
    |   |-- junit-platform-console-standalone-1.8.2.jar
    |   `-- junit-platform-launcher-1.8.2.jar
 ```
-
-   <!-- 0. **Prepare Unit Test Codes** 
-
-   #### Option A: Generate Unit Tests (Manual Method)
-   
-   Follow above instructions.
-
-   #### Option B: Use Pre-generated Dataset (Recommended)
-
-   Download dataset by following **Prepare Unit Test Codes :: Option B**. -->
 
    #### Commons-Cli Project Setup
 
@@ -643,7 +261,7 @@ The extracted dataset will have this structure:
    git clone https://github.com/apache/commons-cli.git
    cd commons-cli
 
-   # Java Setup
+   # Java Setup - This step is required for coverage analysis
    mvn install -DskipTests -Drat.skip=true
    mvn dependency:copy-dependencies
    ```
@@ -692,33 +310,9 @@ The extracted dataset will have this structure:
     //     </executions>
     // </plugin>
 
-   ##### B. Reproduce with Provided Dataset
+   ##### B. Reproduce with Provided Dataset ( Table 3 )
 
    Once the environment is set up and the unit tests are prepared, you can proceed to reproduce experiments using the provided dataset.
-<!-- 
-   **a. Download Compiled Files**
-
-   Download the compiled files, which are necessary for JaCoCo coverage reports. These files must match the binaries used when generating unit tests:
-   ```bash
-   # Download required libraries
-   cd /LSPAI/experiments
-   wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/727023280c2f4ec2bbe9/?dl=1" -O cliClasses.tar.gz
-   tar xvf cliClasses.tar.gz
-   mv classes projects/commons-cli/target
-   ```
-
-   After running above commands, you can observe that class files are located at `commons-cli/target/classes`.
-   
-   ```bash
-   projects/commons-cli/target
-   |-- antrun
-   |   `-- build-main.xml
-   |-- apidocs
-   |   `-- META-INF
-   |-- classes
-   |   |-- META-INF
-   |   `-- org
-   ``` -->
 
    ##### Reproduce Experiment Results :: Coverage
 
@@ -977,6 +571,452 @@ The extracted dataset will have this structure:
    Files with corresponding .class files: 119
    Pass rate: 57.49%
    ```
+
+
+### Go Projects [LOGRUS, COBRA]
+
+   #### Prepare Unit Test Codes 
+
+   Option A: Generate Unit Tests (Manual Method)
+   
+   Follow above instructions.
+
+   Option B: Use Pre-generated Dataset (Recommended)
+
+   Download dataset by following **Prepare Unit Test Codes :: Option B**.
+
+   #### Logrus Project Setup
+
+   To set up the Logrus project, follow these steps:
+   ```bash
+   # Clone and checkout a specific version
+   mkdir -p /LSPAI/experiments/projects
+   cd /LSPAI/experiments/projects
+   git clone https://github.com/sirupsen/logrus.git
+   cd logrus
+   # Optional: Checkout specific commit (if applicable)
+   # git checkout <specific_version>
+
+   # Go Setup
+   go env -w GOPROXY=https://goproxy.io,direct
+   go mod tidy
+   ```
+
+   ##### Coverage Analysis
+
+   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
+
+   ```bash
+   # LSPAI - DS-V3
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat
+
+   # NAIVE - DS-V3
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat
+
+   # LSPAI - GPT4o
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o
+
+   # NAIVE - GPT4o
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o
+
+   # LSPAI - GPT4o-mini
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini
+
+   # NAIVE - GPT4o-mini
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini
+   ```
+
+   After running the above command, you will get coverage results displayed in the terminal. Here's an example output:
+
+   ```bash
+   ...
+   github.com/sirupsen/logrus/writer.go:96.2,96.16 1 1
+   github.com/sirupsen/logrus/writer.go:100.45,102.2 1 0
+   Total Statements: 588
+   Covered Statements: 174
+   Coverage Percentage: 29.59%
+   ```
+   The Coverage Percentage represents the final coverage value for the Logrus project. In this case, it is 29.59%.
+
+   Note: Coverage numbers may vary depending on the environment and configuration, but you can expect that LSPAI typically shows a slightly higher coverage compared to the naive approach.
+   pass rate analysis 
+
+   ##### Valid Rate Analysis
+
+   To get the pass rate for your test files, run the following command:
+
+   ```bash
+   # LSPAI - DS-V3
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat
+
+   # NAIVE - DS-V3
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat
+
+   # LSPAI - GPT4o
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o
+
+   # NAIVE - GPT4o
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o
+
+   # LSPAI - GPT4o-mini
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini
+
+   # NAIVE - GPT4o-mini
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/logrus \
+      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini
+   ```
+
+   Example output:
+
+   ```bash
+   Total test files: 30
+   Pass rate: 21.428571428571427
+   ```
+   The Pass rate indicates the percentage of test files that passed successfully. In this case, 21.43% of the test files passed.
+
+   #### Cobra Project Setup
+
+   To set up the Cobra project, follow these steps:
+   ```bash
+   # Clone and checkout a specific version
+   mkdir -p /LSPAI/experiments/projects
+   cd /LSPAI/experiments/projects
+   git clone https://github.com/spf13/cobra.git
+   cd cobra
+   # Optional: Checkout specific commit (if applicable)
+   # git checkout <specific_version>
+
+   # Go Setup
+   go env -w GOPROXY=https://goproxy.io,direct
+   go mod tidy
+   ```
+
+   ##### Coverage Analysis
+
+   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Cobra, the following command can be used to perform coverage analysis:
+
+   ```bash
+   # LSPAI - DS-V3
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat
+
+   # NAIVE - DS-V3
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat
+
+   # LSPAI - GPT4o
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_gpt-4o/gpt-4o
+
+   # NAIVE - GPT4o
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_gpt-4o/naive_gpt-4o
+
+   # LSPAI - GPT4o-mini
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini
+
+   # NAIVE - GPT4o-mini
+   bash /LSPAI/experiments/scripts/go_coverage.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini
+   ```
+
+   After running the above command, you will get coverage results displayed in the terminal. Here's an example output:
+
+   ```bash
+   ...
+   yaml_docs_GenYamlTreeCustom1_test.go:93: Expected error due to GenYamlCustom failure, got nil
+   FAIL
+   coverage: 22.2% of statements in github.com/spf13/cobra, github.com/spf13/cobra/doc
+   FAIL    github.com/spf13/cobra/doc      0.008s
+   ```
+   The Coverage Percentage represents the final coverage value for the Logrus project. In this case, it is 22.2%.
+
+   Note: Coverage numbers may vary depending on the environment and configuration, but you can expect that LSPAI typically shows a slightly higher coverage compared to the naive approach.
+   pass rate analysis 
+
+   ##### Valid Rate Analysis
+
+   To get the pass rate for your test files, run the following command:
+
+   ```bash
+   # LSPAI - DS-V3
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat
+
+   # NAIVE - DS-V3
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat
+
+   # LSPAI - GPT4o
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_gpt-4o/gpt-4o
+
+   # NAIVE - GPT4o
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_gpt-4o/naive_gpt-4o
+
+   # LSPAI - GPT4o-mini
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini
+
+   # NAIVE - GPT4o-mini
+   bash /LSPAI/experiments/scripts/go_passrate.bash \
+      /LSPAI/experiments/projects/cobra \
+      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini
+   ```
+
+   Example output:
+
+   ```bash
+   Total test files: 30
+   Pass rate: 21.428571428571427
+   ```
+   The Pass rate indicates the percentage of test files that passed successfully. In this case, 21.43% of the test files passed.
+
+### Python Projects [ BLACK, CRAWL4AI]
+
+   #### Prepare Unit Test Codes
+
+   **Option A: Generate Unit Tests (Manual Method)**
+   
+   Follow above instructions.
+
+   **Option B: Use Pre-generated Dataset (Recommended)**
+
+   Download dataset by following **Prepare Unit Test Codes :: Option B**.
+
+   Run below command to move dataset to target project
+   ```bash
+   mkdir -p /LSPAI/experiments/projects
+   cd /LSPAI/experiments/projects/black # black should be substitue to crawl4ai if you proceed with crawl4ai projects
+   cp -r /LSPAI/experiments/data/black/* .
+   ```
+
+
+   #### Black Project Setup
+
+      To set up the Black project, follow these steps:
+      ```bash
+      # Clone and checkout specific version
+      mkdir -p /LSPAI/experiments/projects
+      cd /LSPAI/experiments/projects
+      git clone https://github.com/psf/black.git
+      cd black
+      git checkout 8dc912774e322a2cd46f691f19fb91d2237d06e2
+
+      # Python Setup
+      python3 -m venv venv
+      source venv/bin/activate
+      pip install coverage pytest pytest-json-report
+
+      # Install dependencies
+      pip install -r docs/requirements.txt
+      pip install -r test_requirements.txt
+      pip install click mypy_extensions packaging urllib3 pathspec platformdirs
+
+      # Configure project
+      echo "version = '00.0.0'" > src/black/_black_version.py
+      rm pyproject.toml
+
+      ```
+
+   ##### Reproduce Experiment for Black Project
+
+      To reproduce the experiments, run the following commands for each baseline (GPT-4o, GPT-4o-mini, DeepSeek):
+
+      ```bash
+      # LSPAI - DS-V3
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_deepseek/deepseek-chat
+
+      # NAIVE - DS-V3
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_deepseek/naive_deepseek-chat
+
+      # LSPAI - GPT4o
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_gpt-4o/gpt-4o
+
+      # NAIVE - GPT4o
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_gpt-4o/naive_gpt-4o
+
+      # LSPAI - GPT4o-mini
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_gpt-4o-mini/gpt-4o-mini
+
+      # NAIVE - GPT4o-mini
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_gpt-4o-mini/naive_gpt-4o-mini
+      
+      # COPILOT
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/black \
+         /LSPAI/experiments/projects/black/results_copilot/copilot
+      ```
+      
+   ##### Analysis of Results
+
+      After running any of the above commands, you'll get output for Coverage Analysis and Passrate Analysis.
+
+      a. Coverage Analysis ( e.g., deepseek)
+
+      The printed output will show coverage results for various files. Here's an example:
+      ```
+      ...
+      src/blib2to3/pytree.py               475    315    34%
+      ------------------------------------------------------
+      TOTAL                               7588   4534    40%
+      ```
+      The **TOTAL** row represents the final coverage percentage. In this case, 40%.
+      > Note: Coverage numbers may vary based on the environment, but LSPAI typically shows a 1-2% higher coverage compared to the naive approach.
+   
+      b. Valid Rate Analysis ( The number of total functions : 440 )
+
+      The printed output also show summarized results for whole unit test code files. Here's an example:
+
+      ```
+      ...
+      ============================================================================================================ ... failed, ... passed, ... warnings, 144 errors in 7.34s =============================================================================================================
+      ...
+      ```
+      From the given the number of errors, we can calculate the Valid Rate. 
+      
+      In this case, 67.3% ((440 - 144) / 440 )
+
+
+   #### Crawl4ai Project Setup
+
+      ```bash
+      mkdir -p /LSPAI/experiments/projects
+      cd /LSPAI/experiments/projects
+      git clone https://github.com/unclecode/crawl4ai.git
+      cd crawl4ai
+      git checkout 8878b3d032fb21ce3567b34db128bfa64687198a
+
+      # Python Setup
+      python3 -m venv venv
+      source venv/bin/activate
+      pip install coverage pytest selenium
+
+      # Install dependencies
+      # Don\'nt forget to activate venv environment
+      pip install -r requirements.txt
+
+      cp -r /LSPAI/experiments/data/crawl4ai/* .
+      ```
+
+   ##### Reproduce Experiment for CRAWL4AI Project
+
+      To reproduce the experiments, run the following commands for each baseline (GPT-4o, GPT-4o-mini, DeepSeek):
+
+      ```bash
+      # LSPAI - DS-V3
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/data/crawl4ai/results_deepseek/deepseek-chat
+
+      # NAIVE - DS-V3
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/projects/crawl4ai/results_deepseek/naive_deepseek-chat
+
+      # LSPAI - GPT4o
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/data/crawl4ai/results_gpt-4o/gpt-4o
+
+      # NAIVE - GPT4o
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
+
+      # LSPAI - GPT4o-mini
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/data/crawl4ai/results_gpt-4o-mini/gpt-4o-mini
+
+      # NAIVE - GPT4o-mini
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/naive_gpt-4o-mini
+      
+      # Copilot
+      bash /LSPAI/experiments/scripts/python_coverage.bash \
+         /LSPAI/experiments/projects/crawl4ai \
+         /LSPAI/experiments/projects/crawl4ai/results_copilot/copilot
+      ```
+
+   ##### Analysis of Results
+
+      After running any of the above commands, you'll get output for Coverage Analysis and Passrate Analysis.
+
+      a. Coverage Analysis ( e.g., deepseek)
+
+      The printed output will show coverage results for various files. Here's an example:
+      ```
+         ...
+      crawl4ai/utils.py                            689    334    52%
+      crawl4ai/version_manager.py                   21      1    95%
+      crawl4ai/web_crawler.py                      110     80    27%
+      --------------------------------------------------------------
+      TOTAL                                       5751   3304    43%
+         ```
+      The TOTAL row represents the overall coverage percentage (43% in this case).
+         > Note: Coverage numbers may vary based on the environment, but LSPAI typically shows a 1-2% higher coverage compared to the naive approach.
+      
+      b. Valid Rate Analysis ( The number of total functions : 377 )
+
+      The passrate analysis will summarize the number of total functions and the number of errors. Here's an example of the printed output:
+      ```
+      ...
+      ============================================================================================================ ... failed, ... passed, ... warnings, 108 errors in 20.98s =============================================================================================================
+      ...
+      ```
+      From the given the number of errors, we can calculate the Valid Rate. 
+      
+      In this case, 71.3% ((377 - 108) / 377 )
 
 ### Throuput Experiment
 
