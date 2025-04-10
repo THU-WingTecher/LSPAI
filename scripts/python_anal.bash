@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -x
+set -x
 
 # Check if the required parameters are provided
 if [ -z "$1" ]; then
@@ -30,8 +30,8 @@ pytest_output=$(python3 -m coverage run --data-file="$REPORT_DIR/.coverage" -m p
 echo "$pytest_output"
 
 # Extract number of errors using grep and sed
-num_errors=$(echo "$pytest_output" | grep "failed" | sed -E 's/.*[[:space:]]([0-9]+)[[:space:]]errors?.*/\1/')
-echo "Number of errors: $num_errors"
+# num_errors=$(echo "$pytest_output" | grep "failed" | sed -E 's/.*[[:space:]]([0-9]+)[[:space:]]errors?.*/\1/')
+num_errors=$(echo "$pytest_output" | grep -oP '\d+(?= errors)' | head -n 1)
 if [[ "$TARGET_PROJECT_PATH" == *crawl4ai ]]; then
     TOTAL=377
     python3 -m coverage report --data-file="$REPORT_DIR/.coverage" --include="$TARGET_PROJECT_PATH/crawl4ai/*"

@@ -145,7 +145,7 @@ if [ -d "$CLEAN_DIR" ] && [ "$(ls -A "$CLEAN_DIR")" ]; then
 fi
 
 # Navigate to target project path
-export GOPROXY=direct,https://proxy.golang.org
+# export GOPROXY=direct,https://proxy.golang.org
 # Optional: disable Go modules checksum database
 # export GOSUMDB=off
 cp -r $TEST_DIR/* "$CLEAN_DIR/"
@@ -268,14 +268,16 @@ file_success_rate=$(awk "BEGIN {printf \"%.2f\", ($passed_files / $total_files) 
 func_success_rate=$(awk "BEGIN {printf \"%.2f\", ($passed_funcs / $total_funcs) * 100}")
 
 # Print results
-echo "Test Results Summary:"
-echo "-------------------"
-echo "Files: $passed_files/$total_files passed ($file_success_rate%)"
-echo "Functions: $passed_funcs/$total_funcs passed ($func_success_rate%)"
-echo "-------------------"
 
-echo "-------------------"
+echo "====================="
 
 echo "Coverage Report: ${REPORT_DIR}/coverage.out"
 python3 /LSPAI/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
-echo "-------------------"
+echo "====================="
+
+echo "Printing valid rate:"
+echo "====================="
+echo "Total Files: $total_files"
+echo "Valid Files: $passed_files"
+echo "Pass rate: $file_success_rate"
+echo "====================="
