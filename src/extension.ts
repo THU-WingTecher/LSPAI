@@ -47,20 +47,24 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {
 		vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
-		const models = ["gpt-4o-mini", "gpt-4o", "deepseek-chat"];
+		// const models = ["deepseek-chat"];
+		const models = ["gpt-4o"];
+		// const models = ["gpt-4o-mini", "gpt-4o"];
 		// validate all model names 
 		let taskListPath = "";
 
-		const projectName = "commons-cli";
+		const projectName = "commons-csv";
 		taskListPath = `/LSPAI/experiments/data/${projectName}/taskList.json`;
 		console.log(`taskListPath: ${taskListPath}`);
 
 		let methodsForExperiment : string[] = [];
 		const language = "java";
-		for (const model of models) {
-			methodsForExperiment = [model, `naive_${model}`];
-			await experiment(language, methodsForExperiment, taskListPath);
-		}
+		// for (const model of models) {
+		// 	methodsForExperiment = [model, `naive_${model}`];
+		// 	await experiment(language, methodsForExperiment, taskListPath);
+		// }
+
+		await experiment(language, [`gpt-4o-mini`], taskListPath);
 
 		// Handle results...
 	});
@@ -69,8 +73,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	const disposable2 = await vscode.commands.registerCommand('lspAi.GoExperiment', async () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
+		let taskListPath = "";
+
+		const projectName = "crawl4ai";
+		taskListPath = `/LSPAI/experiments/data/${projectName}/taskList.json`;
 		const language = "go";
-		await experiment(language, methodsForExperiment);
+		await experiment(language, methodsForExperiment, taskListPath);
 	});
 	context.subscriptions.push(disposable2);
 
@@ -97,3 +105,4 @@ export async function activate(context: vscode.ExtensionContext) {
 	// context.subscriptions.push(disposable4);
 }
 export function deactivate() { }
+

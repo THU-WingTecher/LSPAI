@@ -1325,16 +1325,16 @@ The extracted dataset will have this structure:
       /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/gpt-4o-mini
    
    # Expected Result
-crawl4ai/user_agent_generator.py              94     17    82%
-crawl4ai/utils.py                            689    230    67%
-crawl4ai/version_manager.py                   21      1    95%
-crawl4ai/web_crawler.py                      110     26    76%
---------------------------------------------------------------
-TOTAL                                       5751   3294    43%
-Test Results Summary:
--------------------
-Files: 203/373 passed (54.42%)
--------------------
+   # crawl4ai/user_agent_generator.py              94     14    85%
+   # crawl4ai/utils.py                            689    230    67%
+   # crawl4ai/version_manager.py                   21      1    95%
+   # crawl4ai/web_crawler.py                      110     26    76%
+   # --------------------------------------------------------------
+   # TOTAL                                       5751   3291    43%
+   # Test Results Summary:
+   # -------------------
+   # Files: 203/373 passed (54.42%)
+   # -------------------
    ```
 
    **C4AI - NAIVE - GPT4o-mini**
@@ -1343,90 +1343,175 @@ Files: 203/373 passed (54.42%)
    # C4AI - NAIVE - GPT4o-mini
    bash /LSPAI/scripts/python_anal.bash \
       /LSPAI/experiments/projects/crawl4ai \
-      /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
+      /LSPAI/experiments/projects/crawl4ai/results_deepseek/deepseek-chat
    # Expected Result
-
+   # crawl4ai/user_agent_generator.py              94     18    81%
+   # crawl4ai/utils.py                            689    466    32%
+   # crawl4ai/version_manager.py                   21      4    81%
+   # crawl4ai/web_crawler.py                      110     81    26%
+   # --------------------------------------------------------------
+   # TOTAL                                       5751   3534    39%
+   # Test Results Summary:
+   # -------------------
+   # Files: 249/377 passed (66.05%)
+   # -------------------
 
    ```
 
-   ##### Reproduce Experiment for CRAWL4AI Project
+   **C4AI - LSPAI - DeepSeek-V3**
+   
+   ```bash
+   # C4AI - LSPAI - DeepSeek-V3
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/crawl4ai \
+      /LSPAI/experiments/projects/crawl4ai/results_deepseek/deepseek-chat
+   
+   # Expected Result
+   # crawl4ai/ssl_certificate.py                   80     31    61%
+   # crawl4ai/user_agent_generator.py              94     16    83%
+   # crawl4ai/utils.py                            689    334    52%
+   # crawl4ai/version_manager.py                   21      1    95%
+   # crawl4ai/web_crawler.py                      110     76    31%
+   # --------------------------------------------------------------
+   # TOTAL                                       5751   3287    43%
+   # Test Results Summary:
+   # -------------------
+   # Files: 269/377 passed (71.35%)
+   # -------------------
+   ```
 
-      To reproduce the experiments, run the following commands for each baseline (GPT-4o, GPT-4o-mini, DeepSeek):
+   **C4AI - NAIVE - DeepSeek-V3**
 
-      ```bash
-      # LSPAI - DS-V3
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/data/crawl4ai/results_deepseek/deepseek-chat
+   ```bash
+   # C4AI - NAIVE - DeepSeek-V3
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/crawl4ai \
+      /LSPAI/experiments/projects/crawl4ai/results_deepseek/naive_deepseek-chat
+   # Expected Result
+   # crawl4ai/user_agent_generator.py              94     14    85%
+   # crawl4ai/utils.py                            689    349    49%
+   # crawl4ai/version_manager.py                   21      1    95%
+   # crawl4ai/web_crawler.py                      110     81    26%
+   # --------------------------------------------------------------
+   # TOTAL                                       5751   3354    42%
+   # Test Results Summary:
+   # -------------------
+   # Files: 249/373 passed (66.76%)
+   # -------------------
 
-      # NAIVE - DS-V3
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/projects/crawl4ai/results_deepseek/naive_deepseek-chat
-
-      # LSPAI - GPT4o
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/data/crawl4ai/results_gpt-4o/gpt-4o
-
-      # NAIVE - GPT4o
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
-
-      # LSPAI - GPT4o-mini
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/data/crawl4ai/results_gpt-4o-mini/gpt-4o-mini
-
-      # NAIVE - GPT4o-mini
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/naive_gpt-4o-mini
-      
-      # Copilot
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/crawl4ai \
-         /LSPAI/experiments/projects/crawl4ai/results_copilot/copilot
-      ```
-
-   ##### Analysis of Results
-
-      After running any of the above commands, you'll get output for Coverage Analysis and Passrate Analysis.
-
-      a. Coverage Analysis ( e.g., deepseek)
-
-      The printed output will show coverage results for various files. Here's an example:
-      ```
-         ...
-      crawl4ai/utils.py                            689    334    52%
-      crawl4ai/version_manager.py                   21      1    95%
-      crawl4ai/web_crawler.py                      110     80    27%
-      --------------------------------------------------------------
-      TOTAL                                       5751   3304    43%
-         ```
-      The TOTAL row represents the overall coverage percentage (43% in this case).
-         > Note: Coverage numbers may vary based on the environment, but LSPAI typically shows a 1-2% higher coverage compared to the naive approach.
-      
-      b. Valid Rate Analysis ( The number of total functions : 377 )
-
-      The passrate analysis will summarize the number of total functions and the number of errors. Here's an example of the printed output:
-      ```
-      ...
-      ============================================================================================================ ... failed, ... passed, ... warnings, 108 errors in 20.98s =============================================================================================================
-      ...
-      ```
-      From the given the number of errors, we can calculate the Valid Rate. 
-      
-      In this case, 71.3% ((377 - 108) / 377 )
+   ```
 
 ### Throuput Experiment
 
-In this section, we reproduce the experiment results of LSPAI, focusing on the tokens used and the time taken. LSPAI generates log files when generating test files, and based on these log files, we summarize and analyze the costs associated with LSPAI's operations.
+In this section, we reproduce the experiment results of Table 4, focusing on the tokens used and the time taken. LSPAI generates log files when generating test files, and based on these log files, we summarize and analyze the costs associated with LSPAI's operations.
 
 Before proceeding, make sure you have already downloaded the provided dataset as described in this section(#option-b-use-pre-generated-dataset-recommended).
+To reproduce Table 4(CLI project with gpt-4o-mini), you should run below command :
+```bash
+python3 scripts/anal_cost.py /LSPAI/experiments/data/commons-cli/results_gpt-4o-mini/logs/gpt-4o-mini /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/logs/gpt-4o-mini
 
-#### Reproduce Result
+# Expected Result
+# === Overall Statistics (across ALL directories) ===
+
+# Total Files Processed: 230
+# Total Time Used (ms): 196710834
+# Total Tokens Used: 879777
+# Total FixWithLLM Tokens Used: 588128
+# Total FixWithLLM Processes Run: 337
+# Average Time per Function (ms): 855264.50
+# Average Tokens per Function: 3825.12
+# Average FixWithLLM Time per Function (ms): 14193.23 -> FIX Time
+# Average FixWithLLM Tokens per Function: 2557.08 -> FIX Token
+
+# === Average Time and Token Usage per Process ===
+
+# Process                          Avg Time (ms)      Avg Tokens
+# -----------------------------------------------------------------
+# End                                  693172.68            0.00
+# FixWithLLM_1                           9631.42         1804.39
+# FixWithLLM_2                           9953.49         1837.73
+# FixWithLLM_3                          10316.93         1765.00
+# FixWithLLM_4                          10231.38         1805.40
+# FixWithLLM_5                          10144.63         1757.26
+# collectInfo                          219600.84            0.00 -> Retrieval
+# fixDiagnostics                       305220.90            0.00
+# getDiagnosticsForFilePath             53470.68            0.00 -> getDiagnostic
+# invokeLLM                              8592.27         1268.04 -> Gen
+# saveGeneratedCodeToFolder                 2.69            0.00
+# start                                     0.00            0.00
+# Average Total Time Used (ms): 855264.4956521739
+# Average Total Tokens Used: 3825.1173913043476
+
+python3 scripts/anal_cost.py /LSPAI/experiments/data/cobra/results_gpt-4o-mini/logs/gpt-4o-mini /LSPAI/experiments/data/logrus/results_gpt-4o-mini/logs/gpt-4o-mini
+
+# === Overall Statistics (across ALL directories) ===
+
+# Total Files Processed: 223
+# Total Time Used (ms): 25093810
+# Total Tokens Used: 1799613
+# Total FixWithLLM Tokens Used: 1528778
+# Total FixWithLLM Processes Run: 821
+# Average Time per Function (ms): 112528.30
+# Average Tokens per Function: 8070.01
+# Average FixWithLLM Time per Function (ms): 40826.75  -> FIX Time
+# Average FixWithLLM Tokens per Function: 6855.51   -> FIX Token
+
+# === Average Time and Token Usage per Process ===
+
+# Process                          Avg Time (ms)      Avg Tokens
+# -----------------------------------------------------------------
+# FixWithLLM_1                          10547.06         1613.68 
+# FixWithLLM_2                          10467.47         1836.82 
+# FixWithLLM_3                          12054.97         1922.95 
+# FixWithLLM_4                          11420.72         1971.87 
+# FixWithLLM_5                          11136.67         2045.86 
+# collectInfo                             589.65            0.00   ->  Retrieval
+# fixDiagnostics                        60207.15            0.00 
+# getDiagnosticsForFilePath              1713.35            0.00   ->  getDiagnostic
+# invokeLLM                              8915.47         1214.51   ->  Gen
+# saveGeneratedCodeToFolder               573.30            0.00 
+# start                                     0.00            0.00 
+# Average Total Time Used (ms): 112528.29596412556
+# Average Total Tokens Used: 8070.013452914798
+
+# Done.
+
+python3 scripts/anal_cost.py /LSPAI/experiments/data/crawl4ai/results_gpt-4o-mini/logs/gpt-4o-mini /LSPAI/experiments/data/black/results_gpt-4o-mini/logs/gpt-4o-mini
+
+# === Overall Statistics (across ALL directories) ===
+
+# Total Files Processed: 344
+# Total Time Used (ms): 23113944
+# Total Tokens Used: 572621
+# Total FixWithLLM Tokens Used: 59942
+# Total FixWithLLM Processes Run: 56
+# Average Time per Function (ms): 67191.70
+# Average Tokens per Function: 1664.60
+# Average FixWithLLM Time per Function (ms): 1335.51  -> FIX Time
+# Average FixWithLLM Tokens per Function: 174.25   -> FIX Token
+
+# === Average Time and Token Usage per Process ===
+
+# Process                          Avg Time (ms)      Avg Tokens
+# -----------------------------------------------------------------
+# End                                   34049.96            0.00 
+# FixWithLLM_1                          11728.22         1580.28 
+# FixWithLLM_2                          10405.40         1258.40 
+# FixWithLLM_3                           9806.00         1027.00 
+# FixWithLLM_4                          12598.00         1027.00 
+# FixWithLLM_5                           9683.00         1027.00 
+# collectInfo                           15941.01            0.00   ->  Retrieval
+# getDiagnosticsForFilePath              6060.05            0.00   ->  getDiagnostic
+# invokeLLM                              9804.03         1490.35   ->  Gen
+# saveGeneratedCodeToFolder                 1.13            0.00 
+# start                                     0.00            0.00 
+# Average Total Time Used (ms): 67191.69767441861
+# Average Total Tokens Used: 1664.5959302325582
+
+# Done.
+```
+
+#### Inspect Othe Throuput Result
 
 For each dataset folder (e.g., `results_deepseek`, `results_gpt-4o`, and `results_gpt-4o-mini`), you will find corresponding logs folders. The structure should look like this:
 
@@ -1498,40 +1583,3 @@ Thank you for reading this experiment reproduction document! If you encounter an
 We are dedicated to contributing to the open-source community and welcome any contributions or recommendations!
 
 **Happy Testing with LSPAI! 🎉**
-
-### Prerequisites
-
-1. **Docker Setup** [WIP]
-   ```bash
-   # Pull the LSPAI experiment image
-   docker pull lspai/experiment:latest
-   
-   # Run the container
-   docker run -it lspai/experiment:latest
-   ```
-[WIP]
-### Prerequisites
-
-1. **Docker Setup** [WIP]
-   ```bash
-   # Pull the LSPAI experiment image
-   docker pull lspai/experiment:latest
-   
-   # Run the container
-   docker run -it lspai/experiment:latest
-   ```
-
-1. Build Docker Container : for consistent experiment reproduction we provide docker image
-2. Table2 [WIP]
-
-
-
-
-
-
-
-Before publish
-1. delete all data files under experiments
-2. delete git information
-3. delete key of deepseek apikey
-4. delete vscode server, .cache, .cursor-server .ssh

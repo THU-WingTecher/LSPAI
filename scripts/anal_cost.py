@@ -323,8 +323,8 @@ def main():
     print(f"Average Tokens per Function: {average_tokens_per_file:.2f}")
 
     # Print new averaged fix time/tokens per file
-    print(f"Average FixWithLLM Time per Function (ms): {average_fixwithllm_time_per_file:.2f}")
-    print(f"Average FixWithLLM Tokens per Function: {average_fixwithllm_tokens_per_file:.2f}")
+    print(f"Average FixWithLLM Time per Function (ms): {average_fixwithllm_time_per_file:.2f}  -> FIX Time")
+    print(f"Average FixWithLLM Tokens per Function: {average_fixwithllm_tokens_per_file:.2f}   -> FIX Token")
 
     # ======== Average Time/Token Usage per Process ========
     print("\n=== Average Time and Token Usage per Process ===\n")
@@ -333,11 +333,20 @@ def main():
 
     all_processes = sorted(set(list(process_times.keys()) + list(process_tokens.keys())))
     for proc_name in all_processes:
+        additional = ""
         time_info = process_times[proc_name]
         token_info = process_tokens[proc_name]
         avg_time = (time_info['time'] / time_info['count']) if time_info['count'] else 0
         avg_tokens = (token_info['tokens'] / token_info['count']) if token_info['count'] else 0
-        print(f"{proc_name:<30} {avg_time:>15.2f} {avg_tokens:>15.2f}")
+        if proc_name == "collectInfo" :
+            additional = "  ->  Retrieval" 
+        elif proc_name == "getDiagnosticsForFilePath" :
+            additional = "  ->  getDiagnostic" 
+        elif proc_name == "invokeLLM" :
+            additional = "  ->  Gen" 
+        else :
+            additional = ""
+        print(f"{proc_name:<30} {avg_time:>15.2f} {avg_tokens:>15.2f} {additional}")
     # print the total time and tokens used
     print(f"Average Total Time Used (ms): {overall_time / file_count}")
     print(f"Average Total Tokens Used: {overall_tokens / file_count}")
