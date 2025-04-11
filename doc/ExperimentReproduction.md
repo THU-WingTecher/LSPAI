@@ -111,6 +111,30 @@ npm install lru-cache@10.1.0
    }
    ```
 
+   **For Java:**
+   In the future, oracle's Java language server does not support the java version under than 17.
+   After installing Java Language Server, if it logged error like "Oracle Java SE Language Server exited with 10", please install the java 17 and set `java.jdk home` as the newly installed location. 
+   1. Install Java 17 (If you are using linux, or pulled our docker image)
+   ```bash
+   apt install openjdk-17-jdk
+   ``` 
+   2. Check the install path
+   ```bash
+   ls /usr/lib/jvm/java-17-openjdk-amd64
+   ```
+   If it exists - great! You're done with the install
+   3. Set the Language Server's Java version. Please, open `settings.json` and add this :
+   ```bash
+       "jdk.jdkhome": "/usr/lib/jvm/java-17-openjdk-amd64",
+    "jdk.java.imports.groups": [
+      "java",
+      "javax",
+      "org",
+      "com",
+      ""
+    ],
+    ```
+
 ### Option A: Download IDE Plugin 
 
 1. Download the IDE plugin from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=LSPAI.lspai)
@@ -323,9 +347,9 @@ The extracted dataset will have this structure:
    # Expected Result 
    # Printing final result
    # ============================
-   # Total lines 1954
-   # Missed Lines 645
-   # Line Coverages are 66.99%
+   # Total lines 1965
+   # Missed Lines 653
+   # Line Coverages are 66.77%
    # ============================
    # Printing valid rate
    # Pass rate for /LSPAI/experiments/data/commons-cli/results_gpt-4o/gpt-4o
@@ -343,11 +367,10 @@ The extracted dataset will have this structure:
       /LSPAI/experiments/projects/commons-cli \
       /LSPAI/experiments/data/commons-cli/results_gpt-4o/NOFIX_naive_gpt-4o
    # Expected Result 
-   # Printing final result
    # ============================
-   # Total lines 1954
+   # Total lines 1965
    # Missed Lines 1174
-   # Line Coverages are 39.92%
+   # Line Coverages are 40.25%
    # ============================
    # Printing valid rate
    # Pass rate for /LSPAI/experiments/data/commons-cli/results_gpt-4o/NOFIX_naive_gpt-4o
@@ -389,9 +412,9 @@ The extracted dataset will have this structure:
    # Expected Result 
    # Printing final result
    # ============================
-   # Total lines 1954
-   # Missed Lines 810
-   # Line Coverages are 58.55%
+   # Total lines 1965
+   # Missed Lines 817
+   # Line Coverages are 58.42%
    # ============================
    # Printing valid rate
    # Pass rate for /LSPAI/experiments/data/commons-cli/results_gpt-4o-mini/gpt-4o-mini
@@ -488,157 +511,161 @@ The extracted dataset will have this structure:
    You have to run six different commands for each baseline (NAIVE, LSPAI) and each model (DeepSeek, GPT4o, etc.):
    For easier reproduction, we provide the expected results corresponding to each command.
 
-   **CLI - LSPAI - GPT4o**
+   **CSV - LSPAI - GPT4o**
    ```bash
-   # CLI - LSPAI - GPT4o
+   # CSV - LSPAI - GPT4o
    bash /LSPAI/scripts/java_anal.bash \
       /LSPAI/experiments/projects/commons-csv \
       /LSPAI/experiments/data/commons-csv/results_gpt-4o/gpt-4o
    # Expected Result 
    # Printing final result
    # ============================
-   # Total lines 1954
-   # Missed Lines 645
-   # Line Coverages are 66.99%
+   # Total lines 1257
+   # Missed Lines 606
+   # Line Coverages are 51.79%
    # ============================
    # Printing valid rate
    # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o/gpt-4o
    # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 116
-   # Pass rate: 77.33%
+   # Total .java files: 74
+   # Files with corresponding .class files: 47
+   # Pass rate: 63.51%
    # ============================
    ```
 
-   **CLI - NAIVE - GPT4o**
+   **CSV - NAIVE - GPT4o**
    ```bash
-   # CLI - NAIVE - GPT4o
+   # CSV - NAIVE - GPT4o
    bash /LSPAI/scripts/java_anal.bash \
       /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_gpt-4o/NOFIX_naive_gpt-4o
+      /LSPAI/experiments/data/commons-csv/results_gpt-4o/naive_gpt-4o
    # Expected Result 
    # Printing final result
-   # ============================
-   # Total lines 1954
-   # Missed Lines 1174
-   # Line Coverages are 39.92%
+   # =============================
+   # Total lines 1257
+   # Missed Lines 981
+   # Line Coverages are 21.96%
    # ============================
    # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o/NOFIX_naive_gpt-4o
+   # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o/naive_gpt-4o
    # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 82
-   # Pass rate: 54.67%
+   # Total .java files: 74
+   # Files with corresponding .class files: 19
+   # Pass rate: 25.68%
    # ============================
    ```
 
-   **CLI - Copilot - GPT4o**
+   **CSV - Copilot - GPT4o**
    ```bash
-   # CLI - Copilot - GPT4o
+   # CSV - Copilot - GPT4o
    bash /LSPAI/scripts/java_anal.bash \
       /LSPAI/experiments/projects/commons-csv \
       /LSPAI/experiments/data/commons-csv/results_copilot/copilot
    # Expected Result 
    # Printing final result
    # ============================
-   # Total lines 1954
-   # Missed Lines 1476
-   # Line Coverages are 24.46%
+   # Total lines 1257
+   # Missed Lines 956
+   # Line Coverages are 23.95%
    # ============================
    # Printing valid rate
    # Pass rate for /LSPAI/experiments/data/commons-csv/results_copilot/copilot
    # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 39
-   # Pass rate: 26.00%
+   # Total .java files: 74
+   # Files with corresponding .class files: 11
+   # Pass rate: 14.86%
    # ============================
    ```
 
-   **CLI - LSPAI - GPT4o-mini**
+   **CSV - LSPAI - GPT4o-mini**
    ```bash
-   # CLI - LSPAI - GPT4o-mini
+   # CSV - LSPAI - GPT4o-mini
    bash /LSPAI/scripts/java_anal.bash \
       /LSPAI/experiments/projects/commons-csv \
       /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/gpt-4o-mini
    # Expected Result 
    # Printing final result
    # ============================
-   # Total lines 1954
-   # Missed Lines 810
-   # Line Coverages are 58.55%
+   # Total lines 1257
+   # Missed Lines 555
+   # Line Coverages are 55.85%
    # ============================
    # Printing valid rate
    # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/gpt-4o-mini
    # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 89
-   # Pass rate: 59.33%
+   # Total .java files: 74
+   # Files with corresponding .class files: 25
+   # Pass rate: 33.78%
    # ============================
    ```
 
-   **CLI - NAIVE - GPT4o-mini**
+   **CSV - NAIVE - GPT4o-mini**
    ```bash
-   # CLI - NAIVE - GPT4o-mini
+   # CSV - NAIVE - GPT4o-mini
    bash /LSPAI/scripts/java_anal.bash \
       /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/NOFIX_naive_gpt-4o-mini
+      /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/naive_gpt-4o-mini
    # Expected Result 
    # Printing final result
    # ============================
-   # Total lines 1954
-   # Missed Lines 1587
-   # Line Coverages are 18.78%
+   # Total lines 1257
+   # Missed Lines 1048
+   # Line Coverages are 16.63%
    # ============================
    # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/NOFIX_naive_gpt-4o-mini
+   # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/naive_gpt-4o-mini
    # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 36
-   # Pass rate: 24.00%
+   # Total .java files: 74
+   # Files with corresponding .class files: 9
+   # Pass rate: 12.16%
    # ============================
    ```
 
-   **CLI - LSPAI - DeepSeek-V3**
+   If measuring process hainging too long, press CTRL+C one time
+   **CSV - LSPAI - DeepSeek-V3**
    ```bash
-   # CLI - LSPAI - DeepSeek-V3
+   # CSV - LSPAI - DeepSeek-V3
    bash /LSPAI/scripts/java_anal.bash \
       /LSPAI/experiments/projects/commons-csv \
       /LSPAI/experiments/data/commons-csv/results_deepseek/deepseek-chat
    # Expected Result 
    # Printing final result
    # ============================
-   # Total lines 1954
-   # Missed Lines 744
-   # Line Coverages are 61.92%
+   # Total lines 1257
+   # Missed Lines 495
+   # Line Coverages are 60.62%
    # ============================
    # Printing valid rate
    # Pass rate for /LSPAI/experiments/data/commons-csv/results_deepseek/deepseek-chat
    # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 119
-   # Pass rate: 79.33%
+   # Total .java files: 74
+   # Files with corresponding .class files: 60
+   # Pass rate: 81.08%
    # ============================
+
    ```
 
-   **CLI - NAIVE - DeepSeek-V3**
+   If measuring process hainging too long, press CTRL+C one time
+   **CSV - NAIVE - DeepSeek-V3**
    ```bash
-   # CLI - NAIVE - DeepSeek-V3
+   # CSV - NAIVE - DeepSeek-V3
    bash /LSPAI/scripts/java_anal.bash \
       /LSPAI/experiments/projects/commons-csv \
       /LSPAI/experiments/data/commons-csv/results_deepseek/NOFIX_deepseek-chat
    # Expected Result 
    # Printing final result
    # ============================
-   # Total lines 1954
-   # Missed Lines 1023
-   # Line Coverages are 47.65%
+   # Total lines 1257
+   # Missed Lines 762
+   # Line Coverages are 39.38%
    # ============================
    # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-cli/results_deepseek/NOFIX_deepseek-chat
+   # Pass rate for /LSPAI/experiments/data/commons-csv/results_deepseek/naive_deepseek-chat
    # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 65
-   # Pass rate: 43.33%
+   # Total .java files: 74
+   # Files with corresponding .class files: 15
+   # Pass rate: 20.27%
+   # ============================
    ```
 
 ### Go Projects [LOGRUS, COBRA]
@@ -1214,7 +1241,7 @@ The extracted dataset will have this structure:
       # Python Setup
       python3 -m venv venv
       source venv/bin/activate
-      pip install coverage pytest selenium
+      pip install coverage pytest selenium pytest-json-report
 
       # Install dependencies
       # Don\'nt forget to activate venv environment
@@ -1222,6 +1249,105 @@ The extracted dataset will have this structure:
 
       cp -r /LSPAI/experiments/data/crawl4ai/* .
       ```
+
+   ##### Reproduce Experiment Results
+
+   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
+
+   **C4AI - LSPAI - GPT4o**
+   
+   ```bash
+   # C4AI - LSPAI - GPT4o
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/crawl4ai \
+      /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/gpt-4o
+   
+   # Expected Result
+   # crawl4ai/user_agent_generator.py              94     14    85%
+   # crawl4ai/utils.py                            689    443    36%
+   # crawl4ai/version_manager.py                   21      5    76%
+   # crawl4ai/web_crawler.py                      110     86    22%
+   # --------------------------------------------------------------
+   # TOTAL                                       5650   3704    34%
+   # Test Results Summary:
+   # -------------------
+   # Files: 208/368 passed (56.52%)
+   # -------------------
+   ```
+
+   **C4AI - NAIVE - GPT4o**
+
+   ```bash
+   # C4AI - NAIVE - GPT4o
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/crawl4ai \
+      /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
+   # Expected Result
+   # crawl4ai/user_agent_generator.py              94     20    79%
+   # crawl4ai/utils.py                            689    460    33%
+   # crawl4ai/version_manager.py                   21      4    81%
+   # crawl4ai/web_crawler.py                      110     80    27%
+   # --------------------------------------------------------------
+   # TOTAL                                       5751   3765    35%
+   # Test Results Summary:
+   # -------------------
+   # Files: 199/375 passed (53.07%)
+   # -------------------
+
+   ```
+
+   **C4AI - COPILOT - GPT4o**
+
+   ```bash
+   # C4AI - COPILOT - GPT4o
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/crawl4ai \
+      /LSPAI/experiments/projects/crawl4ai/results_copilot/copilot
+   
+   # Expected Result
+   # crawl4ai/utils.py                            689    533    23%
+   # crawl4ai/version_manager.py                   21     10    52%
+   # crawl4ai/web_crawler.py                      110     87    21%
+   # --------------------------------------------------------------
+   # TOTAL                                       5751   4595    20%
+   # Test Results Summary:
+   # -------------------
+   # Files: 417/493 passed (84.58%)
+   # -------------------
+   ```
+
+   **C4AI - LSPAI - GPT4o-mini**
+   
+   ```bash
+   # C4AI - LSPAI - GPT4o-mini
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/crawl4ai \
+      /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/gpt-4o-mini
+   
+   # Expected Result
+crawl4ai/user_agent_generator.py              94     17    82%
+crawl4ai/utils.py                            689    230    67%
+crawl4ai/version_manager.py                   21      1    95%
+crawl4ai/web_crawler.py                      110     26    76%
+--------------------------------------------------------------
+TOTAL                                       5751   3294    43%
+Test Results Summary:
+-------------------
+Files: 203/373 passed (54.42%)
+-------------------
+   ```
+
+   **C4AI - NAIVE - GPT4o-mini**
+
+   ```bash
+   # C4AI - NAIVE - GPT4o-mini
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/crawl4ai \
+      /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
+   # Expected Result
+
+
+   ```
 
    ##### Reproduce Experiment for CRAWL4AI Project
 
