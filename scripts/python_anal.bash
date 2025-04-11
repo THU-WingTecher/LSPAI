@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x
+# set -x
 
 # Check if the required parameters are provided
 if [ -z "$1" ]; then
