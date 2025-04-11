@@ -1037,9 +1037,9 @@ The extracted dataset will have this structure:
       # Python Setup
       python3 -m venv venv
       source venv/bin/activate
-      pip install coverage pytest pytest-json-report
 
       # Install dependencies
+      pip install coverage pytest pytest-json-report
       pip install -r docs/requirements.txt
       pip install -r test_requirements.txt
       pip install click mypy_extensions packaging urllib3 pathspec platformdirs
@@ -1048,78 +1048,159 @@ The extracted dataset will have this structure:
       echo "version = '00.0.0'" > src/black/_black_version.py
       rm pyproject.toml
 
+      # Copy dataset 
+      cp -r /LSPAI/experiments/data/black/* .
       ```
 
-   ##### Reproduce Experiment for Black Project
+   ##### Reproduce Experiment Results
 
-      To reproduce the experiments, run the following commands for each baseline (GPT-4o, GPT-4o-mini, DeepSeek):
+   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
 
-      ```bash
-      # LSPAI - DS-V3
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_deepseek/deepseek-chat
-
-      # NAIVE - DS-V3
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_deepseek/naive_deepseek-chat
-
-      # LSPAI - GPT4o
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_gpt-4o/gpt-4o
-
-      # NAIVE - GPT4o
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_gpt-4o/naive_gpt-4o
-
-      # LSPAI - GPT4o-mini
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_gpt-4o-mini/gpt-4o-mini
-
-      # NAIVE - GPT4o-mini
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_gpt-4o-mini/naive_gpt-4o-mini
-      
-      # COPILOT
-      bash /LSPAI/scripts/python_coverage.bash \
-         /LSPAI/experiments/projects/black \
-         /LSPAI/experiments/projects/black/results_copilot/copilot
-      ```
-      
-   ##### Analysis of Results
-
-      After running any of the above commands, you'll get output for Coverage Analysis and Passrate Analysis.
-
-      a. Coverage Analysis ( e.g., deepseek)
-
-      The printed output will show coverage results for various files. Here's an example:
-      ```
-      ...
-      src/blib2to3/pytree.py               475    315    34%
-      ------------------------------------------------------
-      TOTAL                               7588   4534    40%
-      ```
-      The **TOTAL** row represents the final coverage percentage. In this case, 40%.
-      > Note: Coverage numbers may vary based on the environment, but LSPAI typically shows a 1-2% higher coverage compared to the naive approach.
+   **BAK - LSPAI - GPT4o**
    
-      b. Valid Rate Analysis ( The number of total functions : 440 )
+   ```bash
+   # BAK - LSPAI - GPT4o
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/black \
+      /LSPAI/experiments/projects/black/results_gpt4o/gpt-4o
+   
+   # Expected Result
+   # ...
+   # src/blib2to3/pgen2/tokenize.py       610    378    38%
+   # src/blib2to3/pygram.py               153      0   100%
+   # src/blib2to3/pytree.py               475    251    47%
+   # ------------------------------------------------------
+   # TOTAL                               7578   3755    50%
+   # Test Results Summary:
+   # -------------------
+   # Files: 269/467 passed (57.60%)
+   # -------------------
+   ```
 
-      The printed output also show summarized results for whole unit test code files. Here's an example:
+   **BAK - NAIVE - GPT4o**
 
-      ```
-      ...
-      ============================================================================================================ ... failed, ... passed, ... warnings, 144 errors in 7.34s =============================================================================================================
-      ...
-      ```
-      From the given the number of errors, we can calculate the Valid Rate. 
-      
-      In this case, 67.3% ((440 - 144) / 440 )
+   ```bash
+   # BAK - NAIVE - GPT4o
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/black \
+      /LSPAI/experiments/projects/black/results_gpt4o/naive_gpt-4o
+   
+   # Expected Result
+   # ...
+   # src/blib2to3/pgen2/token.py           77      3    96%
+   # src/blib2to3/pgen2/tokenize.py       610    342    44%
+   # src/blib2to3/pygram.py               153      0   100%
+   # src/blib2to3/pytree.py               475    267    44%
+   # ------------------------------------------------------
+   # TOTAL                               7588   3945    48%
+   # Test Results Summary:
+   # -------------------
+   # Files: 223/471 passed (47.35%)
+   # -------------------
+   ```
 
+   **BAK - COPILOT - GPT4o**
+
+   ```bash
+   # BAK - COPILOT - GPT4o
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/black \
+      /LSPAI/experiments/projects/black/results_copilot/copilot
+   
+   # Expected Result
+   # ...
+   # src/blib2to3/pgen2/token.py           77      3    96%
+   # src/blib2to3/pgen2/tokenize.py       610    393    36%
+   # src/blib2to3/pygram.py               153      0   100%
+   # src/blib2to3/pytree.py               475    356    25%
+   # ------------------------------------------------------
+   # TOTAL                               7588   5543    27%
+   # Test Results Summary:
+   # -------------------
+   # Files: 469/577 passed (81.28%)
+   # -------------------
+   ```
+
+   **BAK - LSPAI - GPT4o-mini**
+   ```bash
+   # BAK - LSPAI - GPT4o-mini
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/black \
+      /LSPAI/experiments/projects/black/results_gpt4o-mini/gpt-4o-mini
+   
+   # Expected Result
+   # ...
+   # src/blib2to3/pgen2/tokenize.py       610    327    46%
+   # src/blib2to3/pygram.py               153      0   100%
+   # src/blib2to3/pytree.py               475    318    33%
+   # ------------------------------------------------------
+   # TOTAL                               7588   4657    39%
+   # Test Results Summary:
+   # -------------------
+   # Files: 228/439 passed (51.94%)
+   # -------------------
+   ```
+
+   **BAK - NAIVE - GPT4o-mini**
+
+   ```bash
+   # BAK - NAIVE - GPT4o-mini
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/black \
+      /LSPAI/experiments/projects/black/results_gpt4o-mini/naive_gpt-4o-mini
+   
+   # Expected Result
+   # src/blib2to3/pgen2/token.py           77      3    96%
+   # src/blib2to3/pgen2/tokenize.py       610    343    44%
+   # src/blib2to3/pygram.py               153      0   100%
+   # src/blib2to3/pytree.py               475    298    37%
+   # ------------------------------------------------------
+   # TOTAL                               7588   4759    37%
+   # Test Results Summary:
+   # -------------------
+   # Files: 262/440 passed (59.55%)
+   # -------------------
+   ```
+
+   **BAK - LSPAI - DeepSeek-V3**
+   ```bash
+   # BAK - LSPAI - DeepSeek-V3
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/black \
+      /LSPAI/experiments/projects/black/results_deepseek/deepseek-chat
+   
+   # Expected Result
+   # src/blib2to3/pgen2/token.py           77      3    96%
+   # src/blib2to3/pgen2/tokenize.py       610    315    48%
+   # src/blib2to3/pygram.py               153      0   100%
+   # src/blib2to3/pytree.py               475    291    39%
+   # ------------------------------------------------------
+   # TOTAL                               7588   4463    41%
+   # Test Results Summary:
+   # -------------------
+   # Files: 310/432 passed (71.76%)
+   # -------------------
+   ```
+
+   **BAK - NAIVE - DeepSeek-V3**
+
+   ```bash
+   # BAK - NAIVE - DeepSeek-V3
+   bash /LSPAI/scripts/python_anal.bash \
+      /LSPAI/experiments/projects/black \
+      /LSPAI/experiments/projects/black/results_deepseek/naive_deepseek-chat
+   
+   # Expected Result
+   # src/blib2to3/pgen2/tokenize.py       610    328    46%
+   # src/blib2to3/pygram.py               153      0   100%
+   # src/blib2to3/pytree.py               475    315    34%
+   # ------------------------------------------------------
+   # TOTAL                               7588   4534    40%
+   # Test Results Summary:
+   # -------------------
+   # Files: 295/439 passed (67.20%)
+   # -------------------
+   ```
 
    #### Crawl4ai Project Setup
 

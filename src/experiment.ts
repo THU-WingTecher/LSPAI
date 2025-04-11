@@ -112,7 +112,7 @@ async function extractSymbolDocumentMapFromTaskList(
     return matchedSymbols;
 }
 
-async function _experiment(srcPath: string, language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
+async function _experiment(srcPath: string, language: string, methods: string[], taskListPath: string) : Promise<{[key: string]: boolean[]}> {
 	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
 	const folderPath = path.join(workspace, RESULTS_FOLDER_PREFIX + generateTimestampString());
 	const expLogPath = path.join(folderPath, "logs");
@@ -128,7 +128,7 @@ async function _experiment(srcPath: string, language: string, methods: string[])
 	const suffix = getLanguageSuffix(language); 
 	const Files: string[] = [];
 	findFiles(srcPath, Files, language, suffix);	
-	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
+	let symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
 
 	initializeSeededRandom(SEED); // Initialize the seeded random generator
 	
@@ -155,12 +155,15 @@ async function _experiment(srcPath: string, language: string, methods: string[])
 		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
 	}
 	const generatedResults: { [key: string]: boolean[] } = {};
-    await saveTaskList(symbolDocumentMap, workspace, folderPath);
-    const matchedSymbols = await extractSymbolDocumentMapFromTaskList(
-        workspace,
-        symbolDocumentMap,
-        path.join(folderPath, "taskList.json")
-    );
+    if (taskListPath) {
+        symbolDocumentMap = await extractSymbolDocumentMapFromTaskList(
+            workspace,
+            symbolDocumentMap,
+            taskListPath
+        );
+    } else {
+        saveTaskList(symbolDocumentMap, workspace, folderPath);
+    }
 	for (const method of methods) {
 		console.log(`#### Starting experiment for method: ${method}`);
 		generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
@@ -267,7 +270,7 @@ export function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export async function experiment(language: string, genMethods: string[]): Promise<void> {
+export async function experiment(language: string, genMethods: string[], taskListPath: string = ""): Promise<void> {
 	let currentSrcPath = vscode.workspace.workspaceFolders![0].uri.fsPath;
 	const projectName = vscode.workspace.workspaceFolders![0].name;
 	if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
@@ -275,7 +278,7 @@ export async function experiment(language: string, genMethods: string[]): Promis
 	} else {
 		currentSrcPath = path.join(currentSrcPath, SRC_PATHS.DEFAULT);
 	}
-	const results = await _experiment(currentSrcPath, language, genMethods);
+	const results = await _experiment(currentSrcPath, language, genMethods, taskListPath);
 	for (const method in results) {
 		console.log(method, 'Results:', results);
 		const successCount = results[method].filter(result => result).length;
