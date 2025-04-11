@@ -47,8 +47,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {
 		vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
+		const models = ["gpt-4o-mini", "gpt-4o", "deepseek-chat"];
+		// validate all model names 
+		let taskListPath = "";
+
+		const projectName = "commons-cli";
+		taskListPath = `/LSPAI/experiments/data/${projectName}/taskList.json`;
+		console.log(`taskListPath: ${taskListPath}`);
+
+		let methodsForExperiment : string[] = [];
 		const language = "java";
-		await experiment(language, methodsForExperiment);
+		for (const model of models) {
+			methodsForExperiment = [model, `naive_${model}`];
+			await experiment(language, methodsForExperiment, taskListPath);
+		}
+
 		// Handle results...
 	});
 	context.subscriptions.push(disposable_exp);
