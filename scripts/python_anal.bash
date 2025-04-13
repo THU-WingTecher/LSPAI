@@ -25,6 +25,7 @@ mkdir -p "$REPORT_DIR"
 cd "$TARGET_PROJECT_PATH" || exit 1
 export PYTHONPATH="$TARGET_PROJECT_PATH:$TARGET_PROJECT_PATH/src":"$TARGET_PROJECT_PATH/src/black":"$TARGET_PROJECT_PATH/crawl4ai"
 # which python3
+# python3 -m coverage run --data-file="$REPORT_DIR/.coverage" -m pytest --continue-on-collection-errors $TEST_DIR
 echo "Running pytest..."
 pytest_output=$(python3 -m coverage run --data-file="$REPORT_DIR/.coverage" -m pytest --continue-on-collection-errors $TEST_DIR 2>&1)
 echo "$pytest_output"
