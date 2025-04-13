@@ -336,7 +336,6 @@ def main():
         additional = ""
         time_info = process_times[proc_name]
         token_info = process_tokens[proc_name]
-        print(proc_name, time_info['count'])
         avg_time = (time_info['time'] / time_info['count']) if time_info['count'] else 0
         avg_tokens = (token_info['tokens'] / token_info['count']) if token_info['count'] else 0
         if proc_name == "collectInfo" :
