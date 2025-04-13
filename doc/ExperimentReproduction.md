@@ -1532,11 +1532,11 @@ python3 scripts/anal_cost.py experiments/log-data/crawl4ai/results_gpt-4o/logs/g
 For each dataset folder (e.g., `results_deepseek`, `results_gpt-4o`, and `results_gpt-4o-mini`), you will find corresponding logs folders. The structure should look like this:
 
 ```bash
-│   │   ├── results_deepseek-chat
-│   │   │   ├── history
-│   │   │   ├── logs
-│   │   │   │   ├── deepseek-chat <-- COPY the PATH of this folder!
-│   │   │   │   │   └── ... json files
+│   │   ├── results_deepseek-chat
+│   │   │   ├── history
+│   │   │   ├── logs
+│   │   │   │   ├── deepseek-chat <-- COPY the PATH of this folder!
+│   │   │   │   │   └── ... json files
 ```
 Copy the absolute path of the folder marked as `<-- COPY the PATH of this folder!`, and then run the prewritten Python scripts below.
 
