@@ -24,13 +24,13 @@ valid_files_count=0
 total_files_count=0
 
 if [[ "$TARGET_PROJECT_PATH" == *cli ]]; then
-    total_files_count=140
+    total_files_count=150
 fi
 if [[ "$TARGET_PROJECT_PATH" == *csv ]]; then
     total_files_count=74
 fi
 
-total_files_count=0
+# total_files_count=0
 # Iterate through each .java file in the TEST_DIR
 for java_file in $(find "$TEST_DIR" -type f -name "*.java"); do
     # Get the corresponding .class file name
@@ -42,20 +42,22 @@ for java_file in $(find "$TEST_DIR" -type f -name "*.java"); do
         valid_files_count=$((valid_files_count + 1))
     fi
 
-    total_files_count=$((total_files_count + 1))
+    # total_files_count=$((total_files_count + 1))
 done
 
-# If there are no Java files, avoid division by zero
-if [ "$total_files_count" -eq 0 ]; then
-    echo "No .java files found in the target directory."
-    exit 1
-fi
+# # If there are no Java files, avoid division by zero
+# if [ "$total_files_count" -eq 0 ]; then
+#     echo "No .java files found in the target directory."
+#     exit 1
+# fi
 
 # Calculate the pass rate
 percentage=$(echo "$valid_files_count $total_files_count" | awk '{ printf "%.2f\n", ($1 / $2) * 100 }')
 
 # Echo the result
 echo "Pass rate for $TEST_DIR"
+echo "============================"
 echo "Total .java files: $total_files_count"
 echo "Files with corresponding .class files: $valid_files_count"
 echo "Pass rate: $percentage%"
+echo "============================"
