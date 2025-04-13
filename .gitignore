@@ -10,6 +10,7 @@ package-lock.json
 tsconfig.tsbuildinfo
 tsconfig.json
 experiments/projects/
+experiments/log-data/
 experiments/venv/
 temp/
 *.html

@@ -134,7 +134,10 @@ npm install lru-cache@10.1.0
       ""
     ],
     ```
-
+cd /LSPAI
+wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/746ec93571dd4451a0ae/?dl=1" -O temp/experimentData.tar.gz
+cd temp
+tar xvf experimentData.tar.gz
 ### Option A: Download IDE Plugin 
 
 1. Download the IDE plugin from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=LSPAI.lspai)
@@ -1408,7 +1411,7 @@ In this section, we reproduce the experiment results of Table 4, focusing on the
 Before proceeding, make sure you have already downloaded the provided dataset as described in this section(#option-b-use-pre-generated-dataset-recommended).
 To reproduce Table 4(CLI project with gpt-4o-mini), you should run below command :
 ```bash
-python3 scripts/anal_cost.py /LSPAI/experiments/data/commons-cli/results_gpt-4o-mini/logs/gpt-4o-mini /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/logs/gpt-4o-mini
+python3 scripts/anal_cost.py /LSPAI/experiments/log-data/commons-cli/results_gpt-4o-mini/logs/gpt-4o-mini /LSPAI/experiments/log-data/commons-csv/results_gpt-4o-mini/logs/gpt-4o-mini
 
 # Expected Result
 # === Overall Statistics (across ALL directories) ===
