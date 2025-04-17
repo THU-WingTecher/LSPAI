@@ -11,32 +11,33 @@ import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace
 import { experimentWithCopilot } from './copilot';
 import { generateTimestampString } from './fileHandler';
 import { TelemetryService } from './telemetry/telemetryService';
+import { invokeLLM } from './invokeLLM';
 
 export async function activate(context: vscode.ExtensionContext) {
 
-	const telemetry = TelemetryService.initialize(context);
+	// const telemetry = TelemetryService.initialize(context);
     
-    // Check for consent
-    await telemetry.ensurePrivacyConsent();
+    // // Check for consent
+    // await telemetry.ensurePrivacyConsent();
 
     // Example usage in your existing code
-    context.subscriptions.push(
-        vscode.commands.registerCommand('extension.generateUnitTest', async () => {
-            try {
-                // Your existing code
-                telemetry.logEvent('generateUnitTest', {
-                    success: true,
-                    duration: 1000,
-                    // other relevant data
-                });
-            } catch (error) {
-                telemetry.logError(error as Error, {
-                    command: 'generateUnitTest',
-                    // other relevant error context
-                });
-            }
-        })
-    );
+    // context.subscriptions.push(
+    //     vscode.commands.registerCommand('extension.generateUnitTest', async () => {
+    //         try {
+    //             // Your existing code
+    //             telemetry.logEvent('generateUnitTest', {
+    //                 success: true,
+    //                 duration: 1000,
+    //                 // other relevant data
+    //             });
+    //         } catch (error) {
+    //             telemetry.logError(error as Error, {
+    //                 command: 'generateUnitTest',
+    //                 // other relevant error context
+    //             });
+    //         }
+    //     })
+    // );
 	
 	const workspace = vscode.workspace.workspaceFolders;
 
@@ -315,7 +316,27 @@ public class TypeHandler_getConverter_3_1Test {
 		// 	}
 		// }
 	});
+	const testLLMDisposable = vscode.commands.registerCommand('extension.testLLM', async () => {
+		const promptObj = [
+			{
+				role: 'system',
+				content: 'You are a helpful assistant.'
+			},
+			{
+				role: 'user',
+				content: 'What is the capital of the moon?'
+			}
+		]
+
+		const response = await invokeLLM(promptObj, []);
+		if (response) {
+			vscode.window.showInformationMessage('Successfully invoked LLM.');
+		} else {
+			vscode.window.showErrorMessage('Failed to invoke LLM.');
+		}
+	});
 	
+	context.subscriptions.push(testLLMDisposable);
 	const disposable = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
@@ -323,20 +344,20 @@ public class TypeHandler_getConverter_3_1Test {
 			return;
 		}
 
-		telemetry.logEvent('generateUnitTest', {
-			success: true,
-			duration: 1000,
-			// other relevant data
-		});
+		// telemetry.logEvent('generateUnitTest', {
+		// 	success: true,
+		// 	duration: 1000,
+		// 	// other relevant data
+		// });
 		try {
 			const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
 			if (testCode) {
 				// Create a new untitled document with the generated code
-				const newDocument = await vscode.workspace.openTextDocument({
-					language: editor.document.languageId,
-					content: testCode
-				});
-				await vscode.window.showTextDocument(newDocument, { preview: true });
+				// const newDocument = await vscode.workspace.openTextDocument({
+				// 	language: editor.document.languageId,
+				// 	content: testCode
+				// });
+				// await vscode.window.showTextDocument(newDocument, { preview: true });
 				vscode.window.showInformationMessage('Unit test generated successfully!');
 			}
 		} catch (error) {
@@ -391,31 +412,6 @@ public class TypeHandler_getConverter_3_1Test {
 	// });
 
 	// context.subscriptions.push(disposable4);
-
-	const collectTrainDataDisposable = await vscode.commands.registerCommand('lspAi.CollectTrainData', async () => {
-		// const dataFolder = path.join(__dirname, '../data');
-		const dataFolder = "/UniTSyn/data/focal";
-
-		const jsonlFiles = fs.readdirSync(dataFolder)
-		.filter(file => file.endsWith('.jsonl'))
-		.map(file => path.join(dataFolder, file));
-		for (const jsonlFile of jsonlFiles) {	
-			console.log("jsonlFile: ", jsonlFile);
-			const inputJsonPath = jsonlFile;
-			const outputJsonPath = "/LSPAI/temp/" + jsonlFile.split('/').pop();
-			if (fs.existsSync(outputJsonPath)) {
-				fs.unlinkSync(outputJsonPath);
-			}
-	// Call the main function
-	const result = await main(inputJsonPath, outputJsonPath);
-	
-	console.log(outputJsonPath);
-
-			// Assert that the result is not null or undefined
-
-		}
-	});
-	context.subscriptions.push(collectTrainDataDisposable);
 
 	const showSettingsDisposable = vscode.commands.registerCommand('lspAi.showSettings', () => {
 		const settings = [

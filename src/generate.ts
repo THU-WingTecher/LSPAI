@@ -596,7 +596,7 @@ return vscode.window.withProgress({
 
 		await saveGeneratedCodeToFolder(finalCode, fullFileName);
 		if (showGeneratedCode) {
-			showDiffAndAllowSelection(fullFileName, testCode);
+			showDiffAndAllowSelection(testCode, languageId);
 		}
 		logger.save(fileName);
 

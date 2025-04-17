@@ -2,6 +2,7 @@ import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import * as vscode from 'vscode';
 import { generateTimestampString } from './fileHandler';
+import os from 'os';
 
 export enum PromptType {
     BASIC = 'basic',
@@ -103,12 +104,21 @@ const DEFAULT_CONFIG = {
     proxyUrl?: string;
 }
 
+// Function to get temporary directory
+function getTempDir(): string {
+    return os.tmpdir();
+}
+
 export class Configuration {
     private static instance: Configuration;
 
     private config: any;
     private constructor() {
         this.config = this.loadConfiguration();
+        // Use the temp directory function
+        this.config.savePath = path.join(getTempDir(), 'lspai', this.config.model);
+        this.createSavePathIfNotExists(this.logSavePath);
+        this.createSavePathIfNotExists(this.historyPath);
         console.log('Current Environment:', process.env.NODE_ENV);
         // console.log('config::config', this.config);
         this.adjustTimeout();

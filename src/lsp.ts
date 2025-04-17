@@ -34,7 +34,7 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 	if (docUri) {
 		try {
 			doc = await vscode.workspace.openTextDocument(docUri);
-			editor = await vscode.window.showTextDocument(doc);
+			// editor = await vscode.window.showTextDocument(doc);
 			await sleep(2000); // Wait for server activation
 		} catch (e) {
 			console.error(e);

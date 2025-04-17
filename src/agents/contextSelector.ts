@@ -58,7 +58,7 @@ export class ContextSelector {
      */
     private loadConfig(): ContextSelectorConfig {
         try {
-            const configPath = path.join(__dirname, "..", "..", "templates", "contextSelector.ini");
+            const configPath = path.join(__dirname, "..", "templates", "contextSelector.ini");
             const configData = fs.readFileSync(configPath, 'utf8');
             return ini.parse(configData) as ContextSelectorConfig;
         } catch (error) {
