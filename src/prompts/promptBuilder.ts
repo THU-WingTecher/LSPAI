@@ -12,7 +12,7 @@ import * as vscode from 'vscode';
 
 export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_report: string): ChatMessage[] {
     // for ContextTerm, we only need term and context(if need_definition is true) 
-    const fixTemplatePath = path.join(__dirname, "..", "..", "templates", "fixCode.ini");
+    const fixTemplatePath = path.join(__dirname, "..", "templates", "fixCode.ini");
     const fixTemplateData = fs.readFileSync(fixTemplatePath, 'utf8');
     const fixTemplate = ini.parse(fixTemplateData);
     const systemPrompt = fixTemplate.prompts.fix_system;
@@ -29,7 +29,7 @@ export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_
 
 export function inspectTest(source_code: string, unit_test_code: string): ChatMessage[] {
     // for ContextTerm, we only need term and context(if need_definition is true) 
-    const configPath = path.join(__dirname, "..", "..", "templates", "contextSelector.ini");
+    const configPath = path.join(__dirname, "..", "templates", "contextSelector.ini");
     const configData = fs.readFileSync(configPath, 'utf8');
     const config = ini.parse(configData) as ContextSelectorConfig;
     const systemPrompt = config.prompts.test_inspection_system;
@@ -58,7 +58,7 @@ export function generateTestWithContext(document: vscode.TextDocument, source_co
     const context_info_str = result.join('\n');
     const packageStatement = getPackageStatement(document, document.languageId);
 	// const importStatement = getImportStatement(document, document.languageId, functionSymbol);
-    const configPath = path.join(__dirname, "..", "..", "templates", "contextSelector.ini");
+    const configPath = path.join(__dirname, "..", "templates", "contextSelector.ini");
     const configData = fs.readFileSync(configPath, 'utf8');
     const config = ini.parse(configData) as ContextSelectorConfig;
     const systemPrompt = config.prompts.test_generation_system;
