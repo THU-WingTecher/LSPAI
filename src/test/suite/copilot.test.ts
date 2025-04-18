@@ -5,7 +5,7 @@ import { FixType, loadPrivateConfig, SRC_PATHS } from '../../config';
 import { activate } from '../../lsp';
 import { getConfigInstance, GenerationType, PromptType, Provider } from '../../config';
 import path from 'path';
-import { _generateFileNameForDiffLanguage, generateFileNameForDiffLanguage, generateTimestampString, saveGeneratedCodeToFolder } from '../../fileHandler';
+import { generateFileNameForDiffLanguage, generateTimestampString } from '../../fileHandler';
 import { ProjectName } from '../../config';
 import { experimentWithCopilot, init, signIn, copilotServer } from '../../copilot';
 

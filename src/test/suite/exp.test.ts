@@ -69,7 +69,11 @@ suite('Utils Test Suite', () => {
         console.log(`#### One file: ${oneFile}`);
 
         const symbolFilePairs = symbols.map(({symbol, document}) => {
-            return generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'java', [],0);
+            return {
+                symbol,
+                document,
+                fileName: generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'java', [],0)
+            };
         });
     
         assert.ok(symbolFilePairs.length > 0, 'symbolFilePairs should not be empty');
