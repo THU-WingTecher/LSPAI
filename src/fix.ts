@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getConfigInstance, FixType } from './config';
-import { groupDiagnosticsByMessage, groupedDiagnosticsToString, DiagnosticsToString, getDiagnosticsForFilePath } from './diagnostic';
+import { groupDiagnosticsByMessage, groupedDiagnosticsToString, DiagnosticsToString, getDiagnosticsForFilePath, chooseDiagnostic } from './diagnostic';
 import { saveToIntermediate, showGeneratedCodeWithPreview } from './fileHandler';
 import { invokeLLM, TokenLimitExceededError } from './invokeLLM';
 import { ExpLogs, LLMLogs, ExpLogger } from './log';
@@ -19,7 +19,7 @@ export async function performFixingRound(
 	languageId: string,
 	model: string,
 	historyPath: string,
-	fullFileName: string,
+	fileName: string,
 	logger: ExpLogger): Promise<{ code: string; savePoint: string; diagnostics: vscode.Diagnostic[]; } | null> {
 	console.log(`\n--- Round ${round} ---`);
 
@@ -77,8 +77,8 @@ export async function performFixingRound(
 		const newSavePoint = await saveToIntermediate(
 			fixedCode,
 			srcPath,
-			fullFileName.split(method)[1],
-			path.join(historyPath, method, round.toString()),
+			fileName,
+			path.join(historyPath, getConfigInstance().model, round.toString()),
 			languageId
 		);
 
@@ -109,9 +109,10 @@ export async function fixDiagnostics(
 	languageId: string,
 	model: string,
 	historyPath: string,
-	fullFileName: string,
+	fileName: string,
 	logger: ExpLogger,
-	MAX_ROUNDS: number): 
+	MAX_ROUNDS: number,
+	progress: vscode.Progress<{ message: string; increment: number }>): 
 	Promise<{ finalCode: string; success: boolean; diagnosticReport: DiagnosticReport; }> {
 
 	let round = 0;
@@ -119,42 +120,61 @@ export async function fixDiagnostics(
 	let curSavePoint = await saveToIntermediate(
 		finalCode,
 		srcPath,
-		fullFileName.split(method)[1],
-		path.join(historyPath, method, round.toString()),
+		fileName,
+		path.join(historyPath, getConfigInstance().model, round.toString()),
 		languageId
 	);
-
+	progress.report({ message: "Fixing - getting diagnostics ...", increment: 10 });
 	let diagnostics = await getDiagnosticsForFilePath(curSavePoint);
-	const initialDiagnosticCount = diagnostics.length;
+	if (diagnostics.some(diag => diag.message.includes("only syntax errors are reported"))) {
+		// This means the Language Server is not working, we need to stop the fixing process
+		vscode.window.showWarningMessage("Only syntax errors are reported, please check the code again.");
+		console.log("Only syntax errors are reported, please check the code again.");
+		return {
+			finalCode,
+			success: false,
+			diagnosticReport: {
+				initialDiagnostics: 0,
+				finalDiagnostics: 0,
+				totalRounds: 0,
+				fixSuccess: false,
+				roundHistory: []
+			}
+		};
+	}
+	let filteredDiagnostics = diagnostics.filter(diagnostic => chooseDiagnostic(diagnostic));
+    console.log('filtered diagnostics', filteredDiagnostics.map(diag => diag.message));
+
+	const initialDiagnosticCount = filteredDiagnostics.length;
 	const diagnosticHistory: DiagnosticRound[] = [];
-	console.log('fixdiagnostics::diagnostics at round', round, diagnostics.map(diag => diag.message));
-	while (round < MAX_ROUNDS && diagnostics.length > 0) {
+	console.log('fixdiagnostics::diagnostics at round', round, filteredDiagnostics.map(diag => diag.message));
+	while (round < MAX_ROUNDS && filteredDiagnostics.length > 0) {
 		round++;
 		// Record diagnostic changes for this round
 		diagnosticHistory.push({
 			round,
-			diagnosticsFixed: diagnostics.length - diagnostics.length,
-			remainingDiagnostics: diagnostics.length,
+			diagnosticsFixed: filteredDiagnostics.length - filteredDiagnostics.length,
+			remainingDiagnostics: filteredDiagnostics.length,
 			diagnosticMessages: []
 			// diagnosticMessages: await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method)
 		});
-
+		progress.report({ message: `Fixing - Round ${round}`, increment: 10 });
 		const result = await performFixingRound(
 			srcPath,
 			round,
 			curSavePoint,
 			finalCode,
-			diagnostics,
+			filteredDiagnostics,
 			collectedData,
 			method,
 			languageId,
 			model,
 			historyPath,
-			fullFileName,
+			fileName,
 			logger
 		);
 
-		diagnostics = result?.diagnostics || [];
+		filteredDiagnostics = result?.diagnostics || [];
 		finalCode = result?.code || finalCode;
 		curSavePoint = result?.savePoint || curSavePoint;
 		// if (editor) {
@@ -162,27 +182,31 @@ export async function fixDiagnostics(
 		// 		editBuilder.replace(new vscode.Range(0, 0, editor.document.lineCount, 0), finalCode);
 		// 	});
 		// }
-		if (!diagnostics) {
+		if (!filteredDiagnostics) {
 			console.log("No diagnostics found, breaking");
+			progress.report({ message: `Fixing Completed at Round ${round}`, increment: 10 })
 			break;
+		} else {
+			progress.report({ message: `Fixing Not completed at Round ${round}`, increment: -10 });
 		}
 
 	}
-	if (diagnostics.length > 0) {
+	if (filteredDiagnostics.length > 0) {
 		console.log("Diagnostics not fixed, max round reached");
+		progress.report({ message: `Fixing Not completed at Round ${round}`, increment: -10 });
 	}
 
 	const diagnosticReport: DiagnosticReport = {
 		initialDiagnostics: initialDiagnosticCount,
-		finalDiagnostics: diagnostics.length,
+		finalDiagnostics: filteredDiagnostics.length,
 		totalRounds: round,
-		fixSuccess: diagnostics.length === 0,
+		fixSuccess: filteredDiagnostics.length === 0,
 		roundHistory: diagnosticHistory
 	};
 	
 	return {
 		finalCode,
-		success: diagnostics.length === 0,
+		success: filteredDiagnostics.length === 0,
 		diagnosticReport
 	};
 }

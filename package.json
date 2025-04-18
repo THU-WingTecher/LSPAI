@@ -1,9 +1,9 @@
 {
-  "name": "lspAi",
+  "name": "LSPAI",
   "displayName": "LSPAI",
   "publisher": "GwihwanGo",
   "description": "LSPAI is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP) integration. Generate high-quality unit tests automatically and in real-time for multiple programming languages.",
-  "version": "0.0.3",
+  "version": "0.0.10",
   "icon": "doc/assets/lspai_image_v2.jpg",
   "repository": {
     "type": "git",
@@ -15,72 +15,23 @@
   "categories": [
     "Other"
   ],
-  "extensionDependencies": [
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "oracle.oracle-java",
-    "redhat.java",
-    "golang.go"
+  "activationEvents": [
+    "onStartupFinished"
   ],
-  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "extension.acceptChanges",
-        "title": "Accept Changes"
-      },
-      {
-        "command": "extension.rejectChanges",
-        "title": "Reject Changes"
-      },
-      {
         "command": "extension.testLLM",
         "title": "Test LLM"
-      },
-      {
-        "command": "extension.showInlineSuggestion",
-        "title": "Show Inline Suggestion"
-      },
-      {
-        "command": "lspAi.JavaExperiment",
-        "title": "LSPAI: Java-Experiment"
-      },
-      {
-        "command": "lspAi.CollectTrainData",
-        "title": "LSPAI: Collect Train Data"
-      },
-      {
-        "command": "lspAi.GoExperiment",
-        "title": "LSPAI: Go-Experiment"
-      },
-      {
-        "command": "lspAi.PythonExperiment",
-        "title": "LSPAI: Python-Experiment"
-      },
-      {
-        "command": "lspAi.CopilotExperiment",
-        "title": "LSPAI: Copilot-Experiment"
-      },
-      {
-        "command": "lspAi.GoExperiment",
-        "title": "LSPAI: Go-Experiment"
       },
       {
         "command": "extension.generateUnitTest",
         "title": "LSPAI: Generate Unit Test"
       },
       {
-        "command": "lspAi.ReExperiment",
-        "title": "LSPAI: Re-Experiment"
-      },
-      {
-        "command": "lspAi.showSettings",
+        "command": "LSPAI.showSettings",
         "title": "LSPAI: Show Current Settings"
-      },
-      {
-        "command": "extension.diagnostic",
-        "title": "LSPAI: Diagnostic"
       }
     ],
     "menus": {
@@ -89,53 +40,48 @@
           "command": "extension.generateUnitTest",
           "when": "editorTextFocus",
           "group": "navigation"
-        },
-        {
-          "command": "extension.diagnostic",
-          "when": "editorTextFocus",
-          "group": "navigation"
         }
       ]
     },
     "configuration": {
-      "title": "LLM LSP Unit Test Generator",
+      "title": "LSPAI",
       "properties": {
-        "lspAi.openaiApiKey": {
+        "LSPAI.savePath": {
+          "type": "string",
+          "default": "lspai-tests",
+          "description": "Folder name to save the generated code in the current workspace"
+        },
+        "LSPAI.openaiApiKey": {
           "type": "string",
           "default": "",
           "description": "API key for OpenAI"
         },
-        "lspAi.deepseekApiKey": {
+        "LSPAI.deepseekApiKey": {
           "type": "string",
           "default": "",
           "description": "API key for Deepseek"
         },
-        "lspAi.proxyUrl": {
+        "LSPAI.localLLMUrl": {
           "type": "string",
           "default": "",
-          "description": "Proxy URL for API calls"
+          "description": "Local LLM URL for API calls"
         },
-        "lspAi.localLLMUrl": {
-          "type": "string",
-          "default": "",
-          "description": "Proxy URL for API calls"
-        },
-        "lspAi.provider": {
+        "LSPAI.provider": {
           "type": "string",
           "default": "deepseek",
-          "description": "Provider of LLM"
+          "description": "Provider of LLM",
+          "enum": [
+            "deepseek",
+            "openai",
+            "ollama"
+          ]
         },
-        "lspAi.summarizeContext": {
-          "type": "boolean",
-          "default": true,
-          "description": "Summarize context for code generation"
-        },
-        "lspAi.model": {
+        "LSPAI.model": {
           "type": "string",
           "default": "deepseek-chat",
           "description": "Model to use for code generation"
         },
-        "lspAi.promptType": {
+        "LSPAI.promptType": {
           "type": "string",
           "default": "basic",
           "description": "Prompt type to use for code generation",
@@ -145,7 +91,18 @@
             "concise"
           ]
         },
-        "lspAi.maxRound": {
+        "LSPAI.generationType": {
+          "type": "string",
+          "default": "original",
+          "description": "Generation type to use for code generation",
+          "enum": [
+            "naive",
+            "original",
+            "agent",
+            "experimental"
+          ]
+        },
+        "LSPAI.maxRound": {
           "type": "number",
           "default": 5,
           "description": "Maximum number of rounds for code generation"

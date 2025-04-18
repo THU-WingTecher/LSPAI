@@ -57,7 +57,6 @@ export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
                 openaiApiKey: config.openaiApiKey || '',
                 deepseekApiKey: config.deepseekApiKey || '',
                 localLLMUrl: config.localLLMUrl || '',
-                proxyUrl: config.proxyUrl || ''
             };
         } catch (error) {
             console.log('error', error);
@@ -66,13 +65,16 @@ export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
         }
     }
     const config = vscode.workspace.getConfiguration('lspAi');
+    const globalConfig = vscode.workspace.getConfiguration('http');
+    const globalProxy = globalConfig.get<string>('proxy') || '';
+    
     if (config) {
         console.log('config::config', config);
         return {
             openaiApiKey: config.get<string>('openaiApiKey') || '',
             deepseekApiKey: config.get<string>('deepseekApiKey') || '',
             localLLMUrl: config.get<string>('localLLMUrl') || '',
-            proxyUrl: config.get<string>('proxyUrl') || '',
+            proxyUrl: config.get<string>('proxyUrl') || globalProxy || ''
         };
     }
     
@@ -80,7 +82,7 @@ export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
         openaiApiKey: '',
         deepseekApiKey: '',
         localLLMUrl: '',
-        proxyUrl: ''
+        proxyUrl: globalProxy || ''
     } as PrivateConfig;
 }
 
@@ -94,7 +96,8 @@ const DEFAULT_CONFIG = {
     promptType: PromptType.BASIC,
     fixType: FixType.ORIGINAL,
     generationType: GenerationType.ORIGINAL,
-    maxRound: 3
+    maxRound: 5,
+    savePath: 'lspai-tests'
 };
  // Add private configuration interface
  export interface PrivateConfig {
@@ -110,15 +113,20 @@ function getTempDir(): string {
 }
 
 export class Configuration {
-    private static instance: Configuration;
+    private static instance: Configuration | null;
 
     private config: any;
+    private projectName: string;
+    private startTimestamp: string;
+
     private constructor() {
         this.config = this.loadConfiguration();
+        this.projectName = this.config.workspace.split('/').pop() ?? 'unknownProject';
+        this.startTimestamp = generateTimestampString();
         // Use the temp directory function
-        this.config.savePath = path.join(getTempDir(), 'lspai', this.config.model);
-        this.createSavePathIfNotExists(this.logSavePath);
+        this.createSavePathIfNotExists(path.join(this.config.workspace, this.config.savePath));
         this.createSavePathIfNotExists(this.historyPath);
+        this.createSavePathIfNotExists(this.logSavePath);
         console.log('Current Environment:', process.env.NODE_ENV);
         // console.log('config::config', this.config);
         this.adjustTimeout();
@@ -139,6 +147,11 @@ export class Configuration {
     // }
     public get summarizeContext(): boolean {
         return this.config.summarizeContext ?? true; // Default to true for backward compatibility
+    }
+
+    public static resetInstance(): Configuration {
+        Configuration.instance = null;
+        return Configuration.getInstance();
     }
 
     private createSavePathIfNotExists(savePath: string): void {
@@ -193,13 +206,13 @@ export class Configuration {
             this.validateTestConfig(process.env.TEST_MODEL, 'TEST_MODEL');
             this.validateTestConfig(process.env.TEST_PROVIDER, 'TEST_PROVIDER');
             this.validateTestConfig(process.env.TEST_PROMPT_TYPE, 'TEST_PROMPT_TYPE');
+            this.validateTestConfig(process.env.TEST_GENERATION_TYPE, 'TEST_GENERATION_TYPE');
             this.validateTestConfig(process.env.TEST_TIMEOUT, 'TEST_TIMEOUT');
             this.validateTestConfig(process.env.TEST_PARALLEL_COUNT, 'TEST_PARALLEL_COUNT');
             this.validateTestConfig(process.env.TEST_MAX_ROUND, 'TEST_MAX_ROUND');
             this.validateTestConfig(process.env.TEST_OPENAI_API_KEY, 'TEST_OPENAI_API_KEY');
             this.validateTestConfig(process.env.TEST_DEEPSEEK_API_KEY, 'TEST_DEEPSEEK_API_KEY');
             this.validateTestConfig(process.env.TEST_LOCAL_LLM_URL, 'TEST_LOCAL_LLM_URL');
-            this.validateTestConfig(process.env.TEST_PROXY_URL, 'TEST_PROXY_URL');
 
             return {
                 expProb: parseFloat(process.env.TEST_EXP_PROB!),
@@ -207,13 +220,11 @@ export class Configuration {
                 provider: process.env.TEST_PROVIDER! as Provider,
                 promptType: process.env.TEST_PROMPT_TYPE! as PromptType,
                 timeoutMs: parseInt(process.env.TEST_TIMEOUT!),
-                summarizeContext: process.env.TEST_SUMMARIZE_CONTEXT === 'true',
                 parallelCount: parseInt(process.env.TEST_PARALLEL_COUNT!),
                 maxRound: parseInt(process.env.TEST_MAX_ROUND!),
                 openaiApiKey: process.env.TEST_OPENAI_API_KEY,
                 deepseekApiKey: process.env.TEST_DEEPSEEK_API_KEY,
                 localLLMUrl: process.env.TEST_LOCAL_LLM_URL,
-                proxyUrl: process.env.TEST_PROXY_URL
             };
         } else if (Configuration.isTestingEnvironment()) {
             // Validate test environment variables
@@ -223,27 +234,30 @@ export class Configuration {
                 model: DEFAULT_CONFIG.model,
                 provider: DEFAULT_CONFIG.provider,
                 promptType: DEFAULT_CONFIG.promptType,
+                generationType: DEFAULT_CONFIG.generationType,
                 timeoutMs: DEFAULT_CONFIG.timeoutMs,
                 parallelCount: DEFAULT_CONFIG.parallelCount,
                 maxRound: DEFAULT_CONFIG.maxRound,
                 testNumber: DEFAULT_CONFIG.testNumber,
-                expProb: DEFAULT_CONFIG.expProb
+                expProb: DEFAULT_CONFIG.expProb,
+                savePath: DEFAULT_CONFIG.savePath
             };
         } else {
             const config = vscode.workspace.getConfiguration('lspAi');
             return {
+                workspace: config.get<string>('workspace') ?? vscode.workspace.workspaceFolders![0].uri.fsPath,
                 expProb: DEFAULT_CONFIG.expProb,
                 model: config.get<string>('model') ?? DEFAULT_CONFIG.model,
                 provider: config.get<Provider>('provider') ?? DEFAULT_CONFIG.provider,
                 promptType: config.get<PromptType>('promptType') ?? DEFAULT_CONFIG.promptType,
+                generationType: config.get<GenerationType>('generationType') ?? DEFAULT_CONFIG.generationType,
                 timeoutMs: DEFAULT_CONFIG.timeoutMs,
                 parallelCount: config.get<number>('parallel') ?? DEFAULT_CONFIG.parallelCount,
                 maxRound: config.get<number>('maxRound') ?? DEFAULT_CONFIG.maxRound,
-                summarizeContext: config.get<boolean>('summarizeContext') ?? true,
                 openaiApiKey: config.get<string>('openaiApiKey'),
                 deepseekApiKey: config.get<string>('deepseekApiKey'),
                 localLLMUrl: config.get<string>('localLLMUrl'),
-                proxyUrl: config.get<string>('proxyUrl')
+                savePath: config.get<string>('savePath') ?? DEFAULT_CONFIG.savePath
             };
         }
     }
@@ -271,7 +285,7 @@ export class Configuration {
         if (this.config.model){
             saveName += `_${this.config.model}`;
         }
-        return path.join(`${saveName}_${generateTimestampString()}`, this.config.model);
+        return path.join(`${saveName}_${this.startTimestamp}`, this.config.model);
     }
 
     public get savePath(): string {
@@ -279,11 +293,11 @@ export class Configuration {
     }
 
     public get historyPath(): string {
-        return path.join(this.config.savePath, '..', 'history');
+        return path.join(os.tmpdir(), "lspai", this.startTimestamp, this.projectName, this.config.model, 'history');
     }
 
     public get logSavePath(): string {
-        return path.join(this.config.savePath, '..', 'logs');
+        return path.join(os.tmpdir(), "lspai", this.startTimestamp, this.projectName, this.config.model, 'logs');
     }
 
     public get workspace(): string {

@@ -17,7 +17,7 @@ export enum DiagnosticTag {
     Deprecated
 }
 
-function chooseDiagnostic(diag: vscode.Diagnostic): boolean {
+export function chooseDiagnostic(diag: vscode.Diagnostic): boolean {
     return diag.severity < vscode.DiagnosticSeverity.Warning;
 }
 
@@ -181,10 +181,7 @@ export async function getDiagnosticsForFilePath(filePath: string): Promise<vscod
     // const diagnostics = await getDiagnosticsForUri(uri);
     const diagnostics = await vscode.languages.getDiagnostics(uri);
     console.log('initial diagnostics', diagnostics.map(diag => diag.message));
-    const filteredDiagnostics = diagnostics.filter(diagnostic => chooseDiagnostic(diagnostic));
-    console.log('filtered diagnostics', filteredDiagnostics.map(diag => diag.message));
-    // eraseContent(filePath);
-    return filteredDiagnostics;
+    return diagnostics;
 }
 
 async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {

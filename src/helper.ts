@@ -3,7 +3,7 @@ import vscode from "vscode";
 import fs from "fs";
 import { MIN_FUNCTION_LINES, SRC_PATHS } from "./config";
 import { ProjectName } from "./config";
-import { generateFileNameForDiffLanguage, findFiles, _generateFileNameForDiffLanguage } from "./fileHandler";
+import { generateFileNameForDiffLanguage, findFiles } from "./fileHandler";
 import { getLanguageSuffix } from "./language";
 import { getAllSymbols } from "./lsp";
 import { getConfigInstance } from "./config";
@@ -162,7 +162,7 @@ export async function experiment(symbolDocumentMaps: {document: vscode.TextDocum
         const symbolTasks = batch.map(async ({ document, symbol }) => {
             console.log(`#### Processing symbol ${symbol.name}`);
             for (let round = 0; round < getConfigInstance().testNumber; round++) {
-                const fileName = _generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'java', [], round)
+                const fileName = generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'java', [], round)
                 const result = await generateUnitTestForAFunction(
                     currentSrcPath,
                     document, 
@@ -200,7 +200,7 @@ export function isSymbolLessThanLines(symbol: vscode.DocumentSymbol): boolean {
     return symbol.range.end.line - symbol.range.start.line < MIN_FUNCTION_LINES;
 }
 
-export function goSpecificEnvGen(folderName: string, language: string, srcPath: string): string {
+export function goSpecificEnvGen(folderName: string, language: string, srcPath: string): void {
     // Create the new folder path
     const newFolder = folderName;
     const suffix = getLanguageSuffix(language); 
@@ -230,7 +230,6 @@ export function goSpecificEnvGen(folderName: string, language: string, srcPath: 
         }
     });
 
-    return newFolder;
 }
 
 export function setTestFilesPath(projectPath: string) {

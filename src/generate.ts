@@ -9,11 +9,12 @@ import { ExpLogger, LLMLogs } from './log';
 import { invokeLLM } from "./invokeLLM";
 import { genPrompt, generateTestWithContext, inspectTest } from "./prompts/promptBuilder";
 import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
-import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate } from './fileHandler';
+import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate, getTraditionalTestDirAtCurWorkspace, saveCode } from './fileHandler';
 import { getConfigInstance, GenerationType, PromptType, Provider, loadPrivateConfig } from './config';
 import { getTempDirAtCurWorkspace } from './fileHandler';
 import { getContextSelectorInstance } from './agents/contextSelector';
 import { DiagnosticReport, fixDiagnostics } from './fix';
+import { closeEditor } from './lsp';
 
 export interface ContextInfo {
 	dependentContext: string;
@@ -34,6 +35,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 	let mainfunctionParent = "";
 	let referenceCodes = "";
 	let DefUseMap: DecodedToken[] = [];
+	const lastFileName = fileName.split("/").pop()!;
 	const textCode = document.getText(functionSymbol.range);
 	const packageStatement = getPackageStatement(document, document.languageId);
 	const importStatement = getImportStatement(document, document.languageId, functionSymbol);
@@ -57,7 +59,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 		SourceCode: textCode,
 		languageId: languageId,
 		functionSymbol: functionSymbol,
-		fileName: fileName,
+		fileName: lastFileName,
 		referenceCodes: referenceCodes,
 		packageString: packageStatement ? packageStatement[0] : '',
 		importString: importStatement ? importStatement : ''
@@ -78,43 +80,34 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 
 	// const allUseMap = new Map<String, Array<vscode.Location>>();
 	// 获取光标位置
-	const functionSymbolWithParents = getFunctionSymbolWithItsParents(symbols, position)!;
-	let targetCodeContextString = "";
+	// const functionSymbolWithParents = getFunctionSymbolWithItsParents(symbols, position)!;
+	// let targetCodeContextString = "";
 	const languageId = document.languageId;
 
-	if (functionSymbolWithParents.length > 0) {
-		// const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0], languageId);
-		const parent = getSymbolDetail(document, functionSymbolWithParents[0]);
-		const children = functionSymbolWithParents.slice(1).map(symbol => getSymbolDetail(document, symbol)).join(' ');
-		targetCodeContextString = `${parent} { ${children} }`;
-		console.log(`targetCodeContext, : ${targetCodeContextString}`);
-	}
+	// if (functionSymbolWithParents.length > 0) {
+	// 	// const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0], languageId);
+	// 	const parent = getSymbolDetail(document, functionSymbolWithParents[0]);
+	// 	const children = functionSymbolWithParents.slice(1).map(symbol => getSymbolDetail(document, symbol)).join(' ');
+	// 	targetCodeContextString = `${parent} { ${children} }`;
+	// 	console.log(`targetCodeContext, : ${targetCodeContextString}`);
+	// }
 
 	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
-	const pathParts = workspace.split("/");
-	const projectName = pathParts[pathParts.length - 1];
-	const privateConfig = loadPrivateConfig('');
 
-	const model = 'gpt-4o-mini';
 	const currentConfig = {
-		model: model,
-        provider: 'openai' as Provider,
-        expProb: 0.2,
-        generationType: GenerationType.ORIGINAL,
-        promptType: PromptType.DETAILED,
         workspace: workspace,
-        parallelCount: 1,
-        maxRound: 5,
-		savePath: path.join(getTempDirAtCurWorkspace(), model),
-        ...privateConfig
     }
-	const folderPath = currentConfig.savePath;
 	getConfigInstance().updateConfig(currentConfig);
+	// const projectName = pathParts[pathParts.length - 1];
+	// const privateConfig = loadPrivateConfig('');
 
+	// const model = 'gpt-4o-mini';
 	const functionSymbol = getFunctionSymbol(symbols, position)!;
 	
 	// Generate the file paths
-	const { fileName } = generateFileNameForDiffLanguage(document, functionSymbol, folderPath, document.languageId, [], 0);
+	const fullFileName  = generateFileNameForDiffLanguage(document, 
+		functionSymbol, path.join(workspace,getConfigInstance().savePath), 
+		document.languageId, [], 0);
 	
 
 	// Call generateUnitTestForAFunction with all required parameters
@@ -125,7 +118,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 		workspace,
 		document,
 		functionSymbol,
-		fileName,
+		fullFileName,
 		showGeneratedCode,
 	);
 
@@ -138,8 +131,12 @@ async function initializeTestGeneration(document: vscode.TextDocument, functionS
 	languageId: string, 
 	fileName: string
 }> {
-	const fileNameParts = fullFileName.split('/');
-	const fileName = fileNameParts[fileNameParts.length - 1].split('.')[0];
+	// basically, its the last part of the file name
+	// for java, it is the file name without the path
+	// for other languages, it is the file name with the path
+	// for example, the fileName is org.commons.cli.CommandLineTest.java
+	const savePath = path.join(getConfigInstance().workspace, getConfigInstance().savePath);
+	const fileName = fullFileName.split(savePath)[1];
 	logger.log("start", "", null, "");
 
 	const languageId = document.languageId;
@@ -154,11 +151,8 @@ async function initializeTestGeneration(document: vscode.TextDocument, functionS
 }
 
 async function generateInitialTestCode(
-	document: vscode.TextDocument,
-	functionSymbol: vscode.DocumentSymbol,
 	collectedData: any,
 	languageId: string,
-	fileName: string,
 	logger: ExpLogger
 ): Promise<string> {
 
@@ -178,6 +172,7 @@ async function generateInitialTestCode(
 		throw error;
 	}
 }
+
 function getVisibleCodeWithLineNumbers(textEditor: vscode.TextEditor) {
     let currentLine = textEditor.visibleRanges[0].start.line;
     const endLine = textEditor.visibleRanges[0].end.line;
@@ -228,7 +223,7 @@ function applyDecoration(editor: vscode.TextEditor, line: number, suggestion: st
     editor.setDecorations(decorationType, [decoration]);
 }
 
-export async function showDiffAndAllowSelection(newContent: string, languageId: string) {
+export async function showDiffAndAllowSelection(newContent: string, languageId: string, fileName: string) {
     // Create a new untitled document with the new content
     const untitledDocument = await vscode.workspace.openTextDocument({ content: newContent, language: languageId });
     const editor = await vscode.window.showTextDocument(untitledDocument, vscode.ViewColumn.Beside);
@@ -239,25 +234,8 @@ export async function showDiffAndAllowSelection(newContent: string, languageId: 
         editor.document.positionAt(newContent.length)
     );
 
-    // Highlight the entire document
-    // const highlightDecorationType = vscode.window.createTextEditorDecorationType({
-    //     backgroundColor: 'rgba(100, 200, 255, 0.1)', // Light blue background
-    // });
-    
-    // editor.setDecorations(highlightDecorationType, [fullRange]);
-
-    // // Add buttons at the end of document
-    // const buttonsDecorationType = vscode.window.createTextEditorDecorationType({
-    //     after: {
-    //         contentText: ' [Accept] [Reject]',
-    //         color: 'blue',
-    //         margin: '0 0 0 1em',
-    //     }
-    // });
-    
-    // Highlight the entire document as a change
     const changeDecorationType = vscode.window.createTextEditorDecorationType({
-        backgroundColor: 'rgba(255, 255, 0, 0.34)', // Light yellow background
+        backgroundColor: 'rgba(181, 181, 104, 0.34)', // Light yellow background
         border: '1px solid yellow'
     });
 
@@ -303,7 +281,7 @@ export async function showDiffAndAllowSelection(newContent: string, languageId: 
     editor.setDecorations(rejectDecorationType, [rejectRange]);
     // Get the last line position
 
-    const disposable = vscode.window.onDidChangeTextEditorSelection((event) => {
+    const disposable = vscode.window.onDidChangeTextEditorSelection(async (event) => {
         if (event.textEditor.document.uri.toString() !== untitledDocument.uri.toString()) {
             return;
         }
@@ -319,25 +297,32 @@ export async function showDiffAndAllowSelection(newContent: string, languageId: 
 			acceptDecorationType.dispose();
 			rejectDecorationType.dispose();
 			disposable.dispose();
-			vscode.window.showInformationMessage('Changes accepted');
+			await closeEditor(editor);
+			const savePath = path.join(getConfigInstance().workspace, getConfigInstance().savePath, fileName);
+			await saveCode(newContent, "", savePath);
+			// show document with the new content
+			const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(savePath));
+			await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);
+			// if (fs.existsSync(traditionalTestFilePath)) {
+			// 	fs.unlinkSync(traditionalTestFilePath);
+			// }
+			// // closeEditor(editor);
+			// if (editor.document.isUntitled) {
+			// 	const uri = vscode.Uri.file(traditionalTestFilePath);
+			// 	await vscode.workspace.fs.writeFile(uri, Buffer.from(newContent));
+			// }
+			// await closeEditor(editor);
             }
             // If clicked after [Accept] where [Reject] would appear
             else if (position.line === rejectLineNumber) {
                 // Reject clicked
-                editor.edit(editBuilder => {
-                    editBuilder.delete(new vscode.Range(
-                        new vscode.Position(0, 0),
-                        new vscode.Position(editor.document.lineCount, 0)
-                    ));
-                }).then(() => {
-                    vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                    vscode.window.showInformationMessage('Changes rejected');
-                });
                 changeDecorationType.dispose();
                 acceptDecorationType.dispose();
                 rejectDecorationType.dispose();
                 disposable.dispose();
+				await closeEditor(editor);
             }
+			
     });
 
     // Update hover provider to match the new button positions
@@ -448,7 +433,7 @@ return vscode.window.withProgress({
 
 	console.log(`Generating unit test for ${model} in ${fullFileName}`);
 	try {
-		progress.report({ message: "Analyzing function structure...", increment: 20 });
+		progress.report({ message: "Preparing for test generation...", increment: 10 });
 		const { languageId, fileName } = await initializeTestGeneration(
 				document,
 				functionSymbol,
@@ -460,37 +445,30 @@ return vscode.window.withProgress({
 		// Step 1: Collect Info
 
 		// progress.report({ message: "Generating test structure...", increment: 20 });
-		progress.report({ message: "Generating test cases...", increment: 20 });
 		switch (getConfigInstance().generationType) {
 			case GenerationType.NAIVE:
 			case GenerationType.ORIGINAL:
 			// Step 2: Initial Test Generation
+				progress.report({ message: `[${getConfigInstance().generationType} mode] - collecting info`, increment: 20 });
 				const startTime = Date.now();
 				collectedData = await collectInfo(
-									document,
-									functionSymbol,
-									languageId,
-									fileName,
-									);
+					document,
+					functionSymbol,
+					languageId,
+					fileName,
+				);
 				logger.log("collectInfo", (Date.now() - startTime).toString(), null, "");
+				progress.report({ message: `[${getConfigInstance().generationType} mode] - generating initial test code`, increment: 20 });
 				testCode = await generateInitialTestCode(
-				document,
-				functionSymbol,
 				collectedData,
 				languageId,
-				fullFileName,
 				logger
 				);
 				testCode = parseCode(testCode);
-				await saveToIntermediate(
-					testCode,
-					srcPath,
-					fullFileName.split(getConfigInstance().model)[1],
-					path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
-					languageId
-				);
+
 				break;
 			case GenerationType.AGENT:
+				progress.report({ message: `[${getConfigInstance().generationType} mode] - identifying context terms`, increment: 20 });
 				const contextSelector = await getContextSelectorInstance(
 					document, 
 					functionSymbol);
@@ -498,68 +476,36 @@ return vscode.window.withProgress({
 				const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 				const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
 				logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
+				progress.report({ message: `[${getConfigInstance().generationType} mode] - gathering context`, increment: 20 });
+				
 				const gatherContextStartTime = Date.now();
 				const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
 				logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
 				console.log("enrichedTerms", enrichedTerms);
+
+				progress.report({ message: `[${getConfigInstance().generationType} mode] - generating test with context`, increment: 20 });
 				const generateTestWithContextStartTime = Date.now();
 				const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
 				const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 				testCode = await invokeLLM(promptObj, logObj);
 				testCode = parseCode(testCode);
-				await saveToIntermediate(
-					testCode,
-					srcPath,
-					fullFileName.split(model)[1],
-					path.join(getConfigInstance().historyPath, model, "initial"),
-					languageId
-				);
+
 				logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime).toString(), logObj, "");
 				break;
 			case GenerationType.EXPERIMENTAL:
-				const contextSelector_experimental = await getContextSelectorInstance(
-					document, 
-					functionSymbol);
-				const ContextStartTime_experimental = Date.now();
-				const logObjForIdentifyTerms_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-				const identifiedTerms_experimental = await contextSelector_experimental.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms_experimental);
-				logger.log("identifyContextTerms", (Date.now() - ContextStartTime_experimental).toString(), logObjForIdentifyTerms_experimental, "");
-				const gatherContextStartTime_experimental = Date.now();
-				const enrichedTerms_experimental = await contextSelector_experimental.gatherContext(identifiedTerms_experimental);
-				logger.log("gatherContext", (Date.now() - gatherContextStartTime_experimental).toString(), null, "");
-				console.log("enrichedTerms_experimental", enrichedTerms_experimental);
-				const generateTestWithContextStartTime_experimental = Date.now();
-				const promptObj_experimental = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms_experimental, fileName);
-				const logObj_experimental: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-				testCode = await invokeLLM(promptObj_experimental, logObj_experimental);
-				testCode = parseCode(testCode);
-				await saveToIntermediate(
-					testCode,
-					srcPath,
-					fullFileName.split(model)[1],
-					path.join(getConfigInstance().historyPath, model, "initial"),
-					languageId
-				);
-				logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime_experimental).toString(), logObj_experimental, "");
-
-				const inspectTestStartTime = Date.now();
-				const promptObj_inspectTest = inspectTest(document.getText(functionSymbol.range), testCode);
-				const logObj_inspectTest: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-				testCode = await invokeLLM(promptObj_inspectTest, logObj_inspectTest);
-				testCode = parseCode(testCode);
-				await saveToIntermediate(
-					testCode,
-					srcPath,
-					fullFileName.split(model)[1],
-					path.join(getConfigInstance().historyPath, model, "after_inspect"),
-					languageId
-				);
-				logger.log("inspectTest", (Date.now() - inspectTestStartTime).toString(), logObj_inspectTest, "");
-				
 				break;
 		}
 
+		await saveToIntermediate(
+			testCode,
+			srcPath,
+			fileName,
+			path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
+			languageId
+		);
+
 		if (getConfigInstance().generationType === GenerationType.NAIVE) {
+			progress.report({ message: `[${getConfigInstance().generationType} mode] - completed`, increment: 50 });
 			return testCode;
 		}
 
@@ -568,7 +514,6 @@ return vscode.window.withProgress({
 		let finalCode: string = testCode;
 
 		const fixstartTime = Date.now();
-		progress.report({ message: "Fixing Unit Test Codes ...", increment: 20 });
 		const report = await fixDiagnostics(
 			srcPath,
 			testCode,
@@ -577,9 +522,10 @@ return vscode.window.withProgress({
 			languageId,
 			model,
 			getConfigInstance().historyPath,
-			fullFileName,
+			fileName,
 			logger,
 			getConfigInstance().maxRound,
+			progress
 		);
 		diagnosticReport = report.diagnosticReport;
 		finalCode = report.finalCode;
@@ -588,15 +534,15 @@ return vscode.window.withProgress({
 		// Step 4: Save Results
 		
 		// Save diagnostic report
-		progress.report({ message: "Finalizing test code...", increment: 40 });
+		progress.report({ message: "Finalizing test code...", increment: 10 });
 		const reportPath = path.join(getConfigInstance().logSavePath, model, `${fileName}_diagnostic_report.json`);
 		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
 		console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
 		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
 
-		await saveGeneratedCodeToFolder(finalCode, fullFileName);
+		await saveGeneratedCodeToFolder(finalCode, path.join(getConfigInstance().workspace, getConfigInstance().savePath), fileName);
 		if (showGeneratedCode) {
-			showDiffAndAllowSelection(testCode, languageId);
+			showDiffAndAllowSelection(finalCode, languageId, fileName);
 		}
 		logger.save(fileName);
 

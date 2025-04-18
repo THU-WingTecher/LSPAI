@@ -9,6 +9,19 @@ import { DEFAULT_FILE_ENCODING, TIME_FORMAT_OPTIONS, getConfigInstance } from '.
 import { goSpecificEnvGen, sleep } from './helper';
 import { ExpLogs } from './log';
 
+export function getTraditionalTestDirAtCurWorkspace(language: string): string {
+    const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
+    if (language === 'java') {
+        return path.join(workspace, 'src', 'lspai-tests');
+    } else if (language === 'go') {
+        return path.join(workspace, 'src', 'lspai-tests');
+    } else if (language === 'python') {
+        return path.join(workspace, 'src', 'lspai-tests');
+    } else {
+        return path.join(workspace, 'lspai-tests');
+    }
+}
+
 export function getTempDirAtCurWorkspace(): string {
     const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
     const testDir = path.join(workspace, `results_${generateTimestampString()}`);
@@ -44,26 +57,66 @@ export async function showGeneratedCodeWithPreview(filePath: string, column: vsc
     vscode.window.showInformationMessage(`Generated code has been saved to ${filePath}`);
 }
 
-export async function saveGeneratedCodeToFolder(code: string, fileName: string): Promise<void> {
-	const folderPath = path.dirname(fileName);
-	if (!fs.existsSync(folderPath)) {
-		fs.mkdirSync(folderPath, { recursive: true });
-	}
+export async function saveCode(code: string, folderName: string, fileName: string): Promise<string> {
+    const fullPath = path.join(folderName, fileName);
+    const folderPath = path.dirname(fullPath);
+    if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+    }
+    fs.writeFileSync(fullPath, code, 'utf8');
+    console.log(`Code saved to ${fullPath}`);
+    return fullPath;
+}
 
-	fs.writeFileSync(fileName, code, 'utf8');
-	console.log(`Generated code saved to ${fileName}`);
+// Refactor existing functions to use saveCode
+export async function saveGeneratedCodeToFolder(code: string, folderName: string, fileName: string): Promise<void> {
+    await saveCode(code, folderName, fileName);
 }
 
 export async function saveGeneratedCodeToIntermediateLocation(code: string, fullfileName: string, folderName: string): Promise<string> {
-    const fullPath = path.join(folderName, fullfileName);
-	const folderPath = path.dirname(fullPath);
-	if (!fs.existsSync(folderPath)) {
-		fs.mkdirSync(folderPath, { recursive: true });
-	}
-    fs.writeFileSync(fullPath, code, 'utf8');
-    console.log(`Generated code saved to ${fullPath}`);
-    return fullPath;
+    return await saveCode(code, folderName, fullfileName);
 }
+
+export async function saveGeneratedCodeToSpecifiedFolder(code: string, fullfileName: string, folderName: string): Promise<string> {
+    return await saveCode(code, folderName, fullfileName);
+}
+
+export async function saveToIntermediate(
+    testCode: string,
+    currentSrcPath: string,
+    fullFileName: string,
+    folderName: string,
+    language: string
+): Promise<string> {
+    let curSavePoint: string;
+
+    if (language === "go") {
+        curSavePoint = path.join(folderName, fullFileName);
+        if (!fs.existsSync(path.dirname(curSavePoint))) {
+            await goSpecificEnvGen(folderName, language, currentSrcPath);
+            await sleep(1000);
+        }
+        fs.writeFileSync(curSavePoint, testCode, DEFAULT_FILE_ENCODING);
+        console.log(`Generated code saved to ${curSavePoint}`);
+    } else if (language === "java") {
+        await saveCode(testCode, folderName, fullFileName); // for history keeping
+        const javaTestPath = path.join(getConfigInstance().workspace, javaLspaiTestPath);
+        curSavePoint = await saveCode(testCode, javaTestPath, fullFileName);
+    } else {
+        curSavePoint = await saveCode(testCode, folderName, fullFileName);
+    }
+    return curSavePoint;
+}
+// export async function saveGeneratedCodeToIntermediateLocation(code: string, fullfileName: string, folderName: string): Promise<string> {
+//     const fullPath = path.join(folderName, fullfileName);
+// 	const folderPath = path.dirname(fullPath);
+// 	if (!fs.existsSync(folderPath)) {
+// 		fs.mkdirSync(folderPath, { recursive: true });
+// 	}
+//     fs.writeFileSync(fullPath, code, 'utf8');
+//     console.log(`Generated code saved to ${fullPath}`);
+//     return fullPath;
+// }
 
 export function findFiles(folderPath: string, Files: string[] = [], language:string, suffix:string) {
     fs.readdirSync(folderPath).forEach(file => {
@@ -81,7 +134,7 @@ export function findFiles(folderPath: string, Files: string[] = [], language:str
 }
 
 
-export function _generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string, generated: string[], round: number){
+export function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string, generated: string[], round: number){
     const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
     const suffix = getLanguageSuffix(language); // Get suffix based on language
     let fileName;
@@ -111,35 +164,35 @@ export function _generateFileNameForDiffLanguage(document: vscode.TextDocument, 
     return getUniqueFileName(folderPath, baseName, disposableSuffix, generated, round);
 }
 
-export function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string, generated: string[], round: number){
-    const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
-    const suffix = getLanguageSuffix(language); // Get suffix based on language
-    let fileName;
-    let baseName;
-    let disposableSuffix;
-    switch (language) {
-        case "go":
-            const testFileFormatForGo = "_test";
-            fileName = `${fileSig}${testFileFormatForGo}.${suffix}`;
-            baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
-            disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
-            break;
-        case "java":
-            const testFileFormatForJava = "Test";
-            fileName = `${fileSig}${testFileFormatForJava}.${suffix}`;
-            baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
-            disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
-            break;
-        default:
-            const uniTestFileFormat = "_test";
-            fileName = `${fileSig}${uniTestFileFormat}.${suffix}`;
-            baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
-            disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
-            break;
-    }
+// export function generateFileNameForDiffLanguage(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, folderPath: string, language:string, generated: string[], round: number){
+//     const fileSig = genFileNameWithGivenSymbol(document, symbol, language);
+//     const suffix = getLanguageSuffix(language); // Get suffix based on language
+//     let fileName;
+//     let baseName;
+//     let disposableSuffix;
+//     switch (language) {
+//         case "go":
+//             const testFileFormatForGo = "_test";
+//             fileName = `${fileSig}${testFileFormatForGo}.${suffix}`;
+//             baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+//             disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+//             break;
+//         case "java":
+//             const testFileFormatForJava = "Test";
+//             fileName = `${fileSig}${testFileFormatForJava}.${suffix}`;
+//             baseName = fileName.replace(/(Test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+//             disposableSuffix = fileName.replace(/^.*(Test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+//             break;
+//         default:
+//             const uniTestFileFormat = "_test";
+//             fileName = `${fileSig}${uniTestFileFormat}.${suffix}`;
+//             baseName = fileName.replace(/(_test\.\w+)$/, '');  // This removes 'Test.${suffix}'
+//             disposableSuffix = fileName.replace(/^.*(_test\.\w+)$/, '$1');  // This isolates 'Test.${suffix}'
+//             break;
+//     }
 
-    return { document, symbol, fileName: getUniqueFileName(folderPath, baseName, disposableSuffix, generated, round) };
-}
+//     return { document, symbol, fileName: getUniqueFileName(folderPath, baseName, disposableSuffix, generated, round) };
+// }
 
 export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
     const fileName = document.fileName.split('/').pop()!.replace(/\.\w+$/, '');
@@ -191,39 +244,39 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
 }
 
 
-export async function saveGeneratedCodeToSpecifiedFolder(code: string, fullfileName: string, folderName: string): Promise<string> {
-    // We should move file to the 
-    // ${project.basedir}/src/lspai/test/java --> to get the correct and fast diagnostics
-    // <plugin>
-    //     <groupId>org.codehaus.mojo</groupId>
-    //     <artifactId>build-helper-maven-plugin</artifactId>
-    //     <version>3.5.0</version>
-    //     <executions>
-    //         <execution>
-    //             <id>add-test-source</id>
-    //             <phase>generate-test-sources</phase>
-    //             <goals>
-    //                 <goal>add-test-source</goal>
-    //             </goals>
-    //             <configuration>
-    //                 <sources>
-    //                     <!-- Add your additional test source directory -->
-    //                     <source>${project.basedir}/src/test/java</source>
-    //                     <source>${project.basedir}/src/lspai/test/java</source>
-    //                 </sources>
-    //             </configuration>
-    //         </execution>
-    //     </executions>
-    // </plugin>
-    const fullPath = path.join(folderName, fullfileName);
-	const folderPath = path.dirname(fullPath);
-	if (!fs.existsSync(folderPath)) {
-		fs.mkdirSync(folderPath, { recursive: true });
-	}
-    fs.writeFileSync(fullPath, code, 'utf8');
-    console.log(`Generated code saved to ${fullPath}`);
-    return fullPath;
-}
+// export async function saveGeneratedCodeToSpecifiedFolder(code: string, fullfileName: string, folderName: string): Promise<string> {
+//     // We should move file to the 
+//     // ${project.basedir}/src/lspai/test/java --> to get the correct and fast diagnostics
+//     // <plugin>
+//     //     <groupId>org.codehaus.mojo</groupId>
+//     //     <artifactId>build-helper-maven-plugin</artifactId>
+//     //     <version>3.5.0</version>
+//     //     <executions>
+//     //         <execution>
+//     //             <id>add-test-source</id>
+//     //             <phase>generate-test-sources</phase>
+//     //             <goals>
+//     //                 <goal>add-test-source</goal>
+//     //             </goals>
+//     //             <configuration>
+//     //                 <sources>
+//     //                     <!-- Add your additional test source directory -->
+//     //                     <source>${project.basedir}/src/test/java</source>
+//     //                     <source>${project.basedir}/src/lspai/test/java</source>
+//     //                 </sources>
+//     //             </configuration>
+//     //         </execution>
+//     //     </executions>
+//     // </plugin>
+//     const fullPath = path.join(folderName, fullfileName);
+// 	const folderPath = path.dirname(fullPath);
+// 	if (!fs.existsSync(folderPath)) {
+// 		fs.mkdirSync(folderPath, { recursive: true });
+// 	}
+//     fs.writeFileSync(fullPath, code, 'utf8');
+//     console.log(`Generated code saved to ${fullPath}`);
+//     return fullPath;
+// }
 
 export function eraseContent(filePath: string): void {
     // erase all the content under the filePath
@@ -231,46 +284,47 @@ export function eraseContent(filePath: string): void {
     fs.writeFileSync(filePath, '', 'utf8');
 }
 
-export async function saveToIntermediate(
-    testCode: string,
-    currentSrcPath: string,
-    fullFileName: string,
-    folderName: string,
-    language: string
-): Promise<string> {
-    let curSavePoint: string;
+// export async function saveToIntermediate(
+//     testCode: string,
+//     currentSrcPath: string,
+//     fullFileName: string,
+//     folderName: string,
+//     language: string
+// ): Promise<string> {
+//     let curSavePoint: string;
 
-    if (language === "go") {
-        curSavePoint = path.join(folderName, fullFileName);
-        if (!fs.existsSync(path.dirname(curSavePoint))) {
-            curSavePoint = await goSpecificEnvGen(folderName, language, currentSrcPath);
-            await sleep(1000);
-        }
-        fs.writeFileSync(curSavePoint, testCode, DEFAULT_FILE_ENCODING);
-        console.log(`Generated code saved to ${curSavePoint}`);
-    } else if (language === "java") {
+//     if (language === "go") {
+//         curSavePoint = path.join(folderName, fullFileName);
+//         if (!fs.existsSync(path.dirname(curSavePoint))) {
+//             await goSpecificEnvGen(folderName, language, currentSrcPath);
+//             await sleep(1000);
+//         }
+//         fs.writeFileSync(curSavePoint, testCode, DEFAULT_FILE_ENCODING);
+//         console.log(`Generated code saved to ${curSavePoint}`);
+//     } else if (language === "java") {
     
-        await saveGeneratedCodeToIntermediateLocation( // for history keeping
-            testCode,
-            fullFileName,
-            folderName
-        );
-        const javaTestPath = path.join(getConfigInstance().workspace, javaLspaiTestPath);
-        curSavePoint = await saveGeneratedCodeToSpecifiedFolder(
-            testCode,
-            fullFileName,
-            javaTestPath
-        );
-    } else {
-        curSavePoint = await saveGeneratedCodeToIntermediateLocation(
-            testCode,
-            fullFileName,
-            folderName
-        );
-    }
-    return curSavePoint;
+//         await saveGeneratedCodeToIntermediateLocation( // for history keeping
+//             testCode,
+//             fullFileName,
+//             folderName
+//         );
+//         const javaTestPath = path.join(getConfigInstance().workspace, javaLspaiTestPath);
+//         curSavePoint = await saveGeneratedCodeToSpecifiedFolder(
+//             testCode,
+//             fullFileName,
+//             javaTestPath
+//         );
+//     } else {
+//         curSavePoint = await saveGeneratedCodeToIntermediateLocation(
+//             testCode,
+//             fullFileName,
+//             folderName
+//         );
+//     }
+//     return curSavePoint;
 
-}// Function to generate timestamp string for folder names
+// }// Function to generate timestamp string for folder names
+
 export function generateTimestampString(): string {
     return new Date()
         .toLocaleString('en-US', TIME_FORMAT_OPTIONS)

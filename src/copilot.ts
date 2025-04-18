@@ -18,7 +18,7 @@ import {
   // You can import other LSP structures (e.g. DidChangeConfigurationNotification, etc.)
 } from 'vscode-languageserver-protocol';
 import { commentizeCode } from './utils';
-import { _generateFileNameForDiffLanguage, saveGeneratedCodeToFolder } from './fileHandler';
+import { generateFileNameForDiffLanguage, saveGeneratedCodeToFolder } from './fileHandler';
 import { workspace } from 'vscode';
 import { getConfigInstance } from './config';
 import { getUnitTestTemplateOnly } from './prompts/template';
@@ -116,7 +116,7 @@ export async function experimentWithCopilot(connection: any, symbolDocumentMaps:
   const generatedResults: any[] = [];
   const num_parallel = getConfigInstance().parallelCount;
   for (const { document, symbol } of symbolDocumentMaps) {
-    const fileName = _generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, document.languageId, [], -1)
+    const fileName = generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, document.languageId, [], -1)
     const response = await generateUnitTestsForFocalMethod(
       connection, // your MessageConnection
       document,
@@ -471,7 +471,7 @@ export async function generateUnitTestsForFocalMethod(
     //    Construct a URI for it, and open the file (didOpen) so Copilot can index the text.
     // Goal : testFileName is a real file and will be generated, 
     const version = 1;
-    await saveGeneratedCodeToFolder(startContent, fileName);  
+    await saveGeneratedCodeToFolder(startContent, getConfigInstance().savePath, fileName);  
     const textDocument = await workspace.openTextDocument(fileName);
     const textDocumentItem: TextDocumentItem = {
       uri: textDocument.uri.fsPath,
@@ -536,7 +536,7 @@ export async function generateUnitTestsForFocalMethod(
     const thirdUpdatedContent = await replaceTestPlaceholder(connection, focalMethod, textDocumentItem, languageCode);
     if (thirdUpdatedContent !== textDocumentItem.text) {
         // Save the updated content
-        await saveGeneratedCodeToFolder(thirdUpdatedContent, fileName);
+        await saveGeneratedCodeToFolder(thirdUpdatedContent, getConfigInstance().savePath, fileName);
         // Update the document
         textDocumentItem.text = thirdUpdatedContent;
         textDocumentItem.version += 1;

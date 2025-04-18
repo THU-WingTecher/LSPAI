@@ -40,7 +40,7 @@ export function isTestFile(uri: vscode.Uri, document: vscode.TextDocument): bool
     // Check file content for test frameworks
     const content = document.getText();
     const hasTestKeywords = (
-        // Jest/Jasmine/Mocha patterns
+        // Jest/Jasmine/Mocha patterns 
         content.includes('describe(') || 
         content.includes('it(') || 
         content.includes('test(') || 
@@ -107,15 +107,20 @@ export async function getReferenceInfo(document: vscode.TextDocument, range: vsc
 }
 
 async function determineTargetTokenUsageByLocation(uri: vscode.Uri, location: vscode.Range, targetToken: string): Promise<string[]> {
-    const document = await vscode.workspace.openTextDocument(uri);
-    const allSymbols = await getAllSymbols(uri);
-    const shortestSymbol = getShortestSymbol(allSymbols, location)!;
-    const allTokens = await getDecodedTokensFromSybol(document, shortestSymbol);
-    const finalTokens = allTokens.filter(token => token.word === targetToken);
-    if (!finalTokens) {
+    try {
+        const document = await vscode.workspace.openTextDocument(uri);
+        const allSymbols = await getAllSymbols(uri);
+        const shortestSymbol = getShortestSymbol(allSymbols, location)!;
+        const allTokens = await getDecodedTokensFromSybol(document, shortestSymbol);
+        const finalTokens = allTokens.filter(token => token.word === targetToken);
+        if (!finalTokens) {
+            return [];
+        }
+        return finalTokens.map(token => token.modifiers).flat();
+    } catch (error) {
+        console.error('Error determining target token usage:', error);
         return [];
     }
-    return finalTokens.map(token => token.modifiers).flat();
     // if (targetToken.modifiers.includes('parameter')) {
     //     return 'static';
     // }

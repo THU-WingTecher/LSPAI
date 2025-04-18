@@ -12,6 +12,17 @@ export let editor: vscode.TextEditor;
 export let documentEol: string;
 export let platformEol: string;
 
+export async function closeEditor(editor: vscode.TextEditor) {
+    editor.edit(editBuilder => {
+        editBuilder.delete(new vscode.Range(
+            new vscode.Position(0, 0),
+            new vscode.Position(editor.document.lineCount, 0)
+        ));
+    }).then(() => {
+        vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+    });
+}
+
 export async function getSymbolByLocation(document: vscode.TextDocument, location: vscode.Position): Promise<vscode.DocumentSymbol | null> {
     const symbols = await getAllSymbols(document.uri);
     const shortestSymbol = getShortestSymbol(symbols, new vscode.Range(location, location));
