@@ -118,18 +118,22 @@ export async function saveToIntermediate(
 //     return fullPath;
 // }
 
+// const ignoreFileNames = ['_test.go', 'Test.java', '_test.ts'];
+const ignoreDirNamesToStartWith = ['lspai'];
 export function findFiles(folderPath: string, Files: string[] = [], language:string, suffix:string) {
     fs.readdirSync(folderPath).forEach(file => {
         const fullPath = path.join(folderPath, file);
-        if (fs.statSync(fullPath).isDirectory() && !path.basename(fullPath).startsWith('results_')) {
+        if (fs.statSync(fullPath).isDirectory() && 
+            !path.basename(fullPath).startsWith(getConfigInstance().savePath) &&
+            !ignoreDirNamesToStartWith.some(ignoreName => path.basename(fullPath).startsWith(ignoreName))) {
             findFiles(fullPath, Files, language, suffix); // Recursively search in subdirectory
-        } else if (file.endsWith(`.${suffix}`) && !path.basename(fullPath).startsWith('results_')) {
-            if (language === "go" && file.toLowerCase().includes('test')) {
-            console.log(`Ignoring test file: ${fullPath}`);
-            } else {
-            Files.push(fullPath);
+        } else if (file.endsWith(`.${suffix}`) ){
+                if (language === "go" && file.toLowerCase().includes('test')) {
+                // console.log(`Ignoring test file: ${fullPath}`);
+                } else {
+                Files.push(fullPath);
+                }
             }
-        }
     });
 }
 

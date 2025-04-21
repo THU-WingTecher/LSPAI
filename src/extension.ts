@@ -55,7 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log(`EXP_PROB_TO_TEST: ${getConfigInstance().expProb}`);
 	console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 
-	const copilotExperimentDisposable = vscode.commands.registerCommand('lspAi.CopilotExperiment', async () => {
+	const copilotExperimentDisposable = vscode.commands.registerCommand('LSPAI.CopilotExperiment', async () => {
 		const language = "go";
 		let taskListPath = "";
 
@@ -80,9 +80,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 			// Load symbols from workspace
 			getConfigInstance().updateConfig({
-			generationType: GenerationType.AGENT,
-			fixType: FixType.GROUPED,
-			promptType: PromptType.DETAILED,
 			expProb: 1,
 			savePath: path.join(
 				getConfigInstance().workspace, 
@@ -153,20 +150,14 @@ export async function activate(context: vscode.ExtensionContext) {
 		// 	success: true,
 		// 	duration: 1000,
 		// 	// other relevant data
-		// });
-		try {
-			const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
-			if (testCode) {
-				vscode.window.showInformationMessage('Unit test generated successfully!');
-			}
-		} catch (error) {
-			vscode.window.showErrorMessage(`Failed to generate unit test: ${error}`);
-		}
+		// }); 
+		const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
+
 	});
 	
 	context.subscriptions.push(disposable);
 	
-	const showSettingsDisposable = vscode.commands.registerCommand('lspAi.showSettings', () => {
+	const showSettingsDisposable = vscode.commands.registerCommand('LSPAI.showSettings', () => {
 		const settings = [
 			`Model: ${getConfigInstance().model}`,
 			`Methods: ${getConfigInstance().methodsForExperiment}`,
@@ -281,7 +272,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// 	// }
 	// });
 
-	// const disposable_exp = await vscode.commands.registerCommand('lspAi.JavaExperiment', async () => {
+	// const disposable_exp = await vscode.commands.registerCommand('LSPAI.JavaExperiment', async () => {
 	// 	vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
 	// 	const language = "java";
 	// 	await experiment(language, getConfigInstance().methodsForExperiment);
@@ -289,7 +280,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// });
 	// context.subscriptions.push(disposable_exp);
 
-	// const disposable2 = await vscode.commands.registerCommand('lspAi.GoExperiment', async () => {
+	// const disposable2 = await vscode.commands.registerCommand('LSPAI.GoExperiment', async () => {
 	// 	// The code you place here will be executed every time your command is executed
 	// 	// Display a message box to the user
 	// 	const language = "go";
@@ -297,14 +288,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	// });
 	// context.subscriptions.push(disposable2);
 
-	// const Pydisposable2 = await vscode.commands.registerCommand('lspAi.PythonExperiment', async () => {
+	// const Pydisposable2 = await vscode.commands.registerCommand('LSPAI.PythonExperiment', async () => {
 	// 	const language = "python";
 	// 	await experiment(language, getConfigInstance().methodsForExperiment);
 	// });
 
 	// context.subscriptions.push(Pydisposable2);
 
-	// const disposable4 = await vscode.commands.registerCommand('lspAi.ReExperiment', async () => {
+	// const disposable4 = await vscode.commands.registerCommand('LSPAI.ReExperiment', async () => {
 	// 	// The code you place here will be executed every time your command is executed
 	// 	// Display a message box to the user
 	// 	const language = "java";

@@ -36,7 +36,7 @@ export async function getSymbolByLocation(document: vscode.TextDocument, locatio
  */
 export async function activate(docUri: vscode.Uri | undefined = undefined) {
 	// The extensionId is `publisher.name` from package.json
-	const ext = vscode.extensions.getExtension('GwihwanGo.lspAi');
+	const ext = vscode.extensions.getExtension('GwihwanGo.LSPAI');
 	if (!ext) {
 		throw new Error('Extension not found');
 	}	

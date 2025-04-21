@@ -43,17 +43,17 @@ export function getModelConfigError(): string | undefined {
 	switch (provider) {
 		case 'openai':
 			if (!getConfigInstance().openaiApiKey) {
-				return 'OpenAI API key is not configured. Please set lspAi.openaiApiKey in settings.';
+				return 'OpenAI API key is not configured. Please set LSPAI.openaiApiKey in settings.';
 			}
 			break;
 		case 'local':
 			if (!getConfigInstance().localLLMUrl) {
-				return 'Local LLM URL is not configured. Please set lspAi.localLLMUrl in settings.';
+				return 'Local LLM URL is not configured. Please set LSPAI.localLLMUrl in settings.';
 			}
 			break;
 		case 'deepseek':
 			if (!getConfigInstance().deepseekApiKey) {
-				return 'Deepseek API key is not configured. Please set lspAi.deepseekApiKey in settings.';
+				return 'Deepseek API key is not configured. Please set LSPAI.deepseekApiKey in settings.';
 			}
 			break;
 	}

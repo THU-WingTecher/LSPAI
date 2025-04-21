@@ -14,7 +14,7 @@ import { getConfigInstance, GenerationType, PromptType, Provider, loadPrivateCon
 import { getTempDirAtCurWorkspace } from './fileHandler';
 import { getContextSelectorInstance } from './agents/contextSelector';
 import { DiagnosticReport, fixDiagnostics } from './fix';
-import { closeEditor } from './lsp';
+import { closeEditor, editor } from './lsp';
 
 export interface ContextInfo {
 	dependentContext: string;
@@ -82,7 +82,6 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	// 获取光标位置
 	// const functionSymbolWithParents = getFunctionSymbolWithItsParents(symbols, position)!;
 	// let targetCodeContextString = "";
-	const languageId = document.languageId;
 
 	// if (functionSymbolWithParents.length > 0) {
 	// 	// const summarizedClass = await summarizeClass(document, functionSymbolWithParents[0], languageId);
@@ -113,30 +112,48 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 	// Call generateUnitTestForAFunction with all required parameters
 	// set the logs to specific folder, not the default one 
 	const showGeneratedCode = true;
-
-	const finalCode = await generateUnitTestForAFunction(
-		workspace,
-		document,
-		functionSymbol,
-		fullFileName,
-		showGeneratedCode,
-	);
-
-	return finalCode;
+	try {
+		const finalCode = await generateUnitTestForAFunction(
+			workspace,
+			document,
+			functionSymbol,
+			fullFileName,
+			showGeneratedCode,
+		);
+		
+		if (finalCode){
+			vscode.window.showInformationMessage('Unit test generated successfully!');
+			if (showGeneratedCode) {
+				const fileName = getFileName(fullFileName);
+				showDiffAndAllowSelection(finalCode, document.languageId, fileName);
+			}
+			return finalCode;
+		} else {
+			vscode.window.showErrorMessage('Failed to generate unit test!');
+			return '';
+		}
+	} catch (error) {
+		vscode.window.showErrorMessage(`Failed to generate unit test: ${error}`);
+		return '';
+	}
 
 }
 
+function getFileName(fullFileName: string) {
+	const savePath = path.join(getConfigInstance().workspace, getConfigInstance().savePath);
+	const fileName = fullFileName.split(savePath)[1];
+	if (fileName.startsWith("/")) {
+		return fileName.replace("/", "");
+	}
+	return fileName;
+}
 // Helper functions for the main generator
-async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string, logger: ExpLogger): Promise<{ 
-	languageId: string, 
-	fileName: string
-}> {
+async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string, logger: ExpLogger): Promise<void> {
 	// basically, its the last part of the file name
 	// for java, it is the file name without the path
 	// for other languages, it is the file name with the path
 	// for example, the fileName is org.commons.cli.CommandLineTest.java
-	const savePath = path.join(getConfigInstance().workspace, getConfigInstance().savePath);
-	const fileName = fullFileName.split(savePath)[1];
+
 	logger.log("start", "", null, "");
 
 	const languageId = document.languageId;
@@ -147,7 +164,6 @@ async function initializeTestGeneration(document: vscode.TextDocument, functionS
 		throw new Error('Invalid function symbol');
 	}
 
-	return { languageId, fileName};
 }
 
 async function generateInitialTestCode(
@@ -412,6 +428,24 @@ export async function showDiffAndAllowSelection(newContent: string, languageId: 
 	// });
 // }
 
+
+
+export async function reportProgressWithCancellation(
+    progress: vscode.Progress<{ message: string; increment: number }>,
+    token: vscode.CancellationToken,
+    message: string,
+    increment: number
+): Promise<boolean> {
+    if (token.isCancellationRequested) {
+		console.log(`Cancellation requested: ${message}`);
+		vscode.window.showInformationMessage(`Cancellation requested`);
+        return false;
+    }
+    progress.report({ message, increment });
+    return true;
+}
+
+
 export async function generateUnitTestForAFunction(
 	srcPath: string,
 	document: vscode.TextDocument,
@@ -423,7 +457,8 @@ export async function generateUnitTestForAFunction(
 // Merge provided config with defaults
 const model = getConfigInstance().model;
 const logger = new ExpLogger([], model, fullFileName, functionSymbol.name);
-
+const fileName = getFileName(fullFileName);
+const languageId = document.languageId;
 
 return vscode.window.withProgress({
 	location: vscode.ProgressLocation.Notification,
@@ -433,13 +468,15 @@ return vscode.window.withProgress({
 
 	console.log(`Generating unit test for ${model} in ${fullFileName}`);
 	try {
-		progress.report({ message: "Preparing for test generation...", increment: 10 });
-		const { languageId, fileName } = await initializeTestGeneration(
-				document,
-				functionSymbol,
-				fullFileName,
-				logger
-				);
+        if (!await reportProgressWithCancellation(progress, token, "Preparing for test generation...", 10)) {
+            return '';
+        }
+		await initializeTestGeneration(
+			document,
+			functionSymbol,
+			fullFileName,
+			logger
+			);
 		let testCode = "";
 		let collectedData = {};
 		// Step 1: Collect Info
@@ -449,7 +486,9 @@ return vscode.window.withProgress({
 			case GenerationType.NAIVE:
 			case GenerationType.ORIGINAL:
 			// Step 2: Initial Test Generation
-				progress.report({ message: `[${getConfigInstance().generationType} mode] - collecting info`, increment: 20 });
+				if (!await reportProgressWithCancellation(progress, token, "Collecting info...", 20)) {
+					return '';
+				}
 				const startTime = Date.now();
 				collectedData = await collectInfo(
 					document,
@@ -458,7 +497,9 @@ return vscode.window.withProgress({
 					fileName,
 				);
 				logger.log("collectInfo", (Date.now() - startTime).toString(), null, "");
-				progress.report({ message: `[${getConfigInstance().generationType} mode] - generating initial test code`, increment: 20 });
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating initial test code`, 20)) {
+					return '';
+				}
 				testCode = await generateInitialTestCode(
 				collectedData,
 				languageId,
@@ -468,7 +509,9 @@ return vscode.window.withProgress({
 
 				break;
 			case GenerationType.AGENT:
-				progress.report({ message: `[${getConfigInstance().generationType} mode] - identifying context terms`, increment: 20 });
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - identifying context terms`, 20)) {
+					return '';
+				}
 				const contextSelector = await getContextSelectorInstance(
 					document, 
 					functionSymbol);
@@ -476,14 +519,18 @@ return vscode.window.withProgress({
 				const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 				const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
 				logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
-				progress.report({ message: `[${getConfigInstance().generationType} mode] - gathering context`, increment: 20 });
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
+					return '';
+				}
 				
 				const gatherContextStartTime = Date.now();
 				const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
 				logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
 				console.log("enrichedTerms", enrichedTerms);
 
-				progress.report({ message: `[${getConfigInstance().generationType} mode] - generating test with context`, increment: 20 });
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
+					return '';
+				}
 				const generateTestWithContextStartTime = Date.now();
 				const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
 				const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
@@ -494,6 +541,8 @@ return vscode.window.withProgress({
 				break;
 			case GenerationType.EXPERIMENTAL:
 				break;
+			default:
+				throw new Error(`Invalid generation type: ${getConfigInstance().generationType}`);
 		}
 
 		await saveToIntermediate(
@@ -505,7 +554,9 @@ return vscode.window.withProgress({
 		);
 
 		if (getConfigInstance().generationType === GenerationType.NAIVE) {
-			progress.report({ message: `[${getConfigInstance().generationType} mode] - completed`, increment: 50 });
+			if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - completed`, 50)) {
+				return '';
+			}
 			return testCode;
 		}
 
@@ -525,7 +576,8 @@ return vscode.window.withProgress({
 			fileName,
 			logger,
 			getConfigInstance().maxRound,
-			progress
+			progress,
+			token
 		);
 		diagnosticReport = report.diagnosticReport;
 		finalCode = report.finalCode;
@@ -534,16 +586,22 @@ return vscode.window.withProgress({
 		// Step 4: Save Results
 		
 		// Save diagnostic report
-		progress.report({ message: "Finalizing test code...", increment: 10 });
+		if (!await reportProgressWithCancellation(progress, token, "Finalizing test code...", 10)) {
+			return '';
+		}
 		const reportPath = path.join(getConfigInstance().logSavePath, model, `${fileName}_diagnostic_report.json`);
 		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
 		console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
 		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
 
-		await saveGeneratedCodeToFolder(finalCode, path.join(getConfigInstance().workspace, getConfigInstance().savePath), fileName);
-		if (showGeneratedCode) {
-			showDiffAndAllowSelection(finalCode, languageId, fileName);
-		}
+		await saveToIntermediate(
+			testCode,
+			srcPath,
+			fileName,
+			path.join(getConfigInstance().workspace, getConfigInstance().savePath),
+			languageId
+		);
+		// await saveGeneratedCodeToFolder(finalCode, path.join(getConfigInstance().workspace, getConfigInstance().savePath), fileName);
 		logger.save(fileName);
 
 		if (report.success) {

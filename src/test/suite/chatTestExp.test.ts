@@ -74,7 +74,6 @@ suite('Utils Test Suite', () => {
 
         getConfigInstance().updateConfig({
             generationType: GenerationType.AGENT,
-            fixType: FixType.GROUPED,
             promptType: PromptType.DETAILED,
             savePath: path.join(getConfigInstance().workspace, 
             `results_chatunitest_${getConfigInstance().generationType}_${getConfigInstance().promptType}_${generateTimestampString()}`,

@@ -1,5 +1,4 @@
 import { ContextInfo } from "../generate";
-import { JavaUnitTestTemplate, GoUnitTestTemplate, PythonUnitTestTemplate } from "./template";
 import { ChatMessage, Prompt } from "./ChatMessage";
 import { getConfigInstance, PromptType, GenerationType } from "../config";
 import { ContextTerm } from "../agents/contextSelector";
@@ -8,44 +7,87 @@ import fs from "fs";
 import ini from "ini";
 import { getPackageStatement } from "../retrieve";
 import * as vscode from 'vscode';
+import { LanguageTemplateManager } from "./languageTemplateManager";
 
+// Define the template directory name
+const templateDirName = "templates";
 
+/**
+ * Interface for context selector configuration
+ */
+export interface ContextSelectorConfig {
+    general: {
+        max_terms: number;
+        relevance_threshold: number;
+    };
+    prompts: {
+        identify_terms_system: string;
+        identify_terms_user: string;
+        test_generation_user: string;
+        test_generation_system: string;
+        test_inspection_system: string;
+        test_inspection_user: string;
+    };
+}
+
+/**
+ * Finds template file in possible locations
+ */
+export function findTemplateFile(fileName: string): string {
+    const possiblePaths = [
+        path.join(__dirname, "..", templateDirName, fileName),
+        path.join(__dirname, "../..", templateDirName, fileName)
+    ];
+
+    for (const configPath of possiblePaths) {
+        if (fs.existsSync(configPath)) {
+            return configPath;
+        }
+    }
+
+    throw new Error(`${fileName} not found in any of the expected locations.`);
+}
+
+/**
+ * Creates a diagnostic prompt to fix unit test errors
+ */
 export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_report: string): ChatMessage[] {
-    // for ContextTerm, we only need term and context(if need_definition is true) 
-    const fixTemplatePath = path.join(__dirname, "..", "templates", "fixCode.ini");
+    const fixTemplatePath = findTemplateFile("fixCode.ini");
     const fixTemplateData = fs.readFileSync(fixTemplatePath, 'utf8');
     const fixTemplate = ini.parse(fixTemplateData);
     const systemPrompt = fixTemplate.prompts.fix_system;
     const userPrompt = fixTemplate.prompts.fix_user
         .replace('{unit_test_code}', unit_test_code)
-        .replace('{diagnostic_report}', diagnostic_report)
+        .replace('{diagnostic_report}', diagnostic_report);
     
-    const promptObj = [
+    return [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
     ];
-    return promptObj;
 }
 
+/**
+ * Creates a prompt to inspect a test
+ */ 
 export function inspectTest(source_code: string, unit_test_code: string): ChatMessage[] {
-    // for ContextTerm, we only need term and context(if need_definition is true) 
-    const configPath = path.join(__dirname, "..", "templates", "contextSelector.ini");
+    const configPath = findTemplateFile("contextSelector.ini");
     const configData = fs.readFileSync(configPath, 'utf8');
     const config = ini.parse(configData) as ContextSelectorConfig;
     const systemPrompt = config.prompts.test_inspection_system;
     const userPrompt = config.prompts.test_inspection_user
         .replace('{source_code}', source_code)
-        .replace('{unit_test_code}', unit_test_code)
+        .replace('{unit_test_code}', unit_test_code);
     
-    const promptObj = [
+    return [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
     ];
-    return promptObj;
 }
 
+/**
+ * Generates test with context information
+ */
 export function generateTestWithContext(document: vscode.TextDocument, source_code: string, context_info: ContextTerm[], fileName: string): ChatMessage[] {
-    // for ContextTerm, we only need term and context(if need_definition is true) 
     const result = [];
     for (const item of context_info) {
         if (item.need_definition) {
@@ -55,27 +97,36 @@ export function generateTestWithContext(document: vscode.TextDocument, source_co
             result.push(`\n## Example of ${item.name}\n${item.example}`);
         }
     }
+    
     const context_info_str = result.join('\n');
     const packageStatement = getPackageStatement(document, document.languageId);
-	// const importStatement = getImportStatement(document, document.languageId, functionSymbol);
-    const configPath = path.join(__dirname, "..", "templates", "contextSelector.ini");
+    const configPath = findTemplateFile("contextSelector.ini");
     const configData = fs.readFileSync(configPath, 'utf8');
     const config = ini.parse(configData) as ContextSelectorConfig;
+    
     const systemPrompt = config.prompts.test_generation_system;
     const userPrompt = config.prompts.test_generation_user
         .replace('{source_code}', source_code)
         .replace('{context_info}', context_info_str)
-        .replace('{unit_test_template}', JavaUnitTestTemplate(fileName, packageStatement ? packageStatement[0] : ""));
+        .replace(
+            '{unit_test_template}', 
+            LanguageTemplateManager.getUnitTestTemplate(
+                document.languageId, 
+                fileName, 
+                packageStatement ? packageStatement[0] : ""
+            )
+        );
     
-    const promptObj = [
+    return [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
     ];
-    return promptObj;
 }
 
+/**
+ * Constructs a diagnostic prompt for fixing errors
+ */
 export function constructDiagnosticPrompt(unit_test: string, diagnosticMessages: string, method_sig: string, class_name: string, testcode: string): string {
-    
     return `
 Problem : Fix the error
 Errors : ${diagnosticMessages}
@@ -90,19 +141,9 @@ ${unit_test}
 `;
 }
 
-
-export function BaseUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string): string {
-    return `
-The focal method is \`${functionName}\`.
-Based on the provided information, you need to generate a unit test following below format:
-
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-`;
-}
-
+/**
+ * Base system prompt for unit test generation
+ */
 export function ChatUnitTestSystemPrompt(language: string): string {
     return `
 Please help me generate a whole ${language} Unit test for a focal method.
@@ -118,242 +159,192 @@ I need you to create a whole unit test using Junit5, ensuring optimal branch and
     `;
 }
 
+/**
+ * System prompt for fixing code
+ */
 export function FixSystemPrompt(language: string): string {
     return ``;
 }
 
-export function OurUserPrompt(code: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, FileName: string, refCodes: string): string {
-    //     ${functionContext} is deleted.
-    return `
-The focal method is \`${functionName}\` in the \`${class_name}\`,
-
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
-\`\`\`
-${refCodes}
-\`\`\`` : ''}
-`;
-}
-
-
-  // Function to build different prompts based on type
-  function buildPromptByType(
+/**
+ * Generates a prompt based on the specified prompt type
+ */
+function buildPromptByType(
     type: PromptType,
+    languageId: string,
     functionName: string,
     class_name: string,
     functionContext: string,
     code: string,
-    FileName: string,
+    fileName: string,
     packageString: string,
     refCodes: string
-  ): string {
+): string {
     switch (type) {
-      case PromptType.BASIC:
-        return `
-  The focal method is \`${functionName}\` in the \`${class_name}\`.
-  The source code of the focal method is:
-  \`\`\`
-  ${code}
-  \`\`\`
-  Please analyze the following source code and create comprehensive unit tests:
-  Consider edge cases and boundary conditions in your tests.
-  ${JavaUnitTestTemplate(FileName, packageString)}`;
-  
-      case PromptType.DETAILED:
-        return `
-  Detailed Analysis Request:
-  Method: \`${functionName}\`
-  Class: \`${class_name}\`
-  Context Information:
-  ${functionContext}
-  Reference Code:
-  ${refCodes.length > 0 ? `\`\`\`
-  ${refCodes}
-  \`\`\`` : ''}
-  Please analyze the following source code and create comprehensive unit tests:
-  \`\`\`
-  ${code}
-  \`\`\`
-  ${JavaUnitTestTemplate(FileName, packageString)}
-  Consider edge cases and boundary conditions in your tests.`;
-  
-      case PromptType.CONCISE:
-        return `
-  Test \`${functionName}\` in \`${class_name}\`:
-  \`\`\`
-  ${code}
-  \`\`\`
-  ${JavaUnitTestTemplate(FileName, packageString)}`;
+        case PromptType.BASIC:
+            return `
+The focal method is \`${functionName}\` in the \`${class_name}\`.
+The source code of the focal method is:
+\`\`\`
+${code}
+\`\`\`
+Please analyze the following source code and create comprehensive unit tests:
+Consider edge cases and boundary conditions in your tests.
+${LanguageTemplateManager.getUnitTestTemplate(languageId, fileName, packageString)}`;
+        
+        case PromptType.DETAILED:
+            return `
+Detailed Analysis Request:
+Method: \`${functionName}\`
+Class: \`${class_name}\`
+Context Information:
+${functionContext}
+Reference Code:
+${refCodes.length > 0 ? `\`\`\`
+${refCodes}
+\`\`\`` : ''}
+Please analyze the following source code and create comprehensive unit tests:
+\`\`\`
+${code}
+\`\`\`
+${LanguageTemplateManager.getUnitTestTemplate(languageId, fileName, packageString)}
+Consider edge cases and boundary conditions in your tests.`;
+        
+        case PromptType.CONCISE:
+            return `
+Test \`${functionName}\` in \`${class_name}\`:
+\`\`\`
+${code}
+\`\`\`
+${LanguageTemplateManager.getUnitTestTemplate(languageId, fileName, packageString)}`;
+        default:
+            throw new Error(`Invalid prompt type: ${type}`);
     }
-  }
+}
 
-  
-export function LSPAIUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, importString: string, FileName: string, refCodes: string): string {
-
-    if (languageId === 'java') {
-    //     for java, add ${functionContext} degrades performance.
-    // ${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
-    //     \`\`\`
-    //     ${refCodes}
-    //     \`\`\`` : ''}
+/**
+ * Creates a user prompt for LSPAI
+ */
+export function LSPAIUserPrompt(
+    code: string, 
+    languageId: string, 
+    functionContext: string, 
+    functionName: string, 
+    class_name: string, 
+    dependentContext: string, 
+    packageString: string, 
+    importString: string, 
+    fileName: string, 
+    refCodes: string
+): string {
         return buildPromptByType(
-            getConfigInstance().promptType, // Default type, can be passed as an argument
+            getConfigInstance().promptType,
+            languageId,
             functionName,
             class_name,
             functionContext,
             code,
-            FileName,
+            fileName,
             packageString,
             refCodes
         );
-        return `
-The focal method is \`${functionName}\` in the \`${class_name}\`,
-${functionContext}
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-${JavaUnitTestTemplate(FileName, packageString)}
-`;
-    } else if (languageId === 'go') {
-        return `
-The focal method is \`${functionName}\` in the \`${class_name}\`,
-${functionContext}
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-${GoUnitTestTemplate(FileName, packageString)}
-${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
-\`\`\`
-${refCodes}
-\`\`\`` : ''}
-`;
-    } else if (languageId === 'python') {
+    }
+    
+//     // Common prompt structure with language-specific template
+//     const templateFunction = LanguageTemplateManager.getUnitTestTemplate;
+//     const referenceCodeBlock = refCodes.length > 0 ? 
+//         `\nYou can refer to the following code snippets to generate the unit test:
+// \`\`\`
+// ${refCodes}
+// \`\`\`` : '';
 
-        return `
-The focal method is \`${functionName}\` in the \`${class_name}\`,
-${functionContext}
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-${PythonUnitTestTemplate(FileName, packageString, importString)}
-${refCodes.length > 0 ? `You can refer to the following code snippets to generate the unit test:
-\`\`\`
-${refCodes}
-\`\`\`` : ''}
-`;
-    } else {
-        return `
+//     return `
+// The focal method is \`${functionName}\` in the \`${class_name}\`,
+// ${functionContext}
+// The source code of the focal method is:
+// \`\`\`
+// ${code}
+// \`\`\`
+// ${templateFunction(languageId, fileName, packageString, importString)}
+// ${referenceCodeBlock}
+// `;
+// }
+
+/**
+ * Creates a basic user prompt for chat unit test
+ */
+export function ChatUnitTestBaseUserPrompt(
+    code: string, 
+    languageId: string, 
+    functionContext: string, 
+    functionName: string, 
+    class_name: string, 
+    dependentContext: string, 
+    packageString: string, 
+    importString: string, 
+    fileName: string
+): string {
+    const templateFunction = LanguageTemplateManager.getUnitTestTemplate;
+    
+    return `
 The focal method is \`${functionName}\`.
 Based on the provided information, you need to generate a unit test following below format:
-
+\`\`\`
+${templateFunction(languageId, fileName, packageString, importString)}
+\`\`\`
 The source code of the focal method is:
 \`\`\`
 ${code}
 \`\`\`
 `;
-    }
 }
 
-export function ChatUnitTestBaseUserPrompt(code: string, languageId: string, functionContext: string, functionName: string, class_name: string, dependentContext: string, packageString: string, importString: string, FileName: string): string {
-    if (languageId === 'java') {
-        return `
-The focal method is \`${functionName}\`.
-Based on the provided information, you need to generate a unit test following below format:
-\`\`\`
-${JavaUnitTestTemplate(FileName, packageString)}
-\`\`\`
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-`;
-    } else if (languageId === 'go') {
-        return `
-The focal method is \`${functionName}\`.
-Based on the provided information, you need to generate a unit test following below format:
-\`\`\`
-${GoUnitTestTemplate(FileName, packageString)}
-\`\`\`
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-`;
-    } else if (languageId === 'python') {
-        return `
-The focal method is \`${functionName}\`.
-Based on the provided information, you need to generate a unit test following below format:
-\`\`\`
-${PythonUnitTestTemplate(FileName, packageString, importString)}
-\`\`\`
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-`;
-    } else {
-        return `
-The focal method is \`${functionName}\`.
-Based on the provided information, you need to generate a unit test following below format:
-
-The source code of the focal method is:
-\`\`\`
-${code}
-\`\`\`
-`;
-    }
-}
+/**
+ * Generates a prompt based on context information
+ */
 export async function genPrompt(data: ContextInfo, method: string, language: string): Promise<any> {
-	let mainFunctionDependencies = "";
-	let dependentContext = "";
-	let mainfunctionParent = "";
-	let prompt = "";
-	const systemPromptText = ChatUnitTestSystemPrompt(data.languageId);
-	const textCode = data.SourceCode;
-    console.log("method", method);
-	if (getConfigInstance().generationType !== GenerationType.NAIVE) {
-        console.log("dependentContext", data.dependentContext);
-		dependentContext = data.dependentContext;
-		mainFunctionDependencies = data.mainFunctionDependencies;
-		mainfunctionParent = data.mainfunctionParent;
-		prompt = LSPAIUserPrompt(textCode, data.languageId, 
-            dependentContext, data.functionSymbol.name, 
-            mainfunctionParent, dependentContext, data.packageString, 
-            data.importString, data.fileName, data.referenceCodes);
-	} else {
-		prompt = ChatUnitTestBaseUserPrompt(textCode, data.languageId, mainFunctionDependencies, data.functionSymbol.name, mainfunctionParent, dependentContext, data.packageString, data.importString, data.fileName);
-	}
-	// console.log("System Prompt:", systemPromptText);
-	// console.log("User Prompt:", prompt);
-	const chatMessages: ChatMessage[] = [
-		{ role: "system", content: systemPromptText },
-		{ role: "user", content: prompt }
-	];
+    let mainFunctionDependencies = "";
+    let dependentContext = "";
+    let mainfunctionParent = "";
+    let prompt = "";
+    const systemPromptText = ChatUnitTestSystemPrompt(data.languageId);
+    const textCode = data.SourceCode;
+    
+    if (getConfigInstance().generationType !== GenerationType.NAIVE) {
+        dependentContext = data.dependentContext;
+        mainFunctionDependencies = data.mainFunctionDependencies;
+        mainfunctionParent = data.mainfunctionParent;
+        prompt = LSPAIUserPrompt(
+            textCode, 
+            data.languageId, 
+            dependentContext, 
+            data.functionSymbol.name, 
+            mainfunctionParent, 
+            dependentContext, 
+            data.packageString, 
+            data.importString, 
+            data.fileName, 
+            data.referenceCodes
+        );
+    } else {
+        prompt = ChatUnitTestBaseUserPrompt(
+            textCode, 
+            data.languageId, 
+            mainFunctionDependencies, 
+            data.functionSymbol.name, 
+            mainfunctionParent, 
+            dependentContext, 
+            data.packageString, 
+            data.importString, 
+            data.fileName
+        );
+    }
+    
+    const chatMessages: ChatMessage[] = [
+        { role: "system", content: systemPromptText },
+        { role: "user", content: prompt }
+    ];
 
-	const promptObj: Prompt = { messages: chatMessages };
-
-	return Promise.resolve(promptObj.messages);
-}
-
-
-
-export interface ContextSelectorConfig {
-    general: {
-        max_terms: number;
-        relevance_threshold: number;
-    };
-    prompts: {
-        identify_terms_system: string;
-        identify_terms_user: string;
-        test_generation_user: string;
-        test_generation_system: string;
-        test_inspection_system: string;
-        test_inspection_user: string;
-    };
+    const promptObj: Prompt = { messages: chatMessages };
+    return Promise.resolve(promptObj.messages);
 }

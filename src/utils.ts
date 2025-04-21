@@ -372,32 +372,7 @@ export function formatToJSON(input: string): any {
             // Second attempt: Handle escaped JSON strings
             return JSON.parse(unescapeString(cleanInput));
         } catch (e2) {
-            try {
-                // Third attempt: Handle single-quoted JSON
-                const doubleQuoted = cleanInput.replace(/'/g, '"');
-                return JSON.parse(doubleQuoted);
-            } catch (e3) {
-                try {
-                    // Fourth attempt: Handle literal string representation
-                    // For cases like "{\n  \"key\": \"value\"\n}"
-                    const evaluated = eval(`(${cleanInput})`);
-                    if (typeof evaluated === 'object') {
-                        return evaluated;
-                    }
-                    throw new Error('Evaluated result is not an object');
-                } catch (e4) {
-                    // Final attempt: Try to extract JSON-like structure
-                    const jsonMatch = cleanInput.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        try {
-                            return JSON.parse(jsonMatch[0]);
-                        } catch (e5) {
-                            throw new Error(`Failed to parse JSON after all attempts: ${e5}`);
-                        }
-                    }
-                    throw new Error('No valid JSON structure found in input');
-                }
-            }
+            return null;
         }
     }
 }

@@ -53,14 +53,14 @@ LSPAI supports multiple LLM providers. Configure your preferred option in VS Cod
 2. Configure LLM settings using one of these methods:
 
    **Option A: Through VS Code Settings UI**
-   - Search for "lspAi" settings
+   - Search for "LSPAI" settings
    - Configure your preferred model and API keys
 
    **Option B: Direct JSON Configuration**
    Add the following to your VS Code User Settings (settings.json):
    ```json
    {
-     "lspAi": {
+     "LSPAI": {
        "provider": "deepseek",
        "model": "deepseek-chat",  // Choose: // gpt-4o-mini"; // llama3-70b // deepseek-chat
        "openaiApiKey": "your-api-key",    // Required for OpenAI
