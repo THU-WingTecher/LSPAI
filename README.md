@@ -1,5 +1,12 @@
 # LSPAI - Intelligent Unit Test Generation
 
+<p align="center">
+    <!-- <a href="https://arxiv.org/abs/2302.02261"><img src="https://img.shields.io/badge/arXiv-2302.02261-b31b1b.svg?style=for-the-badge"> -->
+    <a href="https://doi.org/10.1145/3696630.3728540"><img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.8319975-8A2BE2?style=for-the-badge">
+    <a href="https://github.com/THU-WingTecher/DeepConstr/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge"></a>
+    <a href="https://hub.docker.com/repository/docker/gwihwan/lspai/tags"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white"></a>
+</p>
+
 LSPAI is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP) integration. Generate high-quality unit tests automatically and in real-time for multiple programming languages.
 
 ## ✨ Key Features
@@ -90,8 +97,9 @@ To generate unit tests with LSPAI:
 
 
 
+
 ## 🛠️ Experiment Reproduction Guide
-LSPAI is published as a research paper (currently under review). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).
+LSPAI is published under FSE-Industry'25 track (See [here](doc/FSE-Industry25-LSPAI.pdf) for papers). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).
 
 The experiments documentation includes:
 - Dataset preparation steps
