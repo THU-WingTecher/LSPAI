@@ -12,7 +12,7 @@ LSPAI is a powerful VS Code extension that revolutionizes unit test creation thr
 
 | IDE      | Java | Python | Go  | C++ | TypeScript | Others |
 |----------|------|--------|-----|-----|------------|--------|
-| VS Code  | ✅   | ✅     | ✅  | 🚧  | 🚧         | 🚧     |
+| VS Code  | ✅   | ✅     | ✅  | ✅  | ✅         | ✅     |
 | IntelliJ | 🚧   | 🚧     | 🚧  | 🚧  | 🚧         | 🚧     |
 
 Legend:
