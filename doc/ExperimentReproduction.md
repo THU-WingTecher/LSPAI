@@ -132,7 +132,7 @@ npm install lru-cache@10.1.0
    - Add the following configuration:
    ```json
    {
-     "lspAi": {
+     "LSPAI": {
        "provider": "deepseek",    // Choose: // openai // deepseek // ollama
        "model": "deepseek-chat",  // Choose: // gpt-4o-mini // llama3-70b // deepseek-chat
        "openaiApiKey": "your-api-key",    // Required for OpenAI

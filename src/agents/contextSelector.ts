@@ -10,7 +10,7 @@ import { getSymbolDetail, formatToJSON, extractArrayFromJSON } from '../utils';
 import { getAllSymbols } from '../lsp';
 import { activate, getSymbolByLocation } from '../lsp';
 import { clear } from 'console';
-import { ContextSelectorConfig } from '../prompts/promptBuilder';
+import { ContextSelectorConfig, findTemplateFile } from '../prompts/promptBuilder';
 export interface ContextTerm {
     name: string;
     context?: string; // Optional context once retrieved
@@ -58,7 +58,7 @@ export class ContextSelector {
      */
     private loadConfig(): ContextSelectorConfig {
         try {
-            const configPath = path.join(__dirname, "..", "templates", "contextSelector.ini");
+            const configPath = findTemplateFile("contextSelector.ini");
             const configData = fs.readFileSync(configPath, 'utf8');
             return ini.parse(configData) as ContextSelectorConfig;
         } catch (error) {

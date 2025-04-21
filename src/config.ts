@@ -4,23 +4,67 @@ import * as vscode from 'vscode';
 import { generateTimestampString } from './fileHandler';
 import os from 'os';
 
+
 export enum PromptType {
     BASIC = 'basic',
     DETAILED = 'detailed',
-    CONCISE = 'concise'
+    CONCISE = 'concise',
+    FASTEST = 'fastest',
+    BEST = 'best'
 }
 
 export enum GenerationType {
     NAIVE = 'naive',
     ORIGINAL = 'original',
     AGENT = 'agent',
-    EXPERIMENTAL = 'experimental'
+    EXPERIMENTAL = 'experimental',
+    FASTEST = 'fastest',
+    BEST = 'best'
 }
 
 export enum FixType {
     ORIGINAL = 'original',
-    GROUPED = 'grouped',
-    EXPERIMENTAL = 'experimental'
+    // GROUPED = 'grouped',
+    // EXPERIMENTAL = 'experimental',
+    FASTEST = 'fastest',
+    BEST = 'best'
+}
+
+export const GenerationTypeMapping = {
+    [GenerationType.FASTEST]: GenerationType.NAIVE,  // Currently maps to NAIVE
+    [GenerationType.BEST]: GenerationType.AGENT    // Currently maps to AGENT
+} as const;
+
+export const FixTypeMapping = {
+    [FixType.FASTEST]: FixType.ORIGINAL,     // Currently maps to ORIGINAL
+    [FixType.BEST]: FixType.ORIGINAL   // Currently maps to EXPERIMENTAL
+} as const;
+
+export const PromptTypeMapping = {
+    [PromptType.FASTEST]: PromptType.CONCISE,     // Currently maps to BASIC
+    [PromptType.BEST]: PromptType.DETAILED    // Currently maps to DETAILED
+} as const;
+
+// Helper function to resolve the actual type from a tag
+export function resolveGenerationType(type: GenerationType | keyof typeof GenerationTypeMapping): GenerationType {
+    if (type in GenerationTypeMapping) {
+        return GenerationTypeMapping[type as keyof typeof GenerationTypeMapping];
+    }
+    return type as GenerationType;
+}
+
+export function resolveFixType(type: FixType | keyof typeof FixTypeMapping): FixType {
+    if (type in FixTypeMapping) {
+        return FixTypeMapping[type as keyof typeof FixTypeMapping];
+    }
+    return type as FixType;
+}
+
+export function resolvePromptType(type: PromptType | keyof typeof PromptTypeMapping): PromptType {
+    if (type in PromptTypeMapping) {
+        return PromptTypeMapping[type as keyof typeof PromptTypeMapping];
+    }
+    return type as PromptType;
 }
 // Constants for experiment settings
 export const MIN_FUNCTION_LINES = -1;
@@ -64,7 +108,7 @@ export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
             throw new Error('Missing required API keys and URLs. Please set them either through environment variables or test-config.json');
         }
     }
-    const config = vscode.workspace.getConfiguration('lspAi');
+    const config = vscode.workspace.getConfiguration('LSPAI');
     const globalConfig = vscode.workspace.getConfiguration('http');
     const globalProxy = globalConfig.get<string>('proxy') || '';
     
@@ -107,10 +151,10 @@ const DEFAULT_CONFIG = {
     proxyUrl?: string;
 }
 
-// Function to get temporary directory
-function getTempDir(): string {
-    return os.tmpdir();
-}
+// // Function to get temporary directory
+// function getWorkSpaceDir(): string {
+//     return vscode.workspace.workspaceFolders![0].uri.fsPath;
+// }
 
 export class Configuration {
     private static instance: Configuration | null;
@@ -130,6 +174,7 @@ export class Configuration {
         console.log('Current Environment:', process.env.NODE_ENV);
         // console.log('config::config', this.config);
         this.adjustTimeout();
+        vscode.workspace.onDidChangeConfiguration(this.handleConfigurationChange, this);
     }
 
     public logAllConfig(): void {
@@ -157,6 +202,15 @@ export class Configuration {
     private createSavePathIfNotExists(savePath: string): void {
         if (!existsSync(savePath)) {
             mkdirSync(savePath, { recursive: true });
+        }
+    }
+
+    private handleConfigurationChange(event: vscode.ConfigurationChangeEvent): void {
+        if (event.affectsConfiguration('LSPAI')) {
+            console.log('Configuration changed, reloading...');
+            this.config = this.loadConfiguration();
+            this.logAllConfig();
+            // Update any other properties or behaviors that depend on the configuration
         }
     }
 
@@ -243,7 +297,7 @@ export class Configuration {
                 savePath: DEFAULT_CONFIG.savePath
             };
         } else {
-            const config = vscode.workspace.getConfiguration('lspAi');
+            const config = vscode.workspace.getConfiguration('LSPAI');
             return {
                 workspace: config.get<string>('workspace') ?? vscode.workspace.workspaceFolders![0].uri.fsPath,
                 expProb: DEFAULT_CONFIG.expProb,
@@ -293,11 +347,11 @@ export class Configuration {
     }
 
     public get historyPath(): string {
-        return path.join(os.tmpdir(), "lspai", this.startTimestamp, this.projectName, this.config.model, 'history');
+        return path.join(this.config.workspace, "lspai-workspace", this.startTimestamp, this.projectName, this.config.model, 'history');
     }
 
     public get logSavePath(): string {
-        return path.join(os.tmpdir(), "lspai", this.startTimestamp, this.projectName, this.config.model, 'logs');
+        return path.join(this.config.workspace, "lspai-workspace", this.startTimestamp, this.projectName, this.config.model, 'logs');
     }
 
     public get workspace(): string {
@@ -305,11 +359,11 @@ export class Configuration {
     }
 
     public get generationType(): GenerationType {
-        return this.config.generationType;
+        return resolveGenerationType(this.config.generationType);
     }
 
     public get fixType(): FixType {
-        return this.config.fixType;
+        return resolveFixType(this.config.fixType);
     }
 
     // Getters
@@ -326,7 +380,7 @@ export class Configuration {
     }
 
     public get promptType(): PromptType {
-        return this.config.promptType;
+        return resolvePromptType(this.config.promptType);
     }
 
     public get timeoutMs(): number {

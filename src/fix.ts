@@ -1,12 +1,27 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { getConfigInstance, FixType } from './config';
+import { getConfigInstance } from './config';
 import { groupDiagnosticsByMessage, groupedDiagnosticsToString, DiagnosticsToString, getDiagnosticsForFilePath, chooseDiagnostic } from './diagnostic';
 import { saveToIntermediate, showGeneratedCodeWithPreview } from './fileHandler';
 import { invokeLLM, TokenLimitExceededError } from './invokeLLM';
 import { ExpLogs, LLMLogs, ExpLogger } from './log';
 import { experimentalDiagnosticPrompt, constructDiagnosticPrompt, FixSystemPrompt } from './prompts/promptBuilder';
 import { parseCode } from './utils';
+import { reportProgressWithCancellation } from './generate';
+
+function defaultReturn(finalCode: string) {
+	return {
+		finalCode,
+		success: false,
+		diagnosticReport: {
+			initialDiagnostics: 0,
+			finalDiagnostics: 0,
+			totalRounds: 0,
+			fixSuccess: false,
+			roundHistory: []
+		}
+	};
+}
 
 export async function performFixingRound(
 	srcPath: string,
@@ -25,34 +40,33 @@ export async function performFixingRound(
 
 	// Construct prompt for fixing
 	let diagnosticPrompts;
-	if (getConfigInstance().fixType === FixType.GROUPED) {
-		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(curSavePoint));
-		const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
-		const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
-		diagnosticPrompts = experimentalDiagnosticPrompt(
-			currentCode,
-			diagnosticReport
-		);
-	} else {
-		// Get diagnostic messages
-		const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method);
-		if (!diagnosticMessages.length) {
-			console.error('No diagnostic messages found!');
-			return null;
-		}
-		const diagnosticUserPrompts = constructDiagnosticPrompt(
-			currentCode,
-			diagnosticMessages.join('\n'),
-			collectedData.functionSymbol.name,
-			collectedData.mainfunctionParent,
-			collectedData.SourceCode
-		);
-		// Prepare chat messages
-		diagnosticPrompts = [
-			{ role: "system", content: FixSystemPrompt(languageId) },
-			{ role: "user", content: diagnosticUserPrompts }
-		];
-	}
+	const document = await vscode.workspace.openTextDocument(vscode.Uri.file(curSavePoint));
+	const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
+	const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
+	diagnosticPrompts = experimentalDiagnosticPrompt(
+		currentCode,
+		diagnosticReport
+	);
+	// } else {
+	// 	// Get diagnostic messages
+	// 	const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method);
+	// 	if (!diagnosticMessages.length) {
+	// 		console.error('No diagnostic messages found!');
+	// 		return null;
+	// 	}
+	// 	const diagnosticUserPrompts = constructDiagnosticPrompt(
+	// 		currentCode,
+	// 		diagnosticMessages.join('\n'),
+	// 		collectedData.functionSymbol.name,
+	// 		collectedData.mainfunctionParent,
+	// 		collectedData.SourceCode
+	// 	);
+	// 	// Prepare chat messages
+	// 	diagnosticPrompts = [
+	// 		{ role: "system", content: FixSystemPrompt(languageId) },
+	// 		{ role: "user", content: diagnosticUserPrompts }
+	// 	];
+
 	// Get AI response
 	const fixlogObj: LLMLogs = { tokenUsage: "", result: "", prompt: "", model: model };
 	const fixStartTime = Date.now();
@@ -112,7 +126,9 @@ export async function fixDiagnostics(
 	fileName: string,
 	logger: ExpLogger,
 	MAX_ROUNDS: number,
-	progress: vscode.Progress<{ message: string; increment: number }>): 
+	progress: vscode.Progress<{ message: string; increment: number }>,
+	token: vscode.CancellationToken
+	): 
 	Promise<{ finalCode: string; success: boolean; diagnosticReport: DiagnosticReport; }> {
 
 	let round = 0;
@@ -124,23 +140,15 @@ export async function fixDiagnostics(
 		path.join(historyPath, getConfigInstance().model, round.toString()),
 		languageId
 	);
-	progress.report({ message: "Fixing - getting diagnostics ...", increment: 10 });
+	if (!await reportProgressWithCancellation(progress, token, "Fixing - getting diagnostics ...", 10)) {
+		return defaultReturn(finalCode);
+	}
 	let diagnostics = await getDiagnosticsForFilePath(curSavePoint);
 	if (diagnostics.some(diag => diag.message.includes("only syntax errors are reported"))) {
 		// This means the Language Server is not working, we need to stop the fixing process
 		vscode.window.showWarningMessage("Only syntax errors are reported, please check the code again.");
 		console.log("Only syntax errors are reported, please check the code again.");
-		return {
-			finalCode,
-			success: false,
-			diagnosticReport: {
-				initialDiagnostics: 0,
-				finalDiagnostics: 0,
-				totalRounds: 0,
-				fixSuccess: false,
-				roundHistory: []
-			}
-		};
+		return defaultReturn(finalCode);
 	}
 	let filteredDiagnostics = diagnostics.filter(diagnostic => chooseDiagnostic(diagnostic));
     console.log('filtered diagnostics', filteredDiagnostics.map(diag => diag.message));

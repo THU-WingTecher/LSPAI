@@ -74,7 +74,6 @@ suite('Utils Test Suite', () => {
     //     }
     //     getConfigInstance().updateConfig({
     //         generationType: GenerationType.AGENT,
-    //         fixType: FixType.GROUPED
     //     });
 
     //     getConfigInstance().updateConfig({
@@ -101,7 +100,6 @@ suite('Utils Test Suite', () => {
     //     }
     //     getConfigInstance().updateConfig({
     //         generationType: GenerationType.ORIGINAL,
-    //         fixType: FixType.GROUPED
     //     });
 
     //     getConfigInstance().updateConfig({

@@ -3,7 +3,7 @@
   "displayName": "LSPAI",
   "publisher": "GwihwanGo",
   "description": "LSPAI is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP) integration. Generate high-quality unit tests automatically and in real-time for multiple programming languages.",
-  "version": "0.0.10",
+  "version": "0.1.0",
   "icon": "doc/assets/lspai_image_v2.jpg",
   "repository": {
     "type": "git",
@@ -88,7 +88,9 @@
           "enum": [
             "basic",
             "detailed",
-            "concise"
+            "concise",
+            "fastest",
+            "best"
           ]
         },
         "LSPAI.generationType": {
@@ -99,23 +101,26 @@
             "naive",
             "original",
             "agent",
-            "experimental"
+            "experimental",
+            "fastest",
+            "best"
           ]
         },
         "LSPAI.maxRound": {
           "type": "number",
-          "default": 5,
+          "default": 3,
           "description": "Maximum number of rounds for code generation"
         }
       }
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run lightWeightBuild",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
+    "lightWeightBuild": "node scripts/build.js",
     "build": "tsc",
     "test": "node ./out/test/runTest.js $TEST_FILE",
     "test:util": "node ./out/test/runTest.js util",
@@ -130,11 +135,11 @@
     "@types/node": "^20",
     "@types/vscode": "^1.73.0",
     "@vscode/test-electron": "^2.4.1",
+    "esbuild": "^0.25.2",
     "eslint": "^9.13.0",
     "glob": "^7.1.4",
     "mocha": "^10.2.0",
     "source-map-support": "^0.5.12",
-    "typescript": "^5.7.2",
     "typescript-eslint": "^8.16.0"
   },
   "dependencies": {
@@ -145,8 +150,10 @@
     "ini": "^5.0.0",
     "lru-cache": "^10.1.0",
     "minimatch": "^3.1.2",
+    "node-fetch": "^3.3.2",
     "ollama": "^0.5.12",
     "openai": "^4.77.0",
-    "temp-dir": "^3.0.0"
+    "temp-dir": "^3.0.0",
+    "typescript": "^5.7.2"
   }
 }

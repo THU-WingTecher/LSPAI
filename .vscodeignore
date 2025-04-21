@@ -48,7 +48,11 @@ manual-testing-sandbox/**
 test-results/**
 test-config.json
 testCommand.bash
-
+node_modules/**
+# !node_modules/openai
+# !node_modules/whatwg-url
+# !node_modules/webidl-conversions
+# !node_modules/tr46
 # Build artifacts
 out/**/*.map
 *.vsix
