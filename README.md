@@ -99,7 +99,7 @@ To generate unit tests with LSPAI:
 
 
 ## 🛠️ Experiment Reproduction Guide
-LSPAI is published under FSE-Industry'25 track (See [here](doc/FSE-Industry25-LSPAI.pdf) for papers). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).
+LSPAI is published under FSE-Industry'25 track ( Title : LSPAI: An IDE Plugin for LLM-Powered Multi-Language Unit Test Generation with Language Server Protocol ). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).
 
 The experiments documentation includes:
 - Dataset preparation steps
