@@ -1,20 +1,5 @@
-// In this code, we load a tree-sitter parser based on given language, 
-// After loading the parser, we parse the given source code and print the AST
-
-// import Parser = require('tree-sitter');
-// const JavaScript = require('tree-sitter-javascript');
-
-// const parser: Parser = new Parser();
-// parser.setLanguage(JavaScript);
-
-// const sourceCode: string = 'let x = 1; console.log(x);';
-// const tree: Parser.Tree = parser.parse(sourceCode);
-
-// console.log(tree.rootNode.toString());
-
 import Parser = require('tree-sitter');
 
-// type SupportedLanguage = 'javascript' | 'typescript' | 'python' | 'rust';
 type SupportedLanguage = 'python' | 'go' | 'java' | 'cpp';
 
 class ASTParser {
