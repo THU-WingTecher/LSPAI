@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { getFunctionSymbol, isValidFunctionSymbol } from './utils';
 import { getMethodOrFunctionsParamTokens, getReturnTokens, retrieveDefs } from './retrieve';
+// import { TreeSitterBridge } from './tree-sitter-bridge';
+// import { languageConfigs } from './language-configs';
+
 export interface DecodedToken {
     id: string;
     word: string;

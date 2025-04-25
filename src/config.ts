@@ -165,12 +165,18 @@ export class Configuration {
 
     private constructor() {
         this.config = this.loadConfiguration();
-        this.projectName = this.config.workspace.split('/').pop() ?? 'unknownProject';
         this.startTimestamp = generateTimestampString();
-        // Use the temp directory function
-        this.createSavePathIfNotExists(path.join(this.config.workspace, this.config.savePath));
-        this.createSavePathIfNotExists(this.historyPath);
-        this.createSavePathIfNotExists(this.logSavePath);
+        if (this.config.workspace) {
+            this.projectName = this.config.workspace.split('/').pop() ?? 'unknownProject';
+
+            // Use the temp directory function
+            this.createSavePathIfNotExists(path.join(this.config.workspace, this.config.savePath));
+            this.createSavePathIfNotExists(this.historyPath);
+            this.createSavePathIfNotExists(this.logSavePath);
+        } else {
+            this.projectName = 'unknownProject';
+        }
+
         console.log('Current Environment:', process.env.NODE_ENV);
         // console.log('config::config', this.config);
         this.adjustTimeout();
