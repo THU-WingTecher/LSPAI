@@ -22,6 +22,7 @@ export class CFGBuilder {
     protected createNode(type: CFGNodeType, astNode: Parser.SyntaxNode): CFGNode {
         const node: CFGNode = {
             id: uuidv4(),
+            text: astNode.text,
             type,
             astNode,
             successors: [],
@@ -66,10 +67,17 @@ export class CFGBuilder {
         const visited = new Set<string>();
     
         function traverse(node: CFGNode, depth: string = ''): void {
-            if (visited.has(node.id)) {
-                // console.log(`${depth}[Cycle] -> ${node.type}`);
+            const isMergeNode = node.type === CFGNodeType.MERGED;
+            const isExitMergedNode = node.type === CFGNodeType.EXIT_MERGED;
+            // Skip if already visited and not a merged node
+            if (visited.has(node.id) && !isMergeNode && !isExitMergedNode) {
+                console.log(`${depth}[Cycle] -> ${node.type}`);
                 return;
             }
+            // if (visited.has(node.id)) {
+            //     console.log(`${depth}[Cycle] -> ${node.type}`);
+            //     return;
+            // }
     
             visited.add(node.id);
             let nodeInfo = `${depth}Node: ${node.type}`;
@@ -97,15 +105,16 @@ export class CFGBuilder {
     
             // Add statement text if it's a statement node
             if (node.type === CFGNodeType.STATEMENT) {
+                nodeInfo += ` [Statement: ${pruneText(node.astNode.text)}]`;
                 const isMergeNode = node.predecessors.length > 1;
                 if (isMergeNode) {
-                    return;
+                    console.log(`${depth}Node: MERGED`);
+                } else {
+                    // console.log('statement', node.astNode.text);
+                    console.log(nodeInfo);
                 }
-                // console.log('statement', node.astNode.text);
-                nodeInfo += ` [Statement: ${pruneText(node.astNode.text)}]`;
             }
-    
-            console.log(nodeInfo);
+            
     
             // Print connections
             // if (node.predecessors.length > 0) {
@@ -114,6 +123,7 @@ export class CFGBuilder {
     
             // Handle special cases for condition nodes
             if (node.type === CFGNodeType.CONDITION) {
+                console.log(nodeInfo);
                 if (node.trueBlock) {
                     console.log(`${depth}├── True Branch: ${pruneText(node.trueBlock.type)}`);
                     traverse(node.trueBlock, depth + '│   ');
@@ -122,6 +132,7 @@ export class CFGBuilder {
                     console.log(`${depth}├── False Branch: ${pruneText(node.falseBlock.type)}`);
                     traverse(node.falseBlock, depth + '│   ');
                 }
+                return;
             }
     
             // Traverse successors
@@ -130,6 +141,8 @@ export class CFGBuilder {
                 // if node.type is block we do not add depth
                 if (successor.type === CFGNodeType.BLOCK) {
                     traverse(successor, depth);
+                } else if (successor.type === CFGNodeType.EXIT) {
+                    return;
                 } else {
                     const prefix = isLast ? '└── ' : '├── ';
                     // console.log(`${depth}${prefix}Successor: ${successor.type}`);

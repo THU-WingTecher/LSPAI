@@ -93,7 +93,7 @@ export class PythonCFGBuilder extends CFGBuilder {
         }
     
         // Create merge node
-        const mergeNode = this.createNode(CFGNodeType.STATEMENT, node);
+        const mergeNode = this.createNode(CFGNodeType.MERGED, node);
         if (consequenceEnd !== conditionNode) {
             this.connect(consequenceEnd, mergeNode);
         }
@@ -151,6 +151,7 @@ export class PythonCFGBuilder extends CFGBuilder {
 
         // Process main body (true block)
         const body = node.children.find(child => child.type === 'block');
+        let lastNode = whileConditionNode;
         if (body) {
             const bodyNode = this.createNode(CFGNodeType.BLOCK, body);
             // Connect condition to body as true block
@@ -158,7 +159,7 @@ export class PythonCFGBuilder extends CFGBuilder {
             this.connect(whileConditionNode, bodyNode);
             
             // Process each statement in the body block
-            let lastNode = bodyNode;
+            lastNode = bodyNode;
             for (const child of body.children) {
                 const processed = this.processNode(child, lastNode);
                 if (processed) {
@@ -166,14 +167,16 @@ export class PythonCFGBuilder extends CFGBuilder {
                 }
             }
             // Connect body's end back to loop node
-            this.connect(lastNode, loopNode);
+            // this.connect(lastNode, loopNode);
         }
-        
+        const exitNode = this.createNode(CFGNodeType.EXIT_MERGED, node);
+        if (lastNode !== whileConditionNode) {
+            this.connect(lastNode, exitNode);
+        }
         // return loopNode;
  
         // return mergeNode;
         // Create exit node for the loop (false path from condition)
-        const exitNode = this.createNode(CFGNodeType.STATEMENT, node);
         // Connect condition to exit node as false block
         whileConditionNode.falseBlock = exitNode;
         this.connect(whileConditionNode, exitNode);
@@ -187,15 +190,17 @@ export class PythonCFGBuilder extends CFGBuilder {
         this.connect(current, loopNode);
 
         const body = node.childForFieldName('body');
+        let lastNode = loopNode;
         if (body) {
             const bodyNode = this.createNode(CFGNodeType.STATEMENT, body);
             this.connect(loopNode, bodyNode);
             const bodyEnd = this.processNode(body, bodyNode) || bodyNode;
-            this.connect(bodyEnd, loopNode);
+            // this.connect(bodyEnd, loopNode);
+            lastNode = bodyEnd;
         }
 
         const exitNode = this.createNode(CFGNodeType.STATEMENT, node);
-        this.connect(loopNode, exitNode);
+        this.connect(lastNode, exitNode);
 
         return exitNode;
     }

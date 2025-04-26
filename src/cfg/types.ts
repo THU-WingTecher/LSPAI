@@ -7,7 +7,9 @@ export enum CFGNodeType {
     STATEMENT = 'STATEMENT',
     CONDITION = 'CONDITION',
     LOOP = 'LOOP',
-    BLOCK = 'BLOCK'
+    BLOCK = 'BLOCK',
+    MERGED = 'MERGED',
+    EXIT_MERGED = 'EXIT_MERGED'
 }
 
 export interface CustomSyntaxNode extends Parser.SyntaxNode {
@@ -16,6 +18,7 @@ export interface CustomSyntaxNode extends Parser.SyntaxNode {
 
 export interface CFGNode {
     id: string;
+    text: string;
     type: CFGNodeType;
     astNode: Parser.SyntaxNode;
     successors: CFGNode[];

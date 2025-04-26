@@ -25,6 +25,8 @@ if x > 0:
     y = 1
 else:
     y = 2
+z = 1
+z = 3
     `;
     const cfg = await builder.buildFromCode(code);
     builder.printCFGGraph(cfg.entry);
@@ -191,29 +193,25 @@ while x > 0:
     // Find conditions inside the loop by their specific expressions
     const conditions = Array.from(cfg.nodes.values())
         .filter(n => n.type === CFGNodeType.CONDITION)
-        // .filter(n => {
-        //     const condText = n.astNode.childForFieldName('condition')?.text;
-        //     return condText === 'y > x' || 
-        //            condText === 'y > 10' || 
-        //            condText === 'x == 5';
-        // });
-    assert.equal(conditions.length, 4, "Should have exactly 4 conditions");
-    // const nestedConditions = Array.from(cfg.nodes.values())
-    //     .filter(n => n.type === CFGNodeType.CONDITION)
-    //     .filter(n => {
-    //         const condText = n.astNode.childForFieldName('condition')?.text;
-    //         return condText === 'y > x' || 
-    //                condText === 'y > 10' || 
-    //                condText === 'x == 5';
-    //     });
 
-    // Verify that conditions are properly nested inside the loop
-    // nestedConditions.forEach(condition => {
-    //     assert.ok(
-    //         condition.predecessors.some(p => p === loop || p.type === CFGNodeType.STATEMENT),
-    //         `Condition "${condition.astNode.childForFieldName('condition')?.text}" should be nested under loop or statement`
-    //     );
-    // });
+    assert.equal(conditions.length, 4, "Should have exactly 4 conditions");
+
+    const finalCondition = conditions.find(n => 
+        n.astNode.childForFieldName('condition')?.text === 'x == 5'
+    );
+    assert.notEqual(finalCondition, undefined, "Final condition (x == 5) should exist");
+
+    // Verify x == 5 condition comes after the main if/else block
+    // It should have a predecessor that is either:
+    // 1. The merge node of the main if/else block, or
+    // 2. A statement node that follows the if/else block
+    assert.ok(
+        finalCondition!.predecessors.some(p => 
+            p.type === CFGNodeType.MERGED
+        ),
+        "x == 5 condition should follow the main if/else block"
+    );
+
 });
 
 test('Python CFG - Nested Loops with Conditions', async function() {
@@ -304,10 +302,23 @@ def process_value(x):
     assert.notEqual(mainCondition, undefined, "Main condition should exist");
 
     // Verify loop nesting
-    loops.forEach(loop => {
+    // get loops of while statement
+    const whileLoops = loops.filter(l => l.astNode.type === 'while_statement');
+    assert.equal(whileLoops.length, 1, "Should have exactly 1 while loop");
+    const whileLoop = whileLoops[0];
+    assert.ok(
+        whileLoop.predecessors.some(p => p.predecessors.some(p2 => p2.type === CFGNodeType.CONDITION)),
+        `Loop should be nested under block of true block of condition`
+    );
+
+    // get first for loop
+    const forLoops = loops.filter(l => l.astNode.type === 'for_statement');
+
+    // Verify loop nesting
+    forLoops.forEach(loop => {
         assert.ok(
-            loop.predecessors.some(p => p.type === CFGNodeType.CONDITION || 
-                                      p.type === CFGNodeType.STATEMENT),
+            loop.predecessors.some(p => p.type === CFGNodeType.MERGED || 
+                                      p.type === CFGNodeType.BLOCK),
             `Loop should be nested under condition or statement`
         );
     });
