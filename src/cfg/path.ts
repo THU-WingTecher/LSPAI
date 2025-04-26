@@ -43,8 +43,10 @@ export class PathCollector {
     private traverse(node: CFGNode, currentPath: Path) {
         if (!node) return;
         console.log('traverse', node.type, 'currentPath', node.astNode.text);
-        console.log('overallPath', this.paths.map(p => p.toResult().code));
-        console.log('overallPath', this.paths.map(p => p.toResult().path));
+        console.log("next successors", node.successors.map(s => ({ type: s.type, text: s.astNode.text })));
+        console.log("previous predecessors", node.predecessors.map(p => ({ type: p.type, text: p.astNode.text })));
+        // console.log('overallPath', this.paths.map(p => p.toResult().code));
+        // console.log('overallPath', this.paths.map(p => p.toResult().path));
         switch (node.type) {
             case CFGNodeType.ENTRY:
                 if (node.successors.length > 0) {
@@ -77,6 +79,12 @@ export class PathCollector {
                     );
                     this.traverse(node.falseBlock, falsePath);
                 }
+
+                // Handle successors after if/else block (merge point)
+                if (node.successors.length > 0 && node.successors[0].type !== CFGNodeType.BLOCK) {
+                    const newPath = currentPath.clone();
+                    this.traverse(node.successors[0], newPath);
+                }
                 break;
     
             case CFGNodeType.LOOP:
@@ -90,51 +98,28 @@ export class PathCollector {
                     this.traverse(node.successors[0], loopPath);
                 }
                 break;
-            
+                
+            case CFGNodeType.EXIT_MERGED:
+                this.paths.push(currentPath);
+                break;
+            case CFGNodeType.MERGED:
             case CFGNodeType.BLOCK:
                 // Only add statement text if it's not a block or merge node
                 if (node.successors.length > 0) {
                     this.traverse(node.successors[0], currentPath);
-                // } else {
-                //     this.paths.push(currentPath);
+
                 }
                 break;
-                
-                
+
             case CFGNodeType.STATEMENT:
                 // Only add statement text if it's not a block or merge node
-                // if (node.predecessors.length > 1) {  // Skip merge nodes
-                //     // currentPath.addSegment(node.astNode.text);
-                //     return;
-                // }
-                // this.paths.push(currentPath);
-                // if (node.astNode) {
-                //     currentPath.addSegment(node.astNode.text);
-                // }
+
                 currentPath.addSegment(node.astNode.text);
-                this.paths.push(currentPath);
                 if (node.successors.length > 0) {
-                    if (node.successors[0].predecessors.length > 1) {
-                        // it means it's a merge node and the end of the if-else block
-                        // Only traverse to successor if it's not a merge node (doesn't have multiple predecessors)
-                        // this.paths.push(currentPath);
-                    } else {
-                        this.traverse(node.successors[0], currentPath);
-                    }
+                    this.traverse(node.successors[0], currentPath);
                 } else {
-                    // this.paths.push(currentPath);
+                    this.paths.push(currentPath);
                 }
-                // } else {
-                //     this.paths.push(currentPath);
-                // }
-                //     if (node.successors[0].predecessors.length > 1) {
-                //         // Only traverse to successor if it's not a merge node (doesn't have multiple predecessors)
-                //         currentPath.addSegment(node.astNode.text);
-                //     // this.traverse(node.successors[0], currentPath);
-                //     this.paths.push(currentPath);
-                // } else {
-                //     this.traverse(node.successors[0], currentPath);
-                // }
                 break;
         }
     }
