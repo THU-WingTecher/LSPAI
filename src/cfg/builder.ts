@@ -27,26 +27,6 @@ export class CFGBuilder {
             successors: [],
             predecessors: [],
         };
-        // Clean up the AST node text based on node type
-        // if (type === CFGNodeType.CONDITION) {
-        //     // For condition nodes, only store the condition part
-        //     const conditionNode = astNode.children.find(child => 
-        //         child.type === 'comparison_operator' || 
-        //         child.type === 'binary_operator');
-        //     if (conditionNode) {
-        //         (node as any).conditionNode = conditionNode;
-        //     }
-        // } else if (type === CFGNodeType.STATEMENT) {
-        //     // For statement nodes, remove any control structure syntax
-        //     if (astNode.type === 'block') {
-        //         // Only take the actual statements from the block
-        //         const statements = astNode.children
-        //             .filter(child => child.type !== 'if' && 
-        //                             child.type !== 'else' && 
-        //                             child.type !== ':');
-        //         node.astNode = statements[0]; // Take the first actual statement
-        //     }
-        // }
 
         this.nodes.set(node.id, node);
         return node;
@@ -73,11 +53,7 @@ export class CFGBuilder {
                 console.log(`${depth}[Cycle] -> ${node.type}`);
                 return;
             }
-            // if (visited.has(node.id)) {
-            //     console.log(`${depth}[Cycle] -> ${node.type}`);
-            //     return;
-            // }
-    
+
             visited.add(node.id);
             let nodeInfo = `${depth}Node: ${node.type}`;
             // Print current node information
