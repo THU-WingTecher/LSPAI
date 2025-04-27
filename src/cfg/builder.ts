@@ -13,7 +13,6 @@ export class CFGBuilder {
     private ast!: Parser.Tree;
     private nodes: Map<string, CFGNode>;
     private language: SupportedLanguage;
-
     constructor(language: SupportedLanguage) {
         this.nodes = new Map();
         this.language = language;

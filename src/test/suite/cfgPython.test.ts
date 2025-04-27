@@ -337,3 +337,43 @@ def process_value(x):
         }
     });
 });
+
+test('Python CFG - Break and Continue Recognition', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+while x > 0:
+    if x > 10:
+        continue
+    if x < 5:
+        break
+    x = x - 1
+    `;
+    const cfg = await builder.buildFromCode(code);
+    builder.printCFGGraph(cfg.entry);
+
+    // Find all nodes
+    const nodes = Array.from(cfg.nodes.values());
+    const loopNode = nodes.find(n => n.type === CFGNodeType.LOOP);
+    const conditions = nodes.filter(n => n.type === CFGNodeType.CONDITION);
+    const statements = nodes.filter(n => n.type === CFGNodeType.STATEMENT);
+    const exitNode = nodes.find(n => n.type === CFGNodeType.EXIT_MERGED);
+    // find break statement 
+    const breakStatement = nodes.find(n => n.type === CFGNodeType.BREAK);
+    const continueStatement = nodes.find(n => n.type === CFGNodeType.CONTINUE);
+    // break statement should connect to exit node
+    assert.ok(breakStatement?.successors.some(s => s === exitNode), "Break statement should connect to exit node");
+    // continue statement should connect to loop node
+    assert.ok(continueStatement?.successors.some(s => s === loopNode), "Continue statement should connect to loop node");
+    // Basic structure assertions
+    assert.notEqual(loopNode, undefined, "Should have a loop node");
+    assert.equal(conditions.length, 3, "Should have three conditions (loop condition, continue condition, break condition)");
+    
+    // Find specific nodes
+    const continueCondition = conditions.find(n => n.astNode.text.includes('x > 10'));
+    const breakCondition = conditions.find(n => n.astNode.text.includes('x < 5'));
+    const decrementStatement = statements.find(n => n.astNode.text.includes('x = x - 1'));
+    
+    assert.notEqual(continueCondition, undefined, "Should have continue condition");
+    assert.notEqual(breakCondition, undefined, "Should have break condition");
+    assert.notEqual(decrementStatement, undefined, "Should have decrement statement");
+});
