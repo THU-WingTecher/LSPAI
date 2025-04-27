@@ -65,25 +65,6 @@ x +=2
     assert.equal(body?.successors[0].type, CFGNodeType.BLOCK);
 });
 
-test('Python CFG - For Loop', async function() {
-    const builder = new PythonCFGBuilder('python');
-    const code = `
-for i in range(5):
-    print(i)
-    `;
-    const cfg = await builder.buildFromCode(code);
-    builder.printCFGGraph(cfg.entry);
-    // Find the loop node
-    const loop = Array.from(cfg.nodes.values()).find(n => n.type === CFGNodeType.LOOP);
-    assert.notEqual(loop, undefined);
-
-    // Check loop structure
-    const body = loop?.successors[0];
-    assert.notEqual(body, undefined);
-    assert.equal(body?.type, CFGNodeType.STATEMENT);
-    assert.equal(body?.successors[0].type, CFGNodeType.STATEMENT);
-});
-
 test('Python CFG - Complex Control Flow', async function() {
     const builder = new PythonCFGBuilder('python');
     const code = `
@@ -376,4 +357,104 @@ while x > 0:
     assert.notEqual(continueCondition, undefined, "Should have continue condition");
     assert.notEqual(breakCondition, undefined, "Should have break condition");
     assert.notEqual(decrementStatement, undefined, "Should have decrement statement");
+});
+test('Python CFG - For Loop Break Conditions', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+for i in range(10):
+    x = i + 1
+    if i > 5:
+        break
+    result = i * 2
+final = x + 1
+    `;
+    const cfg = await builder.buildFromCode(code);
+    builder.printCFGGraph(cfg.entry);
+
+    // Find all nodes
+    const nodes = Array.from(cfg.nodes.values());
+    const loopNode = nodes.find(n => n.type === CFGNodeType.LOOP);
+    const conditions = nodes.filter(n => n.type === CFGNodeType.CONDITION);
+    const statements = nodes.filter(n => n.type === CFGNodeType.STATEMENT);
+    const exitNode = nodes.find(n => n.type === CFGNodeType.EXIT_MERGED);
+    const breakStatement = nodes.find(n => n.type === CFGNodeType.BREAK);
+
+    // Basic structure assertions
+    assert.notEqual(loopNode, undefined, "Should have a loop node");
+    assert.equal(conditions.length, 1, "Should have one condition (break condition)");
+    assert.notEqual(breakStatement, undefined, "Should have break statement");
+    assert.notEqual(exitNode, undefined, "Should have exit node");
+
+    // Break connections
+    assert.ok(breakStatement?.successors.some(s => s === exitNode), 
+        "Break statement should connect to exit node");
+    assert.ok(!breakStatement?.successors.some(s => s === loopNode), 
+        "Break statement should not connect back to loop node");
+
+    // Find specific nodes
+    const breakCondition = conditions.find(n => n.astNode.text.includes('i > 5'));
+    const resultStatement = statements.find(n => n.astNode.text.includes('result = i * 2'));
+    const finalStatement = statements.find(n => n.astNode.text.includes('final = x + 1'));
+
+    assert.notEqual(breakCondition, undefined, "Should have break condition");
+    assert.notEqual(resultStatement, undefined, "Should have result statement");
+    assert.notEqual(finalStatement, undefined, "Should have final statement");
+
+    // Verify control flow
+    assert.ok(exitNode?.successors.some(s => s === finalStatement), 
+        "Exit node should connect to final statement");
+});
+
+// Test nested continue case
+test('Python CFG - Nested For Loop Continue', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+for i in range(5):
+    x = i
+    for j in range(3):
+        if j < 2:
+            continue
+        y = j
+    z = x + 1
+    `;
+    const cfg = await builder.buildFromCode(code);
+    builder.printCFGGraph(cfg.entry);
+
+    // Find all nodes
+    const nodes = Array.from(cfg.nodes.values());
+    const loopNodes = nodes.filter(n => n.type === CFGNodeType.LOOP);
+    const conditions = nodes.filter(n => n.type === CFGNodeType.CONDITION);
+    const continueStatement = nodes.find(n => n.type === CFGNodeType.CONTINUE);
+
+    // Basic structure assertions
+    assert.equal(loopNodes.length, 2, "Should have two loop nodes (outer and inner)");
+    assert.equal(conditions.length, 1, "Should have one condition (continue condition)");
+    assert.notEqual(continueStatement, undefined, "Should have continue statement");
+
+    // Find specific nodes
+    const innerLoop = loopNodes.find(n => 
+        n.astNode.text.includes(' j ') && !n.astNode.text.includes(' i ')
+    );
+    const outerLoop = loopNodes.find(n => 
+        n.astNode.text.includes(' j ') && n.astNode.text.includes(' i ')
+    );
+    const continueCondition = conditions.find(n => n.astNode.text.includes('j < 2'));
+    const yStatement = nodes.find(n => n.astNode.text.includes('y = j'));
+    const zStatement = nodes.find(n => n.astNode.text.includes('z = x + 1'));
+
+    assert.notEqual(innerLoop, undefined, "Should have inner loop");
+    assert.notEqual(outerLoop, undefined, "Should have outer loop");
+    assert.notEqual(continueCondition, undefined, "Should have continue condition");
+    assert.notEqual(yStatement, undefined, "Should have y statement");
+    assert.notEqual(zStatement, undefined, "Should have z statement");
+
+    // Verify continue connections
+    assert.ok(continueStatement?.successors.some(s => s === innerLoop), 
+        "Continue statement should connect back to inner loop node");
+    assert.ok(!continueStatement?.successors.some(s => s === outerLoop), 
+        "Continue statement should not connect to outer loop node");
+
+    // Verify continue skips remaining inner loop statements
+    assert.ok(!continueStatement?.successors.some(s => s === yStatement), 
+        "Continue statement should not connect to y statement");
 });
