@@ -1,10 +1,12 @@
 import Parser = require('tree-sitter');
 import { CFGBuilder } from './builder';
-import { CFGNode, CFGNodeType } from './types';
+import { CFGNode, CFGNodeType, LoopContext } from './types';
 import { CodeAction } from 'vscode';
 import { sortAndDeduplicateDiagnostics } from 'typescript/lib/typescript';
 
 export class PythonCFGBuilder extends CFGBuilder {
+    private currentLoopNode: LoopContext | null = null;  // Track current loop context
+
     protected processNode(node: Parser.SyntaxNode, current: CFGNode): CFGNode | null {
         
         switch (node.type) {
@@ -29,6 +31,47 @@ export class PythonCFGBuilder extends CFGBuilder {
 
             case 'for_statement':
                 return this.processForStatement(node, current);
+
+            // case 'continue_statement':
+            //     if (this.currentLoopNode) {
+            //         const continueNode = this.createNode(CFGNodeType.CONTINUE, node);
+            //         continueNode.isLoopContinue = true;
+            //         continueNode.isLoopBackEdge = true;
+            //         this.connect(current, continueNode);
+            //         this.connect(continueNode, this.currentLoopNode);
+            //         return continueNode;
+            //     }
+            //     return current;
+            case 'continue_statement':
+                if (this.currentLoopNode) {
+                    const continueNode = this.createNode(CFGNodeType.CONTINUE, node);
+                    continueNode.isLoopContinue = true;
+                    continueNode.isLoopBackEdge = true;
+                    this.connect(current, continueNode);
+                    this.currentLoopNode.continueNodes.push(continueNode);
+                    return continueNode;
+                }
+                return current;
+
+            case 'break_statement':
+                if (this.currentLoopNode) {
+                    const breakNode = this.createNode(CFGNodeType.BREAK, node);
+                    breakNode.isLoopBreak = true;
+                    this.connect(current, breakNode);
+                    // Add to loop's break nodes
+                    this.currentLoopNode.breakNodes.push(breakNode);
+                    return breakNode;
+                }
+                return current;
+            // case 'break_statement':
+            //     if (this.currentLoopNode) {
+            //         const breakNode = this.createNode(CFGNodeType.BREAK, node);
+            //         breakNode.isLoopBreak = true;
+            //         this.connect(current, breakNode);
+            //         // Exit node connection will be handled in loop processing
+            //         return breakNode;
+            //     }
+            //     return current;
 
             case 'return_statement':
             case 'expression_statement':
@@ -104,6 +147,40 @@ export class PythonCFGBuilder extends CFGBuilder {
         return mergeNode;
     }
 
+    private finalizeLoop(currentLoopNode: LoopContext, previousLoopNode: LoopContext | null, lastNode: CFGNode, whileConditionNode: CFGNode): CFGNode {
+        // Create exit merge node
+        
+        // at the end of the loop, connect to exit merged
+        whileConditionNode.falseBlock = currentLoopNode.exitMergedNode;
+        this.connect(whileConditionNode, currentLoopNode.exitMergedNode);
+        
+        this.currentLoopNode = previousLoopNode;
+
+        // const exitNode = this.createNode(CFGNodeType.EXIT_MERGED, currentLoopNode.node.astNode);
+        
+        // Connect nodes based on their type
+        if (currentLoopNode.breakNodes.length > 0) {
+            currentLoopNode.breakNodes.forEach(node => {
+                this.connect(node, currentLoopNode.exitMergedNode);
+            });
+        }
+        if (currentLoopNode.continueNodes.length > 0) {
+            currentLoopNode.continueNodes.forEach(node => {
+                this.connect(node, currentLoopNode.node);
+            });
+        }
+        // Connect last node to exit if it's not a break or continue
+        if (lastNode !== whileConditionNode && !lastNode.isLoopBreak && !lastNode.isLoopContinue) {
+            this.connect(lastNode, currentLoopNode.exitMergedNode);
+        }
+    
+        // // Connect condition's false branch to exit
+        // whileConditionNode.falseBlock = exitNode;
+        // this.connect(whileConditionNode, exitNode);
+    
+        return currentLoopNode.exitMergedNode;
+    }
+
     // private processWhileStatement(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
 
     //     const loopNode = this.createNode(CFGNodeType.LOOP, node);
@@ -142,6 +219,7 @@ export class PythonCFGBuilder extends CFGBuilder {
     // }
     private processWhileStatement(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
         // Create loop node first
+        const processedNodes : CFGNode[] = [];
         const loopNode = this.createNode(CFGNodeType.LOOP, node);
         this.connect(current, loopNode);
         
@@ -152,6 +230,17 @@ export class PythonCFGBuilder extends CFGBuilder {
         // Process main body (true block)
         const body = node.children.find(child => child.type === 'block');
         let lastNode = whileConditionNode;
+    
+        // Save previous loop context and set current one
+        const previousLoopNode = this.currentLoopNode;
+        const exitNode = this.createNode(CFGNodeType.EXIT_MERGED, node);
+        this.currentLoopNode = {
+            node: loopNode,
+            breakNodes: [],
+            continueNodes: [],
+            exitMergedNode: exitNode
+        };
+
         if (body) {
             const bodyNode = this.createNode(CFGNodeType.BLOCK, body);
             // Connect condition to body as true block
@@ -164,26 +253,92 @@ export class PythonCFGBuilder extends CFGBuilder {
                 const processed = this.processNode(child, lastNode);
                 if (processed) {
                     lastNode = processed;
+                    processedNodes.push(processed);
                 }
             }
             // Connect body's end back to loop node
             // this.connect(lastNode, loopNode);
         }
-        const exitNode = this.createNode(CFGNodeType.EXIT_MERGED, node);
-        if (lastNode !== whileConditionNode) {
-            this.connect(lastNode, exitNode);
-        }
-        // return loopNode;
- 
-        // return mergeNode;
-        // Create exit node for the loop (false path from condition)
-        // Connect condition to exit node as false block
-        whileConditionNode.falseBlock = exitNode;
-        this.connect(whileConditionNode, exitNode);
-    
+
+        this.finalizeLoop(this.currentLoopNode, previousLoopNode, lastNode, whileConditionNode);
+        // Connect back edges to loop node
+        // processedNodes.forEach(node => {
+        //     if (node.isLoopBackEdge || node.isLoopContinue) {
+        //         this.connect(node, loopNode);
+        //     }
+        //     if (node.isLoopBreak) {
+        //         this.connect(node, exitNode);
+        //     }
+        // });
+        
+        // if (lastNode !== whileConditionNode && !lastNode.isLoopBreak && !lastNode.isLoopContinue) {
+        //     this.connect(lastNode, exitNode);
+        // }
+
         return exitNode;
     }
-
+    // private processWhileStatement(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
+    //     // Create loop node first
+    //     const loopNode = this.createNode(CFGNodeType.LOOP, node);
+    //     this.connect(current, loopNode);
+        
+    //     // Create condition node
+    //     const whileConditionNode = this.createNode(CFGNodeType.CONDITION, loopNode.astNode);
+    //     this.connect(loopNode, whileConditionNode);
+    
+    //     // Process main body (true block)
+    //     const body = node.children.find(child => child.type === 'block');
+    //     let lastNode = whileConditionNode;
+    //     if (body) {
+    //         const bodyNode = this.createNode(CFGNodeType.BLOCK, body);
+    //         // Connect condition to body as true block
+    //         whileConditionNode.trueBlock = bodyNode;
+    //         this.connect(whileConditionNode, bodyNode);
+            
+    //         // Process each statement in the body block
+    //         lastNode = bodyNode;
+    //         for (const child of body.children) {
+    //             // Handle break and continue statements
+    //             if (child.type === 'continue_statement') {
+    //                 const continueNode = this.createNode(CFGNodeType.STATEMENT, child);
+    //                 continueNode.isLoopContinue = true;
+    //                 continueNode.isLoopBackEdge = true;
+    //                 this.connect(lastNode, continueNode);
+    //                 this.connect(continueNode, loopNode);
+    //                 continue;
+    //             }
+    //             if (child.type === 'break_statement') {
+    //                 const breakNode = this.createNode(CFGNodeType.STATEMENT, child);
+    //                 breakNode.isLoopBreak = true;
+    //                 this.connect(lastNode, breakNode);
+    //                 lastNode = breakNode;
+    //                 break;
+    //             }
+    
+    //             const processed = this.processNode(child, lastNode);
+    //             if (processed) {
+    //                 lastNode = processed;
+    //                 // If not a break statement, connect back to loop
+    //                 if (child.type !== 'break_statement') {
+    //                     processed.isLoopBackEdge = true;
+    //                     this.connect(processed, loopNode);
+    //                 }
+    //             }
+    //         }
+    //     }
+    
+    //     const exitNode = this.createNode(CFGNodeType.EXIT_MERGED, node);
+    //     if (lastNode !== whileConditionNode) {
+    //         this.connect(lastNode, exitNode);
+    //     }
+    
+    //     // Connect condition to exit node as false block
+    //     whileConditionNode.falseBlock = exitNode;
+    //     this.connect(whileConditionNode, exitNode);
+    
+    //     return exitNode;
+    // }
+    
     private processForStatement(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
         // Similar to while statement but with initialization
         const loopNode = this.createNode(CFGNodeType.LOOP, node);

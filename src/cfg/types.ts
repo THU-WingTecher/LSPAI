@@ -1,6 +1,13 @@
 import Parser = require('tree-sitter');
 import { SupportedLanguage } from '../ast';
 
+export interface LoopContext {
+    node: CFGNode;
+    breakNodes: CFGNode[];
+    continueNodes: CFGNode[];
+    exitMergedNode: CFGNode;
+}
+
 export enum CFGNodeType {
     ENTRY = 'ENTRY',
     EXIT = 'EXIT',
@@ -9,7 +16,9 @@ export enum CFGNodeType {
     LOOP = 'LOOP',
     BLOCK = 'BLOCK',
     MERGED = 'MERGED',
-    EXIT_MERGED = 'EXIT_MERGED'
+    EXIT_MERGED = 'EXIT_MERGED',
+    BREAK = 'BREAK',
+    CONTINUE = 'CONTINUE'
 }
 
 export interface CustomSyntaxNode extends Parser.SyntaxNode {
@@ -26,6 +35,9 @@ export interface CFGNode {
     // For conditions and loops
     trueBlock?: CFGNode;
     falseBlock?: CFGNode;
+    isLoopBackEdge?: boolean;  // Mark edges that go back to loop start
+    isLoopBreak?: boolean;     // Mark break statements
+    isLoopContinue?: boolean;  // Mark continue statements
 }
 
 export interface ControlFlowGraph {
