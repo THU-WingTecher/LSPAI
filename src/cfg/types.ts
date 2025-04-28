@@ -18,7 +18,15 @@ export enum CFGNodeType {
     MERGED = 'MERGED',
     EXIT_MERGED = 'EXIT_MERGED',
     BREAK = 'BREAK',
-    CONTINUE = 'CONTINUE'
+    CONTINUE = 'CONTINUE',
+    FINALLY = 'FINALLY',
+    TRY = 'TRY',
+    CATCH = 'CATCH',
+    ELSE = 'ELSE',
+    // THROW = 'THROW',
+    // RETURN = 'RETURN',
+    // YIELD = 'YIELD',
+    // RAISE = 'RAISE',
 }
 
 export interface CustomSyntaxNode extends Parser.SyntaxNode {

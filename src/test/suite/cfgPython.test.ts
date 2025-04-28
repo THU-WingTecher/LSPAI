@@ -458,3 +458,98 @@ for i in range(5):
     assert.ok(!continueStatement?.successors.some(s => s === yStatement), 
         "Continue statement should not connect to y statement");
 });
+
+test('Python CFG - Try Except Else Finally', async function() {
+    // Setup test data
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+try:
+    x = 1
+    y = 2
+except ValueError:
+    x = -1
+    z = 3
+else:
+    y = y + 1
+    w = 4
+finally:
+    cleanup = True
+result = x + y
+    `;
+
+    // Build CFG
+    const cfg = await builder.buildFromCode(code);
+    builder.printCFGGraph(cfg.entry);
+    const nodes = Array.from(cfg.nodes.values());
+
+    // Test 1: Verify basic block structure
+    const tryBlock = nodes.find(n => n.type === CFGNodeType.TRY);
+    const exceptBlock = nodes.find(n => n.type === CFGNodeType.CATCH);
+    const elseBlock = nodes.find(n => n.type === CFGNodeType.ELSE);
+    const finallyBlock = nodes.find(n => n.type === CFGNodeType.FINALLY);
+
+    assert.notEqual(tryBlock, undefined, "Should have a try block");
+    assert.notEqual(exceptBlock, undefined, "Should have an except block");
+    assert.notEqual(elseBlock, undefined, "Should have an else block");
+    assert.notEqual(finallyBlock, undefined, "Should have a finally block");
+
+    // Test 2: Verify try block connections
+    const lastTryNode = nodes.find(n => 
+        n.type === CFGNodeType.STATEMENT && 
+        n.astNode.text.includes('y = 2')
+    );
+    assert.notEqual(lastTryNode, undefined, "Should have last statement in try block");
+
+    // Test 3: Verify try block connects to both except and else
+    assert.ok(
+        lastTryNode!.successors.some(s => s.type === CFGNodeType.CATCH),
+        "Last node in try block should connect to except block"
+    );
+    assert.ok(
+        lastTryNode!.successors.some(s => s.type === CFGNodeType.ELSE),
+        "Last node in try block should connect to else block"
+    );
+
+    // Test 4: Verify else block structure
+    const lastElseNode = nodes.find(n => 
+        n.type === CFGNodeType.STATEMENT && 
+        n.astNode.text.includes('w = 4')
+    );
+    assert.notEqual(lastElseNode, undefined, "Should have last statement in else block");
+
+    // Test 5: Verify except and else blocks connect to finally
+    const lastExceptNode = nodes.find(n => 
+        n.type === CFGNodeType.STATEMENT && 
+        n.astNode.text.includes('z = 3')
+    );
+    
+    const mergedNode = nodes.find(n => n.type === CFGNodeType.MERGED);
+    assert.notEqual(mergedNode, undefined, "Should have a merged node");
+    assert.equal(mergedNode!.predecessors.length, 2, "Merged node should have two predecessors (except and else)");
+    
+    assert.ok(
+        lastExceptNode!.successors.some(s => s === mergedNode),
+        "Last node in except block should connect to merged node"
+    );
+    assert.ok(
+        lastElseNode!.successors.some(s => s === mergedNode),
+        "Last node in else block should connect to merged node"
+    );
+
+    // Test 6: Verify finally block and final result
+    const lastFinallyNode = nodes.find(n => 
+        n.type === CFGNodeType.STATEMENT && 
+        n.astNode.text.includes('cleanup = True')
+    );
+    const resultStatement = nodes.find(n => 
+        n.type === CFGNodeType.STATEMENT && 
+        n.astNode.text.includes('result = x + y')
+    );
+
+    assert.notEqual(lastFinallyNode, undefined, "Should have last node in finally block");
+    assert.notEqual(resultStatement, undefined, "Should have result statement");
+    assert.ok(
+        lastFinallyNode!.successors.some(s => s === resultStatement),
+        "Finally block should connect to result statement"
+    );
+});

@@ -59,7 +59,9 @@ export class PythonCFGBuilder extends CFGBuilder {
                 const statementNode = this.createNode(CFGNodeType.STATEMENT, node);
                 this.connect(current, statementNode);
                 return statementNode;
-
+            case 'try_statement':
+                return this.processTryExceptStatement(node, current);
+                
             default:
                 // Log unhandled node types
                 console.log(`Skipping unhandled node type: ${node.type}`);
@@ -255,5 +257,86 @@ export class PythonCFGBuilder extends CFGBuilder {
         this.currentLoopNode = previousLoopNode;
 
         return exitNode;
+    }
+
+    private processTryExceptStatement(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
+        // Create try block node
+        const body = node.children.find(child => child.type === 'block');
+        if (!body) {
+            throw new Error('Try block not found');
+        }
+        const tryNode = this.createNode(CFGNodeType.TRY, body);
+        this.connect(current, tryNode);
+    
+        // Process try block
+        let lastTryNode = tryNode;
+        for (const child of body.children) {
+            const processed = this.processNode(child, lastTryNode);
+            if (processed) {
+                lastTryNode = processed;
+            }
+        }
+    
+        // Create merge node for the end of try-except
+        const mergeNode = this.createNode(CFGNodeType.MERGED, node);
+    
+        // Process except handlers
+        const handlers = node.children.filter(child => child.type === 'except_clause');
+        for (const handler of handlers) {
+            const handlerNode = this.createNode(CFGNodeType.CATCH, handler);
+            // Connect try block to handler
+            this.connect(lastTryNode, handlerNode);
+    
+            // Process handler body
+            let lastHandlerNode = handlerNode;
+            const handlerBody = handler.children.find(child => child.type === 'block')
+            if (handlerBody) {
+                for (const child of handlerBody.children) {
+                    const processed = this.processNode(child, lastHandlerNode);
+                    if (processed) {
+                        lastHandlerNode = processed;
+                    }
+                }
+            }
+            // Connect handler to merge node
+            this.connect(lastHandlerNode, mergeNode);
+        }
+    
+        // Process else clause if it exists
+        const elseClause = node.children.find(child => child.type === 'else_clause');
+        if (elseClause) {
+            const elseNode = this.createNode(CFGNodeType.ELSE, elseClause);
+            this.connect(lastTryNode, elseNode);
+    
+            let lastElseNode = elseNode;
+            for (const child of elseClause.children) {
+                const processed = this.processNode(child, lastElseNode);
+                if (processed) {
+                    lastElseNode = processed;
+                }
+            }
+            this.connect(lastElseNode, mergeNode);
+        } else {
+            // If no else clause, connect try block directly to merge node
+            this.connect(lastTryNode, mergeNode);
+        }
+    
+        // Process finally clause if it exists
+        const finallyClause = node.children.find(child => child.type === 'finally_clause');
+        if (finallyClause) {
+            const finallyNode = this.createNode(CFGNodeType.FINALLY, finallyClause);
+            this.connect(mergeNode, finallyNode);
+    
+            let lastFinallyNode = finallyNode;
+            for (const child of finallyClause.children) {
+                const processed = this.processNode(child, lastFinallyNode);
+                if (processed) {
+                    lastFinallyNode = processed;
+                }
+            }
+            return lastFinallyNode;
+        }
+    
+        return mergeNode;
     }
 }
