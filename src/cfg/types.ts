@@ -21,6 +21,7 @@ export enum CFGNodeType {
     CONTINUE = 'CONTINUE',
     FINALLY = 'FINALLY',
     TRY = 'TRY',
+    TRY_ENDED = 'TRY_ENDED',
     CATCH = 'CATCH',
     ELSE = 'ELSE',
     // THROW = 'THROW',
