@@ -36,7 +36,7 @@ export interface ContextSelectorConfig {
 export function findTemplateFile(fileName: string): string {
     const possiblePaths = [
         path.join(__dirname, "..", templateDirName, fileName),
-        path.join(__dirname, "../..", templateDirName, fileName)
+        path.join(__dirname, "../..", templateDirName, fileName),
     ];
 
     for (const configPath of possiblePaths) {
@@ -348,3 +348,124 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
     const promptObj: Prompt = { messages: chatMessages };
     return Promise.resolve(promptObj.messages);
 }
+
+/**
+ * Generates test cases for each unique execution path
+ */
+export function loadPathTestTemplate(): { 
+    system_prompt: string, 
+    user_prompt: string 
+} {
+    const configPath = findTemplateFile("pathTestGenerator.ini");
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const config = ini.parse(configData);
+    
+    return {
+        system_prompt: config.prompts.path_test_generation_system,
+        user_prompt: config.prompts.path_test_generation_user
+    };
+}
+
+// Refactored generation function
+export function generatePathBasedTests(
+    document: vscode.TextDocument, 
+    source_code: string, 
+    paths: { code: string, path: string }[], 
+    fileName: string,
+    template?: { system_prompt: string, user_prompt: string }
+): ChatMessage[][] {
+    // Use provided template or load default
+    const prompts = template || loadPathTestTemplate();
+    
+    // Generate separate prompts for each path
+    return paths.map((path, index) => {
+        // Format single path data
+        const pathData = `Path ${index + 1}:\n- Condition: ${path.path}\n- Code executed: ${path.code}\n\n`;
+        
+        const packageStatement = getPackageStatement(document, document.languageId);
+        
+        const userPrompt = prompts.user_prompt
+            .replace('{source_code}', source_code)
+            .replace('{path_count}', '1') // Each prompt handles one path
+            .replace('{path_data}', pathData)
+            .replace('{unit_test_template}', 
+                LanguageTemplateManager.getUnitTestTemplate(
+                    document.languageId, 
+                    fileName, 
+                    packageStatement ? packageStatement[0] : ""
+                )
+            );
+        
+        return [
+            { role: "system", content: prompts.system_prompt },
+            { role: "user", content: userPrompt }
+        ];
+    });
+}
+// Refactored generation function
+// export function generatePathBasedTests(
+//     document: vscode.TextDocument, 
+//     source_code: string, 
+//     paths: { code: string, path: string }[], 
+//     fileName: string,
+//     template?: { system_prompt: string, user_prompt: string }
+// ): ChatMessage[] {
+//     // Use provided template or load default
+//     const prompts = template || loadPathTestTemplate();
+    
+//     // Format paths data
+//     const pathCount = paths.length;
+//     let pathData = '';
+//     paths.forEach((path, index) => {
+//         pathData += `Path ${index + 1}:\n- Condition: ${path.path}\n- Code executed: ${path.code}\n\n`;
+//     });
+    
+//     const packageStatement = getPackageStatement(document, document.languageId);
+    
+//     const userPrompt = prompts.user_prompt
+//         .replace('{source_code}', source_code)
+//         .replace('{path_count}', pathCount.toString())
+//         .replace('{path_data}', pathData)
+//         .replace('{unit_test_template}', 
+//             LanguageTemplateManager.getUnitTestTemplate(
+//                 document.languageId, 
+//                 fileName, 
+//                 packageStatement ? packageStatement[0] : ""
+//             )
+//         );
+    
+//     return [
+//         { role: "system", content: prompts.system_prompt },
+//         { role: "user", content: userPrompt }
+//     ];
+// }
+
+/**
+ * Inspects and improves path-based tests
+ */
+// export function inspectPathBasedTests(
+//     source_code: string, 
+//     unit_test_code: string, 
+//     paths: { code: string, path: string }[]
+// ): ChatMessage[] {
+//     const configPath = findTemplateFile("pathTestGenerator.ini");
+//     const configData = fs.readFileSync(configPath, 'utf8');
+//     const config = ini.parse(configData);
+    
+//     // Format paths data for the prompt
+//     let pathData = '';
+//     paths.forEach((path, index) => {
+//         pathData += `Path ${index + 1}:\n- Condition: ${path.path}\n- Code executed: ${path.code}\n\n`;
+//     });
+    
+//     const systemPrompt = config.prompts.path_test_inspection_system;
+//     const userPrompt = config.prompts.path_test_inspection_user
+//         .replace('{source_code}', source_code)
+//         .replace('{unit_test_code}', unit_test_code)
+//         .replace('{path_data}', pathData);
+    
+//     return [
+//         { role: "system", content: systemPrompt },
+//         { role: "user", content: userPrompt }
+//     ];
+// }
