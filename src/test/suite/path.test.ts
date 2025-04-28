@@ -15,7 +15,7 @@ else:
     `;
     const cfg = await builder.buildFromCode(code);
     builder.printCFGGraph(cfg.entry);
-    const pathCollector = new PathCollector();
+    const pathCollector = new PathCollector('python');
     const paths = pathCollector.collect(cfg.entry);
 
     assert.equal(paths.length, 2, "Should have exactly 2 paths");
@@ -42,7 +42,7 @@ z = 3  # This is after the merge point
     `;
     const cfg = await builder.buildFromCode(code);
     builder.printCFGGraph(cfg.entry);
-    const pathCollector = new PathCollector();
+    const pathCollector = new PathCollector('python');
     const paths = pathCollector.collect(cfg.entry);
 
     assert.equal(paths.length, 2, "Should have exactly 2 paths");
@@ -76,7 +76,7 @@ else:
         result = 0
     `;
     const cfg = await builder.buildFromCode(code);
-    const pathCollector = new PathCollector();
+    const pathCollector = new PathCollector('python');
     const paths = pathCollector.collect(cfg.entry);
 
     assert.equal(paths.length, 5, "Should have exactly 5 paths");
@@ -120,7 +120,7 @@ while x > 0:
     `;
     const cfg = await builder.buildFromCode(code);
     builder.printCFGGraph(cfg.entry);
-    const pathCollector = new PathCollector();
+    const pathCollector = new PathCollector('python');
     const paths = pathCollector.collect(cfg.entry);
 
     // Test paths for first iteration
@@ -152,7 +152,7 @@ for i in range(10):
 final = result + 1
     `;
     const cfg = await builder.buildFromCode(code);
-    const pathCollector = new PathCollector();
+    const pathCollector = new PathCollector('python');
     const paths = pathCollector.collect(cfg.entry);
 
     // Path 1: Early continue path with contradictory conditions
@@ -245,4 +245,73 @@ final = result + 1
                 "Normal paths should include result calculation");
         }
     });
+});
+
+test('Python CFG Path - Try Except Else Finally', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+try:
+    x = 1
+    y = 2
+except ValueError:
+    x = -1
+    z = 3
+except Exception:
+    x = -2
+    z = 4
+else:
+    y = y + 1
+    w = 4
+finally:
+    cleanup = True
+result = x + y
+    `;
+
+    const cfg = await builder.buildFromCode(code);
+    builder.printCFGGraph(cfg.entry);
+    const pathCollector = new PathCollector('python');
+    const paths = pathCollector.collect(cfg.entry);
+
+    // Should have exactly 2 paths:
+    // 1. Try succeeds -> else -> finally
+    // 2. Try fails with ValueError -> except -> finally
+    assert.equal(paths.length, 3, "Should have exactly 3 paths");
+
+    // Path 1: Normal execution (no exception)
+    // if no exception, then the path should be:
+    // TRY_START -> x = 1 -> y = 2  -> TRY_END -> y = y + 1 -> w = 4 -> cleanup = True -> result = x + y
+
+    assert.ok(
+        paths.some(p => 
+            p.code === 'TRY_START\nx = 1\ny = 2\nTRY_END\ny = y + 1\nw = 4\ncleanup = True\nresult = x + y' &&
+            p.path === 'no_exception'
+        ),
+        "Should have path for successful try block execution"
+    );
+    // Path 2: Exception path
+    // TRY_START -> x = -1 -> z = 3 -> TRY_END -> cleanup = True -> result = x + y
+    assert.ok(
+        paths.some(p => 
+            p.code === 'TRY_START\nx = 1\ny = 2\nTRY_END\nx = -1\nz = 3\ncleanup = True\nresult = x + y' &&
+            p.path === 'throws ValueError'
+        ),
+        "Should have path for ValueError exception"
+    );
+    // Path 3: Exception path
+    // TRY_START -> x = -2 -> z = 4 -> TRY_END -> cleanup = True -> result = x + y
+    assert.ok(
+        paths.some(p => 
+            p.code === 'TRY_START\nx = 1\ny = 2\nTRY_END\nx = -2\nz = 4\ncleanup = True\nresult = x + y' &&
+            p.path === 'throws Exception'
+        ),
+        "Should have path for Exception exception"
+    );
+    // Verify all paths include finally block and final result
+    assert.ok(
+        paths.every(p => 
+            p.code.includes('cleanup = True') &&
+            p.code.includes('result = x + y')
+        ),
+        "All paths should include finally block and result calculation"
+    );
 });

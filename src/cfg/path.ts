@@ -1,5 +1,5 @@
 import { CFGNode, CFGNodeType } from './types';
-
+import { ExceptionExtractorFactory, ExceptionTypeExtractor } from './exceptionHandler';
 interface PathSegment {
     code: string;
     condition?: string;
@@ -35,6 +35,11 @@ export class PathCollector {
     private paths: Path[] = [];
     private visitedLoops: Map<string, number> = new Map(); // Track loop iterations
     private MAX_LOOP_ITERATIONS = 2; // Limit loop traversal
+    private exceptionExtractor: ExceptionTypeExtractor;
+
+    constructor(private readonly language: string) {
+        this.exceptionExtractor = ExceptionExtractorFactory.createExtractor(language);
+    }
 
     collect(cfg: CFGNode): PathResult[] {
         this.paths = [];
@@ -159,6 +164,81 @@ export class PathCollector {
                     this.paths.push(continuePath);
                 }
                 break;
+
+            case CFGNodeType.TRY_ENDED:
+                // Try merged node means that the try block has ended
+                // and the exception has been handled
+                currentPath.addSegment("TRY_END", "");
+                if (node.successors.length > 0) {
+                    for (const successor of node.successors) {
+                        this.traverse(successor, currentPath.clone());
+                    }
+                }
+                // this.paths.push(currentPath);
+                break;
+
+            case CFGNodeType.TRY:
+                // Try block starts here - traverse into the try block
+                // current Path mark that TRY region ahs started
+                currentPath.addSegment("TRY_START", "");
+                if (node.successors.length > 0) {
+                    this.traverse(node.successors[0], currentPath.clone());
+                }
+                // current Path mark that TRY region has ended
+                
+                break;
+            // case CFGNodeType.TRY:
+            //     // Create a new path for try block
+            //     const tryPath = currentPath.clone();
+            //     tryPath.addSegment("TRY_START", "");
+            
+            //     // Store all paths generated from try block
+            //     const tryPaths: Path[] = [];
+                
+            //     if (node.successors.length > 0) {
+            //         // Create temporary collector for try block
+            //         const tempCollector = new PathCollector(this.language);
+            //         tempCollector.traverse(node.successors[0], tryPath);
+                    
+            //         // Get all paths from try block and add TRY_END to each
+            //         const tryBlockPaths = tempCollector.paths;
+            //         for (const path of tryBlockPaths) {
+            //             path.addSegment("TRY_END", "");
+            //             tryPaths.push(path);
+            //         }
+            //     }
+            
+            //     // Add all try paths to main paths collection
+            //     this.paths.push(...tryPaths);
+            //     break;
+
+            case CFGNodeType.CATCH:
+                const catchPath = currentPath.clone();
+                const exceptionType = this.exceptionExtractor.extractExceptionType(node.astNode.text);
+                catchPath.addSegment("", `throws ${exceptionType}`);
+                
+                if (node.successors.length > 0) {
+                    this.traverse(node.successors[0], catchPath);
+                }
+                break;
+    
+            case CFGNodeType.ELSE:
+                // Else block means try succeeded (no exception)
+                const elsePath = currentPath.clone();
+                elsePath.addSegment("", "no_exception");
+                
+                if (node.successors.length > 0) {
+                    this.traverse(node.successors[0], elsePath);
+                }
+                break;
+    
+            case CFGNodeType.FINALLY:
+                // Finally block is executed in all cases
+                if (node.successors.length > 0) {
+                    this.traverse(node.successors[0], currentPath);
+                }
+                break;
+        
             case CFGNodeType.STATEMENT:
                 currentPath.addSegment(node.astNode.text);
                 if (node.successors.length > 0) {

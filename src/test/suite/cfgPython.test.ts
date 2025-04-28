@@ -495,8 +495,7 @@ result = x + y
 
     // Test 2: Verify try block connections
     const lastTryNode = nodes.find(n => 
-        n.type === CFGNodeType.STATEMENT && 
-        n.astNode.text.includes('y = 2')
+        n.type === CFGNodeType.TRY_ENDED
     );
     assert.notEqual(lastTryNode, undefined, "Should have last statement in try block");
 

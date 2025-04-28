@@ -276,7 +276,8 @@ export class PythonCFGBuilder extends CFGBuilder {
                 lastTryNode = processed;
             }
         }
-    
+        const tryEndNode = this.createNode(CFGNodeType.TRY_ENDED, node);
+        this.connect(lastTryNode, tryEndNode);
         // Create merge node for the end of try-except
         const mergeNode = this.createNode(CFGNodeType.MERGED, node);
     
@@ -285,7 +286,7 @@ export class PythonCFGBuilder extends CFGBuilder {
         for (const handler of handlers) {
             const handlerNode = this.createNode(CFGNodeType.CATCH, handler);
             // Connect try block to handler
-            this.connect(lastTryNode, handlerNode);
+            this.connect(tryEndNode, handlerNode);
     
             // Process handler body
             let lastHandlerNode = handlerNode;
@@ -306,7 +307,7 @@ export class PythonCFGBuilder extends CFGBuilder {
         const elseClause = node.children.find(child => child.type === 'else_clause');
         if (elseClause) {
             const elseNode = this.createNode(CFGNodeType.ELSE, elseClause);
-            this.connect(lastTryNode, elseNode);
+            this.connect(tryEndNode, elseNode);
     
             let lastElseNode = elseNode;
             for (const child of elseClause.children) {
@@ -318,7 +319,7 @@ export class PythonCFGBuilder extends CFGBuilder {
             this.connect(lastElseNode, mergeNode);
         } else {
             // If no else clause, connect try block directly to merge node
-            this.connect(lastTryNode, mergeNode);
+            this.connect(tryEndNode, mergeNode);
         }
     
         // Process finally clause if it exists
