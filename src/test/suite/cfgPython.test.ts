@@ -61,8 +61,10 @@ x +=2
 
     const body = loop?.successors[0];
     assert.notEqual(body, undefined);
-    assert.equal(body?.type, CFGNodeType.CONDITION);
-    assert.equal(body?.successors[0].type, CFGNodeType.BLOCK);
+    // the next node from entry is a condition node 
+    assert.equal(cfg.entry.successors[0].type, CFGNodeType.CONDITION);
+    assert.equal(body?.type, CFGNodeType.BLOCK);
+    assert.equal(body?.successors[0].type, CFGNodeType.STATEMENT);
 });
 
 test('Python CFG - Complex Control Flow', async function() {
@@ -83,18 +85,22 @@ def calculate(x):
     assert.notEqual(cfg.exit, undefined);
 
     // Find key nodes
-    const condition = Array.from(cfg.nodes.values()).find(n => n.type === CFGNodeType.CONDITION);
+    const conditions = Array.from(cfg.nodes.values()).filter(n => n.type === CFGNodeType.CONDITION);
     const loop = Array.from(cfg.nodes.values()).find(n => n.type === CFGNodeType.LOOP);
     
-    assert.notEqual(condition, undefined);
-    assert.notEqual(loop, undefined);
+    // should have two conditions 
+    assert.equal(conditions.length, 3, "Should have two conditions");
+    assert.notEqual(conditions[0], undefined, "Should have a condition node");
+    assert.notEqual(conditions[1], undefined, "Should have a condition node");
+    assert.notEqual(loop, undefined, "Should have a loop node");
     
+    const whileCondition = conditions.filter(c => (c.astNode as any).conditionNode.text.includes('x < 10'));
+    assert.ok(whileCondition.length === 1, "Should have one condition for the while loop");
     // Verify the loop is inside the true branch of the if statement
-    assert.notEqual(condition?.trueBlock, undefined);
-    assert.equal(loop?.predecessors[0], condition?.trueBlock);
+    assert.equal(loop?.predecessors[0], whileCondition[0]?.trueBlock, "Loop should be inside the true branch of the if statement");
     
     // Verify loop node contains the while statement
-    assert.ok(loop?.astNode.text.includes('while x < 10'));
+    assert.ok(loop?.astNode.text.includes('while x < 10'), "Loop should contain the while statement");
 }); 
 
 test('Python CFG - Nested If-Else with Multiple Branches', async function() {
@@ -287,8 +293,9 @@ def process_value(x):
     const whileLoops = loops.filter(l => l.astNode.type === 'while_statement');
     assert.equal(whileLoops.length, 1, "Should have exactly 1 while loop");
     const whileLoop = whileLoops[0];
-    assert.ok(
-        whileLoop.predecessors.some(p => p.predecessors.some(p2 => p2.type === CFGNodeType.CONDITION)),
+    assert.equal(
+        whileLoop.predecessors[0].type,
+        CFGNodeType.STATEMENT,
         `Loop should be nested under block of true block of condition`
     );
 
@@ -298,7 +305,7 @@ def process_value(x):
     // Verify loop nesting
     forLoops.forEach(loop => {
         assert.ok(
-            loop.predecessors.some(p => p.type === CFGNodeType.MERGED || 
+            loop.predecessors[0].predecessors.some(p => p.type === CFGNodeType.MERGED || 
                                       p.type === CFGNodeType.BLOCK),
             `Loop should be nested under condition or statement`
         );

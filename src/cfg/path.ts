@@ -1,5 +1,5 @@
 import { CFGNode, CFGNodeType } from './types';
-import { ExceptionExtractorFactory, ExceptionTypeExtractor } from './exceptionHandler';
+import { ExceptionExtractorFactory, ExceptionTypeExtractor } from "./languageAgnostic";
 interface PathSegment {
     code: string;
     condition?: string;
@@ -12,6 +12,10 @@ export interface PathResult {
 
 export class Path {
     private segments: PathSegment[] = [];
+
+    get length() {
+        return this.segments.length;
+    }
 
     addSegment(code: string, condition?: string) {
         this.segments.push({ code, condition });
@@ -87,7 +91,9 @@ export class PathCollector {
                 break;
 
             case CFGNodeType.EXIT:
-                this.paths.push(currentPath);
+                if (currentPath.length > 0) {
+                    this.paths.push(currentPath);
+                }
                 break;
     
             case CFGNodeType.CONDITION:

@@ -164,19 +164,83 @@ export class PythonCFGBuilder extends CFGBuilder {
         return currentLoopNode.exitMergedNode;
     }
 
+    // private processWhileStatement(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
+    //     // Create loop node first
+    //     const processedNodes : CFGNode[] = [];
+    //     const loopNode = this.createNode(CFGNodeType.LOOP, node);
+    //     const whileStatementNode = this.createNode(CFGNodeType.STATEMENT, {
+    //         ...node,
+    //         text: this.loopHeaderExtractor.extractLoopHeader(node)
+    //     } as Parser.SyntaxNode);
+    //     this.connect(current, whileStatementNode);
+    //     this.connect(whileStatementNode, loopNode);
+        
+    //     // Create condition node
+    //     const whileConditionNode = this.createNode(CFGNodeType.CONDITION, loopNode.astNode);
+    //     this.connect(loopNode, whileConditionNode);
+
+    //     // Process main body (true block)
+    //     const body = node.children.find(child => child.type === 'block');
+    //     let lastNode = whileConditionNode;
+    
+    //     // Save previous loop context and set current one
+    //     const previousLoopNode = this.currentLoopNode;
+    //     const exitNode = this.createNode(CFGNodeType.EXIT_MERGED, node);
+    //     this.currentLoopNode = {
+    //         node: loopNode,
+    //         breakNodes: [],
+    //         continueNodes: [],
+    //         exitMergedNode: exitNode
+    //     };
+
+    //     if (body) {
+    //         const bodyNode = this.createNode(CFGNodeType.BLOCK, body);
+    //         // Connect condition to body as true block
+    //         whileConditionNode.trueBlock = bodyNode;
+    //         this.connect(whileConditionNode, bodyNode);
+            
+    //         // Process each statement in the body block
+    //         lastNode = bodyNode;
+    //         for (const child of body.children) {
+    //             const processed = this.processNode(child, lastNode);
+    //             if (processed) {
+    //                 lastNode = processed;
+    //                 processedNodes.push(processed);
+    //             }
+    //         }
+
+    //     }
+
+    //     // at the end of the loop, connect to exit merged
+    //     whileConditionNode.falseBlock = this.currentLoopNode.exitMergedNode;
+    //     this.connect(whileConditionNode, this.currentLoopNode.exitMergedNode);
+    //     this.finalizeLoop(this.currentLoopNode, lastNode, whileConditionNode);
+    //     this.currentLoopNode = previousLoopNode;
+
+
+    //     return exitNode;
+    // }
+    
     private processWhileStatement(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
         // Create loop node first
         const processedNodes : CFGNode[] = [];
-        const loopNode = this.createNode(CFGNodeType.LOOP, node);
-        this.connect(current, loopNode);
-        
         // Create condition node
-        const whileConditionNode = this.createNode(CFGNodeType.CONDITION, loopNode.astNode);
-        this.connect(loopNode, whileConditionNode);
+        const whileConditionNode = this.createNode(CFGNodeType.CONDITION, node);
+        this.connect(current, whileConditionNode);
 
+        const loopNode = this.createNode(CFGNodeType.LOOP, node);
+        const whileStatementNode = this.createNode(CFGNodeType.STATEMENT, {
+            ...node,
+            text: this.loopHeaderExtractor.extractLoopHeader(node)
+        } as Parser.SyntaxNode);
+        // this.connect(current, whileStatementNode);
+        whileConditionNode.trueBlock = whileStatementNode;
+        // this.connect(whileConditionNode, whileStatementNode);
+        this.connect(whileStatementNode, loopNode);
+        
         // Process main body (true block)
         const body = node.children.find(child => child.type === 'block');
-        let lastNode = whileConditionNode;
+        let lastNode = loopNode;
     
         // Save previous loop context and set current one
         const previousLoopNode = this.currentLoopNode;
@@ -191,8 +255,8 @@ export class PythonCFGBuilder extends CFGBuilder {
         if (body) {
             const bodyNode = this.createNode(CFGNodeType.BLOCK, body);
             // Connect condition to body as true block
-            whileConditionNode.trueBlock = bodyNode;
-            this.connect(whileConditionNode, bodyNode);
+            // whileConditionNode.trueBlock = bodyNode;
+            this.connect(loopNode, bodyNode);
             
             // Process each statement in the body block
             lastNode = bodyNode;
@@ -209,7 +273,7 @@ export class PythonCFGBuilder extends CFGBuilder {
         // at the end of the loop, connect to exit merged
         whileConditionNode.falseBlock = this.currentLoopNode.exitMergedNode;
         this.connect(whileConditionNode, this.currentLoopNode.exitMergedNode);
-        this.finalizeLoop(this.currentLoopNode, lastNode, whileConditionNode);
+        this.finalizeLoop(this.currentLoopNode, lastNode, loopNode);
         this.currentLoopNode = previousLoopNode;
 
 
@@ -218,9 +282,17 @@ export class PythonCFGBuilder extends CFGBuilder {
     
     private processForStatement(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
         // Create loop node first
+
+        const forHeader = this.loopHeaderExtractor.extractLoopHeader(node);
+        
         const processedNodes: CFGNode[] = [];
         const loopNode = this.createNode(CFGNodeType.LOOP, node);
-        this.connect(current, loopNode);
+        const forStatementNode = this.createNode(CFGNodeType.STATEMENT, {
+            ...node,
+            text: forHeader
+        } as Parser.SyntaxNode);
+        this.connect(current, forStatementNode);
+        this.connect(forStatementNode, loopNode);
 
         // Process main body
         const body = node.childForFieldName('body');

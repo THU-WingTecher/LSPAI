@@ -19,7 +19,8 @@ export enum GenerationType {
     AGENT = 'agent',
     EXPERIMENTAL = 'experimental',
     FASTEST = 'fastest',
-    BEST = 'best'
+    BEST = 'best',
+    CFG = 'cfg'
 }
 
 export enum FixType {

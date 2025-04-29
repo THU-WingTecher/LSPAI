@@ -9,11 +9,18 @@ export async function run(): Promise<void> {
         timeout: 0,  // Set timeout to 10 seconds
         color: true
     });
+	// let testFilesReg = '**/**.test.js';
+	// console.log('process.env.argv', process.argv);
+	// console.log("process.env.npm_config_testfile", process.env.npm_config_testfile);
+	// if (process.env.npm_config_testfile) {
+	// 	testFilesReg = `**/${process.env.npm_config_testfile}.test.js`;
+	// }
 	let testFilesReg = '**/**.test.js';
 	console.log('process.env.argv', process.argv);
 	console.log("process.env.npm_config_testfile", process.env.npm_config_testfile);
 	if (process.env.npm_config_testfile) {
-		testFilesReg = `**/${process.env.npm_config_testfile}.test.js`;
+		const testFiles = process.env.npm_config_testfile.split(',');
+		testFilesReg = `**/{${testFiles.join(',')}}.test.js`;
 	}
 	console.log("testFilesReg", testFilesReg);
     const testsRoot = path.resolve(__dirname, '..');
