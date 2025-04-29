@@ -20,7 +20,11 @@ export async function run(): Promise<void> {
 	console.log("process.env.npm_config_testfile", process.env.npm_config_testfile);
 	if (process.env.npm_config_testfile) {
 		const testFiles = process.env.npm_config_testfile.split(',');
-		testFilesReg = `**/{${testFiles.join(',')}}.test.js`;
+		if (testFiles.length > 1) {
+			testFilesReg = `**/{${testFiles.join(',')}}.test.js`;
+		} else {
+			testFilesReg = `**/${process.env.npm_config_testfile}.test.js`;
+		}
 	}
 	console.log("testFilesReg", testFilesReg);
     const testsRoot = path.resolve(__dirname, '..');

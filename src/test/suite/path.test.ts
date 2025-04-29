@@ -135,6 +135,12 @@ while x > 0:
         "Should have path for continue condition");
     assert.ok(paths.some(p => p.path.includes('x > 0 && !(y > x) && !(y > 10) && !(x == 5)')), 
         "Should recognize the break condition");
+    // if !(x > 0) exist under p.path, then p.code should not include "while" 
+    paths.forEach(p => {
+        if (p.path.includes('!(x > 0)')) {
+            assert.ok(!p.code.includes('while'), "Should not have while loop if !(x > 0) exists in the condition");
+        }
+    });
 });
 
 test('Python CFG - For Loop Path Collection', async function() {
