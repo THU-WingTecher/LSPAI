@@ -118,14 +118,17 @@ while x > 0:
     if x == 5:
         y += 2
     `;
+
     const cfg = await builder.buildFromCode(code);
     builder.printCFGGraph(cfg.entry);
     const pathCollector = new PathCollector('python');
     const paths = pathCollector.collect(cfg.entry);
 
+    // assert that there are 6 paths
+    assert.equal(paths.length, 6, "Should have exactly 6 paths");
     // Test paths for first iteration
     assert.ok(paths.some(p => p.path.includes('x > 0 && y > x')), 
-        "Should have path for x > 0 && y > x");
+            "Should have path for x > 0 && y > x");
     assert.ok(paths.some(p => p.path.includes('x > 0 && !(y > x) && y > 10')), 
         "Should have path for break condition");
     assert.ok(paths.some(p => p.path.includes('x > 0 && y > x && x == 5')), 
@@ -229,9 +232,9 @@ final = result + 1
 
     // Verify code sequences
     paths.forEach(path => {
-        // All paths should start with x = i + 1
-        assert.ok(path.code.startsWith('x = i + 1'), 
-            "All paths should start with x = i + 1");
+        // All paths should start with for i in range(10):
+        assert.ok(path.code.startsWith('for i in range(10):'), 
+            "All paths should start with for i in range(10):");
 
         // Break paths should include z = i * i
         if (path.path.includes(' i > 7 ')) {
