@@ -25,6 +25,7 @@ export enum GenerationType {
 
 export enum FixType {
     ORIGINAL = 'original',
+    NOFIX = 'nofix',
     // GROUPED = 'grouped',
     // EXPERIMENTAL = 'experimental',
     FASTEST = 'fastest',
@@ -165,17 +166,11 @@ export class Configuration {
     private startTimestamp: string;
 
     private constructor() {
+        this.projectName = 'unknownProject';
         this.config = this.loadConfiguration();
         this.startTimestamp = generateTimestampString();
         if (this.config.workspace) {
-            this.projectName = this.config.workspace.split('/').pop() ?? 'unknownProject';
-
-            // Use the temp directory function
-            this.createSavePathIfNotExists(path.join(this.config.workspace, this.config.savePath));
-            this.createSavePathIfNotExists(this.historyPath);
-            this.createSavePathIfNotExists(this.logSavePath);
-        } else {
-            this.projectName = 'unknownProject';
+            this.updateWorkspace(this.config.workspace);
         }
 
         console.log('Current Environment:', process.env.NODE_ENV);
@@ -207,8 +202,13 @@ export class Configuration {
     }
 
     private createSavePathIfNotExists(savePath: string): void {
-        if (!existsSync(savePath)) {
-            mkdirSync(savePath, { recursive: true });
+        try {
+            if (!existsSync(savePath)) {
+                mkdirSync(savePath, { recursive: true });
+            }
+        } catch (error) {
+            console.error(`Failed to create directory: ${savePath}`, error);
+            throw error;
         }
     }
 
@@ -221,19 +221,48 @@ export class Configuration {
         }
     }
 
+    private updateWorkspace(newWorkspace: string): void {
+        this.config.workspace = newWorkspace;
+        this.projectName = path.basename(this.config.workspace); // Use path.basename instead of split('/').pop()
+        this.createSavePathIfNotExists(path.join(this.config.workspace, this.config.savePath));
+        this.createSavePathIfNotExists(this.historyPath);
+        this.createSavePathIfNotExists(this.logSavePath);
+    }
+
     public updateConfig(newConfig: Partial<Configuration>): void {
+        // if workspace is changed, update the projectName
+        const workspaceChanged = 'workspace' in newConfig;
+        
         if (newConfig.logSavePath) {
             throw new Error('logSavePath is not allowed to be manually set, it will be automatically generated');
         }
         if (newConfig.historyPath) {
             throw new Error('historyPath is not allowed to be manually set, it will be automatically generated');
         }
-        console.log('config::updateConfig', newConfig);
+
+        // Update config first
         this.config = { ...this.config, ...newConfig };
+
+        // Handle workspace update
+        if (workspaceChanged) {
+            this.updateWorkspace(this.config.workspace);
+        } else if (newConfig.model || newConfig.promptType || newConfig.generationType) {
+            // If model, promptType, or generationType changes, we need to update paths
+            const historyPath = this.historyPath;
+            const logPath = this.logSavePath;
+            
+            // Create new paths
+            this.createSavePathIfNotExists(path.dirname(historyPath));
+            this.createSavePathIfNotExists(historyPath);
+            this.createSavePathIfNotExists(path.dirname(logPath));
+            this.createSavePathIfNotExists(logPath);
+        }
+
         if (newConfig.savePath) {
-            this.createSavePathIfNotExists(this.config.savePath);
-            this.createSavePathIfNotExists(path.join(this.config.savePath, '..', 'history'));
-            this.createSavePathIfNotExists(path.join(this.config.savePath, '..', 'logs'));
+            const savePath = path.join(this.config.workspace, this.config.savePath);
+            this.createSavePathIfNotExists(savePath);
+            this.createSavePathIfNotExists(path.join(savePath, '..', 'history'));
+            this.createSavePathIfNotExists(path.join(savePath, '..', 'logs'));
         }
     }
 
@@ -354,11 +383,33 @@ export class Configuration {
     }
 
     public get historyPath(): string {
-        return path.join(this.config.workspace, "lspai-workspace", this.startTimestamp, this.projectName, this.config.model, 'history');
+        // Ensure we have all required parts
+        if (!this.config.workspace || !this.startTimestamp || !this.projectName || !this.config.model) {
+            throw new Error('Missing required configuration for historyPath');
+        }
+        return path.join(
+            this.config.workspace,
+            "lspai-workspace",
+            this.startTimestamp,
+            this.projectName,
+            this.config.model,
+            'history'
+        );
     }
 
     public get logSavePath(): string {
-        return path.join(this.config.workspace, "lspai-workspace", this.startTimestamp, this.projectName, this.config.model, 'logs');
+        // Ensure we have all required parts
+        if (!this.config.workspace || !this.startTimestamp || !this.projectName || !this.config.model) {
+            throw new Error('Missing required configuration for logSavePath');
+        }
+        return path.join(
+            this.config.workspace,
+            "lspai-workspace",
+            this.startTimestamp,
+            this.projectName,
+            this.config.model,
+            'logs'
+        );
     }
 
     public get workspace(): string {
