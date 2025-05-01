@@ -213,7 +213,7 @@ final = result + 1
     );
 
     // Verify number of paths
-    assert.equal(paths.length, 4, "Should have exactly 4 paths");
+    assert.equal(paths.length, 6, "Should have exactly 6 paths");
 
     // Verify all paths end with final statement
     assert.ok(
@@ -323,4 +323,41 @@ result = x + y
         ),
         "All paths should include finally block and result calculation"
     );
+});
+
+test('Python CFG Path - If-Else with multiple loop', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+def replace(self, new: Union[NL, list[NL]]) -> None:
+    """Replace this node with a new one in the parent."""
+    assert self.parent is not None, str(self)
+    assert new is not None
+    if not isinstance(new, list):
+        new = [new]
+    l_children = []
+    found = False
+    for ch in self.parent.children:
+        if ch is self:
+            assert not found, (self.parent.children, self, new)
+            if new is not None:
+                l_children.extend(new)
+            found = True
+        else:
+            l_children.append(ch)
+    assert found, (self.children, self, new)
+    self.parent.children = l_children
+    self.parent.changed()
+    self.parent.invalidate_sibling_maps()
+    for x in new:
+        x.parent = self.parent
+    self.parent = None
+    `;
+    const cfg = await builder.buildFromCode(code);
+    builder.printCFGGraph(cfg.entry);
+    const pathCollector = new PathCollector('python');
+    // pathCollector.setMaxLoopIterations(10);
+    const paths = pathCollector.collect(cfg.entry);
+
+    assert.equal(paths.length, 6, "Should have exactly 6 paths");
+
 });
