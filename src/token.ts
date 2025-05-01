@@ -17,6 +17,40 @@ export interface DecodedToken {
     defSymbol: vscode.DocumentSymbol | null;
 }
 
+export function getTokensFromStr(str: string): string[] {
+    const tokens: string[] = [];
+    const lines = str.split('\n');
+    
+    // Simple regex to match identifiers, including common programming language tokens
+    const tokenRegex = /[a-zA-Z_]\w*/g;
+    
+    lines.forEach((line, lineIndex) => {
+        let match;
+        while ((match = tokenRegex.exec(line)) !== null) {
+            tokens.push(match[0]);
+        }
+    });
+    
+    return tokens;
+}
+export function countUniqueDefinitions(tokens: DecodedToken[]): number {
+        // Create a Set to store unique definition URIs
+    const uniqueDefinitions = new Set<string>();
+    
+    for (const token of tokens) {
+        if (token.definition) {
+            // For each definition in the token's definition array
+            for (const def of token.definition) {
+                // Use URI + range start position as unique identifier
+                const uniqueKey = `${def.uri.toString()}:${def.range.start.line}:${def.range.start.character}`;
+                uniqueDefinitions.add(uniqueKey);
+            }
+        }
+    }
+    
+    return uniqueDefinitions.size;
+}
+
 export async function extractRangeTokensFromAllTokens(document: vscode.TextDocument, startPosition: vscode.Position, endPosition: vscode.Position): Promise<DecodedToken[]>  {
 
     const start = document.offsetAt(startPosition);
