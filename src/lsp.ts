@@ -77,6 +77,13 @@ export async function getReference(symbol: vscode.DocumentSymbol): Promise<strin
     return '';
 }
 
+export async function getSymbolFromDocument(document: vscode.TextDocument, symbolName: string): Promise<vscode.DocumentSymbol | null> {
+    const symbols = await getAllSymbols(document.uri);
+    const symbol = symbols.find(s => s.name.toLocaleLowerCase().includes(symbolName.toLowerCase()));
+    return symbol || null;
+}
+
+
 export async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
     const allSymbols: vscode.DocumentSymbol[] = [];
     // console.log("sending request to get all symbols");

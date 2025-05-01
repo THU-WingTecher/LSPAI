@@ -87,11 +87,10 @@ export class PathCollector {
 
     private traverse(node: CFGNode, currentPath: Path) {
         if (!node) return;
-        console.log('traverse', node.type, 'currentPath', node.astNode.text);
-        console.log("next successors", node.successors.map(s => ({ type: s.type, text: s.astNode.text })));
-        console.log("previous predecessors", node.predecessors.map(p => ({ type: p.type, text: p.astNode.text })));
-        // console.log('overallPath', this.paths.map(p => p.toResult().code));
-        // console.log('overallPath', this.paths.map(p => p.toResult().path));
+        // console.log('traverse', node.type, 'currentPath', node.astNode.text);
+        // console.log("next successors", node.successors.map(s => ({ type: s.type, text: s.astNode.text })));
+        // console.log("previous predecessors", node.predecessors.map(p => ({ type: p.type, text: p.astNode.text })));
+
         switch (node.type) {
             case CFGNodeType.ENTRY:
                 if (node.successors.length > 0) {
@@ -203,30 +202,7 @@ export class PathCollector {
                 // current Path mark that TRY region has ended
                 
                 break;
-            // case CFGNodeType.TRY:
-            //     // Create a new path for try block
-            //     const tryPath = currentPath.clone();
-            //     tryPath.addSegment("TRY_START", "");
-            
-            //     // Store all paths generated from try block
-            //     const tryPaths: Path[] = [];
-                
-            //     if (node.successors.length > 0) {
-            //         // Create temporary collector for try block
-            //         const tempCollector = new PathCollector(this.language);
-            //         tempCollector.traverse(node.successors[0], tryPath);
-                    
-            //         // Get all paths from try block and add TRY_END to each
-            //         const tryBlockPaths = tempCollector.paths;
-            //         for (const path of tryBlockPaths) {
-            //             path.addSegment("TRY_END", "");
-            //             tryPaths.push(path);
-            //         }
-            //     }
-            
-            //     // Add all try paths to main paths collection
-            //     this.paths.push(...tryPaths);
-            //     break;
+
 
             case CFGNodeType.CATCH:
                 const catchPath = currentPath.clone();

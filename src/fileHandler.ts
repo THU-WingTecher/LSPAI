@@ -65,11 +65,16 @@ export async function saveCode(code: string, folderName: string, fileName: strin
     if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
     }
+
+    const ext = fileName.match(/\.\w+$/)?.[0] || '';
+    const baseNameWithoutExt = fileName.replace(/\.\w+$/, '');
+    
     while (fs.existsSync(fullPath)) {
-        fileName = fileName.replace(/\.\w+$/, '') + `_${counter}` + `.\w+`;
+        fileName = `${baseNameWithoutExt}_${counter}${ext}`;
         fullPath = path.join(folderName, fileName);
         counter++;
     }
+    
     fs.writeFileSync(fullPath, code, 'utf8');
     console.log(`Code saved to ${fullPath}`);
     return fullPath;

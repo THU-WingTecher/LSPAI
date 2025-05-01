@@ -8,6 +8,7 @@ import ini from "ini";
 import { getPackageStatement } from "../retrieve";
 import * as vscode from 'vscode';
 import { LanguageTemplateManager } from "./languageTemplateManager";
+import { isFunctionSymbol } from "../utils";
 
 // Define the template directory name
 const templateDirName = "templates";
@@ -125,7 +126,8 @@ export function generatePathBasedTests(
  * Generates test with context information
  */
 export function generateTestWithContextWithCFG(
-    document: vscode.TextDocument, 
+    document: vscode.TextDocument,
+    functionSymbol: vscode.DocumentSymbol,
     source_code: string, 
     context_info: ContextTerm[], 
     path: { code: string, path: string },
@@ -134,10 +136,10 @@ export function generateTestWithContextWithCFG(
 ): ChatMessage[] {
     const result = [];
     for (const item of context_info) {
-        if (item.need_definition) {
+        if (item.need_definition && item.context && item.context!=item.name) {
             result.push(`\n## Source Code of ${item.name}\n${item.context}`);
         }
-        if (item.need_example) {
+        if (item.need_example && item.example && item.example!=item.name) {
             result.push(`\n## Example of ${item.name}\n${item.example}`);
         }
     }
@@ -148,8 +150,9 @@ export function generateTestWithContextWithCFG(
     
     const systemPrompt = prompts.system_prompt
         .replace('{source_code}', source_code);
-
+        
     const userPrompt = prompts.user_prompt
+        .replace('{signiture}', functionSymbol.name)
         .replace('{path_condition}', path.path)
         .replace('{path_data}', path.code)
         .replace('{context_info}', context_info_str)

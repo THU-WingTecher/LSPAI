@@ -15,6 +15,10 @@ export class LanguageTemplateManager {
         packageString: string, 
         importString: string = ''
     ): string {
+        // if filename has suffix like .py, .go, .java, remove it
+        if (fileName.includes(".")) {
+            fileName = fileName.split(".")[0];
+        }
         switch(languageId) {
             case 'java':
                 return LanguageTemplateManager.getJavaTemplate(fileName, packageString);

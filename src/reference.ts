@@ -85,7 +85,7 @@ export async function getReferenceInfo(document: vscode.TextDocument, range: vsc
             }
             const allAreParameters = targetTokenUsages.every(usage => usage === "parameters");
             if (allAreParameters) {
-                console.log("All targetTokenUsage values are 'parameters'.");
+                // console.log("All targetTokenUsage values are 'parameters'.");
                 continue;
             } 
             const refText = removeComments(refDocument.getText(shortestSymbol.range)).trim();
