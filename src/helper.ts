@@ -194,9 +194,9 @@ export function sleep(ms: number): Promise<void> {
 
 
 export function isSymbolLessThanLines(symbol: vscode.DocumentSymbol): boolean {
-    if (MIN_FUNCTION_LINES === -1) {
-        return false;
-    }
+    // if (MIN_FUNCTION_LINES === -1) {
+    //     return false;
+    // }
     return symbol.range.end.line - symbol.range.start.line < MIN_FUNCTION_LINES;
 }
 
@@ -264,6 +264,24 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
     return Files[randomIndex];
 }
 
+export function findAFileFromWorkspace(targetFile: string, language: string) {
+    if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {
+        throw new Error("No workspace folders found");
+    }
+    let testFilesPath: string;
+    const workspace = getConfigInstance().workspace;
+    const Files: string[] = [];
+    const projectName = path.basename(workspace);
+    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+        testFilesPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
+    } else {
+        testFilesPath = path.join(workspace, SRC_PATHS.DEFAULT);
+    }
+    const suffix = getLanguageSuffix(language); 
+    findFiles(testFilesPath, Files, language, suffix);	
+    return Files.filter(f => f.endsWith(targetFile))[0];
+}   
+ 
 export async function loadAllTargetSymbolsFromWorkspace(language: string) : 
             Promise<{ symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[]> {
     if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {

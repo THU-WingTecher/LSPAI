@@ -69,7 +69,8 @@ export function resolvePromptType(type: PromptType | keyof typeof PromptTypeMapp
     return type as PromptType;
 }
 // Constants for experiment settings
-export const MIN_FUNCTION_LINES = -1;
+// export const MIN_FUNCTION_LINES = -1;
+export const MIN_FUNCTION_LINES = 20;
 export const DEFAULT_FILE_ENCODING = 'utf8';
 export const MAX_ROUNDS = 5;
 

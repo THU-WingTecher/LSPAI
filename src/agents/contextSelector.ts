@@ -93,11 +93,15 @@ export class ContextSelector {
         if (!curTokens) {
             curTokens = this.tokens
         }
-        const uniqueDefinitions = countUniqueDefinitions(curTokens);
-        if (uniqueDefinitions > this.config.general.max_terms) {
+        // const uniqueDefinitions = countUniqueDefinitions(curTokens);
+        // if (uniqueDefinitions > this.config.general.max_terms) {
+        //     return true;
+        // }
+        const uniqueTokens = new Set(curTokens.map(token => token.word));
+        if (uniqueTokens.size > this.config.general.max_terms) {
             return true;
         }
-        console.log("needKeyTermFilter: the number of unique definitions is ", uniqueDefinitions, "Therefore we don't need to filter");
+        console.log("needKeyTermFilter: the number of unique definitions is ", uniqueTokens.size, "Therefore we don't need to filter");
         return false;
     }
 
