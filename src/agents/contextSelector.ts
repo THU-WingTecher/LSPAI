@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as ini from 'ini';
 import { invokeLLM } from '../invokeLLM';
-import { DecodedToken, getDecodedTokensFromSybol } from '../token';
+import { DecodedToken, getDecodedTokensFromSybol, countUniqueDefinitions, getTokensFromStr } from '../token';
 import { retrieveDef } from '../retrieve';
 import { getReferenceInfo } from '../reference';
 import { getSymbolDetail, formatToJSON, extractArrayFromJSON } from '../utils';
@@ -47,7 +47,7 @@ export class ContextSelector {
         }
         return ContextSelector.instance;
     }
-    
+
     private async getAllTokens(): Promise<DecodedToken[]> {
         const decodedTokens = await getDecodedTokensFromSybol(this.document, this.targetSymbol);
         this.tokens = decodedTokens;
@@ -88,13 +88,54 @@ export class ContextSelector {
         this.config = this.loadConfig();
     }
     
+    public needKeyTermFilter(tokens: DecodedToken[] | null = null): boolean {
+        let curTokens = tokens;
+        if (!curTokens) {
+            curTokens = this.tokens
+        }
+        const uniqueDefinitions = countUniqueDefinitions(curTokens);
+        if (uniqueDefinitions > this.config.general.max_terms) {
+            return true;
+        }
+        console.log("needKeyTermFilter: the number of unique definitions is ", uniqueDefinitions, "Therefore we don't need to filter");
+        return false;
+    }
+
     /**
      * Analyzes code to identify terms that need context for test generation
      * @param sourceCode The source code to analyze
      * @returns Array of terms that should be looked up for additional context
      */
     public async identifyContextTerms(sourceCode: string, logObj: any): Promise<ContextTerm[]> {
+        if (!this.needKeyTermFilter()) {
+            return [];
+        }
+        // Prepare prompt using the template from config
+        const systemPrompt = this.config.prompts.identify_terms_system.replace('{max_terms}', this.config.general.max_terms.toString());
+        const userPrompt = this.config.prompts.identify_terms_user
+            .replace('{source_code}', sourceCode);
         
+        const promptObj = [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+        ];
+        
+        try {
+            console.log("promptObj", JSON.stringify(promptObj, null, 2));
+            const response = await invokeLLM(promptObj, logObj);
+            console.log("response", JSON.stringify(response, null, 2));
+            return this.parseContextTermsFromResponse(response);
+        } catch (error) {
+            console.error('Error identifying context terms:', error);
+            return [];
+        }
+    }
+
+    public async identifyContextTermsWithCFG(sourceCode: string, tokens: string[], logObj: any): Promise<ContextTerm[]> {
+        const includedTokens = this.tokens.filter(token => tokens.includes(token.word));
+        if (!this.needKeyTermFilter(includedTokens)) {
+            return [];
+        }
         // Prepare prompt using the template from config
         const systemPrompt = this.config.prompts.identify_terms_system.replace('{max_terms}', this.config.general.max_terms.toString());
         const userPrompt = this.config.prompts.identify_terms_user

@@ -3,37 +3,44 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { generatePathBasedTests } from '../../prompts/promptBuilder';
 import { PromptLogger } from '../../prompts/logger';
+import { createCFGBuilder } from '../../cfg/builderFactory';
+import { SupportedLanguage } from '../../ast';
+import { PathCollector } from '../../cfg/path';
+import { PythonCFGBuilder } from '../../cfg/python';
 
-
-test('generatePathBasedTests should create separate chat messages for each Python path', function() {
+test('generatePathBasedTests should create separate chat messages for each Python path', async function() {
     const mockDocument = {
         languageId: 'python',
         getText: () => 'def test_method(): pass'
     } as unknown as vscode.TextDocument;
     
     const sourcecode = `def calculate_value(x, y):
-        if x > 10:
-            if y > 5:
-                return x + y
+        for i in range(10):
+            if x > 10:
+                if y > 5:
+                    return x + y
+                else:
+                    return x - y
             else:
-                return x - y
-        else:
-            return x * y`;
-    
-    const paths = [
-        {
-            code: 'return x + y',
-            path: 'x > 10 && y > 5'
-        },
-        {
-            code: 'return x - y',
-            path: 'x > 10 && !(y > 5)'
-        },
-        {
-            code: 'return x * y',
-            path: '!(x > 10)'
-        }
-    ];
+                return x * y`;
+    const builder = createCFGBuilder(mockDocument.languageId as SupportedLanguage);
+    const cfg = await builder.buildFromCode(sourcecode);
+    const pathCollector = new PathCollector(mockDocument.languageId as SupportedLanguage);
+    const paths = pathCollector.collect(cfg.entry);
+    // const paths = [
+    //     {
+    //         code: 'return x + y',
+    //         path: 'x > 10 && y > 5'
+    //     },
+    //     {
+    //         code: 'return x - y',
+    //         path: 'x > 10 && !(y > 5)'
+    //     },
+    //     {
+    //         code: 'return x * y',
+    //         path: '!(x > 10)'
+    //     }
+    // ];
     
     const mockTemplate = {
         system_prompt: 'Test system prompt',

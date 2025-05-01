@@ -58,15 +58,35 @@ export async function showGeneratedCodeWithPreview(filePath: string, column: vsc
 }
 
 export async function saveCode(code: string, folderName: string, fileName: string): Promise<string> {
-    const fullPath = path.join(folderName, fileName);
+    // if file exist, add a number to the end of the file right before the suffix 
+    let counter = 1;
+    let fullPath = path.join(folderName, fileName);
     const folderPath = path.dirname(fullPath);
     if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
+    }
+    while (fs.existsSync(fullPath)) {
+        fileName = fileName.replace(/\.\w+$/, '') + `_${counter}` + `.\w+`;
+        fullPath = path.join(folderName, fileName);
+        counter++;
     }
     fs.writeFileSync(fullPath, code, 'utf8');
     console.log(`Code saved to ${fullPath}`);
     return fullPath;
 }
+
+// export async function saveCode(code: string, folderName: string, fileName: string): Promise<string> {
+
+//     const fullPath = path.join(folderName, fileName);
+//     const folderPath = path.dirname(fullPath);
+//     if (!fs.existsSync(folderPath)) {
+//         fs.mkdirSync(folderPath, { recursive: true });
+//     }
+//     fs.writeFileSync(fullPath, code, 'utf8');
+//     console.log(`Code saved to ${fullPath}`);
+//     return fullPath;
+// }
+
 
 // Refactor existing functions to use saveCode
 export async function saveGeneratedCodeToFolder(code: string, folderName: string, fileName: string): Promise<void> {
@@ -336,41 +356,3 @@ export function generateTimestampString(): string {
 }
 
 const javaLspaiTestPath = path.join('src', 'lspai', 'test', 'java');
-
-export async function saveExperimentData(expData: ExpLogs[], expLogPath: string, fileName: string, method: string) {
-	const jsonFilePath = path.join(expLogPath, method, `${fileName}_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}.json`);
-
-	// Prepare the data to be saved
-	const formattedData = expData.map(log => ({
-		method: log.method,
-		process: log.process,
-		time: log.time,
-		fileName: log.fileName,
-		function: log.function,
-		errMsag: log.errMsag,
-		llmInfo: log.llmInfo ? {
-			tokenUsage: log.llmInfo.tokenUsage,
-			result: log.llmInfo.result,
-			prompt: log.llmInfo.prompt,
-			model: log.llmInfo.model
-		} : null
-	}));
-
-	const dir = path.dirname(jsonFilePath);
-	if (!fs.existsSync(dir)) {
-		fs.mkdirSync(dir, { recursive: true });
-	}
-
-	// Check if file exists and initialize empty array if not
-	let jsonContent = [];
-	if (fs.existsSync(jsonFilePath)) {
-		jsonContent = JSON.parse(fs.readFileSync(jsonFilePath, 'utf8'));
-	}
-
-	// Append the current experiment's data
-	jsonContent.push(...formattedData);
-
-	// Write the updated data
-	fs.writeFileSync(jsonFilePath, JSON.stringify(jsonContent, null, 2), 'utf8');
-	console.log(`Experiment data saved to ${jsonFilePath}`);
-}

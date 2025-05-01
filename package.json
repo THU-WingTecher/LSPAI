@@ -18,6 +18,10 @@
   "activationEvents": [
     "onStartupFinished"
   ],
+  "extensionDependencies": [
+    "ms-python.python",
+    "redhat.java"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [

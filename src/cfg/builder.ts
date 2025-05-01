@@ -2,7 +2,7 @@ import Parser = require('tree-sitter');
 import { v4 as uuidv4 } from 'uuid';
 import { ASTParser, SupportedLanguage } from '../ast';
 import { CFGNode, CFGNodeType, ControlFlowGraph } from './types';
-
+import { LoopHeaderExtractor, LoopHeaderExtractorFactory } from './languageAgnostic';
 function pruneText(nodeText: string): string {
     if (nodeText.includes('\n')) {
         return nodeText.split('\n')[0]+' ...';
@@ -13,9 +13,11 @@ export class CFGBuilder {
     private ast!: Parser.Tree;
     private nodes: Map<string, CFGNode>;
     private language: SupportedLanguage;
+    protected loopHeaderExtractor: LoopHeaderExtractor;
     constructor(language: SupportedLanguage) {
         this.nodes = new Map();
         this.language = language;
+        this.loopHeaderExtractor = LoopHeaderExtractorFactory.createExtractor(language);
     }
 
     protected createNode(type: CFGNodeType, astNode: Parser.SyntaxNode): CFGNode {

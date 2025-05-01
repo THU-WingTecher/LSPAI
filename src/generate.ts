@@ -1,21 +1,24 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo } from "./token";
+import { DecodedToken, createSystemPromptWithDefUseMap, extractUseDefInfo, getTokensFromStr } from "./token";
 import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement, summarizeClass} from "./retrieve";
 import {getReferenceInfo} from "./reference";
 import { TokenLimitExceededError } from "./invokeLLM";
 import { ExpLogger, LLMLogs } from './log';
 import { invokeLLM } from "./invokeLLM";
-import { genPrompt, generateTestWithContext, inspectTest } from "./prompts/promptBuilder";
+import { genPrompt, generateTestWithContext, generateTestWithContextWithCFG, inspectTest } from "./prompts/promptBuilder";
 import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
 import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate, getTraditionalTestDirAtCurWorkspace, saveCode } from './fileHandler';
-import { getConfigInstance, GenerationType, PromptType, Provider, loadPrivateConfig } from './config';
+import { getConfigInstance, GenerationType, PromptType, Provider, loadPrivateConfig, FixType } from './config';
 import { getTempDirAtCurWorkspace } from './fileHandler';
 import { getContextSelectorInstance } from './agents/contextSelector';
 import { DiagnosticReport, fixDiagnostics } from './fix';
 import { closeEditor, editor } from './lsp';
-
+import { PythonCFGBuilder } from './cfg/python';
+import { createCFGBuilder } from './cfg/builderFactory';
+import { SupportedLanguage } from './ast';
+import { PathCollector } from './cfg/path';
 export interface ContextInfo {
 	dependentContext: string;
 	mainFunctionDependencies: string;
@@ -126,6 +129,8 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 			if (showGeneratedCode) {
 				const fileName = getFileName(fullFileName);
 				showDiffAndAllowSelection(finalCode, document.languageId, fileName);
+			} else {
+				saveCode(finalCode, "", fullFileName);
 			}
 			return finalCode;
 		} else {
@@ -456,8 +461,8 @@ export async function generateUnitTestForAFunction(
 ): Promise<string> {
 // Merge provided config with defaults
 const model = getConfigInstance().model;
-const logger = new ExpLogger([], model, fullFileName, functionSymbol.name);
 const fileName = getFileName(fullFileName);
+const logger = new ExpLogger([], model, fullFileName, fileName, functionSymbol.name);
 const languageId = document.languageId;
 
 return vscode.window.withProgress({
@@ -508,6 +513,56 @@ return vscode.window.withProgress({
 				testCode = parseCode(testCode);
 
 				break;
+
+			case GenerationType.CFG:
+				const contextSelectorForCFG = await getContextSelectorInstance(
+					document, 
+					functionSymbol);
+				const functionText = document.getText(functionSymbol.range);
+				const builder = createCFGBuilder(document.languageId as SupportedLanguage);
+				const cfg = await builder.buildFromCode(functionText);
+				const pathCollector = new PathCollector(document.languageId);
+				const paths = pathCollector.collect(cfg.entry);
+				logger.saveCFGPaths(functionText, paths);
+
+				for (const path of paths) {
+					const code = path.code;
+					const tokens = getTokensFromStr(code);
+					const ContextStartTime = Date.now();
+					const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+					const identifiedTerms = await contextSelectorForCFG.identifyContextTermsWithCFG(code, tokens, logObjForIdentifyTerms);
+					logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
+					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
+						return '';
+					}
+					
+					const gatherContextStartTime = Date.now();
+					const enrichedTerms = await contextSelectorForCFG.gatherContext(identifiedTerms);
+					logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
+					console.log("enrichedTerms", enrichedTerms);
+	
+					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
+						return '';
+					}
+					const generateTestWithContextStartTime = Date.now();
+					const promptObj = generateTestWithContextWithCFG(
+						document, 
+						document.getText(functionSymbol.range), 
+						enrichedTerms, 
+						path, 
+						fileName
+					);
+					const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+					testCode = await invokeLLM(promptObj, logObj);
+					testCode = parseCode(testCode);
+	
+					logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime).toString(), logObj, "");
+					break;
+				}
+				
+				console.log(JSON.stringify(paths, null, 2));
+				break;
+
 			case GenerationType.AGENT:
 				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - identifying context terms`, 20)) {
 					return '';
@@ -553,7 +608,7 @@ return vscode.window.withProgress({
 			languageId
 		);
 
-		if (getConfigInstance().generationType === GenerationType.NAIVE) {
+		if (getConfigInstance().generationType === GenerationType.NAIVE || getConfigInstance().fixType === FixType.NOFIX) {
 			if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - completed`, 50)) {
 				return '';
 			}
@@ -589,11 +644,11 @@ return vscode.window.withProgress({
 		if (!await reportProgressWithCancellation(progress, token, "Finalizing test code...", 10)) {
 			return '';
 		}
-		const reportPath = path.join(getConfigInstance().logSavePath, model, `${fileName}_diagnostic_report.json`);
-		fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-		console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
-		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
-
+		// const reportPath = path.join(getConfigInstance().logSavePath, `${fileName}_diagnostic_report.json`);
+		// fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+		// console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
+		// fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
+		logger.saveDiagnosticReport(diagnosticReport);
 		await saveToIntermediate(
 			testCode,
 			srcPath,

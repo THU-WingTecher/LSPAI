@@ -76,6 +76,7 @@ export async function getReference(symbol: vscode.DocumentSymbol): Promise<strin
     }
     return '';
 }
+
 export async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
     const allSymbols: vscode.DocumentSymbol[] = [];
     // console.log("sending request to get all symbols");
