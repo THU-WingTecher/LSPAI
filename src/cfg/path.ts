@@ -12,7 +12,7 @@ export interface PathResult {
 
 export class Path {
     private segments: PathSegment[] = [];
-
+    private visitedLoops: Map<string, number> = new Map(); // Track loop iterations
     get length() {
         return this.segments.length;
     }
@@ -21,9 +21,18 @@ export class Path {
         this.segments.push({ code, condition });
     }
 
+    addVisitedNode(node: CFGNode) {
+        this.visitedLoops.set(node.id, (this.visitedLoops.get(node.id) || 0) + 1);
+    }
+
+    getVisitedLoops(): Map<string, number> {
+        return this.visitedLoops;
+    }
+
     clone(): Path {
         const newPath = new Path();
         newPath.segments = [...this.segments];
+        newPath.visitedLoops = new Map(this.visitedLoops);
         return newPath;
     }
 
@@ -122,7 +131,7 @@ export class PathCollector {
                 break;
 
             case CFGNodeType.LOOP:
-                const loopCount = this.visitedLoops.get(node.id) || 0;
+                const loopCount = currentPath.getVisitedLoops().get(node.id) || 0;
                 if (loopCount >= this.MAX_LOOP_ITERATIONS) {
                     // Skip further loop iterations
                     if (node.falseBlock) {
@@ -130,7 +139,8 @@ export class PathCollector {
                     }
                     return;
                 }
-                this.visitedLoops.set(node.id, loopCount + 1);
+                currentPath.addVisitedNode(node);
+                // this.visitedLoops.set(node.id, loopCount + 1);
                 
                 // Process loop body
                 if (node.successors.length > 0) {
@@ -252,7 +262,7 @@ export class PathCollector {
                     for (const successor of node.successors) {
                         // Skip back edges if we've reached max iterations
                         if (successor.type === CFGNodeType.LOOP) {
-                            const loopCount = this.visitedLoops.get(successor.id) || 0;
+                            const loopCount = currentPath.getVisitedLoops().get(successor.id) || 0;
                             if (loopCount >= this.MAX_LOOP_ITERATIONS) {
                                 // For loop exit, create a path that represents normal execution
                                 const normalPath = currentPath.clone();
