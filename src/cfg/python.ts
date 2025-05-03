@@ -55,6 +55,9 @@ export class PythonCFGBuilder extends CFGBuilder {
                 return current;
 
             case 'return_statement':
+                const returnNode = this.createNode(CFGNodeType.RETURN, node);
+                this.connect(current, returnNode);
+                return returnNode;
             case 'expression_statement':
                 const statementNode = this.createNode(CFGNodeType.STATEMENT, node);
                 this.connect(current, statementNode);

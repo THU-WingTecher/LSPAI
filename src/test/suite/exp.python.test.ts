@@ -18,10 +18,11 @@ suite('Experiment Test Suite', () => {
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     console.log('privateConfig', JSON.stringify(privateConfig));
     const projectName = path.basename(workspaceFolders[0].uri.fsPath);
+    const sampleNumber = 1;
     const currentConfig = {
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
-        expProb: 0.1,
+        expProb: 1,
         generationType: GenerationType.ORIGINAL,
         promptType: PromptType.DETAILED,
         workspace: projectPath,
@@ -35,14 +36,13 @@ suite('Experiment Test Suite', () => {
     let symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[] = [];
     let symbolFilePairs: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument, fileName: string}[] = [];
     let symbolFilePairsToTest: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument, fileName: string}[] = [];
+
     test('experiment helper functions', async () => {
         if (process.env.NODE_DEBUG !== 'true') {
             console.log('activate');
             await activate();
         }
-        getConfigInstance().updateConfig({
-            expProb: 1
-        });
+
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
         const oneFile = randomlySelectOneFileFromWorkspace('python');
         console.log(`#### One file: ${oneFile}`);
@@ -50,16 +50,8 @@ suite('Experiment Test Suite', () => {
         symbols = await loadAllTargetSymbolsFromWorkspace('python');
         assert.ok(symbols.length > 0, 'symbols should not be empty');
         
-        symbolFilePairs = symbols.map(({symbol, document}) => {
-            return {
-                symbol,
-                document,
-                fileName: generateFileNameForDiffLanguage(document, symbol, path.join(getConfigInstance().workspace, getConfigInstance().savePath), 'python', [],0)
-            };
-        });
-        assert.ok(symbolFilePairs.length > 0, 'symbolFilePairs should not be empty');
-        const randomIndex = Math.floor(Math.random() * symbolFilePairs.length);
-        symbolFilePairsToTest = symbolFilePairs.slice(randomIndex, randomIndex + 50);
+        const randomIndex = Math.floor(Math.random() * symbols.length);
+        symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
     });
 
     // test('pick a filename and symbol', async () => {
@@ -118,11 +110,9 @@ suite('Experiment Test Suite', () => {
             currentSrcPath = path.join(workspace, SRC_PATHS.DEFAULT);
         }
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
-        const oneFile = randomlySelectOneFileFromWorkspace('python');
-        console.log(`#### One file: ${oneFile}`);
 
         await saveTaskList(symbolFilePairs, workspace, getConfigInstance().savePath);
-
+        symbolFilePairsToTest = getSymbolFilePairsToTest(symbols);
         for (const symbolFilePair of symbolFilePairsToTest) {
             const { document, symbol, fileName } = symbolFilePair;
             const result = await generateUnitTestForAFunction(
@@ -213,3 +203,14 @@ suite('Experiment Test Suite', () => {
 }); 
 
 }); 
+
+function getSymbolFilePairsToTest(symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[]) {
+    const symbolFilePairs = symbols.map(({symbol, document}) => {
+        return {
+            symbol,
+            document,
+            fileName: generateFileNameForDiffLanguage(document, symbol, path.join(getConfigInstance().workspace, getConfigInstance().savePath), 'python', [],0)
+        };
+    });
+    return symbolFilePairs;
+}

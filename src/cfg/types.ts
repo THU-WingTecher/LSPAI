@@ -24,6 +24,7 @@ export enum CFGNodeType {
     TRY_ENDED = 'TRY_ENDED',
     CATCH = 'CATCH',
     ELSE = 'ELSE',
+    RETURN = 'RETURN',
     // THROW = 'THROW',
     // RETURN = 'RETURN',
     // YIELD = 'YIELD',
