@@ -1,5 +1,6 @@
 import { CFGNode, CFGNodeType } from './types';
 import { ExceptionExtractorFactory, ExceptionTypeExtractor } from "./languageAgnostic";
+import { removeComments } from '../utils';
 interface PathSegment {
     code: string;
     condition?: string;
@@ -39,7 +40,7 @@ export class Path {
     toResult(): PathResult {
         return {
             code: this.segments.map(s => s.code).filter(c => c).join('\n'),
-            path: this.segments.map(s => s.condition).filter(c => c).join(' && ')
+            path: "where (\n\t" + this.segments.map(s => s.condition).filter(c => c).join('\n\t') + "\n)"
         };
     }
 }

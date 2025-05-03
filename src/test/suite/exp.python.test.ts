@@ -18,7 +18,7 @@ suite('Experiment Test Suite', () => {
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     console.log('privateConfig', JSON.stringify(privateConfig));
     const projectName = path.basename(workspaceFolders[0].uri.fsPath);
-    const sampleNumber = 1;
+    const sampleNumber = 50;
     const currentConfig = {
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
@@ -63,6 +63,10 @@ suite('Experiment Test Suite', () => {
             generationType: GenerationType.CFG,
             fixType: FixType.NOFIX
         });
+        const savePath = getConfigInstance().genSaveName();
+        getConfigInstance().updateConfig({
+            savePath: savePath
+        });
         const workspace = getConfigInstance().workspace;
         const projectName = path.basename(workspace);
         let currentSrcPath;
@@ -73,8 +77,8 @@ suite('Experiment Test Suite', () => {
         }
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
-        await saveTaskList(symbolFilePairs, workspace, getConfigInstance().savePath);
         symbolFilePairsToTest = getSymbolFilePairsToTest(symbols);
+        await saveTaskList(symbolFilePairsToTest, workspace, getConfigInstance().savePath);
         for (const symbolFilePair of symbolFilePairsToTest) {
             const { document, symbol, fileName } = symbolFilePair;
             const result = await generateUnitTestForAFunction(
@@ -115,7 +119,11 @@ suite('Experiment Test Suite', () => {
         }
         getConfigInstance().updateConfig({
             generationType: GenerationType.AGENT,
-            fixType: FixType.NOFIX
+            fixType: FixType.NOFIX,
+        });
+        const savePath = getConfigInstance().genSaveName();
+        getConfigInstance().updateConfig({
+            savePath: savePath
         });
         const workspace = getConfigInstance().workspace;
         const projectName = path.basename(workspace);
@@ -129,8 +137,8 @@ suite('Experiment Test Suite', () => {
         const oneFile = randomlySelectOneFileFromWorkspace('python');
         console.log(`#### One file: ${oneFile}`);
 
-        await saveTaskList(symbolFilePairs, workspace, getConfigInstance().savePath);
-
+        symbolFilePairsToTest = getSymbolFilePairsToTest(symbols);
+        await saveTaskList(symbolFilePairsToTest, workspace, getConfigInstance().savePath);
         for (const symbolFilePair of symbolFilePairsToTest) {
             const { document, symbol, fileName } = symbolFilePair;
             const result = await generateUnitTestForAFunction(

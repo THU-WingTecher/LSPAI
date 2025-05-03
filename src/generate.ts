@@ -612,7 +612,7 @@ return vscode.window.withProgress({
 			testCode,
 			srcPath,
 			fileName,
-			path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
+			path.join(getConfigInstance().savePath, "initial"),
 			languageId
 		);
 

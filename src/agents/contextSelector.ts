@@ -111,9 +111,9 @@ export class ContextSelector {
      * @returns Array of terms that should be looked up for additional context
      */
     public async identifyContextTerms(sourceCode: string, logObj: any): Promise<ContextTerm[]> {
-        if (!this.needKeyTermFilter()) {
-            return [];
-        }
+        // if (!this.needKeyTermFilter()) {
+        //     return [];
+        // }
         // Prepare prompt using the template from config
         const systemPrompt = this.config.prompts.identify_terms_system.replace('{max_terms}', this.config.general.max_terms.toString());
         const userPrompt = this.config.prompts.identify_terms_user
@@ -136,10 +136,10 @@ export class ContextSelector {
     }
 
     public async identifyContextTermsWithCFG(sourceCode: string, tokens: string[], logObj: any): Promise<ContextTerm[]> {
-        const includedTokens = this.tokens.filter(token => tokens.includes(token.word));
-        if (!this.needKeyTermFilter(includedTokens)) {
-            return [];
-        }
+        // const includedTokens = this.tokens.filter(token => tokens.includes(token.word));
+        // if (!this.needKeyTermFilter(includedTokens)) {
+        //     return [];
+        // }
         // Prepare prompt using the template from config
         const systemPrompt = this.config.prompts.identify_terms_system.replace('{max_terms}', this.config.general.max_terms.toString());
         const userPrompt = this.config.prompts.identify_terms_user
