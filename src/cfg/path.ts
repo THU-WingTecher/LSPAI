@@ -91,7 +91,26 @@ export class PathCollector {
                 minPaths.push(path);
             }
         }
-        return minPaths;
+        return this.prunePaths(minPaths);
+    }
+
+    private prunePaths(paths: PathResult[]): PathResult[] {
+        const MAX_PATHS = 10;
+        if (paths.length <= MAX_PATHS) {
+            return paths;
+        }
+
+        // Calculate mean path length
+        const lengths = paths.map(p => p.path.split('&&').length);
+        const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+
+        // Sort by closeness to mean
+        const sorted = paths
+            .map((p, i) => ({ p, diff: Math.abs(lengths[i] - mean) }))
+            .sort((a, b) => a.diff - b.diff)
+            .map(obj => obj.p);
+
+        return sorted.slice(0, MAX_PATHS);
     }
 
     private findLoopExit(node: CFGNode): CFGNode | null {

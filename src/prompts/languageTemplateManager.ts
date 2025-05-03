@@ -13,7 +13,8 @@ export class LanguageTemplateManager {
         languageId: string, 
         fileName: string, 
         packageString: string, 
-        importString: string = ''
+        importString: string = '',
+        paths: string[] = []
     ): string {
         // if filename has suffix like .py, .go, .java, remove it
         if (fileName.includes(".")) {
@@ -21,11 +22,11 @@ export class LanguageTemplateManager {
         }
         switch(languageId) {
             case 'java':
-                return LanguageTemplateManager.getJavaTemplate(fileName, packageString);
+                return LanguageTemplateManager.getJavaTemplate(fileName, packageString, paths);
             case 'go':
-                return LanguageTemplateManager.getGoTemplate(fileName, packageString);
+                return LanguageTemplateManager.getGoTemplate(fileName, packageString, paths);
             case 'python':
-                return LanguageTemplateManager.getPythonTemplate(fileName, packageString, importString);
+                return LanguageTemplateManager.getPythonTemplate(fileName, packageString, importString, paths);
             default:
                 return LanguageTemplateManager.getDefaultTemplate();
         }
@@ -34,7 +35,13 @@ export class LanguageTemplateManager {
     /**
      * Get Java unit test template
      */
-    private static getJavaTemplate(fileName: string, packageString: string): string {
+    private static getJavaTemplate(fileName: string, packageString: string, paths: string[]): string {
+        const testFunctions = paths.map((p, idx) => `
+    @Test
+    public void ${fileName}_${idx}() {
+        ${p}
+    }
+    `).join('\n');
         return `
 Based on the provided information, you need to generate a unit test using Junit5, and Mockito.
 \`\`\`
@@ -52,7 +59,7 @@ public class ${fileName} {
     /**
      * Get Go unit test template
      */
-    private static getGoTemplate(fileName: string, packageString: string): string {
+    private static getGoTemplate(fileName: string, packageString: string, paths: string[]): string {
         return `
 Based on the provided information, you need to generate a unit test using Go's testing package.
 The generated test code will be located at the same directory with target code. Therefore, you don't have to import target project.
@@ -75,7 +82,14 @@ func Test${fileName}(t *testing.T) {
     /**
      * Get Python unit test template
      */
-    private static getPythonTemplate(fileName: string, packageString: string, importString: string): string {
+    private static getPythonTemplate(fileName: string, packageString: string, importString: string, path: string[]): string {
+        const testFunctions = path.map((p, idx) => `
+    def test_${fileName}_${idx}(self):
+        """
+        ${p}
+        """
+        {Write your test code here}
+        `).join('\n');
         return `
 Based on the provided information, you need to generate a unit test using Python's unittest framework.
 \`\`\`
@@ -85,11 +99,7 @@ from {Replace with needed imports}
 
 class Test${fileName}(unittest.TestCase):
     
-    def setUp(self):
-        {Replace with needed setup}
-
-    def test_{fileName}(self):
-        {Write your test function here}
+${testFunctions}
 
 if __name__ == '__main__':
     unittest.main()

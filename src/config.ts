@@ -104,6 +104,7 @@ export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
                 openaiApiKey: config.openaiApiKey || '',
                 deepseekApiKey: config.deepseekApiKey || '',
                 localLLMUrl: config.localLLMUrl || '',
+                proxyUrl: config.proxyUrl || ''
             };
         } catch (error) {
             console.log('error', error);

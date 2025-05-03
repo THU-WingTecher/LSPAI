@@ -1,13 +1,13 @@
 // fileHandler.ts
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as path from 'path';
 import { WorkspaceEdit, workspace } from 'vscode';
 import { getPackageStatement } from './retrieve';
 import { getLanguageSuffix } from './language';
 import { DEFAULT_FILE_ENCODING, TIME_FORMAT_OPTIONS, getConfigInstance } from './config';
 import { goSpecificEnvGen, sleep } from './helper';
 import { ExpLogs } from './log';
+import * as path from 'path';
 
 export function getTraditionalTestDirAtCurWorkspace(language: string): string {
     const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
@@ -361,3 +361,11 @@ export function generateTimestampString(): string {
 }
 
 const javaLspaiTestPath = path.join('src', 'lspai', 'test', 'java');
+export function getFileName(fullFileName: string) {
+	const savePath = path.join(getConfigInstance().workspace, getConfigInstance().savePath);
+	const fileName = fullFileName.split(savePath)[1];
+	if (fileName.startsWith("/")) {
+		return fileName.replace("/", "");
+	}
+	return fileName;
+}
