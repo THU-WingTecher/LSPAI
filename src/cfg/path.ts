@@ -64,6 +64,36 @@ export class PathCollector {
         this.MAX_LOOP_ITERATIONS = maxLoopIterations;
     }
 
+    /**
+     * Minimizes the set of paths by removing those whose constraints are already covered.
+     * @param paths The array of PathResult to minimize.
+     * @returns The minimized array of PathResult.
+     */
+    minimizePaths(paths: PathResult[]): PathResult[] {
+        const minConstraints = new Set<string>();
+        const minPaths: PathResult[] = [];
+
+        for (const path of paths) {
+            // Split constraints by '&&' and trim whitespace
+            const pathConstraints = path.path
+                .split('&&')
+                .map(c => c.trim())
+                .filter(c => c.length > 0);
+
+            // Check if any constraint is new
+            const hasNewConstraint = pathConstraints.some(c => !minConstraints.has(c));
+
+            if (hasNewConstraint) {
+                // Add all constraints of this path to the set
+                for (const c of pathConstraints) {
+                    minConstraints.add(c);
+                }
+                minPaths.push(path);
+            }
+        }
+        return minPaths;
+    }
+
     private findLoopExit(node: CFGNode): CFGNode | null {
         // Find the nearest loop's exit node by traversing up
         for (const successor of node.successors) {
@@ -98,6 +128,8 @@ export class PathCollector {
                 }
                 break;
 
+            case CFGNodeType.RETURN:
+                currentPath.addSegment("", node.astNode.text);
             case CFGNodeType.EXIT:
                 if (currentPath.length > 0) {
                     this.paths.push(currentPath);
