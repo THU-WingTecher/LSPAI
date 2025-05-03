@@ -153,7 +153,6 @@ export function generateTestWithContextWithCFG(
         .replace('{source_code}', source_code);
     
     const userPrompt = prompts.user_prompt
-        .replace('{signiture}', functionSymbol.name)
         .replace('{context_info}', context_info_str)
         .replace(
             '{unit_test_template}', 

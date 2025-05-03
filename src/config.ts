@@ -3,6 +3,7 @@ import path from 'path';
 import * as vscode from 'vscode';
 import { generateTimestampString } from './fileHandler';
 import os from 'os';
+import { assert } from 'console';
 
 
 export enum PromptType {
@@ -70,7 +71,7 @@ export function resolvePromptType(type: PromptType | keyof typeof PromptTypeMapp
 }
 // Constants for experiment settings
 // export const MIN_FUNCTION_LINES = -1;
-export const MIN_FUNCTION_LINES = 20;
+export const MIN_FUNCTION_LINES = 15;
 export const DEFAULT_FILE_ENCODING = 'utf8';
 export const MAX_ROUNDS = 5;
 
@@ -361,23 +362,29 @@ export class Configuration {
     }
 
     public genSaveName(): string {
+        assert(this.config.workspace, 'workspace is not set');
         let saveName = "results";
         if (this.generationType === GenerationType.ORIGINAL) {
             saveName += "_original";
         } else if (this.generationType === GenerationType.AGENT) {
             saveName += "_agent";
+        } else if (this.generationType === GenerationType.CFG) {
+            saveName += "_cfg";
         }
-        if (this.promptType === PromptType.BASIC) {
-            saveName += "_basic";
-        } else if (this.promptType === PromptType.DETAILED) {
-            saveName += "_detailed";
-        } else if (this.promptType === PromptType.CONCISE) {
-            saveName += "_concise";
+        if (this.fixType === FixType.NOFIX) {
+            saveName += "_nofix";
         }
-        if (this.config.model){
-            saveName += `_${this.config.model}`;
-        }
-        return path.join(`${saveName}_${this.startTimestamp}`, this.config.model);
+        // if (this.promptType === PromptType.BASIC) {
+        //     saveName += "_basic";
+        // } else if (this.promptType === PromptType.DETAILED) {
+        //     saveName += "_detailed";
+        // } else if (this.promptType === PromptType.CONCISE) {
+        //     saveName += "_concise";
+        // }
+        // if (this.config.model){
+        //     saveName += `_${this.config.model}`;
+        // }
+        return path.join(this.config.workspace, `${saveName}_${this.startTimestamp}`, this.config.model);
     }
 
     public get savePath(): string {
