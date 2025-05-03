@@ -5,7 +5,7 @@ import { ContextTerm } from "../agents/contextSelector";
 import path from "path";
 import fs from "fs";
 import ini from "ini";
-import { getPackageStatement } from "../retrieve";
+import { getPackageStatement, getImportStatement } from "../retrieve";
 import * as vscode from 'vscode';
 import { LanguageTemplateManager } from "./languageTemplateManager";
 import { isFunctionSymbol } from "../utils";
@@ -130,7 +130,7 @@ export function generateTestWithContextWithCFG(
     functionSymbol: vscode.DocumentSymbol,
     source_code: string, 
     context_info: ContextTerm[], 
-    path: { code: string, path: string },
+    paths: { code: string, path: string }[],
     fileName: string,
     template?: { system_prompt: string, user_prompt: string }
 ): ChatMessage[] {
@@ -146,22 +146,23 @@ export function generateTestWithContextWithCFG(
     
     const context_info_str = result.join('\n');
     const packageStatement = getPackageStatement(document, document.languageId);
+    const importString = getImportStatement(document, document.languageId, functionSymbol);
     const prompts = template || loadPathTestTemplate();
     
     const systemPrompt = prompts.system_prompt
         .replace('{source_code}', source_code);
-        
+    
     const userPrompt = prompts.user_prompt
         .replace('{signiture}', functionSymbol.name)
-        .replace('{path_condition}', path.path)
-        .replace('{path_data}', path.code)
         .replace('{context_info}', context_info_str)
         .replace(
             '{unit_test_template}', 
             LanguageTemplateManager.getUnitTestTemplate(
                 document.languageId, 
                 fileName, 
-                packageStatement ? packageStatement[0] : ""
+                packageStatement ? packageStatement[0] : "",
+                importString,
+                paths.map((p) => p.path)
             )
         );
     

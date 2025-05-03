@@ -540,12 +540,12 @@ export function getPackageStatement(document: vscode.TextDocument, language: str
 }
 
 function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vscode.DocumentSymbol | null): string {
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders) {
-        throw new Error("No workspace folder found");
-    }
+    // const workspaceFolders = getConfigInstance().workspace;
+    // if (!workspaceFolders) {
+    //     throw new Error("No workspace folder found");
+    // }
 
-    const workspacePath = workspaceFolders[0].uri.fsPath;
+    const workspacePath = getConfigInstance().workspace;
     let importStatement = document.uri.fsPath.replace(workspacePath, '');
     // Check if the import statement starts with a '/', and remove it if it does
     if (importStatement.startsWith('/')) {

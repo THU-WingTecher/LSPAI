@@ -9,7 +9,7 @@ import { ExpLogger, LLMLogs } from './log';
 import { invokeLLM } from "./invokeLLM";
 import { genPrompt, generateTestWithContext, generateTestWithContextWithCFG, inspectTest } from "./prompts/promptBuilder";
 import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunctionSymbolWithItsParents, getSymbolDetail, parseCode } from './utils';
-import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate, getTraditionalTestDirAtCurWorkspace, saveCode } from './fileHandler';
+import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate, getTraditionalTestDirAtCurWorkspace, saveCode, getFileName } from './fileHandler';
 import { getConfigInstance, GenerationType, PromptType, Provider, loadPrivateConfig, FixType } from './config';
 import { getTempDirAtCurWorkspace } from './fileHandler';
 import { getContextSelectorInstance } from './agents/contextSelector';
@@ -144,14 +144,6 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 
 }
 
-function getFileName(fullFileName: string) {
-	const savePath = path.join(getConfigInstance().workspace, getConfigInstance().savePath);
-	const fileName = fullFileName.split(savePath)[1];
-	if (fileName.startsWith("/")) {
-		return fileName.replace("/", "");
-	}
-	return fileName;
-}
 // Helper functions for the main generator
 async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string, logger: ExpLogger): Promise<void> {
 	// basically, its the last part of the file name
@@ -470,12 +462,7 @@ return vscode.window.withProgress({
 	title: "Generating Unit Test",
 	cancellable: true
 }, async (progress, token) => {
-	const functionText = document.getText(functionSymbol.range);
-	const builder = createCFGBuilder(document.languageId as SupportedLanguage);
-	const cfg = await builder.buildFromCode(functionText);
-	const pathCollector = new PathCollector(document.languageId);
-	const paths = pathCollector.collect(cfg.entry);
-	logger.saveCFGPaths(functionText, paths);
+
 	console.log(`Generating unit test for ${model} in ${fullFileName}`);
 	try {
         if (!await reportProgressWithCancellation(progress, token, "Preparing for test generation...", 10)) {
@@ -523,107 +510,97 @@ return vscode.window.withProgress({
 				const contextSelectorForCFG = await getContextSelectorInstance(
 					document, 
 					functionSymbol);
-				// const functionText = document.getText(functionSymbol.range);
-				// const builder = createCFGBuilder(document.languageId as SupportedLanguage);
-				// const cfg = await builder.buildFromCode(functionText);
-				// const pathCollector = new PathCollector(document.languageId);
-				// const paths = pathCollector.collect(cfg.entry);
-				// logger.saveCFGPaths(functionText, paths);
-
-				for (const codepath of paths) {
-					const code = codepath.code;
-					const tokens = getTokensFromStr(code);
-					const ContextStartTime = Date.now();
-					const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-					const identifiedTerms = await contextSelectorForCFG.identifyContextTermsWithCFG(code, tokens, logObjForIdentifyTerms);
-					logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
-					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
-						return '';
-					}
-					
-					const gatherContextStartTime = Date.now();
-					const enrichedTerms = await contextSelectorForCFG.gatherContext(identifiedTerms);
-					logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
-					console.log("enrichedTerms", enrichedTerms);
-	
-					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
-						return '';
-					}
-					const generateTestWithContextStartTime = Date.now();
-					const promptObj = generateTestWithContextWithCFG(
-						document, 
-						functionSymbol,
-						document.getText(functionSymbol.range), 
-						enrichedTerms, 
-						codepath, 
-						fileName
-					);
-					const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-					testCode = await invokeLLM(promptObj, logObj);
-					testCode = parseCode(testCode);
-	
-					logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime).toString(), logObj, "");
-
-					await saveToIntermediate(
-						testCode,
-						srcPath,
-						fileName,
-						path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
-						languageId
-					);
-					logger.save(fileName);
-					// if (getConfigInstance().generationType === GenerationType.NAIVE || getConfigInstance().fixType === FixType.NOFIX) {
-					// 	if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - completed`, 50)) {
-					// 		return '';
-					// 	}
-					// 	// return testCode;
-					// }
+				const functionText = document.getText(functionSymbol.range);
+				const builder = createCFGBuilder(document.languageId as SupportedLanguage);
+				const cfg = await builder.buildFromCode(functionText);
+				const pathCollector = new PathCollector(document.languageId);
+				const paths = pathCollector.collect(cfg.entry);
+				const minimizedPaths = pathCollector.minimizePaths(paths);
+				logger.saveCFGPaths(functionText, minimizedPaths);
+				const ContextStartTime2 = Date.now();
+				const logObjForIdentifyTerms2: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				const identifiedTerms2 = await contextSelectorForCFG.identifyContextTermsWithCFG(functionText, [], logObjForIdentifyTerms2);
+				logger.log("identifyContextTerms", (Date.now() - ContextStartTime2).toString(), logObjForIdentifyTerms2, "");
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
+					return '';
 				}
+
+				const gatherContextStartTime2 = Date.now();
+				const enrichedTerms2 = await contextSelectorForCFG.gatherContext(identifiedTerms2);
+				logger.log("gatherContext", (Date.now() - gatherContextStartTime2).toString(), null, "");
+				console.log("enrichedTerms", enrichedTerms2);
+				// const identifiedTerms = await contextSelectorForCFG.identifyContextTerms(functionText, []);
+
+				// const enrichedTerms = await contextSelectorForCFG.gatherContext(identifiedTerms);
+				// const enrichedTerms: ContextTerm[] = [];
+				// console.log("enrichedTerms", enrichedTerms);
+				const generateTestWithContextStartTime2 = Date.now();
+				const promptObj2 = generateTestWithContextWithCFG(
+					document, 
+					functionSymbol,
+					document.getText(functionSymbol.range), 
+					enrichedTerms2, 
+					paths, 
+					fileName
+				);
+
+				const logObj2: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				testCode = await invokeLLM(promptObj2, logObj2);
+				testCode = parseCode(testCode);
+				logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime2).toString(), logObj2, "");
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
+					return '';
+				}
+				await saveToIntermediate(
+					testCode,
+					srcPath,
+					fileName,
+					path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
+					languageId
+				);
+				logger.save(fileName);
 				
-				// console.log(JSON.stringify(paths, null, 2));
 				break;
 
 			case GenerationType.AGENT:
-				for (const codepath of paths) {
-					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - identifying context terms`, 20)) {
-						return '';
-					}
-					const contextSelector = await getContextSelectorInstance(
-						document, 
-						functionSymbol);
-					const ContextStartTime = Date.now();
-					const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-					const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
-					logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
-					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
-						return '';
-					}
-					
-					const gatherContextStartTime = Date.now();
-					const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
-					logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
-					console.log("enrichedTerms", enrichedTerms);
-
-					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
-						return '';
-					}
-					const generateTestWithContextStartTime = Date.now();
-					const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
-					const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-					testCode = await invokeLLM(promptObj, logObj);
-					testCode = parseCode(testCode);
-
-					logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime).toString(), logObj, "");
-					
-					await saveToIntermediate(
-						testCode,
-						srcPath,
-						fileName,
-						path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
-						languageId
-					);
-					logger.save(fileName);
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - identifying context terms`, 20)) {
+					return '';
 				}
+				const contextSelector = await getContextSelectorInstance(
+					document, 
+					functionSymbol);
+				const ContextStartTime = Date.now();
+				const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
+				logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
+					return '';
+				}
+				
+				const gatherContextStartTime = Date.now();
+				const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
+				logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
+				console.log("enrichedTerms", enrichedTerms);
+
+				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
+					return '';
+				}
+				const generateTestWithContextStartTime = Date.now();
+				const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
+				const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+				testCode = await invokeLLM(promptObj, logObj);
+				testCode = parseCode(testCode);
+
+				logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime).toString(), logObj, "");
+				
+				await saveToIntermediate(
+					testCode,
+					srcPath,
+					fileName,
+					path.join(getConfigInstance().historyPath, getConfigInstance().model, "initial"),
+					languageId
+				);
+				logger.save(fileName);
 				break;
 			case GenerationType.EXPERIMENTAL:
 				break;

@@ -54,44 +54,6 @@ suite('Experiment Test Suite', () => {
         symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
     });
 
-    // test('pick a filename and symbol', async () => {
-    //     getConfigInstance().updateConfig({
-    //         expProb: 0.1,
-    //         generationType: GenerationType.CFG,
-    //         fixType: FixType.NOFIX
-    //     });
-    //     let currentSrcPath;
-    //     const workspace = getConfigInstance().workspace;
-    //     const projectName = path.basename(workspace);
-    //     if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
-    //         currentSrcPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
-    //     } else {
-    //         currentSrcPath = path.join(workspace, SRC_PATHS.DEFAULT);
-    //     }
-    //     const FilePath = "pytree.py"
-    //     const symbolName = "replace"
-    //     const fileName = findAFileFromWorkspace(FilePath, 'python');
-    //     console.log(`#### File name: ${fileName}`);
-    //     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fileName));
-    //     const symbol = await getSymbolFromDocument(document, symbolName);
-    //     assert.ok(symbol !== null, 'symbol should not be null');
-    //     const symbolFilePair = {
-    //         symbol,
-    //         document,
-    //         fileName: generateFileNameForDiffLanguage(document, symbol, path.join(getConfigInstance().workspace, getConfigInstance().savePath), 'python', [],0)
-    //     }
-        
-    //     const result = await generateUnitTestForAFunction(
-    //         currentSrcPath,
-    //         symbolFilePair.document, 
-    //         symbolFilePair.symbol, 
-    //         symbolFilePair.fileName, 
-    //         false, // , we don't show code
-    //     );
-    //     // const fileName = generateFileNameForDiffLanguage(document, symbol, path.join(getConfigInstance().workspace, getConfigInstance().savePath), 'python', [],0)
-    //     assert.ok(result.length > 0, 'result should not be empty');
-    // });
-
     test('Generate Test Code for CFG sample methods', async () => {
         if (process.env.NODE_DEBUG !== 'true') {
             console.log('activate');
