@@ -19,7 +19,7 @@ export class PythonCFGBuilder extends CFGBuilder {
 
             case 'while_statement':
                 // Python: body field is 'block'
-                return this.processWhileStatement(node, current, "block");
+                return this.processWhileStatement(node, current, "comparison_operator", "block");
 
             case 'for_statement':
                 return this.processForStatement(node, current, "body");
