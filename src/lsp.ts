@@ -12,6 +12,38 @@ export let editor: vscode.TextEditor;
 export let documentEol: string;
 export let platformEol: string;
 
+export async function getPythonInterpreterPath(): Promise<string> {
+    const pythonExtension = vscode.extensions.getExtension('ms-python.python');
+    if (pythonExtension) {
+        await pythonExtension.activate();
+        const pythonPath = pythonExtension.exports.settings.getExecutionDetails().execCommand[0];
+        return pythonPath;
+    }
+    return '';
+}
+
+export async function setPythonInterpreterPath(pythonInterpreterPath: string) {
+    const config = vscode.workspace.getConfiguration('python');
+    await config.update(
+        'defaultInterpreterPath',
+        pythonInterpreterPath,
+        vscode.ConfigurationTarget.Workspace
+    );
+
+    console.log('Set python.defaultInterpreterPath to', pythonInterpreterPath);
+}
+
+export async function setPythonExtraPaths(pythonExtraPaths: string[]) {
+    const config = vscode.workspace.getConfiguration('python');
+    await config.update(
+        'analysis.extraPaths',
+        pythonExtraPaths,
+        vscode.ConfigurationTarget.Workspace
+    );
+
+    console.log('Set python.extraPaths to', pythonExtraPaths);
+}
+
 export async function closeEditor(editor: vscode.TextEditor) {
     editor.edit(editBuilder => {
         editBuilder.delete(new vscode.Range(

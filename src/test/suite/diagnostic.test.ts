@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../diagnostic';
-import { activate } from '../../lsp';
+import { activate, getAllSymbols, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
 import { setWorkspaceFolders } from '../../helper';
 import { getConfigInstance } from '../../config';
 import path from 'path';
@@ -10,26 +10,95 @@ import fs from 'fs';
 import { experimentalDiagnosticPrompt } from '../../prompts/promptBuilder';
 // import { updateWorkspace } from '../../workspace';
 suite('Diagnostic Test Suite', () => {
-    let currentSrcPath: string;
-    let symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[];
-    const projectPath = "/LSPAI/experiments/projects/commons-cli";
-    const workspaceFolders = setWorkspaceFolders(projectPath);
-    const currentConfig = {
-        model: 'gpt-4o-mini',
-        expProb: 0.2,
-        workspace: projectPath,
-        parallelCount: 1,
-        savePath: "/LSPAI/experiments/projects/commons-csv/results_experimental_detailed_3_23_2025__07_14_11",
-    }
-    getConfigInstance().updateConfig({
-        ...currentConfig
-    });
+    // let currentSrcPath: string;
+    // let symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[];
+    // const projectPath = "/LSPAI/experiments/projects/commons-cli";
+    // const workspaceFolders = setWorkspaceFolders(projectPath);
+    // const currentConfig = {
+    //     model: 'gpt-4o-mini',
+    //     expProb: 0.2,
+    //     workspace: projectPath,
+    //     parallelCount: 1,
+    //     savePath: "/LSPAI/experiments/projects/commons-csv/results_experimental_detailed_3_23_2025__07_14_11",
+    // }
+    // getConfigInstance().updateConfig({
+    //     ...currentConfig
+    // });
     
-    // const testPath = "/LSPAI/experiments/projects/commons-cli/compilation_analysis/deepseek_only_failures/deepseek-reasoner/OptionValidator_search1Test.java"
-    const testPaths = [
-        // "/LSPAI/experiments/projects/commons-csv/src/results_experimental_detailed_3_23_2025__07_14_11/gpt-4o-mini/org/apache/commons/csv/CSVFormat_getDelimiterString1Test.java", // a test file with experimental test path results_experimental_detailed_3_23_2025__07_14_11/...
-        "/LSPAI/experiments/projects/commons-csv/src/lspai/test/java/org/apache/commons/csv/CSVFormat_getDelimiterString1Test.java", // a test file with ordinary test path src/test/java/...    
-    ]
+    // // const testPath = "/LSPAI/experiments/projects/commons-cli/compilation_analysis/deepseek_only_failures/deepseek-reasoner/OptionValidator_search1Test.java"
+    const pythonPath = "/LSPAI/experiments/projects/black/results_agent_nofix_5_3_2025__09_22_09/gpt-4o-mini/initial/parse__addtoken_0_1_test.py";
+    const importTestPath = "/LSPAI/tests/import_test.py";
+    const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
+    const blackModuleImportPath = "/LSPAI/experiments/projects/black/src/black";
+
+    test('test language server has launched', async () => {
+        const symbols = await getAllSymbols(vscode.Uri.file(pythonPath));
+        assert.ok(symbols.length > 0);
+    });
+
+    test('test diagnostic against python code', async () => {
+        const fileUri = vscode.Uri.file(pythonPath);
+        const result = await getDiagnosticsForFilePath(pythonPath);
+        console.log('result', result);
+        assert.ok(result.length > 0);
+    });
+
+    test('Fix Prompt Test for Python', async () => {
+        const testUri = vscode.Uri.file(pythonPath);
+        const document = await vscode.workspace.openTextDocument(testUri);
+        const unitTestCode = document.getText();
+        const diagnostics = await getDiagnosticsForFilePath(pythonPath);
+        const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
+        const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
+        const prompt = experimentalDiagnosticPrompt(unitTestCode, diagnosticReport);
+        console.log("prompt", JSON.stringify(prompt, null, 2));
+    });
+
+    test('Language server recognizes installed environment libraries', async () => {
+        // Set the desired Python interpreter path (update as needed)
+
+        await setPythonInterpreterPath(pythonInterpreterPath);
+        await setPythonExtraPaths([blackModuleImportPath]);
+        // Activate the Python extension and log the interpreter in use
+        console.log('Python interpreter used by extension:', await getPythonInterpreterPath());
+
+        // Open the test file and collect diagnostics
+        const fileUri = vscode.Uri.file(importTestPath);
+        await vscode.workspace.openTextDocument(fileUri);
+        const diagnostics = await getDiagnosticsForFilePath(importTestPath);
+
+        // Log diagnostics for debugging
+        console.log('Diagnostics:', diagnostics);
+
+        // Assert: No diagnostic about missing pandas or import errors
+        const importErrors = diagnostics.filter(d =>
+            d.message.includes('No module named') ||
+            d.message.includes('unresolved import') ||
+            d.message.includes('not found') ||
+            d.message.includes('Import')
+        );
+        assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
+    });
+    // test('Fix Prompt Test', async () => {
+    //     const dirPath = "/LSPAI/experiments/projects/commons-csv/src/lspai/test/java";
+    //     let javaFiles: string[] = [];
+    //     try {
+    //         javaFiles = await getJavaFiles(dirPath);
+    //         console.log('Found Java files:', javaFiles);
+    //     } catch (error) {
+    //         console.error('Error finding Java files:', error);
+    //     }
+    //     let testPath = javaFiles[0];
+    //     const testUri = vscode.Uri.file(testPath);
+    //     await activate(testUri);
+    //     const document = await vscode.workspace.openTextDocument(testUri);
+    //     const unitTestCode = document.getText();
+    //     const diagnostics = await getDiagnosticsForFilePath(testPath);
+    //     const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
+    //     const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
+    //     const prompt = experimentalDiagnosticPrompt(unitTestCode, diagnosticReport);
+    //     console.log("prompt", JSON.stringify(prompt, null, 2));
+    // });
 
     // test('should return diagnostics immediately if available', async () => {
     //     console.log('workspaceFolders', workspaceFolders);
@@ -75,27 +144,6 @@ suite('Diagnostic Test Suite', () => {
     //         console.log(groupedDiagnosticsToString(groupedDiagnostics, document).join('\n'));
     //     }
     // });
-
-    test('Fix Prompt Test', async () => {
-        const dirPath = "/LSPAI/experiments/projects/commons-csv/src/lspai/test/java";
-        let javaFiles: string[] = [];
-        try {
-            javaFiles = await getJavaFiles(dirPath);
-            console.log('Found Java files:', javaFiles);
-        } catch (error) {
-            console.error('Error finding Java files:', error);
-        }
-        let testPath = javaFiles[0];
-        const testUri = vscode.Uri.file(testPath);
-        await activate(testUri);
-        const document = await vscode.workspace.openTextDocument(testUri);
-        const unitTestCode = document.getText();
-        const diagnostics = await getDiagnosticsForFilePath(testPath);
-        const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
-        const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
-        const prompt = experimentalDiagnosticPrompt(unitTestCode, diagnosticReport);
-        console.log("prompt", JSON.stringify(prompt, null, 2));
-    });
 
     // test('should wait for diagnostics change event if initially empty', async () => {
     //     // Prepare test data
@@ -277,3 +325,17 @@ try {
     console.error('Error finding Java files:', error);
 }
 */
+
+// async function setPythonInterpreter(pythonPath: string, workspacePath: string) {
+//     const vscodeDir = path.join(workspacePath, '.vscode');
+//     const settingsPath = path.join(vscodeDir, 'settings.json');
+//     if (!fs.existsSync(vscodeDir)) {
+//         fs.mkdirSync(vscodeDir);
+//     }
+//     let settings = {};
+//     if (fs.existsSync(settingsPath)) {
+//         settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+//     }
+//     settings['python.defaultInterpreterPath'] = pythonPath;
+//     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+// }
