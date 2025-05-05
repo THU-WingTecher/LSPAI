@@ -17,7 +17,11 @@ export enum DiagnosticTag {
     Deprecated
 }
 
-export function chooseDiagnostic(diag: vscode.Diagnostic): boolean {
+export function chooseDiagnostic(diag: vscode.Diagnostic, languageId: string): boolean {
+    if (languageId === "python") {
+        // pylance sometimes reports error with warning severity
+        return diag.severity <= vscode.DiagnosticSeverity.Warning;
+    }
     return diag.severity < vscode.DiagnosticSeverity.Warning;
 }
 

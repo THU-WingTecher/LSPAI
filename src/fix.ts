@@ -150,7 +150,7 @@ export async function fixDiagnostics(
 		console.log("Only syntax errors are reported, please check the code again.");
 		return defaultReturn(finalCode);
 	}
-	let filteredDiagnostics = diagnostics.filter(diagnostic => chooseDiagnostic(diagnostic));
+	let filteredDiagnostics = diagnostics.filter(diagnostic => chooseDiagnostic(diagnostic, languageId));
     console.log('filtered diagnostics', filteredDiagnostics.map(diag => diag.message));
 
 	const initialDiagnosticCount = filteredDiagnostics.length;
