@@ -173,7 +173,8 @@ export class PathCollector {
                 if (node.trueBlock) {
                     const truePath = currentPath.clone();
                     // Only add the condition text, not the entire if statement text
-                    const conditionText = node.astNode.childForFieldName('condition')?.text || "";
+                    // const conditionText = node.astNode.childForFieldName('condition')?.text || "";
+                    const conditionText = node.condition || "";
                     truePath.addSegment("", conditionText);
                     this.traverse(node.trueBlock, truePath);
                 }
@@ -181,7 +182,8 @@ export class PathCollector {
                 // Handle false branch
                 if (node.falseBlock) {
                     const falsePath = currentPath.clone();
-                    const conditionText = node.astNode.childForFieldName('condition')?.text || "";
+                    // const conditionText = node.astNode.childForFieldName('condition')?.text || "";
+                    const conditionText = node.condition || "";
                     falsePath.addSegment("", `!(${conditionText})`);
                     this.traverse(node.falseBlock, falsePath);
                 }

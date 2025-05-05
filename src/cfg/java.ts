@@ -67,6 +67,7 @@ export class JavaCFGBuilder extends CFGBuilder {
         elseClauseType: string
     ): CFGNode {
         const conditionNode = this.createNode(CFGNodeType.CONDITION, node);
+        conditionNode.condition = this.getConditionText(node);
         this.connect(current, conditionNode);
     
         // Process consequence (then branch)
