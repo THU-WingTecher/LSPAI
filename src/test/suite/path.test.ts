@@ -4,7 +4,6 @@ import { PathCollector } from '../../cfg/path';
 
 // Known issues : we cannot detect the break / continue condition in the loop
 // Basic path tests
-
 test('Python CFG Path - Simple If-Else', async function() {
     const builder = new PythonCFGBuilder('python');
     const code = `
@@ -22,11 +21,11 @@ else:
     assert.deepStrictEqual(paths, [
         {
             code: 'y = 1',
-            path: 'x > 0'
+            path: 'where (\n\tx > 0\n)'
         },
         {
             code: 'y = 2',
-            path: '!(x > 0)'
+            path: 'where (\n\t!(x > 0)\n)'
         }
     ]);
 });
@@ -49,11 +48,11 @@ z = 3  # This is after the merge point
     assert.deepStrictEqual(paths, [
         {
             code: 'y = 1\nz = 3',
-            path: 'x > 0'
+            path: 'where (\n\tx > 0\n)'
         },
         {
             code: 'y = 2\nz = 3',
-            path: '!(x > 0)'
+            path: 'where (\n\t!(x > 0)\n)'
         }
     ]);
 });
@@ -83,23 +82,23 @@ else:
     assert.deepStrictEqual(paths, [
         {
             code: 'result = x + y',
-            path: 'x > 10 && y > 5'
+            path: 'where (\n\tx > 10\n\ty > 5\n)'
         },
         {
             code: 'result = x - z',
-            path: 'x > 10 && !(y > 5) && z > 0'
+            path: 'where (\n\tx > 10\n\t!(y > 5)\n\tz > 0\n)'
         },
         {
             code: 'result = x',
-            path: 'x > 10 && !(y > 5) && !(z > 0)'
+            path: 'where (\n\tx > 10\n\t!(y > 5)\n\t!(z > 0)\n)'
         },
         {
             code: 'result = -y',
-            path: '!(x > 10) && y < 0'
+            path: 'where (\n\t!(x > 10)\n\ty < 0\n)'
         },
         {
             code: 'result = 0',
-            path: '!(x > 10) && !(y < 0)'
+            path: 'where (\n\t!(x > 10)\n\t!(y < 0)\n)'
         }
     ]);
 });
@@ -127,13 +126,13 @@ while x > 0:
     // assert that there are 6 paths
     assert.equal(paths.length, 6, "Should have exactly 6 paths");
     // Test paths for first iteration
-    assert.ok(paths.some(p => p.path.includes('x > 0 && y > x')), 
+    assert.ok(paths.some(p => p.path.includes('x > 0\n\ty > x')), 
             "Should have path for x > 0 && y > x");
-    assert.ok(paths.some(p => p.path.includes('x > 0 && !(y > x) && y > 10')), 
+    assert.ok(paths.some(p => p.path.includes('x > 0\n\t!(y > x)\n\ty > 10')), 
         "Should have path for break condition");
-    assert.ok(paths.some(p => p.path.includes('x > 0 && y > x && x == 5')), 
+    assert.ok(paths.some(p => p.path.includes('x > 0\n\ty > x\n\tx == 5')), 
         "Should have path for continue condition");
-    assert.ok(paths.some(p => p.path.includes('x > 0 && !(y > x) && !(y > 10) && !(x == 5)')), 
+    assert.ok(paths.some(p => p.path.includes('x > 0\n\t!(y > x)\n\t!(y > 10)\n\t!(x == 5)')), 
         "Should recognize the break condition");
     // if !(x > 0) exist under p.path, then p.code should not include "while" 
     paths.forEach(p => {
@@ -171,7 +170,7 @@ final = result + 1
             p.code.includes('y = 2 * i') &&
             p.code.includes('z = i * i') &&
             p.code.includes('final = result + 1') &&
-            p.path === 'i < 3 && !(i < 3) && i > 7'
+            p.path === 'where (\n\ti < 3\n\t!(i < 3)\n\ti > 7\n)'
         ),
         "Should have contradictory path with continue and break"
     );
@@ -183,7 +182,7 @@ final = result + 1
             p.code.includes('y = 2 * i') &&
             p.code.includes('result = i * 2') &&
             p.code.includes('final = result + 1') &&
-            p.path === 'i < 3 && !(i < 3) && !(i > 7) && !(i == 5)'
+            p.path === 'where (\n\ti < 3\n\t!(i < 3)\n\t!(i > 7)\n\t!(i == 5)\n)'
         ),
         "Should have continue path with normal execution"
     );
@@ -195,7 +194,7 @@ final = result + 1
             p.code.includes('z = i * i') &&
             p.code.includes('final = result + 1') &&
             !p.code.includes('result = i * 2') &&
-            p.path === '!(i < 3) && i > 7'
+            p.path === 'where (\n\t!(i < 3)\n\ti > 7\n)'
         ),
         "Should have break path"
     );
@@ -207,7 +206,7 @@ final = result + 1
             p.code.includes('result = i * 2') &&
             p.code.includes('final = result + 1') &&
             !p.code.includes('z = i * i') &&
-            p.path === '!(i < 3) && !(i > 7) && !(i == 5)'
+            p.path === 'where (\n\t!(i < 3)\n\t!(i > 7)\n\t!(i == 5)\n)'
         ),
         "Should have normal execution path"
     );
@@ -223,10 +222,10 @@ final = result + 1
 
     // Verify path conditions
     const expectedPaths = [
-        'i < 3 && !(i < 3) && i > 7',
-        'i < 3 && !(i < 3) && !(i > 7) && !(i == 5)',
-        '!(i < 3) && i > 7',
-        '!(i < 3) && !(i > 7) && !(i == 5)'
+        'where (\n\ti < 3\n\t!(i < 3)\n\ti > 7\n)',
+        'where (\n\ti < 3\n\t!(i < 3)\n\t!(i > 7)\n\t!(i == 5)\n)',
+        'where (\n\t!(i < 3)\n\ti > 7\n)',
+        'where (\n\t!(i < 3)\n\t!(i > 7)\n\t!(i == 5)\n)'
     ];
 
     expectedPaths.forEach(expectedPath => {
@@ -293,7 +292,7 @@ result = x + y
     assert.ok(
         paths.some(p => 
             p.code === 'TRY_START\nx = 1\ny = 2\nTRY_END\ny = y + 1\nw = 4\ncleanup = True\nresult = x + y' &&
-            p.path === 'no_exception'
+            p.path === 'where (\n\tno_exception\n)'
         ),
         "Should have path for successful try block execution"
     );
@@ -302,7 +301,7 @@ result = x + y
     assert.ok(
         paths.some(p => 
             p.code === 'TRY_START\nx = 1\ny = 2\nTRY_END\nx = -1\nz = 3\ncleanup = True\nresult = x + y' &&
-            p.path === 'throws ValueError'
+            p.path === 'where (\n\tthrows ValueError\n)'
         ),
         "Should have path for ValueError exception"
     );
@@ -311,7 +310,7 @@ result = x + y
     assert.ok(
         paths.some(p => 
             p.code === 'TRY_START\nx = 1\ny = 2\nTRY_END\nx = -2\nz = 4\ncleanup = True\nresult = x + y' &&
-            p.path === 'throws Exception'
+            p.path === 'where (\n\tthrows Exception\n)'
         ),
         "Should have path for Exception exception"
     );
@@ -444,7 +443,7 @@ async def schedule_formatting(
     const minimizedPaths = pathCollector.minimizePaths(paths);
     console.log("after minimization", minimizedPaths.length);
     console.log(minimizedPaths.map(p => p.path));
-    assert.equal(minimizedPaths.length, 9, "Should have exactly 9 paths");
+    assert.equal(minimizedPaths.length, 10, "Should have exactly 10 paths");
 });
 test('Python CFG Path - Return Statement Exits Function', async function() {
     const builder = new PythonCFGBuilder('python');
