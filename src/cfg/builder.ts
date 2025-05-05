@@ -108,6 +108,7 @@ export class CFGBuilder {
         this.connect(forStatementNode, loopNode);
 
         // Process main body
+        // const body = node.childForFieldName(bodyType);
         const body = node.childForFieldName(bodyType);
         let lastNode = loopNode;
     
@@ -206,10 +207,11 @@ export class CFGBuilder {
         return mergeNode;
     }
     
-    protected processWhileStatement(node: Parser.SyntaxNode, current: CFGNode, bodyType: string): CFGNode {
+    protected processWhileStatement(node: Parser.SyntaxNode, current: CFGNode, comparisonType: string, bodyType: string): CFGNode {
         // Create loop node first
         const processedNodes : CFGNode[] = [];
         // Create condition node
+        // const comparison = node.children.find(child => child.type === comparisonType)!;
         const whileConditionNode = this.createNode(CFGNodeType.CONDITION, node);
         this.connect(current, whileConditionNode);
 

@@ -19,6 +19,13 @@ export class Path {
     }
 
     addSegment(code: string, condition?: string) {
+        // if condition is wrapped in parentheses, remove them
+        // also should work for !((condition))
+        // if condition is wrapped in parentheses, remove them
+        if (condition && condition.includes("((") && condition.includes("))")) {
+            condition = condition.replace("((", "(").replace("))", ")");
+        }
+
         this.segments.push({ code, condition });
     }
 
@@ -62,6 +69,10 @@ export class PathCollector {
         return this. paths.map(p => p.toResult());
     }
 
+    getPaths(): Path[] {
+        return this.paths;
+    }
+
     setMaxLoopIterations(maxLoopIterations: number) {
         this.MAX_LOOP_ITERATIONS = maxLoopIterations;
     }
@@ -76,9 +87,9 @@ export class PathCollector {
         const minPaths: PathResult[] = [];
 
         for (const path of paths) {
-            // Split constraints by '&&' and trim whitespace
+            // Split constraints by '\n\t' and trim whitespace
             const pathConstraints = path.path
-                .split('&&')
+                .split('\n\t')
                 .map(c => c.trim())
                 .filter(c => c.length > 0);
 
@@ -103,7 +114,7 @@ export class PathCollector {
         }
 
         // Calculate mean path length
-        const lengths = paths.map(p => p.path.split('&&').length);
+        const lengths = paths.map(p => p.path.split('\n\t').length);
         const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length;
 
         // Sort by closeness to mean
