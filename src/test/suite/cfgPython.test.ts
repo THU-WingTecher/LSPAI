@@ -37,7 +37,7 @@ z = 3
     assert.notEqual(condition?.falseBlock, undefined);
 
     // Check the condition node
-    assert.ok((condition?.astNode as any).conditionNode.text.includes('x > 0'));
+    assert.ok(condition?.condition?.includes('x > 0'));
 
     // Check true branch
     assert.ok(condition?.trueBlock?.astNode.text.includes('y = 1'));
@@ -94,7 +94,7 @@ def calculate(x):
     assert.notEqual(conditions[1], undefined, "Should have a condition node");
     assert.notEqual(loop, undefined, "Should have a loop node");
     
-    const whileCondition = conditions.filter(c => (c.astNode as any).conditionNode.text.includes('x < 10'));
+    const whileCondition = conditions.filter(c => c.condition?.includes('x < 10'));
     assert.ok(whileCondition.length === 1, "Should have one condition for the while loop");
     // Verify the loop is inside the true branch of the if statement
     assert.equal(loop?.predecessors[0], whileCondition[0]?.trueBlock, "Loop should be inside the true branch of the if statement");
@@ -125,14 +125,14 @@ else:
     // Find the outer if condition (x > 10)
     const outerCondition = Array.from(cfg.nodes.values()).find(n => 
         n.type === CFGNodeType.CONDITION && 
-        n.astNode.childForFieldName('condition')?.text === 'x > 10'
+        n.condition === 'x > 10'
     );
     assert.notEqual(outerCondition, undefined, "Outer condition should exist");
 
     // Find the first nested if condition (y > 5)
     const nestedCondition = Array.from(cfg.nodes.values()).find(n => 
         n.type === CFGNodeType.CONDITION && 
-        n.astNode.childForFieldName('condition')?.text === 'y > 5'
+        n.condition === 'y > 5'
     );
     assert.notEqual(nestedCondition, undefined, "Nested condition should exist");
 
@@ -151,7 +151,7 @@ else:
         nestedCondition, 
         outerTrueBlock?.successors[0],
         `Nested condition should be the successor of the outer condition's true block.\n` +
-        `Nested condition text: ${nestedCondition?.astNode.childForFieldName('condition')?.text}\n` +
+        `Nested condition text: ${nestedCondition?.condition}\n` +
         `Outer true block text: ${outerTrueBlock?.astNode.text}`
     );
 });
@@ -184,7 +184,7 @@ while x > 0:
     assert.equal(conditions.length, 4, "Should have exactly 4 conditions");
 
     const finalCondition = conditions.find(n => 
-        n.astNode.childForFieldName('condition')?.text === 'x == 5'
+        n.condition === 'x == 5'
     );
     assert.notEqual(finalCondition, undefined, "Final condition (x == 5) should exist");
 

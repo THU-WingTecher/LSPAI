@@ -45,6 +45,7 @@ export interface CFGNode {
     // For conditions and loops
     trueBlock?: CFGNode;
     falseBlock?: CFGNode;
+    condition?: string;
     isLoopBackEdge?: boolean;  // Mark edges that go back to loop start
     isLoopBreak?: boolean;     // Mark break statements
     isLoopContinue?: boolean;  // Mark continue statements

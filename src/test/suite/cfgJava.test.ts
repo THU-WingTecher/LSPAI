@@ -35,7 +35,7 @@ z = 3;
     assert.notEqual(condition?.trueBlock, undefined);
     assert.notEqual(condition?.falseBlock, undefined);
 
-    assert.ok((condition?.astNode as any).conditionNode.text.includes('x > 0'));
+    assert.ok(condition?.condition?.includes('x > 0'));
     assert.ok(condition?.trueBlock?.astNode.text.includes('y = 1'));
     assert.ok(condition?.falseBlock?.astNode.text.includes('y = 2'));
 });
@@ -152,13 +152,13 @@ if (x > 10) {
 
     const outerCondition = Array.from(cfg.nodes.values()).find(n =>
         n.type === CFGNodeType.CONDITION &&
-        n.astNode.childForFieldName('condition')?.text === '(x > 10)'
+        n.condition === '(x > 10)'  
     );
     assert.notEqual(outerCondition, undefined, "Outer condition should exist");
 
     const nestedCondition = Array.from(cfg.nodes.values()).find(n =>
         n.type === CFGNodeType.CONDITION &&
-        n.astNode.childForFieldName('condition')?.text === '(y > 5)'
+        n.condition === '(y > 5)'
     );
     assert.notEqual(nestedCondition, undefined, "Nested condition should exist");
 });

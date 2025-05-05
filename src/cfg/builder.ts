@@ -145,6 +145,10 @@ export class CFGBuilder {
         return exitNode;
     }
 
+    protected getConditionText(node: Parser.SyntaxNode): string {
+        return node.childForFieldName('condition')?.text || (node as any).conditionNode.text || "";
+    }
+
     protected processIfStatement(
         node: Parser.SyntaxNode,
         current: CFGNode,
@@ -152,6 +156,7 @@ export class CFGBuilder {
         elseClauseType: string
     ): CFGNode {
         const conditionNode = this.createNode(CFGNodeType.CONDITION, node);
+        conditionNode.condition = this.getConditionText(node);
         this.connect(current, conditionNode);
     
         // Process consequence (then branch)
@@ -213,6 +218,7 @@ export class CFGBuilder {
         // Create condition node
         // const comparison = node.children.find(child => child.type === comparisonType)!;
         const whileConditionNode = this.createNode(CFGNodeType.CONDITION, node);
+        whileConditionNode.condition = this.getConditionText(node);
         this.connect(current, whileConditionNode);
 
         const loopNode = this.createNode(CFGNodeType.LOOP, node);
@@ -266,6 +272,7 @@ export class CFGBuilder {
 
         return exitNode;
     }
+    
     protected processTryStatement(node: Parser.SyntaxNode, current: CFGNode, bodyType: string, exceptClauseType: string, elseClauseType: string, finallyClauseType: string): CFGNode {
         // Create try block node
         const body = node.children.find(child => child.type === bodyType);
@@ -388,7 +395,7 @@ export class CFGBuilder {
 
             // Add condition text if it exists
             if (node.type === CFGNodeType.CONDITION) {
-                const conditionText = node.astNode.childForFieldName('condition')?.text;
+                const conditionText = node.condition;
                 if (conditionText) {
                     nodeInfo += ` [Condition: ${pruneText(conditionText)}]`;
                 }
@@ -397,7 +404,7 @@ export class CFGBuilder {
             // Add loop condition if it exists
             if (node.type === CFGNodeType.LOOP) {
                 if (node.astNode.type === 'while_statement') {
-                    const conditionText = node.astNode.childForFieldName('condition')?.text;
+                    const conditionText = node.condition;
                     nodeInfo += ` [While Condition: ${conditionText}]`;
                 } else if (node.astNode.type === 'for_statement') {
                     const iterableText = node.astNode.childForFieldName('iterable')?.text;
