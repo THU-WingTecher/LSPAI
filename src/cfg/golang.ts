@@ -58,84 +58,20 @@ export class GolangCFGBuilder extends CFGBuilder {
         return node.children.find(child => child.type === 'binary_expression')?.text || "";
     }
 
-    protected processIfStatement(
-        node: Parser.SyntaxNode,
-        current: CFGNode,
-        consequenceField: string,
-        elseClauseType: string
-    ): CFGNode {
-        const conditionNode = this.createNode(CFGNodeType.CONDITION, node);
-        conditionNode.condition = this.getConditionText(node);
-        this.connect(current, conditionNode);
-    
-        // Process consequence (then branch)
-        const consequence = node.childForFieldName(consequenceField);
-        let consequenceEnd = conditionNode;
-        if (consequence) {
-            const consequenceNode = this.createNode(CFGNodeType.BLOCK, consequence);
-            conditionNode.trueBlock = consequenceNode;
-            this.connect(conditionNode, consequenceNode);
-    
-            let lastNode = consequenceNode;
-            for (const child of consequence.children) {
-                const processed = this.processNode(child, lastNode);
-                if (processed) {
-                    lastNode = processed;
-                }
-            }
-            consequenceEnd = lastNode;
-        }
-    
-        // Process alternative (else branch)
-        const else_clause = node.children.find(child => child.type === elseClauseType);
-        let else_clauseEnd = conditionNode;
-    
-        // Create merge node
-        const mergeNode = this.createNode(CFGNodeType.MERGED, node);
-    
-        if (else_clause && else_clause.nextSibling?.type === 'block') {
-            const else_clauseNode = this.createNode(CFGNodeType.BLOCK, else_clause.nextSibling);
-            conditionNode.falseBlock = else_clauseNode;
-            this.connect(conditionNode, else_clauseNode);
-    
-            let lastNode = else_clauseNode;
-            for (const child of else_clause.nextSibling.children) {
-                const processed = this.processNode(child, lastNode);
-                if (processed) {
-                    lastNode = processed;
-                }
-            }
-            else_clauseEnd = lastNode;
-        } else {
-            conditionNode.falseBlock = mergeNode;
-            this.connect(conditionNode, mergeNode);
-        }
-    
-        if (consequenceEnd !== conditionNode) {
-            this.connect(consequenceEnd, mergeNode);
-        }
-        if (else_clauseEnd !== conditionNode && else_clause?.nextSibling) {
-            this.connect(else_clauseEnd, mergeNode);
-        }
-    
-        return mergeNode;
-    }
-
     protected processForStatement(node: Parser.SyntaxNode, current: CFGNode, bodyType: string): CFGNode {
         // Create loop node first
         const processedNodes : CFGNode[] = [];
         // Create condition node
         // const comparison = node.children.find(child => child.type === comparisonType)!;
+        const conditionText = this.getConditionText(node);
         const forHeader = this.loopHeaderExtractor.extractLoopHeader(node);
         const forStatementNode = this.createNode(CFGNodeType.STATEMENT, {
             ...node,
             text: forHeader
         } as Parser.SyntaxNode);
-        this.connect(current, forStatementNode);
-        const loopNode = this.createNode(CFGNodeType.LOOP, node);
-        this.connect(forStatementNode, loopNode);
         const previousLoopNode = this.currentLoopNode;
         const exitNode = this.createNode(CFGNodeType.EXIT_MERGED, node);
+        const loopNode = this.createNode(CFGNodeType.LOOP, node);
         this.currentLoopNode = {
             node: loopNode,
             breakNodes: [],
@@ -143,15 +79,18 @@ export class GolangCFGBuilder extends CFGBuilder {
             exitMergedNode: exitNode
         };
 
-        const conditionText = this.getConditionText(node);
         if (conditionText) {
             const whileConditionNode = this.createNode(CFGNodeType.CONDITION, node);
-            whileConditionNode.condition = conditionText;
             this.connect(current, whileConditionNode);
-            whileConditionNode.trueBlock = loopNode;
+            whileConditionNode.condition = conditionText;
+            whileConditionNode.trueBlock = forStatementNode;
             whileConditionNode.falseBlock = this.currentLoopNode.exitMergedNode;
             this.connect(whileConditionNode, this.currentLoopNode.exitMergedNode);
+        } else {
+            this.connect(current, forStatementNode);
         }
+        this.connect(forStatementNode, loopNode);
+
 
         // const whileStatementNode = this.createNode(CFGNodeType.STATEMENT, {
         //     ...node,
@@ -164,16 +103,11 @@ export class GolangCFGBuilder extends CFGBuilder {
         // Process main body (true block)
         const body = node.children.find(child => child.type === bodyType);
         let lastNode = loopNode;
-    
-        // Save previous loop context and set current one
-
-
         if (body) {
             const bodyNode = this.createNode(CFGNodeType.BLOCK, body);
             // Connect condition to body as true block
             // whileConditionNode.trueBlock = bodyNode;
             this.connect(loopNode, bodyNode);
-            
             // Process each statement in the body block
             lastNode = bodyNode;
             for (const child of body.children) {

@@ -170,54 +170,70 @@ export class CFGBuilder {
         node: Parser.SyntaxNode,
         current: CFGNode,
         consequenceField: string,
-        elifType: string,
         elseClauseType: string
     ): CFGNode {
         const conditionNode = this.createNode(CFGNodeType.CONDITION, node);
-        let currentConditionNode = conditionNode;
         conditionNode.condition = this.getConditionText(node);
         this.connect(current, conditionNode);
         const mergeNode = this.createNode(CFGNodeType.MERGED, node);
         // Process consequence (then branch)
         const consequence = node.childForFieldName(consequenceField);
+        // let consequenceEnd = conditionNode;
         if (consequence) {
             const consequenceNode = this.createNode(CFGNodeType.BLOCK, consequence);
             conditionNode.trueBlock = consequenceNode;
             this.connect(conditionNode, consequenceNode);
             this.processBlockAndConnectToMerge(consequenceNode, mergeNode);
-
+            // let lastNode = consequenceNode;
+            // for (const child of consequence.children) {
+            //     const processed = this.processNode(child, lastNode);
+            //     if (processed) {
+            //         lastNode = processed;
+            //     }
+            // }
+            // consequenceEnd = lastNode;
         }
-        
-        const elifNodes = node.children.filter(child => child.type === elifType);
-        for (const elifNode of elifNodes) {
-            const elifConditionNode = this.createNode(CFGNodeType.CONDITION, elifNode);
-            elifConditionNode.condition = this.getConditionText(elifNode);
-            this.connect(currentConditionNode, elifConditionNode);
-            currentConditionNode.falseBlock = elifConditionNode;
-            currentConditionNode = elifConditionNode;
-
-            const elifBody = elifNode.childForFieldName(consequenceField);
-            if (elifBody) {
-                const elifBodyNode = this.createNode(CFGNodeType.BLOCK, elifBody);
-                elifConditionNode.trueBlock = elifBodyNode;
-                this.connect(elifConditionNode, elifBodyNode);
-                this.processBlockAndConnectToMerge(elifBodyNode, mergeNode);
-            }
-
-        }
-
+    
+        // Process alternative (else branch)
         const else_clause = node.children.find(child => child.type === elseClauseType);
-        if (else_clause) {
-            const else_clauseNode = this.createNode(CFGNodeType.BLOCK, else_clause);
-            currentConditionNode.falseBlock = else_clauseNode;
-            this.connect(currentConditionNode, else_clauseNode);
+        // let else_clauseEnd = conditionNode;
+    
+        // Create merge node
+
+        if (else_clause && else_clause.nextSibling?.type === 'if_statement') {
+            // else if: recursively process as another if_statement
+            const elseIfNode = this.createNode(CFGNodeType.BLOCK, else_clause.nextSibling);
+            conditionNode.falseBlock = elseIfNode;
+            const elseIfMerge = this.processNode(
+                else_clause.nextSibling,
+                elseIfNode
+            )!;
+            this.connect(conditionNode, elseIfMerge);
+            this.connect(elseIfMerge, mergeNode);
+        } else if (else_clause && else_clause.nextSibling?.type === 'block') {
+            const else_clauseNode = this.createNode(CFGNodeType.BLOCK, else_clause.nextSibling);
+            conditionNode.falseBlock = else_clauseNode;
+            this.connect(conditionNode, else_clauseNode);
+    
+            // let lastNode = else_clauseNode;
+            // for (const child of else_clause.nextSibling.children) {
+            //     const processed = this.processNode(child, lastNode);
+            //     if (processed) {
+            //         lastNode = processed;
+            //     }
+            // }
             this.processBlockAndConnectToMerge(else_clauseNode, mergeNode);
-
-
         } else {
-            currentConditionNode.falseBlock = mergeNode;
-            this.connect(currentConditionNode, mergeNode);
+            conditionNode.falseBlock = mergeNode;
+            this.connect(conditionNode, mergeNode);
         }
+    
+        // if (consequenceEnd !== conditionNode) {
+        //     this.connect(consequenceEnd, mergeNode);
+        // }
+        // if (else_clauseEnd !== conditionNode && else_clause?.nextSibling) {
+        //     this.connect(else_clauseEnd, mergeNode);
+        // }
     
         return mergeNode;
     }
