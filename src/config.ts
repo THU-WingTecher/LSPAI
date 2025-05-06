@@ -362,18 +362,31 @@ export class Configuration {
     }
 
     public genSaveName(): string {
-        assert(this.config.workspace, 'workspace is not set');
-        let saveName = "results";
-        if (this.generationType === GenerationType.ORIGINAL) {
-            saveName += "_original";
-        } else if (this.generationType === GenerationType.AGENT) {
-            saveName += "_agent";
-        } else if (this.generationType === GenerationType.CFG) {
-            saveName += "_cfg";
+        // Ensure we have all required parts
+        if (!this.config.workspace || !this.startTimestamp || !this.projectName || !this.config.model) {
+            throw new Error('Missing required configuration for genSaveName');
         }
-        if (this.fixType === FixType.NOFIX) {
-            saveName += "_nofix";
-        }
+        return path.join(
+            this.config.workspace,
+            "lspai-workspace",
+            this.startTimestamp,
+            this.projectName,
+            this.generationType,
+            this.config.model,
+            "results"
+        );
+        // assert(this.config.workspace, 'workspace is not set');
+        // let saveName = "results";
+        // if (this.generationType === GenerationType.ORIGINAL) {
+        //     saveName += "_original";
+        // } else if (this.generationType === GenerationType.AGENT) {
+        //     saveName += "_agent";
+        // } else if (this.generationType === GenerationType.CFG) {
+        //     saveName += "_cfg";
+        // }
+        // if (this.fixType === FixType.NOFIX) {
+        //     saveName += "_nofix";
+        // }
         // if (this.promptType === PromptType.BASIC) {
         //     saveName += "_basic";
         // } else if (this.promptType === PromptType.DETAILED) {
@@ -384,7 +397,7 @@ export class Configuration {
         // if (this.config.model){
         //     saveName += `_${this.config.model}`;
         // }
-        return path.join(this.config.workspace, `${saveName}_${this.startTimestamp}`, this.config.model);
+        // return path.join(this.config.workspace, `${saveName}_${this.startTimestamp}`, this.config.model);
     }
 
     public get savePath(): string {
@@ -401,6 +414,7 @@ export class Configuration {
             "lspai-workspace",
             this.startTimestamp,
             this.projectName,
+            this.generationType,
             this.config.model,
             'history'
         );
@@ -416,6 +430,7 @@ export class Configuration {
             "lspai-workspace",
             this.startTimestamp,
             this.projectName,
+            this.generationType,
             this.config.model,
             'logs'
         );

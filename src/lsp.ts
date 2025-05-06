@@ -33,6 +33,11 @@ export async function setPythonInterpreterPath(pythonInterpreterPath: string) {
     console.log('Set python.defaultInterpreterPath to', pythonInterpreterPath);
 }
 
+export async function getPythonExtraPaths(): Promise<string[]> {
+    const config = vscode.workspace.getConfiguration('python');
+    return config.get('analysis.extraPaths', []);
+}
+
 export async function setPythonExtraPaths(pythonExtraPaths: string[]) {
     const config = vscode.workspace.getConfiguration('python');
     await config.update(

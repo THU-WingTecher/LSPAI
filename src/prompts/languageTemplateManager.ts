@@ -100,7 +100,7 @@ from {Replace with needed imports}
 class Test${fileName}(unittest.TestCase):
     
 ${testFunctions}
-
+    def {write your test function here}
 if __name__ == '__main__':
     unittest.main()
 \`\`\`

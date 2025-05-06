@@ -211,7 +211,7 @@ export class ContextSelector {
                 await activate(this.document.uri);
                 const currentToken = await retrieveDef(this.document, targetToken);
                 const symbols = await getAllSymbols(this.document.uri);
-                if (currentToken.definition && currentToken.definition.length > 0) {
+                if (currentToken.definition && currentToken.definition[0].range && currentToken.definition.length > 0) {
                     const defSymbolDoc = await vscode.workspace.openTextDocument(currentToken.definition[0].uri);
                     if (term.need_example) {
                         if (currentToken.definition[0].range) {
