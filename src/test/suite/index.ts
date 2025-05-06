@@ -21,9 +21,9 @@ export async function run(): Promise<void> {
 	if (process.env.npm_config_testfile) {
 		const testFiles = process.env.npm_config_testfile.split(',');
 		if (testFiles.length > 1) {
-			testFilesReg = `**/{${testFiles.join(',')}}.test.js`;
+			testFilesReg = `**/*{${testFiles.join(',')}}.test.js`;
 		} else {
-			testFilesReg = `**/${process.env.npm_config_testfile}.test.js`;
+			testFilesReg = `**/*${process.env.npm_config_testfile}.test.js`;
 		}
 	}
 	console.log("testFilesReg", testFilesReg);
@@ -53,6 +53,7 @@ export async function run(): Promise<void> {
 						} else {
 							console.log('\x1b[32m%s\x1b[0m', '✓ All tests completed successfully!');
 							console.log(`Total test files executed: ${files.length}`);
+							console.log(`Total test files executed: ${files.map(f => f.split('/').pop()).join(', ')}`);
 							c();
 						}
 					});

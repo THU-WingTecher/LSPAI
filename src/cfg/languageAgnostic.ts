@@ -31,6 +31,15 @@ export class CPPExceptionExtractor implements ExceptionTypeExtractor {
         return match ? match[1] : 'Exception';
     }
 }
+
+// Go implementation
+
+export class GoExceptionExtractor implements ExceptionTypeExtractor {
+    extractExceptionType(nodeText: string): string {
+        const match = nodeText.trim().match(/catch\s*\(\s*([a-zA-Z0-9_]+)[\s&*]?/);
+        return match ? match[1] : 'error';
+    }
+}
 // Factory for creating language-specific extractors
 
 export class ExceptionExtractorFactory {
@@ -40,6 +49,8 @@ export class ExceptionExtractorFactory {
                 return new PythonExceptionExtractor();
             case 'java':
                 return new JavaExceptionExtractor();
+            case 'go':
+                return new GoExceptionExtractor();
             case 'cpp':
             case 'c++':
                 return new CPPExceptionExtractor();
