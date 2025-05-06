@@ -30,55 +30,68 @@ suite('Diagnostic Test Suite', () => {
     const importTestPath = "/LSPAI/tests/import_test.py";
     const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
     const blackModuleImportPath = "/LSPAI/experiments/projects/black/src/black";
+    const javaPath = "/LSPAI/experiments/projects/commons-cli/src/lspai/test/java/org/apache/commons/cli/TypeHandler_createNumber_0_1Test.java";
 
-    test('test language server has launched', async () => {
-        const symbols = await getAllSymbols(vscode.Uri.file(pythonPath));
+    test('JAVA - test language server has launched', async () => {
+        const symbols = await getAllSymbols(vscode.Uri.file(javaPath));
         assert.ok(symbols.length > 0);
     });
 
-    test('test diagnostic against python code', async () => {
-        const fileUri = vscode.Uri.file(pythonPath);
-        const result = await getDiagnosticsForFilePath(pythonPath);
+    test('JAVA - test diagnostic against java code', async () => {
+        const fileUri = vscode.Uri.file(javaPath);
+        const result = await getDiagnosticsForFilePath(javaPath);
         console.log('result', result);
         assert.ok(result.length > 0);
     });
 
-    test('Fix Prompt Test for Python', async () => {
-        const testUri = vscode.Uri.file(pythonPath);
-        const document = await vscode.workspace.openTextDocument(testUri);
-        const unitTestCode = document.getText();
-        const diagnostics = await getDiagnosticsForFilePath(pythonPath);
-        const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
-        const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
-        const prompt = experimentalDiagnosticPrompt(unitTestCode, diagnosticReport);
-        console.log("prompt", JSON.stringify(prompt, null, 2));
-    });
+    // test('test language server has launched', async () => {
+    //     const symbols = await getAllSymbols(vscode.Uri.file(pythonPath));
+    //     assert.ok(symbols.length > 0);
+    // });
 
-    test('Language server recognizes installed environment libraries', async () => {
-        // Set the desired Python interpreter path (update as needed)
+    // test('test diagnostic against python code', async () => {
+    //     const fileUri = vscode.Uri.file(pythonPath);
+    //     const result = await getDiagnosticsForFilePath(pythonPath);
+    //     console.log('result', result);
+    //     assert.ok(result.length > 0);
+    // });
 
-        await setPythonInterpreterPath(pythonInterpreterPath);
-        await setPythonExtraPaths([blackModuleImportPath]);
-        // Activate the Python extension and log the interpreter in use
-        console.log('Python interpreter used by extension:', await getPythonInterpreterPath());
+    // test('Fix Prompt Test for Python', async () => {
+    //     const testUri = vscode.Uri.file(pythonPath);
+    //     const document = await vscode.workspace.openTextDocument(testUri);
+    //     const unitTestCode = document.getText();
+    //     const diagnostics = await getDiagnosticsForFilePath(pythonPath);
+    //     const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
+    //     const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
+    //     const prompt = experimentalDiagnosticPrompt(unitTestCode, diagnosticReport);
+    //     console.log("prompt", JSON.stringify(prompt, null, 2));
+    // });
 
-        // Open the test file and collect diagnostics
-        const fileUri = vscode.Uri.file(importTestPath);
-        await vscode.workspace.openTextDocument(fileUri);
-        const diagnostics = await getDiagnosticsForFilePath(importTestPath);
+    // test('Language server recognizes installed environment libraries', async () => {
+    //     // Set the desired Python interpreter path (update as needed)
 
-        // Log diagnostics for debugging
-        console.log('Diagnostics:', diagnostics);
+    //     await setPythonInterpreterPath(pythonInterpreterPath);
+    //     await setPythonExtraPaths([blackModuleImportPath]);
+    //     // Activate the Python extension and log the interpreter in use
+    //     console.log('Python interpreter used by extension:', await getPythonInterpreterPath());
 
-        // Assert: No diagnostic about missing pandas or import errors
-        const importErrors = diagnostics.filter(d =>
-            d.message.includes('No module named') ||
-            d.message.includes('unresolved import') ||
-            d.message.includes('not found') ||
-            d.message.includes('Import')
-        );
-        assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
-    });
+    //     // Open the test file and collect diagnostics
+    //     const fileUri = vscode.Uri.file(importTestPath);
+    //     await vscode.workspace.openTextDocument(fileUri);
+    //     const diagnostics = await getDiagnosticsForFilePath(importTestPath);
+
+    //     // Log diagnostics for debugging
+    //     console.log('Diagnostics:', diagnostics);
+
+    //     // Assert: No diagnostic about missing pandas or import errors
+    //     const importErrors = diagnostics.filter(d =>
+    //         d.message.includes('No module named') ||
+    //         d.message.includes('unresolved import') ||
+    //         d.message.includes('not found') ||
+    //         d.message.includes('Import')
+    //     );
+    //     assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
+    // });
     // test('Fix Prompt Test', async () => {
     //     const dirPath = "/LSPAI/experiments/projects/commons-csv/src/lspai/test/java";
     //     let javaFiles: string[] = [];

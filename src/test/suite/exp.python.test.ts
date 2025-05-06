@@ -15,7 +15,7 @@ suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
     const projectPath = "/LSPAI/experiments/projects/black";
     const pythonExtraPaths = [path.join(projectPath, "src/black"), path.join(projectPath, "src/black/src"), path.join(projectPath, "src")];
-    const sampleNumber = 50;
+    const sampleNumber = 1;
 
     const workspaceFolders = setWorkspaceFolders(projectPath);
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
@@ -61,19 +61,41 @@ suite('Experiment Test Suite', () => {
     });
 
 
-    test('Generate Test Code for CFG sample methods', async () => {
+    test('CFG - with context', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.CFG,
-            FixType.ORIGINAL,
+            FixType.NOFIX,
+            PromptType.WITHCONTEXT,
             symbols,
             workspaceFolders
         );
     });
 
-    test('Generate Test Code for AGENT sample methods', async () => {
+    test('CFG - without context', async () => {
+        await runGenerateTestCodeSuite(
+            GenerationType.CFG,
+            FixType.NOFIX,
+            PromptType.DETAILED,
+            symbols,
+            workspaceFolders
+        );
+    });
+
+    test('AGENT - with context', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.AGENT,
-            FixType.ORIGINAL,
+            FixType.NOFIX,
+            PromptType.WITHCONTEXT,
+            symbols,
+            workspaceFolders
+        );
+    });
+
+    test('AGENT - without context', async () => {
+        await runGenerateTestCodeSuite(
+            GenerationType.AGENT,
+            FixType.NOFIX,
+            PromptType.DETAILED,
             symbols,
             workspaceFolders
         );
@@ -84,6 +106,7 @@ suite('Experiment Test Suite', () => {
 async function runGenerateTestCodeSuite(
     generationType: GenerationType,
     fixType: FixType,
+    promptType: PromptType,
     symbols: any, // Use the correct type if available
     workspaceFolders: vscode.WorkspaceFolder[]
 ) {
@@ -93,7 +116,8 @@ async function runGenerateTestCodeSuite(
     }
     getConfigInstance().updateConfig({
         generationType,
-        fixType
+        fixType,
+        promptType
     });
     const savePath = getConfigInstance().genSaveName();
     getConfigInstance().updateConfig({

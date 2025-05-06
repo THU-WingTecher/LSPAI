@@ -12,13 +12,14 @@ import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, getFunction
 import { saveGeneratedCodeToFolder, saveGeneratedCodeToIntermediateLocation, findFiles, generateFileNameForDiffLanguage, saveToIntermediate, getTraditionalTestDirAtCurWorkspace, saveCode, getFileName } from './fileHandler';
 import { getConfigInstance, GenerationType, PromptType, Provider, loadPrivateConfig, FixType } from './config';
 import { getTempDirAtCurWorkspace } from './fileHandler';
-import { getContextSelectorInstance } from './agents/contextSelector';
+import { ContextTerm, getContextSelectorInstance } from './agents/contextSelector';
 import { DiagnosticReport, fixDiagnostics } from './fix';
 import { closeEditor, editor } from './lsp';
 import { PythonCFGBuilder } from './cfg/python';
 import { createCFGBuilder } from './cfg/builderFactory';
 import { SupportedLanguage } from './ast';
 import { PathCollector } from './cfg/path';
+import { getContextTermsFromTokens } from './algorithm';
 export interface ContextInfo {
 	dependentContext: string;
 	mainFunctionDependencies: string;
@@ -519,16 +520,19 @@ return vscode.window.withProgress({
 				logger.saveCFGPaths(functionText, minimizedPaths);
 				const ContextStartTime2 = Date.now();
 				const logObjForIdentifyTerms2: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-				const identifiedTerms2 = await contextSelectorForCFG.identifyContextTermsWithCFG(functionText, [], logObjForIdentifyTerms2);
-				logger.log("identifyContextTerms", (Date.now() - ContextStartTime2).toString(), logObjForIdentifyTerms2, "");
-				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
-					return '';
-				}
+				let enrichedTerms2: ContextTerm[] = [];
+				if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
+					const identifiedTerms2 = getContextTermsFromTokens(contextSelectorForCFG.getTokens());
+					logger.log("identifyContextTerms", (Date.now() - ContextStartTime2).toString(), logObjForIdentifyTerms2, "");
+					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
+						return '';
+					}
 
-				const gatherContextStartTime2 = Date.now();
-				const enrichedTerms2 = await contextSelectorForCFG.gatherContext(identifiedTerms2);
-				logger.log("gatherContext", (Date.now() - gatherContextStartTime2).toString(), null, "");
-				console.log("enrichedTerms", enrichedTerms2);
+					const gatherContextStartTime2 = Date.now();
+					enrichedTerms2 = await contextSelectorForCFG.gatherContext(identifiedTerms2);
+					logger.log("gatherContext", (Date.now() - gatherContextStartTime2).toString(), null, "");
+					console.log("enrichedTerms", enrichedTerms2);
+				}
 				// const identifiedTerms = await contextSelectorForCFG.identifyContextTerms(functionText, []);
 
 				// const enrichedTerms = await contextSelectorForCFG.gatherContext(identifiedTerms);
@@ -569,21 +573,25 @@ return vscode.window.withProgress({
 				const contextSelector = await getContextSelectorInstance(
 					document, 
 					functionSymbol);
-				const ContextStartTime = Date.now();
-				const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-				const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
-				logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
 				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
 					return '';
 				}
-				
-				const gatherContextStartTime = Date.now();
-				const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
-				logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
-				console.log("enrichedTerms", enrichedTerms);
+				let enrichedTerms: ContextTerm[] = [];
+				if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
+					
+					const ContextStartTime = Date.now();
+					const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
+					// const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
+					const identifiedTerms = getContextTermsFromTokens(contextSelector.getTokens());
+					logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
+					const gatherContextStartTime = Date.now();
+					enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
+					logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
+					console.log("enrichedTerms", enrichedTerms);
 
-				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
-					return '';
+					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
+						return '';
+					}
 				}
 				const generateTestWithContextStartTime = Date.now();
 				const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
@@ -658,10 +666,10 @@ return vscode.window.withProgress({
 		// fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
 		logger.saveDiagnosticReport(diagnosticReport);
 		await saveToIntermediate(
-			testCode,
+			finalCode,
 			srcPath,
 			fileName,
-			path.join(getConfigInstance().workspace, getConfigInstance().savePath),
+			path.join(getConfigInstance().savePath, "final"),
 			languageId
 		);
 		// await saveGeneratedCodeToFolder(finalCode, path.join(getConfigInstance().workspace, getConfigInstance().savePath), fileName);

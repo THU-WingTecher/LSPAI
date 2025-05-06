@@ -135,6 +135,7 @@ export function generateTestWithContextWithCFG(
     template?: { system_prompt: string, user_prompt: string }
 ): ChatMessage[] {
     const result = [];
+    let context_info_str = "";
     for (const item of context_info) {
         if (item.need_definition && item.context && item.context!=item.name) {
             result.push(`\n## Source Code of ${item.name}\n${item.context}`);
@@ -143,27 +144,34 @@ export function generateTestWithContextWithCFG(
             result.push(`\n## Example of ${item.name}\n${item.example}`);
         }
     }
-    
-    const context_info_str = result.join('\n');
+    if (result.length > 0) {
+        context_info_str = result.join('\n');
+    }
     const packageStatement = getPackageStatement(document, document.languageId);
     const importString = getImportStatement(document, document.languageId, functionSymbol);
     const prompts = template || loadPathTestTemplate();
     
     const systemPrompt = prompts.system_prompt
         .replace('{source_code}', source_code);
-    
-    const userPrompt = prompts.user_prompt
+    let userPrompt = prompts.user_prompt;
+    if (context_info_str.length > 0) {
+        userPrompt = userPrompt
         .replace('{context_info}', context_info_str)
+    } else {
+        userPrompt = userPrompt
+            .replace("Important terms' context information:\n\n{context_info}", context_info_str)
+    }
+    userPrompt = userPrompt
         .replace(
             '{unit_test_template}', 
-            LanguageTemplateManager.getUnitTestTemplate(
-                document.languageId, 
-                fileName, 
-                packageStatement ? packageStatement[0] : "",
-                importString,
-                paths.map((p) => p.path)
-            )
-        );
+        LanguageTemplateManager.getUnitTestTemplate(
+            document.languageId, 
+            fileName, 
+            packageStatement ? packageStatement[0] : "",
+            importString,
+            paths.map((p) => p.path)
+        )
+    );
     
     return [
         { role: "system", content: systemPrompt },

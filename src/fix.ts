@@ -74,6 +74,7 @@ export async function performFixingRound(
 
 	try {
 		aiResponse = await invokeLLM(diagnosticPrompts, fixlogObj);
+		console.log("fix:performFixingRound:aiResponse", aiResponse);
 		logger.log(`FixWithLLM_${round}`, (Date.now() - fixStartTime).toString(), fixlogObj, "");
 	} catch (error) {
 		if (error instanceof TokenLimitExceededError) {
@@ -85,6 +86,7 @@ export async function performFixingRound(
 
 	// Parse and save the fixed code
 	const fixedCode = parseCode(aiResponse);
+	console.log("fix:performFixingRound:fixedCode", fixedCode);
 	const saveStartTime = Date.now();
 
 	try {
@@ -95,12 +97,13 @@ export async function performFixingRound(
 			path.join(historyPath, getConfigInstance().model, round.toString()),
 			languageId
 		);
-
+		console.log("fix:performFixingRound:newSavePoint", newSavePoint);
 		logger.log("saveGeneratedCodeToFolder", (Date.now() - saveStartTime).toString(), null, "");
 
 		// Get updated diagnostics
 		const diagStartTime = Date.now();
 		const newDiagnostics = await getDiagnosticsForFilePath(newSavePoint);
+		console.log("fix:performFixingRound:newDiagnostics", newDiagnostics);
 		logger.log("getDiagnosticsForFilePath", (Date.now() - diagStartTime).toString(), null, "");
 
 		console.log(`Remaining Diagnostics after Round ${round}:`, newDiagnostics.length);
@@ -163,7 +166,7 @@ export async function fixDiagnostics(
 			round,
 			diagnosticsFixed: filteredDiagnostics.length - filteredDiagnostics.length,
 			remainingDiagnostics: filteredDiagnostics.length,
-			diagnosticMessages: []
+			diagnosticMessages: filteredDiagnostics.map(diag => diag.message)
 			// diagnosticMessages: await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method)
 		});
 		progress.report({ message: `Fixing - Round ${round}`, increment: 10 });
