@@ -15,7 +15,7 @@ export class PythonCFGBuilder extends CFGBuilder {
 
             case 'if_statement':
                 // Python: consequence field is 'consequence', else clause type is 'else_clause'
-                return this.processIfStatement(node, current, 'consequence', 'else_clause');
+                return this.processIfStatement(node, current, 'consequence', 'elif_clause', 'else_clause');
 
             case 'while_statement':
                 // Python: body field is 'block'

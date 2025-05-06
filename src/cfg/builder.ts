@@ -137,7 +137,6 @@ export class CFGBuilder {
                 }
             }
 
-
         }
         this.finalizeLoop(this.currentLoopNode, lastNode, loopNode);
         this.currentLoopNode = previousLoopNode;
@@ -149,64 +148,75 @@ export class CFGBuilder {
         return node.childForFieldName('condition')?.text || (node as any).conditionNode.text || "";
     }
 
+    protected processBlockAndConnectToMerge(
+        blockNode: CFGNode,
+        mergeNode: CFGNode | null
+    ): void {
+        // const blockCFGNode = this.createNode(CFGNodeType.BLOCK, blockNode.astNode);
+    
+        let lastNode = blockNode;
+        for (const child of blockNode.astNode.children) {
+            const processed = this.processNode(child, lastNode);
+            if (processed) {
+                lastNode = processed;
+            }
+        }
+        if (mergeNode && lastNode !== blockNode) {
+            this.connect(lastNode, mergeNode);
+        }
+    }
+
     protected processIfStatement(
         node: Parser.SyntaxNode,
         current: CFGNode,
         consequenceField: string,
+        elifType: string,
         elseClauseType: string
     ): CFGNode {
         const conditionNode = this.createNode(CFGNodeType.CONDITION, node);
+        let currentConditionNode = conditionNode;
         conditionNode.condition = this.getConditionText(node);
         this.connect(current, conditionNode);
-    
+        const mergeNode = this.createNode(CFGNodeType.MERGED, node);
         // Process consequence (then branch)
         const consequence = node.childForFieldName(consequenceField);
-        let consequenceEnd = conditionNode;
         if (consequence) {
             const consequenceNode = this.createNode(CFGNodeType.BLOCK, consequence);
             conditionNode.trueBlock = consequenceNode;
             this.connect(conditionNode, consequenceNode);
-    
-            let lastNode = consequenceNode;
-            for (const child of consequence.children) {
-                const processed = this.processNode(child, lastNode);
-                if (processed) {
-                    lastNode = processed;
-                }
-            }
-            consequenceEnd = lastNode;
+            this.processBlockAndConnectToMerge(consequenceNode, mergeNode);
+
         }
-    
-        // Process alternative (else branch)
+        
+        const elifNodes = node.children.filter(child => child.type === elifType);
+        for (const elifNode of elifNodes) {
+            const elifConditionNode = this.createNode(CFGNodeType.CONDITION, elifNode);
+            elifConditionNode.condition = this.getConditionText(elifNode);
+            this.connect(currentConditionNode, elifConditionNode);
+            currentConditionNode.falseBlock = elifConditionNode;
+            currentConditionNode = elifConditionNode;
+
+            const elifBody = elifNode.childForFieldName(consequenceField);
+            if (elifBody) {
+                const elifBodyNode = this.createNode(CFGNodeType.BLOCK, elifBody);
+                elifConditionNode.trueBlock = elifBodyNode;
+                this.connect(elifConditionNode, elifBodyNode);
+                this.processBlockAndConnectToMerge(elifBodyNode, mergeNode);
+            }
+
+        }
+
         const else_clause = node.children.find(child => child.type === elseClauseType);
-        let else_clauseEnd = conditionNode;
-    
-        // Create merge node
-        const mergeNode = this.createNode(CFGNodeType.MERGED, node);
-    
         if (else_clause) {
             const else_clauseNode = this.createNode(CFGNodeType.BLOCK, else_clause);
-            conditionNode.falseBlock = else_clauseNode;
-            this.connect(conditionNode, else_clauseNode);
-    
-            let lastNode = else_clauseNode;
-            for (const child of else_clause.children) {
-                const processed = this.processNode(child, lastNode);
-                if (processed) {
-                    lastNode = processed;
-                }
-            }
-            else_clauseEnd = lastNode;
+            currentConditionNode.falseBlock = else_clauseNode;
+            this.connect(currentConditionNode, else_clauseNode);
+            this.processBlockAndConnectToMerge(else_clauseNode, mergeNode);
+
+
         } else {
-            conditionNode.falseBlock = mergeNode;
-            this.connect(conditionNode, mergeNode);
-        }
-    
-        if (consequenceEnd !== conditionNode) {
-            this.connect(consequenceEnd, mergeNode);
-        }
-        if (else_clauseEnd !== conditionNode && else_clause) {
-            this.connect(else_clauseEnd, mergeNode);
+            currentConditionNode.falseBlock = mergeNode;
+            this.connect(currentConditionNode, mergeNode);
         }
     
         return mergeNode;
@@ -216,7 +226,6 @@ export class CFGBuilder {
         // Create loop node first
         const processedNodes : CFGNode[] = [];
         // Create condition node
-        // const comparison = node.children.find(child => child.type === comparisonType)!;
         const whileConditionNode = this.createNode(CFGNodeType.CONDITION, node);
         whileConditionNode.condition = this.getConditionText(node);
         this.connect(current, whileConditionNode);
@@ -322,15 +331,8 @@ export class CFGBuilder {
         if (elseClause) {
             const elseNode = this.createNode(CFGNodeType.ELSE, elseClause);
             this.connect(tryEndNode, elseNode);
-    
-            let lastElseNode = elseNode;
-            for (const child of elseClause.children) {
-                const processed = this.processNode(child, lastElseNode);
-                if (processed) {
-                    lastElseNode = processed;
-                }
-            }
-            this.connect(lastElseNode, mergeNode);
+            this.processBlockAndConnectToMerge(elseNode, mergeNode);
+
         } else {
             // If no else clause, connect try block directly to merge node
             this.connect(tryEndNode, mergeNode);
@@ -341,7 +343,7 @@ export class CFGBuilder {
         if (finallyClause) {
             const finallyNode = this.createNode(CFGNodeType.FINALLY, finallyClause);
             this.connect(mergeNode, finallyNode);
-    
+            
             let lastFinallyNode = finallyNode;
             for (const child of finallyClause.children) {
                 const processed = this.processNode(child, lastFinallyNode);
