@@ -9,6 +9,7 @@ import { assert } from 'console';
 export enum PromptType {
     BASIC = 'basic',
     DETAILED = 'detailed',
+    WITHCONTEXT = 'withcontext',
     CONCISE = 'concise',
     FASTEST = 'fastest',
     BEST = 'best'
@@ -371,8 +372,9 @@ export class Configuration {
             "lspai-workspace",
             this.startTimestamp,
             this.projectName,
-            this.generationType,
+            this.generationType+this.promptType,
             this.config.model,
+            this.promptType,
             "results"
         );
         // assert(this.config.workspace, 'workspace is not set');
@@ -414,7 +416,7 @@ export class Configuration {
             "lspai-workspace",
             this.startTimestamp,
             this.projectName,
-            this.generationType,
+            this.generationType+this.promptType,
             this.config.model,
             'history'
         );
@@ -430,7 +432,7 @@ export class Configuration {
             "lspai-workspace",
             this.startTimestamp,
             this.projectName,
-            this.generationType,
+            this.generationType+this.promptType,
             this.config.model,
             'logs'
         );

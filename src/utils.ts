@@ -78,14 +78,14 @@ export async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Prom
 
 export function parseCode(response: string): string {
     // Regular expression to match code block wrapped by triple backticks, optional `~~`, and language tag
-    const regex = /```(?:\w+)?(?:~~)?\s*([\s\S]*?)\s*```/;
+    const regex = /```(?:\w+)?(?:~~)?\s*([\s\S]*?)\s*```/g;
 
     // Match the response against the regular expression
-    const match = response.match(regex);
+    const matches = Array.from(response.matchAll(regex));
 
     // If a match is found, return the extracted code
-    if (match) {
-        return match[1].trim(); // match[1] contains the code inside the backticks
+    if (matches.length > 0) {
+        return matches[matches.length - 1][1].trim();
     }
 
     // If no code block is found, return the original response

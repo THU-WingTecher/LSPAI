@@ -17,10 +17,23 @@ export enum DiagnosticTag {
     Deprecated
 }
 
+const pyFilterMessages = ["is not accessed"];
+export function filterDiagnosticByMessage(diag: vscode.Diagnostic, languageId: string): boolean {
+    if (languageId === "python") {
+        // if the message is in the pyFilterMessages, we filter it out
+        // return false if the message is in the pyFilterMessages
+        if (pyFilterMessages.some(msg => diag.message.includes(msg))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 export function chooseDiagnostic(diag: vscode.Diagnostic, languageId: string): boolean {
     if (languageId === "python") {
         // pylance sometimes reports error with warning severity
-        return diag.severity <= vscode.DiagnosticSeverity.Warning;
+        // we do not filter, but we will filter out diag by its messages 
+        return diag.severity <= vscode.DiagnosticSeverity.Warning && filterDiagnosticByMessage(diag, languageId);
     }
     return diag.severity < vscode.DiagnosticSeverity.Warning;
 }

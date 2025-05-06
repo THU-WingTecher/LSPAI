@@ -11,12 +11,14 @@ import { getAllSymbols } from '../lsp';
 import { activate, getSymbolByLocation } from '../lsp';
 import { clear } from 'console';
 import { ContextSelectorConfig, findTemplateFile } from '../prompts/promptBuilder';
+import { getConfigInstance } from '../config';
 export interface ContextTerm {
     name: string;
     context?: string; // Optional context once retrieved
     example?: string; // Optional example once retrieved
     need_example?: boolean; // Whether the term needs example code
     need_definition?: boolean; // Whether the term needs context
+    token?: DecodedToken;
 }
 
 export class ContextSelector {
@@ -46,6 +48,10 @@ export class ContextSelector {
             ContextSelector.instance = await ContextSelector.create(document, targetSymbol);
         }
         return ContextSelector.instance;
+    }
+
+    public getTokens(): DecodedToken[] {
+        return this.tokens;
     }
 
     private async getAllTokens(): Promise<DecodedToken[]> {
@@ -208,38 +214,43 @@ export class ContextSelector {
             const targetToken = this.tokens.find(token => token.word === term.name);
             let enriched = false;
             if (targetToken) {
-                await activate(this.document.uri);
                 const currentToken = await retrieveDef(this.document, targetToken);
-                const symbols = await getAllSymbols(this.document.uri);
-                if (currentToken.definition && currentToken.definition[0].range && currentToken.definition.length > 0) {
-                    const defSymbolDoc = await vscode.workspace.openTextDocument(currentToken.definition[0].uri);
-                    if (term.need_example) {
-                        if (currentToken.definition[0].range) {
-                            term.example = await getReferenceInfo(defSymbolDoc, currentToken.definition[0].range);
-                            enriched = true;
-                        }
-                    }
-                    if (term.need_definition) {
-                        if (currentToken.definition[0].range) {
-                            currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
-                            if (currentToken.defSymbol) {
-                                term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, true);
-                                enriched = true;
+                // const symbols = await getAllSymbols(this.document.uri);
+                if (isInWorkspace(currentToken.definition[0].uri)) {
+
+                    if (currentToken.definition && currentToken.definition[0].range && currentToken.definition.length > 0) {
+                            const defSymbolDoc = await vscode.workspace.openTextDocument(currentToken.definition[0].uri);
+                            if (term.need_example) {
+                                if (currentToken.definition[0].range) {
+                                    term.example = await getReferenceInfo(defSymbolDoc, currentToken.definition[0].range, 20);
+                                    enriched = true;
+                                }
+                             }
+                            if (term.need_definition) {
+                                if (currentToken.definition[0].range) {
+                                    currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
+                                    if (currentToken.defSymbol) {
+                                        term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, false);
+                                        enriched = true;
+                                        }
+                                    }
                             }
-                        }
+                    } else {
+                        console.log(`No definition found for "${JSON.stringify(term)}"`);
+                        continue;
                     }
                 } else {
-                    console.log(`No definition found for "${JSON.stringify(term)}"`);
+                    console.log(`word ${term.name} is out of workspace`);
+                    continue;
+                }
+                if (enriched) {
+                    enrichedTerms.push(term);
+                    // continue;
+                } else {
+                    console.log(`No context found for "${JSON.stringify(term)}"`);
                 }
             }
-            if (enriched) {
-                enrichedTerms.push(term);
-                continue;
-            } else {
-                console.log(`No context found for "${JSON.stringify(term)}"`);
-            }
         }
-        
         return enrichedTerms;
     }
     
@@ -248,4 +259,8 @@ export class ContextSelector {
 // Export a convenience function to get the singleton instance
 export async function getContextSelectorInstance(document: vscode.TextDocument, targetSymbol: vscode.DocumentSymbol): Promise<ContextSelector> {
     return await ContextSelector.getInstance(document, targetSymbol);
+}
+
+function isInWorkspace(uri: vscode.Uri): boolean {
+    return uri.fsPath.includes(getConfigInstance().workspace);
 }
