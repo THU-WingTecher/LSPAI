@@ -39,7 +39,9 @@ export class LanguageTemplateManager {
         const testFunctions = paths.map((p, idx) => `
     @Test
     public void ${fileName}_${idx}() {
+    /*
         ${p}
+    */
     }
     `).join('\n');
         return `
@@ -49,6 +51,7 @@ ${packageString}
 {Replace With Needed Imports}
 
 public class ${fileName} {
+${testFunctions}
     {Replace with needed setup}
     {Write your test test function here}
 }
@@ -60,6 +63,13 @@ public class ${fileName} {
      * Get Go unit test template
      */
     private static getGoTemplate(fileName: string, packageString: string, paths: string[]): string {
+        const testFunctions = paths.map((p, idx) => `
+    func Test${fileName}_${idx}(t *testing.T) {
+    /*
+        ${p}
+    */
+    }
+    `).join('\n');
         return `
 Based on the provided information, you need to generate a unit test using Go's testing package.
 The generated test code will be located at the same directory with target code. Therefore, you don't have to import target project.
@@ -70,6 +80,7 @@ import (
     "testing"
     {Replace with needed imports}
 )
+${testFunctions}
 
 func Test${fileName}(t *testing.T) {
     {Replace with needed setup}
@@ -100,7 +111,8 @@ from {Replace with needed imports}
 class Test${fileName}(unittest.TestCase):
     
 ${testFunctions}
-    def {write your test function here}
+    def {write your other test function here}
+        {write your other test code here}
 if __name__ == '__main__':
     unittest.main()
 \`\`\`

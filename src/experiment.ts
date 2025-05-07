@@ -1,3 +1,115 @@
+import * as assert from 'assert';
+import * as vscode from 'vscode';
+import path from 'path';
+import fs from 'fs';
+import { saveTaskList } from './helper';
+import { getConfigInstance, GenerationType, PromptType, FixType, SRC_PATHS, ProjectName } from './config';
+import { generateFileNameForDiffLanguage } from './fileHandler';
+import { generateUnitTestForAFunction } from './generate';
+import { activate } from './lsp';
+
+export async function runGenerateTestCodeSuite(
+    generationType: GenerationType,
+    fixType: FixType,
+    promptType: PromptType,
+    symbols: any, // Use the correct type if available
+    languageId: string
+) {
+    if (process.env.NODE_DEBUG !== 'true') {
+        console.log('activate');
+        await activate();
+    }
+    getConfigInstance().updateConfig({
+        generationType,
+        fixType,
+        promptType
+    });
+    const savePath = getConfigInstance().genSaveName();
+    getConfigInstance().updateConfig({
+        savePath: savePath
+    });
+    const workspace = getConfigInstance().workspace;
+    const projectName = path.basename(workspace);
+    let currentSrcPath;
+    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+        currentSrcPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
+    } else {
+        currentSrcPath = path.join(workspace, SRC_PATHS.DEFAULT);
+    }
+
+    const symbolFilePairsToTest = getSymbolFilePairsToTest(symbols, languageId);
+    await saveTaskList(symbolFilePairsToTest, workspace, getConfigInstance().savePath);
+    for (const symbolFilePair of symbolFilePairsToTest) {
+        const { document, symbol, fileName } = symbolFilePair;
+        const result = await generateUnitTestForAFunction(
+            currentSrcPath,
+            document, 
+            symbol, 
+            fileName, 
+            false,
+        );
+        console.log(`#### Test Code: ${result}`);
+    }
+
+    const logPath = getConfigInstance().logSavePath;
+    console.log(`#### Log path: ${logPath}`);
+    assert.ok(fs.existsSync(logPath), 'log path should exist');
+    const llmlogs = fs.readdirSync(logPath).filter(file => file.endsWith('llm_logs.json'));
+    assert.ok(llmlogs.length > 0, 'llm_logs.json should exist');
+    if (getConfigInstance().fixType != FixType.NOFIX && getConfigInstance().generationType != GenerationType.NAIVE) {
+        const diagnosticReportFolder = path.join(logPath, 'diagnostic_report');
+        const diagnosticReports = await findJsonFilesRecursively(diagnosticReportFolder);
+        console.log(`#### Diagnostic reports: ${diagnosticReports.length}`);
+        // assert.equal(diagnosticReports.length, symbolFilePairsToTest.length, 'diagnostic_report json files should exist for each function');
+    }
+    if (getConfigInstance().generationType === GenerationType.CFG) {
+        const pathFolder = path.join(logPath, 'paths');
+        const paths = await findJsonFilesRecursively(pathFolder);
+        console.log(`#### Paths: ${paths.length}`);
+        // assert.equal(paths.length, symbolFilePairsToTest.length, 'paths json files should exist for each function');
+    }
+    const taskListPath = path.join(getConfigInstance().savePath, 'taskList.json');
+    assert.ok(fs.existsSync(taskListPath), 'taskList.json should exist');
+}
+
+export function getSymbolFilePairsToTest(symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[], languageId: string) {
+    const symbolFilePairs = symbols.map(({symbol, document}) => {
+        return {
+            symbol,
+            document,
+            fileName: generateFileNameForDiffLanguage(document, symbol, path.join(getConfigInstance().workspace, getConfigInstance().savePath), languageId, [],0)
+        };
+    });
+    return symbolFilePairs;
+}
+
+export async function findJsonFilesRecursively(rootDir: string): Promise<string[]> {
+    const jsonFiles: string[] = [];
+
+    async function scanDirectory(currentPath: string) {
+        const entries = await fs.promises.readdir(currentPath, { withFileTypes: true });
+        
+        for (const entry of entries) {
+            const fullPath = path.join(currentPath, entry.name);
+            
+            if (entry.isDirectory()) {
+                // Recursively scan subdirectories
+                await scanDirectory(fullPath);
+            } else if (entry.isFile() && entry.name.endsWith('.json')) {
+                // Add json files to the result array
+                jsonFiles.push(fullPath);
+            }
+        }
+    }
+
+    try {
+        await scanDirectory(rootDir);
+        return jsonFiles;
+    } catch (error) {
+        console.error(`Error scanning directory ${rootDir}:`, error);
+        throw error;
+    }
+}
 // import * as vscode from 'vscode';
 // import * as fs from 'fs';
 // import * as path from 'path';

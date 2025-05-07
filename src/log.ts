@@ -56,46 +56,46 @@ export class ExpLogger {
 		const folder = "paths";
 		const folderPath = path.join(getConfigInstance().logSavePath, folder);
 		const fileName = `${this.fileName}_paths.json`;
-		const pathsPath = path.join(folderPath, fileName);
+		const fullPath = path.join(folderPath, fileName);
+		if (!fs.existsSync(path.dirname(fullPath))) {
+			fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+		}
 		const pathLog = {
 			sourceCode: functionText,
 			paths: paths
 		}
-		// check if folder exists
-		if (!fs.existsSync(folderPath)) {
-			fs.mkdirSync(folderPath, { recursive: true });
-		}
-		fs.writeFileSync(pathsPath, JSON.stringify(pathLog, null, 2));
+
+		fs.writeFileSync(fullPath, JSON.stringify(pathLog, null, 2));
 	}
 
 	saveDiagnosticReport(diagnosticReport: DiagnosticReport) {
 		const folder = "diagnostic_report";
 		const folderPath = path.join(getConfigInstance().logSavePath, folder);
-		if (!fs.existsSync(folderPath)) {
-			fs.mkdirSync(folderPath, { recursive: true });
-		}
 		const fileName = `${this.fileName}.json`;
-		const reportPath = path.join(folderPath, fileName);
-		fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
+		const fullPath = path.join(folderPath, fileName);
+		if (!fs.existsSync(path.dirname(fullPath))) {
+			fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+		}
+		fs.writeFileSync(fullPath, JSON.stringify(diagnosticReport, null, 2));
 	}
 
 	savePromptLog(data: PromptLogData) {
 		const folder = "prompts";
 		const folderPath = path.join(getConfigInstance().logSavePath, folder);
-		if (!fs.existsSync(folderPath)) {
-			fs.mkdirSync(folderPath, { recursive: true });
-		}
 		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 		const fileName = `prompt_${this.fileName}_${timestamp}.json`;
-		const logPath = path.join(folderPath, fileName);
+		const fullPath = path.join(folderPath, fileName);
+		if (!fs.existsSync(path.dirname(fullPath))) {
+			fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+		}
 		
 		const logData = {
 			...data,
 			timestamp: new Date().toISOString()
 		};
 
-		fs.writeFileSync(logPath, JSON.stringify(logData, null, 2));
-		return logPath;
+		fs.writeFileSync(fullPath, JSON.stringify(logData, null, 2));
+		return fullPath;
 	}
 
 }

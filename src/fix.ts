@@ -7,7 +7,7 @@ import { invokeLLM, TokenLimitExceededError } from './invokeLLM';
 import { ExpLogs, LLMLogs, ExpLogger } from './log';
 import { experimentalDiagnosticPrompt, constructDiagnosticPrompt, FixSystemPrompt } from './prompts/promptBuilder';
 import { parseCode } from './utils';
-import { reportProgressWithCancellation } from './generate';
+import { reportProgressWithCancellation } from './userInteraction';
 
 function defaultReturn(finalCode: string) {
 	return {
@@ -29,7 +29,7 @@ export async function performFixingRound(
 	curSavePoint: string,
 	currentCode: string,
 	diagnostics: vscode.Diagnostic[],
-	collectedData: any,
+	focal_method: string,
 	method: string,
 	languageId: string,
 	model: string,
@@ -45,7 +45,8 @@ export async function performFixingRound(
 	const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
 	diagnosticPrompts = experimentalDiagnosticPrompt(
 		currentCode,
-		diagnosticReport
+		diagnosticReport,
+		focal_method
 	);
 	// } else {
 	// 	// Get diagnostic messages
@@ -103,15 +104,17 @@ export async function performFixingRound(
 		// Get updated diagnostics
 		const diagStartTime = Date.now();
 		const newDiagnostics = await getDiagnosticsForFilePath(newSavePoint);
-		console.log("fix:performFixingRound:newDiagnostics", newDiagnostics);
+		const filteredDiagnostics = newDiagnostics.filter(diagnostic => chooseDiagnostic(diagnostic, languageId));
+
+		console.log("fix:performFixingRound:filteredDiagnostics", filteredDiagnostics);
 		logger.log("getDiagnosticsForFilePath", (Date.now() - diagStartTime).toString(), null, "");
 
-		console.log(`Remaining Diagnostics after Round ${round}:`, newDiagnostics.length);
+		console.log(`Remaining Diagnostics after Round ${round}:`, filteredDiagnostics.length);
 
 		return {
 			code: fixedCode,
 			savePoint: newSavePoint,
-			diagnostics: newDiagnostics
+			diagnostics: filteredDiagnostics
 		};
 	} catch (error) {
 		console.error('Failed to save or validate fixed code:', error);
@@ -121,7 +124,7 @@ export async function performFixingRound(
 export async function fixDiagnostics(
 	srcPath: string,
 	testCode: string,
-	collectedData: any,
+	focal_method: any,
 	method: string,
 	languageId: string,
 	model: string,
@@ -176,7 +179,7 @@ export async function fixDiagnostics(
 			curSavePoint,
 			finalCode,
 			filteredDiagnostics,
-			collectedData,
+			focal_method,
 			method,
 			languageId,
 			model,

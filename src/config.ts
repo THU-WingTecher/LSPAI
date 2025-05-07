@@ -72,9 +72,9 @@ export function resolvePromptType(type: PromptType | keyof typeof PromptTypeMapp
 }
 // Constants for experiment settings
 // export const MIN_FUNCTION_LINES = -1;
-export const MIN_FUNCTION_LINES = 15;
+export const MIN_FUNCTION_LINES = 10;
 export const DEFAULT_FILE_ENCODING = 'utf8';
-export const MAX_ROUNDS = 5;
+export const MAX_ROUNDS = 3;
 
 // Constants for file paths and extensions
 export const INTERMEDIATE_FOLDER_PREFIX = 'temp_';

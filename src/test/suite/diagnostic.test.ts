@@ -12,7 +12,7 @@ import { experimentalDiagnosticPrompt } from '../../prompts/promptBuilder';
 suite('Diagnostic Test Suite', () => {
     // let currentSrcPath: string;
     // let symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[];
-    // const projectPath = "/LSPAI/experiments/projects/commons-cli";
+    // const projectPath = "/LSPAI/experiments/projects/cobra";
     // const workspaceFolders = setWorkspaceFolders(projectPath);
     // const currentConfig = {
     //     model: 'gpt-4o-mini',
@@ -30,31 +30,56 @@ suite('Diagnostic Test Suite', () => {
     const importTestPath = "/LSPAI/tests/import_test.py";
     const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
     const blackModuleImportPath = "/LSPAI/experiments/projects/black/src/black";
-    const javaPath = "/LSPAI/experiments/projects/commons-cli/src/lspai/test/java/org/apache/commons/cli/TypeHandler_createNumber_0_1Test.java";
+    const javaPath = "/LSPAI/experiments/projects/commons-cli/src/lspai/test/java/org/apache/commons/cli/AbstractParserTestCase.java";
+    const goPath = "/LSPAI/experiments/projects/cobra/bash_completions.go";
+    const goPath1 = "/LSPAI/experiments/projects/cobra/testCaseWithLSPAI/gpt-4o-mini/args_ExactArgs1_test.go";
 
-    test('JAVA - test language server has launched', async () => {
-        const symbols = await getAllSymbols(vscode.Uri.file(javaPath));
-        assert.ok(symbols.length > 0);
-    });
+    // test('JAVA - test language server has launched', async () => {
+    //     const symbols = await getAllSymbols(vscode.Uri.file(javaPath));
+    //     assert.ok(symbols.length > 0);
+    // });
 
-    test('JAVA - test diagnostic against java code', async () => {
-        const fileUri = vscode.Uri.file(javaPath);
-        const result = await getDiagnosticsForFilePath(javaPath);
-        console.log('result', result);
-        assert.ok(result.length > 0);
-    });
+    // test('JAVA - test diagnostic against java code', async () => {
+    //     // const fileUri = vscode.Uri.file(javaPath);
+    //     const result = await getDiagnosticsForFilePath(javaPath);
+    //     console.log('result', result);
+    //     assert.ok(result.length > 0);
+    //     assert.ok(result.every(d => !d.message.includes("is not on the classpath of project")), "should not report missing java classpath");
+    // });
 
-    // test('test language server has launched', async () => {
+    // test('PYTHON - test language server has launched', async () => {
     //     const symbols = await getAllSymbols(vscode.Uri.file(pythonPath));
     //     assert.ok(symbols.length > 0);
     // });
 
-    // test('test diagnostic against python code', async () => {
+    // test('PYTHON - test diagnostic against python code', async () => {
+    //     await setPythonInterpreterPath(pythonInterpreterPath);
+    //     await setPythonExtraPaths([blackModuleImportPath]);
     //     const fileUri = vscode.Uri.file(pythonPath);
     //     const result = await getDiagnosticsForFilePath(pythonPath);
     //     console.log('result', result);
     //     assert.ok(result.length > 0);
     // });
+
+    test('GO - test language server has launched', async () => {
+        const projectPath = "/LSPAI/experiments/projects/cobra";
+        const workspaceFolders = await setWorkspaceFolders(projectPath);
+        console.log('workspaceFolders', vscode.workspace.workspaceFolders);
+        // before update we first inspect whether the workspace forders already has our new workspace Folders 
+
+
+        console.log('workspaceFolders', vscode.workspace.workspaceFolders);
+        const symbols = await getAllSymbols(vscode.Uri.file(goPath));
+        assert.ok(symbols.length > 0);
+
+    });
+
+    test('GO - test diagnostic against go code', async () => {
+        const fileUri = vscode.Uri.file(goPath);
+        const result = await getDiagnosticsForFilePath(goPath);
+        console.log('result', result);
+        assert.ok(result.length > 0);
+    });
 
     // test('Fix Prompt Test for Python', async () => {
     //     const testUri = vscode.Uri.file(pythonPath);

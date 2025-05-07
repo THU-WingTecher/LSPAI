@@ -85,7 +85,7 @@ export async function callLocalLLM(promptObj: any, logObj: any): Promise<string>
   }
 
 // ... existing code ...
-export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 3, retryDelay = 2000): Promise<string> {
+export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, retryDelay = 2000): Promise<string> {
 	const error = getModelConfigError();
 	if (error) {
 		vscode.window.showErrorMessage(error);

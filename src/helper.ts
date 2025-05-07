@@ -22,6 +22,22 @@ function initializeSeededRandom(seed: number) {
 }
 
 
+
+export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]) {
+    for (const workspaceFolder of workspaceFolders) {
+        if (vscode.workspace.workspaceFolders?.find(folder => folder.name === workspaceFolder.name)) {
+            console.log('workspaceFolder', workspaceFolder.name, 'already exists');
+        } else {
+            await vscode.workspace.updateWorkspaceFolders(
+                0,
+                null,
+                ...workspaceFolders
+            );
+        }
+    }
+    return workspaceFolders;
+}
+
 export function setWorkspaceFolders(projectPath: string) {
     getConfigInstance().updateConfig({
         workspace: projectPath
@@ -34,6 +50,7 @@ export function setWorkspaceFolders(projectPath: string) {
             index: 0
         }
     ];
+
     return workspaceFolders;
 }
 

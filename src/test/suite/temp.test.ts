@@ -1,510 +1,134 @@
 import * as assert from 'assert';
-import { PythonCFGBuilder } from '../../cfg/python';
-import { GolangCFGBuilder } from '../../cfg/golang';
+import * as vscode from 'vscode';
+
+import { getContextTermsFromTokens, setHelpfulnessAlgorithm } from '../../algorithm';
+import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, saveTaskList, setWorkspaceFolders, findAFileFromWorkspace } from '../../helper';
+import { loadPrivateConfig, SRC_PATHS } from '../../config';
+import { activate, getSymbolFromDocument } from '../../lsp';
+import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../config';
+import path from 'path';
+import { generateFileNameForDiffLanguage, generateTimestampString } from '../../fileHandler';
+import { getFileName } from '../../fileHandler';
+import { generateUnitTestForAFunction } from '../../generate';
+import { ProjectName } from '../../config';
+import fs from 'fs';
 import { PathCollector } from '../../cfg/path';
-import { CFGNodeType } from '../../cfg/types';
-import { JavaCFGBuilder } from '../../cfg/java';
-// Known issues : we cannot detect the break / continue condition in the loop
-// Basic path tests
-test('Python CFG Path - If-Elif-Else with Multiple Conditions', async function() {
-    const builder = new PythonCFGBuilder('python');
-    const code = `
-if x > 10:
-    y = 1
-elif y > 5:
-    y = 2
-elif z == 0:
-    y = 3
-else:
-    y = 4
-    `;
-    const cfg = await builder.buildFromCode(code);
-    const pathCollector = new PathCollector('python');
-    pathCollector.collect(cfg.entry);
+import { createCFGBuilder } from '../../cfg/builderFactory';
+import { SupportedLanguage } from '../../ast';
+import { generateTestWithContextWithCFG } from '../../prompts/promptBuilder';
+import { ContextTerm, getContextSelectorInstance } from '../../agents/contextSelector';
+import { getDecodedTokensFromSybol } from '../../token';
+suite('ContextSelector Helpfulness Algorithm', () => {
+    const projectPath = "/LSPAI/experiments/projects/black";
+    const workspaceFolders = setWorkspaceFolders(projectPath);
+    console.log('test-config path', path.join(__dirname, '../../../test-config.json'));
+    const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
+    console.log('privateConfig', JSON.stringify(privateConfig));
+    const projectName = path.basename(workspaceFolders[0].uri.fsPath);
+    const sampleNumber = 1;
+    const currentConfig = {
+        model: 'gpt-4o-mini',
+        provider: 'openai' as Provider,
+        expProb: 1,
+        generationType: GenerationType.ORIGINAL,
+        promptType: PromptType.DETAILED,
+        workspace: projectPath,
+        savePath: path.join(__dirname, '../../../test-results', projectName, 'gpt-4o-mini'),
+        ...privateConfig
+    }
+    let symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[] = [];
+    let symbolFilePairs: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument, fileName: string}[] = [];
+    let symbolFilePairsToTest: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument, fileName: string}[] = [];
+    
+    test('Switching algorithms changes output', async () => {
+        const tokens = [
+            { word: 'foo', type: 'function', isReturnValue: false },
+            { word: 'bar', type: 'variable', isReturnValue: true },
+            { word: 'baz', type: 'class', isReturnValue: false }
+        ];
 
-    const actualConditions = pathCollector.getPaths().map(
-        p => p['segments'].map(seg => seg.condition).filter(Boolean)
-    );
-    assert.equal(actualConditions.length, 4, "Should have exactly 4 paths");
-    const expectedConditions = [
-        ['x > 10'],
-        ['!(x > 10)', 'y > 5'],
-        ['!(x > 10)', '!(y > 5)', 'z == 0'],
-        ['!(x > 10)', '!(y > 5)', '!(z == 0)']
-    ];
-    expectedConditions.forEach(condition => {
-        assert.ok(
-            actualConditions.some(c => c.length === condition.length && c.every((v, i) => v === condition[i])),
-            `Should have path with conditions: ${condition.join(' && ')}`
-        );
+        // Default algorithm
+        setHelpfulnessAlgorithm('default');
+        const defaultTerms = getContextTermsFromTokens(tokens as any);
+
+        // Alternative algorithm
+        setHelpfulnessAlgorithm('alternative1');
+        const altTerms = getContextTermsFromTokens(tokens as any);
+
+        // Check that the outputs are different for at least one token
+        let foundDifference = false;
+        for (let i = 0; i < tokens.length; i++) {
+            if (
+                defaultTerms[i].need_definition !== altTerms[i].need_definition ||
+                defaultTerms[i].need_example !== altTerms[i].need_example
+            ) {
+                foundDifference = true;
+                break;
+            }
+        }
+        assert.ok(foundDifference, 'Algorithms should produce different helpfulness results');
     });
-});
-
-test('Golang CFG Path - If-Else If-Else with Multiple Conditions', async function() {
-    const builder = new GolangCFGBuilder('go');
-    const code = `
-if x > 10 {
-    y = 1
-} else if y > 5 {
-    y = 2
-} else if z == 0 {
-    y = 3
-} else {
-    y = 4
-}
-    `;
-    const cfg = await builder.buildFromCode(code);
-    const pathCollector = new PathCollector('go');
-    pathCollector.collect(cfg.entry);
-    const actualConditions = pathCollector.getPaths().map(
-        p => p['segments'].map(seg => seg.condition).filter(Boolean)
-    );
-    assert.equal(actualConditions.length, 4, "Should have exactly 4 paths");
-    const expectedConditions = [
-        ['x > 10'],
-        ['!(x > 10)', 'y > 5'],
-        ['!(x > 10)', '!(y > 5)', 'z == 0'],
-        ['!(x > 10)', '!(y > 5)', '!(z == 0)']
-    ];
-    expectedConditions.forEach(condition => {
-        assert.ok(
-            actualConditions.some(c => c.length === condition.length && c.every((v, i) => v === condition[i])),
-            `Should have path with conditions: ${condition.join(' && ')}`
+    
+    test('CFG prompt template for real world code', async () => {
+        if (process.env.NODE_DEBUG !== 'true') {
+            console.log('activate');
+            await activate();
+        }
+        getConfigInstance().updateConfig({
+            expProb: 0.1,
+            generationType: GenerationType.CFG,
+            fixType: FixType.NOFIX
+        });
+        setHelpfulnessAlgorithm('default');
+        let currentSrcPath;
+        const workspace = getConfigInstance().workspace;
+        const projectName = path.basename(workspace);
+        if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+            currentSrcPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
+        } else {
+            currentSrcPath = path.join(workspace, SRC_PATHS.DEFAULT);
+        }
+        const FilePath = "pytree.py"
+        const symbolName = "replace"
+        const fileName = findAFileFromWorkspace(FilePath, 'python');
+        console.log(`#### File name: ${fileName}`);
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(fileName));
+        const symbol = await getSymbolFromDocument(document, symbolName);
+        assert.ok(symbol !== null, 'symbol should not be null');
+        const contextSelectorForCFG = await getContextSelectorInstance(
+            document, 
+            symbol);
+        const decodedTokens = contextSelectorForCFG.getTokens();
+        console.log("decodedTokens", decodedTokens.map(token => token.type));
+        // Default algorithm
+        const defaultTerms = getContextTermsFromTokens(decodedTokens);
+        const NoneFalseTerms = defaultTerms.filter(term => term.need_definition !== false || term.need_example !== false);
+        // const symbolFilePair = {
+        //     symbol,
+        //     document,
+        //     fileName: generateFileNameForDiffLanguage(document, symbol, path.join(getConfigInstance().workspace, getConfigInstance().savePath), 'python', [],0)
+        // }
+        // const functionText = document.getText(symbolFilePair.symbol.range);
+        // const builder = createCFGBuilder(document.languageId as SupportedLanguage);
+        // const cfg = await builder.buildFromCode(functionText);
+        // const pathCollector = new PathCollector(document.languageId);
+        // const paths = pathCollector.collect(cfg.entry);
+        const onlyFileName = fileName.split('/').pop()?.split(".")[0]!;
+        // const identifiedTerms = await contextSelectorForCFG.identifyContextTerms(functionText, []);
+        
+        const enrichedTerms = await contextSelectorForCFG.gatherContext(NoneFalseTerms);
+        // const enrichedTerms: ContextTerm[] = [];
+        // console.log("enrichedTerms", enrichedTerms);
+        const promptObj = generateTestWithContextWithCFG(
+            document, 
+            symbol,
+            document.getText(symbol.range), 
+            enrichedTerms, 
+            [], 
+            onlyFileName
         );
+        console.log("promptObj", JSON.stringify(promptObj));
+        // const fileName = generateFileNameForDiffLanguage(document, symbol, path.join(getConfigInstance().workspace, getConfigInstance().savePath), 'python', [],0)
     });
+
 });
-
-test('Java CFG Path - If-Else If-Else with Multiple Conditions', async function() {
-    const builder = new JavaCFGBuilder('java');
-    const code = `
-if (x > 10) {
-    y = 1;
-} else if (y > 5) {
-    y = 2;
-} else if (z == 0) {
-    y = 3;
-} else {
-    y = 4;
-}
-    `;
-    const cfg = await builder.buildFromCode(code);
-    const pathCollector = new PathCollector('java');
-    pathCollector.collect(cfg.entry);
-    const actualConditions = pathCollector.getPaths().map(
-        p => p['segments'].map(seg => seg.condition).filter(Boolean)
-    );
-    assert.equal(actualConditions.length, 4, "Should have exactly 4 paths");
-    const expectedConditions = [
-        ['(x > 10)'],
-        ['!(x > 10)', '(y > 5)'],
-        ['!(x > 10)', '!(y > 5)', '(z == 0)'],
-        ['!(x > 10)', '!(y > 5)', '!(z == 0)']
-    ];
-    expectedConditions.forEach(condition => {
-        assert.ok(
-            actualConditions.some(c => c.length === condition.length && c.every((v, i) => v === condition[i])),
-            `Should have path with conditions: ${condition.join(' && ')}`
-        );
-    });
-});
-
-// test('Golang CFG Path - Simple If-Else', async function() {
-//     const builder = new GolangCFGBuilder('go');
-//     const code = `
-// if x > 0 {
-//     y = 1
-// } else {
-//     y = 2
-// }
-//     `;
-//     const cfg = await builder.buildFromCode(code);
-//     builder.printCFGGraph(cfg.entry);
-//     const pathCollector = new PathCollector('go');
-//     const paths = pathCollector.collect(cfg.entry);
-
-//     assert.equal(paths.length, 2, "Should have exactly 2 paths");
-//     const actualConditions = pathCollector.getPaths().map(
-//         p => p['segments'].map(seg => seg.condition).filter(Boolean)
-//     );
-//     const expectedConditions = [
-//         ['x > 0'],
-//         ['!(x > 0)']
-//     ];
-//     assert.deepStrictEqual(actualConditions, expectedConditions);
-// });
-
-// test('Golang CFG Path - If-Else with Merge Point', async function() {
-//     const builder = new GolangCFGBuilder('go');
-//     const code = `
-// if x > 0 {
-//     y = 1
-// } else {
-//     y = 2
-// }
-// z := 3 // This is after the merge point
-//     `;
-//     const cfg = await builder.buildFromCode(code);
-//     builder.printCFGGraph(cfg.entry);
-//     const pathCollector = new PathCollector('go');
-//     const paths = pathCollector.collect(cfg.entry);
-
-//     assert.equal(paths.length, 2, "Should have exactly 2 paths");
-//     const actualConditions = pathCollector.getPaths().map(
-//         p => p['segments'].map(seg => seg.condition).filter(Boolean)
-//     );
-//     const expectedConditions = [
-//         ['x > 0'],
-//         ['!(x > 0)']
-//     ];
-//     assert.deepStrictEqual(actualConditions, expectedConditions);
-//     const actualCodes = pathCollector.getPaths().map(
-//         p => p['segments'].map(seg => seg.code).filter(Boolean)
-//     );
-//     const expectedCodes = [
-//         ['y = 1', 'z := 3'],
-//         ['y = 2', 'z := 3']
-//     ];
-//     assert.deepStrictEqual(actualCodes, expectedCodes);
-
-// });
-
-// test('Golang CFG Path - Nested If-Else with Multiple Branches', async function() {
-//     const builder = new GolangCFGBuilder('go');
-//     const code = `
-// if x > 10 {
-//     if y > 5 {
-//         result = x + y
-//     } else {
-//         if z > 0 {
-//             result = x - z
-//         } else {
-//             result = x
-//         }
-//     }
-// } else {
-//     if y < 0 {
-//         result = -y
-//     } else {
-//         result = 0
-//     }
-// }
-//     `;
-//     const cfg = await builder.buildFromCode(code);
-//     const pathCollector = new PathCollector('go');
-//     const paths = pathCollector.collect(cfg.entry);
-
-//     assert.equal(paths.length, 5, "Should have exactly 5 paths");
-//     const actualConditions = pathCollector.getPaths().map(
-//         p => p['segments'].map(seg => seg.condition).filter(Boolean)
-//     );
-//     const expectedConditions = [
-//         ['x > 10', 'y > 5'],
-//         ['x > 10', '!(y > 5)', 'z > 0'],
-//         ['x > 10', '!(y > 5)', '!(z > 0)'],
-//         ['!(x > 10)', 'y < 0'],
-//         ['!(x > 10)', '!(y < 0)']
-//     ];
-//     assert.deepStrictEqual(actualConditions, expectedConditions);
-//     const actualCodes = pathCollector.getPaths().map(
-//         p => p['segments'].map(seg => seg.code).filter(Boolean)
-//     );
-//     const expectedCodes = [
-//         ['result = x + y'],
-//         ['result = x - z'],
-//         ['result = x'],
-//         ['result = -y'],
-//         ['result = 0']
-//     ];
-//     assert.deepStrictEqual(actualCodes, expectedCodes);
-//     // assert.deepStrictEqual(paths, [
-//     //     {
-//     //         code: 'result = x + y',
-//     //         path: 'where (\n\tx > 10\n\ty > 5\n)'
-//     //     },
-//     //     {
-//     //         code: 'result = x - z',
-//     //         path: 'where (\n\tx > 10\n\t!(y > 5)\n\tz > 0\n)'
-//     //     },
-//     //     {
-//     //         code: 'result = x',
-//     //         path: 'where (\n\tx > 10\n\t!(y > 5)\n\t!(z > 0)\n)'
-//     //     },
-//     //     {
-//     //         code: 'result = -y',
-//     //         path: 'where (\n\t!(x > 10)\n\ty < 0\n)'
-//     //     },
-//     //     {
-//     //         code: 'result = 0',
-//     //         path: 'where (\n\t!(x > 10)\n\t!(y < 0)\n)'
-//     //     }
-//     // ]);
-// });
-
-
-// test('Golang CFG Path - While Loop with Conditions', async function() {
-//     const builder = new GolangCFGBuilder('go');
-//     const code = `
-// for x > 0 {
-//     if y > x {
-//         x = x - 1
-//     } else {
-//         y = y + 1
-//         if y > 10 {
-//             break
-//         }
-//     }
-//     if x == 5 {
-//         y += 2
-//     }
-// }
-//     `;
-
-//     const cfg = await builder.buildFromCode(code);
-//     builder.printCFGGraph(cfg.entry);
-//     const pathCollector = new PathCollector('go');
-//     const paths = pathCollector.collect(cfg.entry);
-
-//     // assert that there are 6 paths
-//     assert.equal(paths.length, 6, "Should have exactly 6 paths");
-//     // Test paths for first iteration
-//     const actualConditions = pathCollector.getPaths().map(
-//         p => p['segments'].map(seg => seg.condition).filter(Boolean)
-//     );
-//     const expectedConditions = [
-//         ['x > 0', 'y > x', 'x == 5'],
-//         ['x > 0', 'y > x', '!(x == 5)'],
-//         ['x > 0', '!(y > x)', 'y > 10'],
-//         ['x > 0', '!(y > x)', '!(y > 10)', 'x == 5'],
-//         ['x > 0', '!(y > x)', '!(y > 10)', '!(x == 5)']
-//     ];
-//     // actualConditions should include the elements in expectedConditions
-//     expectedConditions.forEach(condition => {
-//         assert.ok(
-//             actualConditions.some(c => c.length === condition.length && c.every((v, i) => v === condition[i])),
-//             `Should have path with conditions: ${condition.join(' && ')}`
-//         );
-//     });
-//     // const actualCodes = pathCollector.getPaths().map(
-//     //     p => p['segments'].map(seg => seg.code).filter(Boolean)
-//     // );
-//     // assert.ok(paths.some(p => p.path.includes('x > 0\n\ty > x')), 
-//     //         "Should have path for x > 0 && y > x");
-//     // assert.ok(paths.some(p => p.path.includes('x > 0\n\t!(y > x)\n\ty > 10')), 
-//     //     "Should have path for break condition");
-//     // assert.ok(paths.some(p => p.path.includes('x > 0\n\ty > x\n\tx == 5')), 
-//     //     "Should have path for continue condition");
-//     // assert.ok(paths.some(p => p.path.includes('x > 0\n\t!(y > x)\n\t!(y > 10)\n\t!(x == 5)')), 
-//     //     "Should recognize the break condition");
-//     // if !(x > 0) exist under p.path, then p.code should not include "while" 
-//     paths.forEach(p => {
-//         if (p.path.includes('!(x > 0)')) {
-//             assert.ok(!p.code.includes('while'), "Should not have while loop if !(x > 0) exists in the condition");
-//         }
-//     });
-// });
-
-// test('Golang CFG - For Loop Path Collection', async function() {
-//     const builder = new GolangCFGBuilder('go');
-//     const code = `
-// for i := 0; i < 10; i++ {
-//     x = i + 1
-//     if i < 3 {
-//         y = 2 * i
-//         continue
-//     }
-//     if i > 7 {
-//         z = i * i
-//         break
-//     }
-//     if i == 5 {
-//         w = i + 10
-//         continue
-//     }
-//     result = i * 2
-// }
-// final := result + 1
-//     `;
-//     const cfg = await builder.buildFromCode(code);
-//     const pathCollector = new PathCollector('go');
-//     const paths = pathCollector.collect(cfg.entry);
-
-//     // Verify number of paths
-//     assert.equal(paths.length, 6, "Should have exactly 6 paths");
-//     // Path 1: Early continue path with contradictory conditions
-//     assert.ok(
-//         paths.some(p => 
-//             p.code.includes('x = i + 1') &&
-//             p.code.includes('y = 2 * i') &&
-//             p.code.includes('z = i * i') &&
-//             p.code.includes('final := result + 1') &&
-//             p.path === 'where (\n\ti < 3\n\t!(i < 3)\n\ti > 7\n)'
-//         ),
-//         "Should have contradictory path with continue and break"
-//     );
-
-//     // Path 2: Early continue with normal execution
-//     assert.ok(
-//         paths.some(p => 
-//             p.code.includes('x = i + 1') &&
-//             p.code.includes('y = 2 * i') &&
-//             p.code.includes('result = i * 2') &&
-//             p.code.includes('final := result + 1') &&
-//             p.path === 'where (\n\ti < 3\n\t!(i < 3)\n\t!(i > 7)\n\t!(i == 5)\n)'
-//         ),
-//         "Should have continue path with normal execution"
-//     );
-
-//     // Path 3: Break path
-//     assert.ok(
-//         paths.some(p => 
-//             p.code.includes('x = i + 1') &&
-//             p.code.includes('z = i * i') &&
-//             p.code.includes('final := result + 1') &&
-//             !p.code.includes('result = i * 2') &&
-//             p.path === 'where (\n\t!(i < 3)\n\ti > 7\n)'
-//         ),
-//         "Should have break path"
-//     );
-
-//     // Path 4: Normal execution path
-//     assert.ok(
-//         paths.some(p => 
-//             p.code.includes('x = i + 1') &&
-//             p.code.includes('result = i * 2') &&
-//             p.code.includes('final := result + 1') &&
-//             !p.code.includes('z = i * i') &&
-//             p.path === 'where (\n\t!(i < 3)\n\t!(i > 7)\n\t!(i == 5)\n)'
-//         ),
-//         "Should have normal execution path"
-//     );
-
-
-//     // Verify all paths end with final statement
-//     assert.ok(
-//         paths.every(p => p.code.endsWith('final := result + 1')),
-//         "All paths should end with final statement"
-//     );
-
-//     // Verify path conditions
-//     const expectedPaths = [
-//         'where (\n\ti < 3\n\t!(i < 3)\n\ti > 7\n)',
-//         'where (\n\ti < 3\n\t!(i < 3)\n\t!(i > 7)\n\t!(i == 5)\n)',
-//         'where (\n\t!(i < 3)\n\ti > 7\n)',
-//         'where (\n\t!(i < 3)\n\t!(i > 7)\n\t!(i == 5)\n)'
-//     ];
-
-//     expectedPaths.forEach(expectedPath => {
-//         assert.ok(
-//             paths.some(p => p.path === expectedPath),
-//             `Should have path with conditions: ${expectedPath}`
-//         );
-//     });
-
-//     // Verify code sequences
-//     paths.forEach(path => {
-//         // All paths should start with for i := 0; i < 10;
-//         assert.ok(path.code.startsWith('for i := 0; i < 10;'), 
-//             "All paths should start with for i := 0; i < 10;");
-
-//         // Break paths should include z = i * i
-//         if (path.path.includes(' i > 7 ')) {
-//             assert.ok(path.code.includes('z = i * i'),
-//                 "Break paths should include z = i * i");
-//         }
-
-//         // Normal execution paths should include result = i * 2
-//         if (path.path.includes('!(i > 7) && !(i == 5)')) {
-//             assert.ok(path.code.includes('result = i * 2'),
-//                 "Normal paths should include result calculation");
-//         }
-//     });
-// });
-
-
-// test('Golang CFG Path - If-Else with multiple loop', async function() {
-//     const builder = new GolangCFGBuilder('go');
-//     const code = `
-// func replace(self *Node, newNodes []NL) {
-//     if self.parent == nil {
-//         panic(self)
-//     }
-//     if newNodes == nil {
-//         panic("new is nil")
-//     }
-//     if reflect.TypeOf(newNodes).Kind() != reflect.Slice {
-//         newNodes = []NL{newNodes}
-//     }
-//     lChildren := []NL{}
-//     found := false
-//     for _, ch := range self.parent.children {
-//         if ch == self {
-//             if found {
-//                 panic(self.parent.children)
-//             }
-//             if newNodes != nil {
-//                 lChildren = append(lChildren, newNodes...)
-//             }
-//             found = true
-//         } else {
-//             lChildren = append(lChildren, ch)
-//         }
-//     }
-//     if !found {
-//         panic(self.children)
-//     }
-//     self.parent.children = lChildren
-//     self.parent.changed()
-//     self.parent.invalidateSiblingMaps()
-//     for _, x := range newNodes {
-//         x.parent = self.parent
-//     }
-//     self.parent = nil
-// }
-//     `;
-//     const cfg = await builder.buildFromCode(code);
-//     builder.printCFGGraph(cfg.entry);
-//     const pathCollector = new PathCollector('go');
-//     // pathCollector.setMaxLoopIterations(10);
-
-//     // the number of condition node is 7
-//     const paths = pathCollector.collect(cfg.entry);
-//     const minimizedPaths = pathCollector.minimizePaths(paths);
-//     console.log("after minimization", minimizedPaths.length);
-//     console.log(minimizedPaths.map(p => p.path));
-//     assert.equal(paths.length, 80, "Should have exactly 80 paths");
-
-// });
-
-// test('Golang CFG Path - Return Statement Exits Function', async function() {
-//     const builder = new GolangCFGBuilder('go');
-//     const code = `
-// func foo(x int) int {
-//     y := 1
-//     if x > 0 {
-//         return 42
-//     }
-//     if y > 2 {
-//         return 3
-//     }
-//     y = 2
-//     return 0
-// }
-//     `;
-//     const cfg = await builder.buildFromCode(code);
-//     const pathCollector = new PathCollector('go');
-//     const paths = pathCollector.collect(cfg.entry);
-
-//     // Find the path(s) that include the first return
-//     const return42Path = paths.find(p => p.path.includes('return 42'))!;
-//     assert.ok(return42Path, "Should have a path with 'return 42'");
-//     // The path with 'return 42' should NOT include 'y = 2' or 'return 0'
-//     assert.ok(!return42Path.code.includes('y = 2'), "Path with 'return 42' should not include 'y = 2'");
-//     assert.ok(!return42Path.path.includes('y > 2'), "Path with 'return 42' should not include 'return 0'");
-
-//     // The other path should include 'y = 2' and 'return 0'
-//     const return0Path = paths.find(p => p.path.includes('return 0'))!;
-//     assert.ok(return0Path, "Should have a path with 'return 0'");
-//     assert.ok(return0Path.code.includes('y = 2'), "Path with 'return 0' should include 'y = 2'");
-//     assert.ok(!return0Path.code.includes('return 42'), "Path with 'return 0' should not include 'return 42'");
-// });
-
