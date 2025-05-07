@@ -59,22 +59,12 @@ export async function showGeneratedCodeWithPreview(filePath: string, column: vsc
 
 export async function saveCode(code: string, folderName: string, fileName: string): Promise<string> {
     // if file exist, add a number to the end of the file right before the suffix 
-    let counter = 1;
     let fullPath = path.join(folderName, fileName);
     const folderPath = path.dirname(fullPath);
     if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
     }
 
-    const ext = fileName.match(/\.\w+$/)?.[0] || '';
-    const baseNameWithoutExt = fileName.replace(/\.\w+$/, '');
-    
-    while (fs.existsSync(fullPath)) {
-        fileName = `${baseNameWithoutExt}_${counter}${ext}`;
-        fullPath = path.join(folderName, fileName);
-        counter++;
-    }
-    
     fs.writeFileSync(fullPath, code, 'utf8');
     console.log(`Code saved to ${fullPath}`);
     return fullPath;
@@ -362,7 +352,7 @@ export function generateTimestampString(): string {
 
 const javaLspaiTestPath = path.join('src', 'lspai', 'test', 'java');
 export function getFileName(fullFileName: string) {
-	const savePath = path.join(getConfigInstance().workspace, getConfigInstance().savePath);
+	const savePath = path.join(getConfigInstance().savePath);
 	const fileName = fullFileName.split(savePath)[1];
 	if (fileName.startsWith("/")) {
 		return fileName.replace("/", "");

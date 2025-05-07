@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { generateUnitTestForSelectedRange, showDiffAndAllowSelection } from './generate';
+import { generateUnitTestForSelectedRange } from './generate';
 import { Configuration, getConfigInstance } from './config';
 import { collectTrainData, main } from './train/collectTrainData';
 import * as fs from 'fs';

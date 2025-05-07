@@ -52,11 +52,12 @@ export function findTemplateFile(fileName: string): string {
 /**
  * Creates a diagnostic prompt to fix unit test errors
  */
-export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_report: string): ChatMessage[] {
+export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_report: string, focal_method: string): ChatMessage[] {
     const fixTemplatePath = findTemplateFile("fixCode.ini");
     const fixTemplateData = fs.readFileSync(fixTemplatePath, 'utf8');
     const fixTemplate = ini.parse(fixTemplateData);
-    const systemPrompt = fixTemplate.prompts.fix_system;
+    const systemPrompt = fixTemplate.prompts.fix_system
+        .replace('{focal_method}', focal_method);
     const userPrompt = fixTemplate.prompts.fix_user
         .replace('{unit_test_code}', unit_test_code)
         .replace('{diagnostic_report}', diagnostic_report);
@@ -151,6 +152,11 @@ export function generateTestWithContextWithCFG(
     const importString = getImportStatement(document, document.languageId, functionSymbol);
     const prompts = template || loadPathTestTemplate();
     
+    // if filname contains /, remove it
+    if (fileName.includes("/")) {
+        fileName = fileName.split("/").pop() || fileName;
+    }
+
     const systemPrompt = prompts.system_prompt
         .replace('{source_code}', source_code);
     let userPrompt = prompts.user_prompt;
