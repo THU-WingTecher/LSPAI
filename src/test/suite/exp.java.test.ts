@@ -13,7 +13,7 @@ import { runGenerateTestCodeSuite } from '../../experiment';
 
 suite('Experiment Test Suite - JAVA', () => {
     const projectPath = "/LSPAI/experiments/projects/commons-cli";
-    const sampleNumber = -1;
+    const sampleNumber = 50;
     const languageId = 'java';
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
@@ -67,34 +67,34 @@ suite('Experiment Test Suite - JAVA', () => {
         );
     });
 
-    test('CFG - without context', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.CFG,
-            FixType.ORIGINAL,
-            PromptType.DETAILED,
-            symbols,
-            languageId
-        );
-    });
+    // test('CFG - without context', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.CFG,
+    //         FixType.ORIGINAL,
+    //         PromptType.DETAILED,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
 
-    test('AGENT - with context', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.AGENT,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            symbols,
-            languageId
-        );
-    });
+    // test('AGENT - with context', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.AGENT,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
 
-    test('AGENT - without context', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.AGENT,
-            FixType.ORIGINAL,
-            PromptType.DETAILED,
-            symbols,
-            languageId
-        );
-    });
+    // test('AGENT - without context', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.AGENT,
+    //         FixType.ORIGINAL,
+    //         PromptType.DETAILED,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
 
 }); 
