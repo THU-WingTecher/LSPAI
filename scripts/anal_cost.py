@@ -62,6 +62,8 @@ def print_token_usage(data: List[Dict[str, Any]], file_name: str) -> Dict[str, A
         process = entry.get('process', 'Unknown Process')
         llm_info = entry.get('llmInfo')
         tokens = llm_info.get('tokenUsage', 0) if llm_info else 0
+        if tokens is "":
+            tokens = 0
         total_tokens += tokens
 
         if process.startswith("FixWithLLM"):
@@ -224,6 +226,8 @@ def analyze_json_file(file_path: str) -> Dict[str, Any]:
         process = entry.get('process', 'Unknown Process')
         llm_info = entry.get('llmInfo')
         tokens = llm_info.get('tokenUsage', 0) if llm_info else 0
+        if tokens is "":
+            tokens = 0
         process_token_info[process] = process_token_info.get(process, 0) + tokens
 
     return {
@@ -264,7 +268,8 @@ def main():
             print(f"Error: The path '{folder_path}' is not a valid directory.")
             continue
 
-        json_files = list(folder_path.glob('*.json'))
+        json_files = list(folder_path.rglob('*.json'))
+        # print(f"#### Number of JSON files: {len(json_files)}, {folder_path}")
         if not json_files:
             print(f"No JSON files found in the directory '{folder_path}'.")
             continue

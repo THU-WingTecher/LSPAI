@@ -9,6 +9,23 @@ import { activate } from '../../lsp';
 import { collectPathforSymbols } from '../../experiment';
 // Known issues : we cannot detect the break / continue condition in the loop
 // Basic path tests
+test('Python CFG Path - should not have path', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+def foo():
+    a = 1
+    b = 2 
+    c = 3
+    return a + b + c
+    `;
+    const cfg = await builder.buildFromCode(code);
+    builder.printCFGGraph(cfg.entry);
+    const pathCollector = new PathCollector('python');
+    const paths = pathCollector.collect(cfg.entry);
+    // console.log("paths", paths);
+    assert.equal(paths.length, 1, "Should have exactly 0 paths");
+});
+
 test('Python CFG Path - Simple If-Else', async function() {
     const builder = new PythonCFGBuilder('python');
     const code = `
