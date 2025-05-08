@@ -17,6 +17,7 @@ import { PathCollector } from './cfg/path';
 import { getContextTermsFromTokens } from './algorithm';
 import { reportProgressWithCancellation, showDiffAndAllowSelection } from './userInteraction';
 import { createCFGBuilder } from './cfg/builderFactory';
+import { ChatMessage } from './prompts/ChatMessage';
 
 export interface ContextInfo {
 	dependentContext: string;
@@ -254,10 +255,14 @@ return vscode.window.withProgress({
 					functionSymbol);
 				const functionText = document.getText(functionSymbol.range);
 				const builder = createCFGBuilder(document.languageId as SupportedLanguage);
+				const cfgBuildingStartTime = Date.now();
 				const cfg = await builder.buildFromCode(functionText);
+				logger.log("buildCFG", (Date.now() - cfgBuildingStartTime).toString(), null, "");
+				const pathCollectorStartTime = Date.now();
 				const pathCollector = new PathCollector(document.languageId);
 				const paths = pathCollector.collect(cfg.entry);
 				const minimizedPaths = pathCollector.minimizePaths(paths);
+				logger.log("collectCFGPaths", (Date.now() - pathCollectorStartTime).toString(), null, "");
 				logger.saveCFGPaths(functionText, minimizedPaths);
 				const ContextStartTime2 = Date.now();
 				const logObjForIdentifyTerms2: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
@@ -279,16 +284,25 @@ return vscode.window.withProgress({
 				// const enrichedTerms = await contextSelectorForCFG.gatherContext(identifiedTerms);
 				// const enrichedTerms: ContextTerm[] = [];
 				// console.log("enrichedTerms", enrichedTerms);
+				let promptObj2: ChatMessage[] = [];
 				const generateTestWithContextStartTime2 = Date.now();
-				const promptObj2 = generateTestWithContextWithCFG(
-					document, 
-					functionSymbol,
-					document.getText(functionSymbol.range), 
-					enrichedTerms2, 
-					paths, 
-					fileName
-				);
-
+				if (paths.length > 1) {
+					promptObj2 = generateTestWithContextWithCFG(
+						document, 
+						functionSymbol,
+						document.getText(functionSymbol.range), 
+						enrichedTerms2, 
+						paths, 
+						fileName
+					);
+				} else {
+					promptObj2 = generateTestWithContext(
+						document, 
+						document.getText(functionSymbol.range), 
+						enrichedTerms2, 
+						fileName
+					);
+				}
 				const logObj2: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
 				testCode = await invokeLLM(promptObj2, logObj2);
 				testCode = parseCode(testCode);

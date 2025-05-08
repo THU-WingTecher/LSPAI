@@ -11,6 +11,8 @@ import { createCFGBuilder } from './cfg/builderFactory';
 import { PathCollector } from './cfg/path';
 import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
+import pLimit from 'p-limit';
+const limit = pLimit(5);
 
 export async function collectPathforSymbols(
     symbols: any, // Use the correct type if available
@@ -51,6 +53,7 @@ export async function collectPathforSymbols(
     console.log(`#### Paths: ${paths.length}`);
         // assert.equal(paths.length, symbolFilePairsToTest.length, 'paths json files should exist for each function');
 }
+
 export async function runGenerateTestCodeSuite(
     generationType: GenerationType,
     fixType: FixType,
@@ -82,18 +85,34 @@ export async function runGenerateTestCodeSuite(
 
     const symbolFilePairsToTest = getSymbolFilePairsToTest(symbols, languageId);
     await saveTaskList(symbolFilePairsToTest, workspace, getConfigInstance().savePath);
-    for (const symbolFilePair of symbolFilePairsToTest) {
-        const { document, symbol, fileName } = symbolFilePair;
-        const result = await generateUnitTestForAFunction(
-            currentSrcPath,
-            document, 
-            symbol, 
-            fileName, 
-            false,
-        );
-        console.log(`#### Test Code: ${result}`);
-    }
+    // for (const symbolFilePair of symbolFilePairsToTest) {
+    //     const { document, symbol, fileName } = symbolFilePair;
+    //     const result = await generateUnitTestForAFunction(
+    //         currentSrcPath,
+    //         document, 
+    //         symbol, 
+    //         fileName, 
+    //         false,
+    //     );
+    //     console.log(`#### Test Code: ${result}`);
+    // }
 
+    const testGenerationPromises = symbolFilePairsToTest.map(symbolFilePair => 
+        limit(async () => {
+            const { document, symbol, fileName } = symbolFilePair;
+            const result = await generateUnitTestForAFunction(
+                currentSrcPath,
+                document, 
+                symbol, 
+                fileName, 
+                false,
+            );
+            console.log(`#### Test Code: ${result}`);
+            return result;
+        })
+    );
+
+    const results = await Promise.all(testGenerationPromises);
     const logPath = getConfigInstance().logSavePath;
     console.log(`#### Log path: ${logPath}`);
     assert.ok(fs.existsSync(logPath), 'log path should exist');
