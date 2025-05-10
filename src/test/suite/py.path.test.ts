@@ -3,6 +3,10 @@ import { PythonCFGBuilder } from '../../cfg/python';
 import { PathCollector } from '../../cfg/path';
 import { JavaCFGBuilder } from '../../cfg/java';
 import { CFGNodeType } from '../../cfg/types';
+import { loadAllTargetSymbolsFromWorkspace } from '../../helper';
+import { setWorkspaceFolders } from '../../helper';
+import { activate } from '../../lsp';
+import { collectPathforSymbols } from '../../experiment';
 // Known issues : we cannot detect the break / continue condition in the loop
 // Basic path tests
 test('Python CFG Path - Simple If-Else', async function() {
@@ -510,4 +514,20 @@ async def schedule_formatting(
     console.log("after minimization", minimizedPaths.length);
     console.log(minimizedPaths.map(p => p.path));
     // assert.equal(minimizedPaths.length, 10, "Should have exactly 10 paths");
+});
+
+test('Run all functions under a repository : black', async function() {
+    if (process.env.NODE_DEBUG !== 'true') {
+        console.log('activate');
+        await activate();
+    }
+    const projectPath = "/LSPAI/experiments/projects/black"
+    const workspaceFolders = setWorkspaceFolders(projectPath);
+    // await updateWorkspaceFolders(workspaceFolders);
+    console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
+
+    const symbols = await loadAllTargetSymbolsFromWorkspace('python');
+    console.log(`#### Number of symbols: ${symbols.length}`);
+    assert.ok(symbols.length > 0, 'symbols should not be empty');
+    await collectPathforSymbols(symbols);
 });

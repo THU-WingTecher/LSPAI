@@ -60,69 +60,6 @@ export class JavaCFGBuilder extends CFGBuilder {
         }
     }
 
-    // protected processIfStatement(
-    //     node: Parser.SyntaxNode,
-    //     current: CFGNode,
-    //     consequenceField: string,
-    //     elseClauseType: string
-    // ): CFGNode {
-    //     const conditionNode = this.createNode(CFGNodeType.CONDITION, node);
-    //     conditionNode.condition = this.getConditionText(node);
-    //     this.connect(current, conditionNode);
-    
-    //     // Process consequence (then branch)
-    //     const consequence = node.childForFieldName(consequenceField);
-    //     let consequenceEnd = conditionNode;
-    //     if (consequence) {
-    //         const consequenceNode = this.createNode(CFGNodeType.BLOCK, consequence);
-    //         conditionNode.trueBlock = consequenceNode;
-    //         this.connect(conditionNode, consequenceNode);
-    
-    //         let lastNode = consequenceNode;
-    //         for (const child of consequence.children) {
-    //             const processed = this.processNode(child, lastNode);
-    //             if (processed) {
-    //                 lastNode = processed;
-    //             }
-    //         }
-    //         consequenceEnd = lastNode;
-    //     }
-    
-    //     // Process alternative (else branch)
-    //     const else_clause = node.children.find(child => child.type === elseClauseType);
-    //     let else_clauseEnd = conditionNode;
-    
-    //     // Create merge node
-    //     const mergeNode = this.createNode(CFGNodeType.MERGED, node);
-    
-    //     if (else_clause && else_clause.nextSibling?.type === 'block') {
-    //         const else_clauseNode = this.createNode(CFGNodeType.BLOCK, else_clause.nextSibling);
-    //         conditionNode.falseBlock = else_clauseNode;
-    //         this.connect(conditionNode, else_clauseNode);
-    
-    //         let lastNode = else_clauseNode;
-    //         for (const child of else_clause.nextSibling.children) {
-    //             const processed = this.processNode(child, lastNode);
-    //             if (processed) {
-    //                 lastNode = processed;
-    //             }
-    //         }
-    //         else_clauseEnd = lastNode;
-    //     } else {
-    //         conditionNode.falseBlock = mergeNode;
-    //         this.connect(conditionNode, mergeNode);
-    //     }
-    
-    //     if (consequenceEnd !== conditionNode) {
-    //         this.connect(consequenceEnd, mergeNode);
-    //     }
-    //     if (else_clauseEnd !== conditionNode && else_clause?.nextSibling) {
-    //         this.connect(else_clauseEnd, mergeNode);
-    //     }
-    
-    //     return mergeNode;
-    // }
-
     protected processForStatement(node: Parser.SyntaxNode, current: CFGNode, bodyType: string): CFGNode {
         // Create loop node first
 

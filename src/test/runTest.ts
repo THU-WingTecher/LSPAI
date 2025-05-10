@@ -88,6 +88,7 @@ async function main() {
     `${cliPath} ${args.join(' ')} --list-extensions`,
     { encoding: 'utf-8' }
   );
+  console.log('installedExtensions', installedExtensions);
     // Use cp.spawn / cp.exec for custom setup
 	// const installExtensions = ['ms-python.python', 'oracle.oracle-java', 'golang.go'];
     cp.spawnSync(

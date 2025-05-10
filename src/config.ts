@@ -228,9 +228,9 @@ export class Configuration {
     private updateWorkspace(newWorkspace: string): void {
         this.config.workspace = newWorkspace;
         this.projectName = path.basename(this.config.workspace); // Use path.basename instead of split('/').pop()
-        this.createSavePathIfNotExists(path.join(this.config.workspace, this.config.savePath));
-        this.createSavePathIfNotExists(this.historyPath);
-        this.createSavePathIfNotExists(this.logSavePath);
+        // this.createSavePathIfNotExists(path.join(this.config.workspace, this.config.savePath));
+        // this.createSavePathIfNotExists(this.historyPath);
+        // this.createSavePathIfNotExists(this.logSavePath);
     }
 
     public updateConfig(newConfig: Partial<Configuration>): void {
@@ -256,13 +256,17 @@ export class Configuration {
             const logPath = this.logSavePath;
             
             // Create new paths
-            this.createSavePathIfNotExists(path.dirname(historyPath));
-            this.createSavePathIfNotExists(historyPath);
-            this.createSavePathIfNotExists(path.dirname(logPath));
-            this.createSavePathIfNotExists(logPath);
+            // this.createSavePathIfNotExists(path.dirname(historyPath));
+            // this.createSavePathIfNotExists(historyPath);
+            // this.createSavePathIfNotExists(path.dirname(logPath));
+            // this.createSavePathIfNotExists(logPath);
         }
 
         if (newConfig.savePath) {
+            // if savePath has workspace value, assert error 
+            if (newConfig.savePath.includes(this.config.workspace)) {
+                throw new Error('savePath cannot contain workspace value');
+            }
             const savePath = path.join(this.config.workspace, this.config.savePath);
             this.createSavePathIfNotExists(savePath);
             this.createSavePathIfNotExists(path.join(savePath, '..', 'history'));
@@ -420,6 +424,10 @@ export class Configuration {
             this.config.model,
             'history'
         );
+    }
+
+    public get timeStamp(): string {
+        return this.startTimestamp;
     }
 
     public get logSavePath(): string {

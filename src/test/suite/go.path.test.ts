@@ -2,6 +2,10 @@ import * as assert from 'assert';
 import { GolangCFGBuilder } from '../../cfg/golang';
 import { PathCollector } from '../../cfg/path';
 import { CFGNodeType } from '../../cfg/types';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
+
+import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders } from '../../helper';
+import { collectPathforSymbols } from '../../experiment';
 // Known issues : we cannot detect the break / continue condition in the loop
 // Basic path tests
 test('Golang CFG Path - Simple If-Else', async function() {
@@ -386,56 +390,17 @@ func foo(x int) int {
 });
 
 
-test('Golang CFG Path - If-Else with multiple loop', async function() {
-    const builder = new GolangCFGBuilder('go');
-    const code = `
-func replace(self *Node, newNodes []NL) {
-    if self.parent == nil {
-        panic(self)
-    }
-    if newNodes == nil {
-        panic("new is nil")
-    }
-    if reflect.TypeOf(newNodes).Kind() != reflect.Slice {
-        newNodes = []NL{newNodes}
-    }
-    lChildren := []NL{}
-    found := false
-    for _, ch := range self.parent.children {
-        if ch == self {
-            if found {
-                panic(self.parent.children)
-            }
-            if newNodes != nil {
-                lChildren = append(lChildren, newNodes...)
-            }
-            found = true
-        } else {
-            lChildren = append(lChildren, ch)
+test('Run all functions under a repository : cobra', async function() {
+        if (process.env.NODE_DEBUG !== 'true') {
+            console.log('activate');
+            await activate();
         }
-    }
-    if !found {
-        panic(self.children)
-    }
-    self.parent.children = lChildren
-    self.parent.changed()
-    self.parent.invalidateSiblingMaps()
-    for _, x := range newNodes {
-        x.parent = self.parent
-    }
-    self.parent = nil
-}
-    `;
-    const cfg = await builder.buildFromCode(code);
-    builder.printCFGGraph(cfg.entry);
-    const pathCollector = new PathCollector('go');
-    // pathCollector.setMaxLoopIterations(10);
+        const projectPath = "/LSPAI/experiments/projects/cobra"
+        const workspaceFolders = setWorkspaceFolders(projectPath);
+        // await updateWorkspaceFolders(workspaceFolders);
+        console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
-    // the number of condition node is 7
-    const paths = pathCollector.collect(cfg.entry);
-    const minimizedPaths = pathCollector.minimizePaths(paths);
-    console.log("after minimization", minimizedPaths.length);
-    console.log(minimizedPaths.map(p => p.path));
-    // assert.equal(paths.length, 80, "Should have exactly 80 paths");
-
+        const symbols = await loadAllTargetSymbolsFromWorkspace('go');
+        assert.ok(symbols.length > 0, 'symbols should not be empty');
+        await collectPathforSymbols(symbols);
 });

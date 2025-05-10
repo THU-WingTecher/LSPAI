@@ -2,6 +2,10 @@ import * as assert from 'assert';
 import { PathCollector } from '../../cfg/path';
 import { JavaCFGBuilder } from '../../cfg/java';
 import { CFGNodeType } from '../../cfg/types';
+import { setWorkspaceFolders } from '../../helper';
+import { collectPathforSymbols } from '../../experiment';
+import { loadAllTargetSymbolsFromWorkspace } from '../../helper';
+import { activate } from '../../lsp';
 
 
 test('Java CFG Path - Simple If-Else', async function() {
@@ -548,4 +552,20 @@ void scheduleFormatting(Set<Path> sources, boolean fast, WriteBack writeBack, Mo
     console.log("after minimization", minimizedPaths.length);
     console.log(minimizedPaths.map(p => p.path));
     // assert.equal(minimizedPaths.length, 8, "Should have exactly 8 paths");
+});
+
+test('Run all functions under a repository : commons-cli', async function() {
+    if (process.env.NODE_DEBUG !== 'true') {
+        console.log('activate');
+        await activate();
+    }
+    const projectPath = "/LSPAI/experiments/projects/commons-cli"
+    const workspaceFolders = setWorkspaceFolders(projectPath);
+    // await updateWorkspaceFolders(workspaceFolders);
+    console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
+
+    const symbols = await loadAllTargetSymbolsFromWorkspace('java');
+    console.log(`#### Number of symbols: ${symbols.length}`);
+    assert.ok(symbols.length > 0, 'symbols should not be empty');
+    await collectPathforSymbols(symbols);
 });
