@@ -21,7 +21,8 @@
   "extensionDependencies": [
     "ms-python.python",
     "ms-python.vscode-pylance",
-    "redhat.java"
+    "redhat.java",
+    "golang.go"
   ],
   "main": "./out/extension.js",
   "contributes": {

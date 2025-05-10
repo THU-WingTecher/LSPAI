@@ -21,8 +21,6 @@ function initializeSeededRandom(seed: number) {
     };
 }
 
-
-
 export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]) {
     for (const workspaceFolder of workspaceFolders) {
         if (vscode.workspace.workspaceFolders?.find(folder => folder.name === workspaceFolder.name)) {
