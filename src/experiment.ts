@@ -7,7 +7,50 @@ import { getConfigInstance, GenerationType, PromptType, FixType, SRC_PATHS, Proj
 import { generateFileNameForDiffLanguage } from './fileHandler';
 import { generateUnitTestForAFunction } from './generate';
 import { activate } from './lsp';
+import { createCFGBuilder } from './cfg/builderFactory';
+import { PathCollector } from './cfg/path';
+import { SupportedLanguage } from './ast';
+import { ExpLogger } from './log';
 
+export async function collectPathforSymbols(
+    symbols: any, // Use the correct type if available
+) {
+    if (process.env.NODE_DEBUG !== 'true') {
+        console.log('activate');
+        await activate();
+    }
+
+    const savePath = path.join("lspai-workspace", "cfg-path-results", getConfigInstance().timeStamp);
+    getConfigInstance().updateConfig({
+        savePath: savePath
+    });
+    const workspace = getConfigInstance().workspace;
+    const projectName = path.basename(workspace);
+    let currentSrcPath;
+    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+        currentSrcPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
+    } else {
+        currentSrcPath = path.join(workspace, SRC_PATHS.DEFAULT);
+    }
+    const logPath = getConfigInstance().logSavePath;
+    for (const symbolFilePair of symbols) {
+        const logger = new ExpLogger([], getConfigInstance().model, symbolFilePair.symbol.name, symbolFilePair.symbol.name, symbolFilePair.symbol.name);
+        const { document, symbol } = symbolFilePair;
+        const builder = createCFGBuilder(document.languageId as SupportedLanguage);
+        const functionText = document.getText(symbol.range);
+        const cfg = await builder.buildFromCode(functionText);
+        const pathCollector = new PathCollector(document.languageId);
+        const paths = pathCollector.collect(cfg.entry);
+        const minimizedPaths = pathCollector.minimizePaths(paths);
+        logger.saveCFGPaths(functionText, minimizedPaths);
+        console.log(`#### minimizedPaths: ${minimizedPaths.length}`);
+    }
+
+    const pathFolder = path.join(logPath, 'paths');
+    const paths = await findJsonFilesRecursively(pathFolder);
+    console.log(`#### Paths: ${paths.length}`);
+        // assert.equal(paths.length, symbolFilePairsToTest.length, 'paths json files should exist for each function');
+}
 export async function runGenerateTestCodeSuite(
     generationType: GenerationType,
     fixType: FixType,

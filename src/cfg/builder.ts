@@ -148,6 +148,14 @@ export class CFGBuilder {
         return node.childForFieldName('condition')?.text || (node as any).conditionNode.text || "";
     }
 
+    protected checkConditionText(conditionNode: CFGNode, node: Parser.SyntaxNode): void {
+        if (conditionNode.condition === "unknown") {
+            console.warn("CFGERROR:: conditionNode.condition is empty");
+            console.log("Parent's children node Info:", node.children.map(child => child.type).join("::"));
+            console.log("Parent's children node Info:", node.children.map(child => child.text).join("::"));
+        }
+    }
+
     protected processBlockAndConnectToMerge(
         blockNode: CFGNode,
         mergeNode: CFGNode | null
@@ -174,6 +182,7 @@ export class CFGBuilder {
     ): CFGNode {
         const conditionNode = this.createNode(CFGNodeType.CONDITION, node);
         conditionNode.condition = this.getConditionText(node);
+        this.checkConditionText(conditionNode, node);
         this.connect(current, conditionNode);
         const mergeNode = this.createNode(CFGNodeType.MERGED, node);
         // Process consequence (then branch)
@@ -244,6 +253,7 @@ export class CFGBuilder {
         // Create condition node
         const whileConditionNode = this.createNode(CFGNodeType.CONDITION, node);
         whileConditionNode.condition = this.getConditionText(node);
+        this.checkConditionText(whileConditionNode, node);
         this.connect(current, whileConditionNode);
 
         const loopNode = this.createNode(CFGNodeType.LOOP, node);

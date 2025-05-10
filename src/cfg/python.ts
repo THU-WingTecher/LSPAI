@@ -55,6 +55,7 @@ export class PythonCFGBuilder extends CFGBuilder {
         const conditionNode = this.createNode(CFGNodeType.CONDITION, node);
         let currentConditionNode = conditionNode;
         conditionNode.condition = this.getConditionText(node);
+        this.checkConditionText(conditionNode, node);
         this.connect(current, conditionNode);
         const mergeNode = this.createNode(CFGNodeType.MERGED, node);
         // Process consequence (then branch)
@@ -71,6 +72,7 @@ export class PythonCFGBuilder extends CFGBuilder {
         for (const elifNode of elifNodes) {
             const elifConditionNode = this.createNode(CFGNodeType.CONDITION, elifNode);
             elifConditionNode.condition = this.getConditionText(elifNode);
+            this.checkConditionText(elifConditionNode, node);
             this.connect(currentConditionNode, elifConditionNode);
             currentConditionNode.falseBlock = elifConditionNode;
             currentConditionNode = elifConditionNode;

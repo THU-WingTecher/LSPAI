@@ -55,7 +55,16 @@ export class GolangCFGBuilder extends CFGBuilder {
     }
 
     protected getConditionText(node: Parser.SyntaxNode): string {
-        return node.children.find(child => child.type === 'binary_expression')?.text || "";
+        return node.children.find(child => child.type === 'binary_expression')?.text || 
+                node.children.find(child => child.type === 'selector_expression')?.text ||
+                node.children.find(child => child.type === 'comparison_expression')?.text ||
+                node.children.find(child => child.type === 'range_clause')?.text ||
+                node.children.find(child => child.type === 'identifier')?.text ||
+                node.children.find(child => child.type === 'unary_expression')?.text ||
+                node.children.find(child => child.type === 'for_clause')?.text ||
+                node.children.find(child => child.type === 'call_expression')?.text ||
+                // (node as any).conditionNode?.text ||
+                "unknown";
     }
 
     protected processForStatement(node: Parser.SyntaxNode, current: CFGNode, bodyType: string): CFGNode {
@@ -83,6 +92,7 @@ export class GolangCFGBuilder extends CFGBuilder {
             const whileConditionNode = this.createNode(CFGNodeType.CONDITION, node);
             this.connect(current, whileConditionNode);
             whileConditionNode.condition = conditionText;
+            this.checkConditionText(whileConditionNode, node);
             whileConditionNode.trueBlock = forStatementNode;
             whileConditionNode.falseBlock = this.currentLoopNode.exitMergedNode;
             this.connect(whileConditionNode, this.currentLoopNode.exitMergedNode);
