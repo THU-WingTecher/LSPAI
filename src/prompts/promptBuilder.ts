@@ -158,19 +158,19 @@ export function generateTestWithContextWithCFG(
     }
 
     const systemPrompt = prompts.system_prompt
-        .replace('{source_code}', source_code);
     let userPrompt = prompts.user_prompt;
     if (context_info_str.length > 0) {
         userPrompt = userPrompt
         .replace('{context_info}', context_info_str)
     } else {
         userPrompt = userPrompt
-            .replace("Important terms' context information:\n\n{context_info}", context_info_str)
+        .replace("Important terms' context information:\n\n{context_info}", context_info_str)
     }
     userPrompt = userPrompt
+        .replace('{source_code}', source_code)
         .replace(
             '{unit_test_template}', 
-        LanguageTemplateManager.getUnitTestTemplate(
+            LanguageTemplateManager.getUnitTestTemplate(
             document.languageId, 
             fileName, 
             packageStatement ? packageStatement[0] : "",

@@ -92,6 +92,11 @@ public class ${FileName} {
 `;
 }
 export function GoUnitTestTemplate(FileName: string, packageString: string): string {
+    // if FileName starts with lowercase, capitalize it
+    let testFileName = FileName;
+    if (FileName.charAt(0) === FileName.charAt(0).toLowerCase()) {
+        testFileName = FileName.charAt(0).toUpperCase() + FileName.slice(1);
+    }
     return `
 Based on the provided information, you need to generate a unit test using Go's testing package.
 The generated test code will be located at the same directory with target code. Therefore, you don't have to import target project.
@@ -103,7 +108,7 @@ import (
     {Replace with needed imports}
 )
 
-func Test${FileName}(t *testing.T) {
+func Test${testFileName}(t *testing.T) {
     {Replace with needed setup}
     {Write your test function here}
 }

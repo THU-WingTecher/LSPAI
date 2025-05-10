@@ -224,7 +224,8 @@ export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol
         return `${packageFolder}/${finalName}`;
     } else if (language === 'go'){
         const relPath = path.relative(vscode.workspace.rootPath!, document.fileName);
-        return `${relPath.replace(".go","")}_${funcName}`;
+        // first letter of funcName is uppercase
+        return `${relPath.replace(".go","")}_${funcName.charAt(0).toUpperCase() + funcName.slice(1)}`;
     } else {
         return finalName;
     }

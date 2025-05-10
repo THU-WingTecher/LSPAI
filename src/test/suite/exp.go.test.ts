@@ -11,10 +11,12 @@ import { generateUnitTestForAFunction } from '../../generate';
 import { ProjectName } from '../../config';
 import { runGenerateTestCodeSuite } from '../../experiment';
 
-suite('Experiment Test Suite - JAVA', () => {
-    const projectPath = "/LSPAI/experiments/projects/commons-cli";
-    const sampleNumber = 40;
-    const languageId = 'java';
+suite('Experiment Test Suite - GO', async () => {
+    const projectPath = "/LSPAI/experiments/projects/cobra";
+    const workspaceFolders = await setWorkspaceFolders(projectPath);
+    await updateWorkspaceFolders(workspaceFolders);
+    const sampleNumber = 2;
+    const languageId = 'go';
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
         model: 'gpt-4o-mini',
@@ -31,8 +33,6 @@ suite('Experiment Test Suite - JAVA', () => {
 
     let symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[] = [];
 
-    test('set JAVA configuration', async () => {
-    });
 
     test('experiment helper functions', async () => {
         if (process.env.NODE_DEBUG !== 'true') {
@@ -77,15 +77,15 @@ suite('Experiment Test Suite - JAVA', () => {
     //     );
     // });
 
-    test('AGENT - with context', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.AGENT,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            symbols,
-            languageId
-        );
-    });
+    // test('AGENT - with context', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.AGENT,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
 
     // test('AGENT - without context', async () => {
     //     await runGenerateTestCodeSuite(
