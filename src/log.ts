@@ -26,7 +26,7 @@ export interface PromptLogData {
     sourceFile: string;
     systemPrompt: string;
     userPrompt: string;
-    paths: Array<{ code: string, path: string }>;
+    paths: Array<any>;
     finalPrompt: string;
 }
 

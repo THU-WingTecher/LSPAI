@@ -1,6 +1,7 @@
 import { CFGNode, CFGNodeType } from './types';
 import { ExceptionExtractorFactory, ExceptionTypeExtractor } from "./languageAgnostic";
 import { removeComments } from '../utils';
+import { collapseTextChangeRangesAcrossMultipleVersions } from 'typescript/lib/typescript';
 interface PathSegment {
     code: string;
     condition?: string;
@@ -9,6 +10,7 @@ interface PathSegment {
 export interface PathResult {
     code: string;
     path: string;
+    simple: string;
 }
 
 export class Path {
@@ -17,7 +19,9 @@ export class Path {
     get length() {
         return this.segments.length;
     }
-
+    get condition() {
+        return this.segments.map(s => s.condition).filter(c => c);
+    }
     addSegment(code: string, condition?: string) {
         // if condition is wrapped in parentheses, remove them
         // also should work for !((condition))
@@ -47,8 +51,8 @@ export class Path {
     toResult(): PathResult {
         return {
             code: this.segments.map(s => s.code).filter(c => c).join('\n'),
-            path: "where (\n\t" + this.segments.map(s => s.condition).filter(c => c).join('\n\t') + "\n)"
-            // path: this.segments.map(s => s.condition).filter(c => c).join(' && ')
+            path: "where (\n\t" + this.segments.map(s => s.condition).filter(c => c).join('\n\t') + "\n)",
+            simple: this.segments.map(s => s.condition).filter(c => c).join(' && ')
         };
     }
 }
@@ -77,6 +81,17 @@ export class PathCollector {
         this.MAX_LOOP_ITERATIONS = maxLoopIterations;
     }
 
+    getUniqueConditions(): Set<string> {
+        const uniqueConditions = new Set<string>();
+        for (const path of this.paths) {
+            for (const condition of path.condition) {
+                if (condition) {
+                    uniqueConditions.add(condition);
+                }
+            }
+        }
+        return uniqueConditions;
+    }
     /**
      * Minimizes the set of paths by removing those whose constraints are already covered.
      * @param paths The array of PathResult to minimize.

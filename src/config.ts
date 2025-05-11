@@ -367,21 +367,26 @@ export class Configuration {
             this.config.timeoutMs *= 2;
         }
     }
-
+    
+    private constructResultPath(): string {
+        return path.join(
+            "lspai-workspace",
+            this.startTimestamp,
+            this.projectName,
+            this.generationType + "_" + this.promptType + "_" + this.fixType,
+            this.config.model,
+        );
+    }
     public genSaveName(): string {
         // Ensure we have all required parts
         if (!this.config.workspace || !this.startTimestamp || !this.projectName || !this.config.model) {
             throw new Error('Missing required configuration for genSaveName');
         }
         return path.join(
-            "lspai-workspace",
-            this.startTimestamp,
-            this.projectName,
-            this.generationType+this.promptType,
-            this.config.model,
-            this.promptType,
+            this.constructResultPath(),
             "results"
         );
+
         // assert(this.config.workspace, 'workspace is not set');
         // let saveName = "results";
         // if (this.generationType === GenerationType.ORIGINAL) {
@@ -418,11 +423,7 @@ export class Configuration {
         }
         return path.join(
             this.config.workspace,
-            "lspai-workspace",
-            this.startTimestamp,
-            this.projectName,
-            this.generationType+this.promptType,
-            this.config.model,
+            this.constructResultPath(),
             'history'
         );
     }
@@ -438,11 +439,7 @@ export class Configuration {
         }
         return path.join(
             this.config.workspace,
-            "lspai-workspace",
-            this.startTimestamp,
-            this.projectName,
-            this.generationType+this.promptType,
-            this.config.model,
+            this.constructResultPath(),
             'logs'
         );
     }

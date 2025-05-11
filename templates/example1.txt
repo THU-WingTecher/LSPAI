@@ -1,0 +1,136 @@
+# Example 1
+
+## User Prompt 
+### Focal Method To Test
+    protected void handleConcatenatedOptions(final String token) throws ParseException {
+        for (int i = 1; i < token.length(); i++) {
+            final String ch = String.valueOf(token.charAt(i));
+            if (!options.hasOption(ch)) {
+                handleUnknownToken(stopAtNonOption && i > 1 ? token.substring(i) : token);
+                break;
+            }
+            handleOption(options.getOption(ch));
+            if (currentOption != null && token.length() != i + 1) {
+                // add the trail as an argument of the option
+                currentOption.processValue(stripLeadingAndTrailingQuotesDefaultOff(token.substring(i + 1)));
+                break;
+            }
+        }
+    }\
+\
+
+### Conditions to Satisfy
+1. !options.hasOption(ch)
+2. !(!options.hasOption(ch)) && (currentOption != null && token.length() != i + 1)
+3. !(!options.hasOption(ch)) && !(currentOption != null && token.length() != i + 1)
+
+### Important terms 
+
+#### Definition of hasOption
+...
+#### Definition of currentOption 
+... 
+
+### Unit Test format
+```
+package org.apache.commons.cli;
+{Replace With Needed Imports}
+
+public class DefaultParser_handleConcatenatedOptions_0_1Test {
+
+    @Test
+    public void {write your test function name here}() {
+        {Write your test code here}
+    }
+}
+```
+
+## Your Answer 
+
+🧠 Step-by-step Reasoning
+1. Condition: !options.hasOption(ch)
+This means the current character (ch) does not match any known option.
+
+Example: if valid options are a, b, c, and token is -x, then x is unknown → !options.hasOption('x') is true.
+
+✅ Input token to satisfy: -x (assuming 'x' is not a valid option)
+
+2. Condition: currentOption != null && token.length() != i + 1
+This means:
+
+The current option can take a value (i.e., currentOption is not null),
+
+and there are remaining characters after the current index → indicating the value for the option is embedded.
+
+Example: token = -aValue where -a is a valid option that takes an argument, and "Value" is the value.
+
+✅ Input token to satisfy: -aValue (where a is a valid option with hasArg = true)
+
+3. Based on given condition, we generate 3 test function under test class which corresponds given [Conditions](#conditions-to-satisfy).
+
+4. Final Code:
+```java 
+public class DefaultParser_handleConcatenatedOptions_0_1Test {
+
+    @Test
+    public void testUnknownOption() throws Exception {
+        /*
+            where (
+                (!options.hasOption(ch))
+            )
+        */
+        Options options = new Options(); // no options added, all ch will be unknown
+        DefaultParser parser = new DefaultParser();
+        parser.setOptions(options);
+        parser.setStopAtNonOption(false);
+
+        // We override handleUnknownToken to test it
+        String token = "-x";
+        try {
+            parser.handleConcatenatedOptions(token);
+        } catch (ParseException e) {
+            // expected path
+        }
+    }
+
+    @Test
+    public void testValidOptionWithValue() throws Exception {
+        /*
+            where (
+                !(!options.hasOption(ch))
+                (currentOption != null && token.length() != i + 1)
+            )
+        */
+        Options options = new Options();
+        Option opt = new Option("a", true, "option a with arg");
+        options.addOption(opt);
+        DefaultParser parser = new DefaultParser();
+        parser.setOptions(options);
+
+        // 'a' is valid and has an argument, and "Value" follows it
+        String token = "-aValue";
+        parser.handleConcatenatedOptions(token);
+        assertEquals("Value", opt.getValue());
+    }
+
+    @Test
+    public void testValidOptionNoValue() throws Exception {
+        /*
+            where (
+                !(!options.hasOption(ch))
+                !(currentOption != null && token.length() != i + 1)
+            )
+        */
+        Options options = new Options();
+        Option opt = new Option("b", false, "option b without arg");
+        options.addOption(opt);
+        DefaultParser parser = new DefaultParser();
+        parser.setOptions(options);
+
+        // 'b' is a valid option, but has no argument, and it's the only char
+        String token = "-b";
+        parser.handleConcatenatedOptions(token);
+        assertNull(opt.getValue());
+    }
+}
+```
