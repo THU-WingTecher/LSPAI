@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { DecodedToken, extractUseDefInfo } from "./token";
-import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement} from "./retrieve";
+import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement, constructSymbolRelationShip} from "./retrieve";
 import {getReferenceInfo} from "./reference";
 import { TokenLimitExceededError } from "./invokeLLM";
 import { ExpLogger, LLMLogs } from './log';
@@ -9,15 +9,17 @@ import { invokeLLM } from "./invokeLLM";
 import { genPrompt, generateTestWithContext, generateTestWithContextWithCFG } from "./prompts/promptBuilder";
 import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, parseCode } from './utils';
 import { generateFileNameForDiffLanguage, saveToIntermediate, saveCode, getFileName } from './fileHandler';
-import { getConfigInstance, GenerationType, PromptType, FixType } from './config';
+import { getConfigInstance, GenerationType, PromptType } from './config';
 import { ContextTerm, getContextSelectorInstance } from './agents/contextSelector';
-import { DiagnosticReport, fixDiagnostics } from './fix';
 import { SupportedLanguage } from './ast';
 import { PathCollector } from './cfg/path';
 import { getContextTermsFromTokens } from './algorithm';
 import { reportProgressWithCancellation, showDiffAndAllowSelection } from './userInteraction';
 import { createCFGBuilder } from './cfg/builderFactory';
 import { ChatMessage } from './prompts/ChatMessage';
+import { BaseTestGenerator } from './strategy/base';
+import { createTestGenerator } from './strategy/generators/factory';
+
 
 export interface ContextInfo {
 	dependentContext: string;
@@ -145,25 +147,25 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 }
 
 // Helper functions for the main generator
-async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string, logger: ExpLogger): Promise<void> {
-	// basically, its the last part of the file name
-	// for java, it is the file name without the path
-	// for other languages, it is the file name with the path
-	// for example, the fileName is org.commons.cli.CommandLineTest.java
+// async function initializeTestGeneration(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, fullFileName: string, logger: ExpLogger): Promise<void> {
+// 	// basically, its the last part of the file name
+// 	// for java, it is the file name without the path
+// 	// for other languages, it is the file name with the path
+// 	// for example, the fileName is org.commons.cli.CommandLineTest.java
 
-	logger.log("start", "", null, "");
+// 	logger.log("start", "", null, "");
 
-	const languageId = document.languageId;
-	console.log('Language ID:', languageId);
+// 	const languageId = document.languageId;
+// 	console.log('Language ID:', languageId);
 
-	if (!functionSymbol || !isFunctionSymbol(functionSymbol) || !isValidFunctionSymbol(functionSymbol)) {
-		vscode.window.showErrorMessage('No valid function symbol found!');
-		throw new Error('Invalid function symbol');
-	}
+// 	if (!functionSymbol || !isFunctionSymbol(functionSymbol) || !isValidFunctionSymbol(functionSymbol)) {
+// 		vscode.window.showErrorMessage('No valid function symbol found!');
+// 		throw new Error('Invalid function symbol');
+// 	}
 
-}
+// }
 
-async function generateInitialTestCode(
+export async function generateInitialTestCode(
 	collectedData: any,
 	languageId: string,
 	logger: ExpLogger
@@ -187,245 +189,74 @@ async function generateInitialTestCode(
 }
 
 export async function generateUnitTestForAFunction(
-	srcPath: string,
-	document: vscode.TextDocument,
-	functionSymbol: vscode.DocumentSymbol,
-	fullFileName: string,
-	showGeneratedCode: boolean = true,
-	inExperiment: boolean = false
+    srcPath: string,
+    document: vscode.TextDocument,
+    functionSymbol: vscode.DocumentSymbol,
+    fullFileName: string,
+    showGeneratedCode: boolean = true,
+    inExperiment: boolean = false
 ): Promise<string> {
-// Merge provided config with defaults
-const model = getConfigInstance().model;
-const fileName = getFileName(fullFileName);
-const logger = new ExpLogger([], model, fullFileName, fileName, functionSymbol.name);
-const languageId = document.languageId;
+    const model = getConfigInstance().model;
+    const fileName = getFileName(fullFileName);
+    const logger = new ExpLogger([], model, fullFileName, fileName, functionSymbol.name);
+    const languageId = document.languageId;
 
-return vscode.window.withProgress({
-	location: vscode.ProgressLocation.Notification,
-	title: "Generating Unit Test",
-	cancellable: true
-}, async (progress, token) => {
+    return vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: "Generating Unit Test",
+        cancellable: true
+    }, async (progress, token) => {
+        try {
+            if (!await reportProgressWithCancellation(progress, token, "Preparing for test generation...", 10)) {
+                return '';
+            }
 
-	console.log(`Generating unit test for ${model} in ${fullFileName}`);
-	try {
-        if (!await reportProgressWithCancellation(progress, token, "Preparing for test generation...", 10)) {
+            const generator = createTestGenerator(
+                getConfigInstance().generationType,
+                document,
+                functionSymbol,
+                languageId,
+                fileName,
+                logger,
+                progress,
+                token,
+				srcPath
+            );
+
+            const testCode = await generator.generateTest();
+            await saveToIntermediate(
+                testCode,
+                srcPath,
+                fileName,
+                path.join(getConfigInstance().savePath, "initial"),
+                languageId
+            );
+
+            const { finalCode, diagnosticReport } = await generator.fixTest(testCode);
+            
+            if (!await reportProgressWithCancellation(progress, token, "Finalizing test code...", 10)) {
+                return '';
+            }
+
+            if (diagnosticReport) {
+                logger.saveDiagnosticReport(diagnosticReport);
+            }
+
+            await saveToIntermediate(
+                finalCode,
+                srcPath,
+                fileName,
+                path.join(getConfigInstance().savePath, "final"),
+                languageId
+            );
+            
+            logger.save(fileName);
+            return finalCode;
+
+        } catch (error) {
+            console.error('Failed to generate unit test:', error);
+            vscode.window.showErrorMessage('Failed to generate unit test!');
             return '';
         }
-		await initializeTestGeneration(
-			document,
-			functionSymbol,
-			fullFileName,
-			logger
-			);
-		let testCode = "";
-		let collectedData = {};
-		// Step 1: Collect Info
-
-		// progress.report({ message: "Generating test structure...", increment: 20 });
-		switch (getConfigInstance().generationType) {
-			case GenerationType.NAIVE:
-			case GenerationType.ORIGINAL:
-			// Step 2: Initial Test Generation
-				if (!await reportProgressWithCancellation(progress, token, "Collecting info...", 20)) {
-					return '';
-				}
-				const startTime = Date.now();
-				collectedData = await collectInfo(
-					document,
-					functionSymbol,
-					languageId,
-					fileName,
-				);
-				logger.log("collectInfo", (Date.now() - startTime).toString(), null, "");
-				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating initial test code`, 20)) {
-					return '';
-				}
-				testCode = await generateInitialTestCode(
-				collectedData,
-				languageId,
-				logger
-				);
-				testCode = parseCode(testCode);
-
-				break;
-
-			case GenerationType.CFG:
-				const contextSelectorForCFG = await getContextSelectorInstance(
-					document, 
-					functionSymbol);
-				const functionText = document.getText(functionSymbol.range);
-				const builder = createCFGBuilder(document.languageId as SupportedLanguage);
-				const cfgBuildingStartTime = Date.now();
-				const cfg = await builder.buildFromCode(functionText);
-				logger.log("buildCFG", (Date.now() - cfgBuildingStartTime).toString(), null, "");
-				const pathCollectorStartTime = Date.now();
-				const pathCollector = new PathCollector(document.languageId);
-				const paths = pathCollector.collect(cfg.entry);
-				const minimizedPaths = pathCollector.minimizePaths(paths);
-				logger.log("collectCFGPaths", (Date.now() - pathCollectorStartTime).toString(), null, "");
-				logger.saveCFGPaths(functionText, minimizedPaths);
-				const ContextStartTime2 = Date.now();
-				const logObjForIdentifyTerms2: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-				let enrichedTerms2: ContextTerm[] = [];
-				if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-					const identifiedTerms2 = getContextTermsFromTokens(contextSelectorForCFG.getTokens());
-					logger.log("identifyContextTerms", (Date.now() - ContextStartTime2).toString(), logObjForIdentifyTerms2, "");
-					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
-						return '';
-					}
-
-					const gatherContextStartTime2 = Date.now();
-					enrichedTerms2 = await contextSelectorForCFG.gatherContext(identifiedTerms2);
-					logger.log("gatherContext", (Date.now() - gatherContextStartTime2).toString(), null, "");
-					console.log("enrichedTerms", enrichedTerms2);
-				}
-				// const identifiedTerms = await contextSelectorForCFG.identifyContextTerms(functionText, []);
-
-				// const enrichedTerms = await contextSelectorForCFG.gatherContext(identifiedTerms);
-				// const enrichedTerms: ContextTerm[] = [];
-				// console.log("enrichedTerms", enrichedTerms);
-				let promptObj2: ChatMessage[] = [];
-				const generateTestWithContextStartTime2 = Date.now();
-				if (paths.length > 1) {
-					promptObj2 = generateTestWithContextWithCFG(
-						document, 
-						functionSymbol,
-						document.getText(functionSymbol.range), 
-						enrichedTerms2, 
-						paths, 
-						fileName
-					);
-				} else {
-					promptObj2 = generateTestWithContext(
-						document, 
-						document.getText(functionSymbol.range), 
-						enrichedTerms2, 
-						fileName
-					);
-				}
-				const logObj2: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-				testCode = await invokeLLM(promptObj2, logObj2);
-				testCode = parseCode(testCode);
-				logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime2).toString(), logObj2, "");
-				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
-					return '';
-				}
-				logger.save(fileName);
-				
-				break;
-
-			case GenerationType.AGENT:
-				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - identifying context terms`, 20)) {
-					return '';
-				}
-				const contextSelector = await getContextSelectorInstance(
-					document, 
-					functionSymbol);
-				if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
-					return '';
-				}
-				let enrichedTerms: ContextTerm[] = [];
-				if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-					
-					const ContextStartTime = Date.now();
-					const logObjForIdentifyTerms: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-					// const identifiedTerms = await contextSelector.identifyContextTerms(document.getText(functionSymbol.range), logObjForIdentifyTerms);
-					const identifiedTerms = getContextTermsFromTokens(contextSelector.getTokens());
-					logger.log("identifyContextTerms", (Date.now() - ContextStartTime).toString(), logObjForIdentifyTerms, "");
-					const gatherContextStartTime = Date.now();
-					enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
-					logger.log("gatherContext", (Date.now() - gatherContextStartTime).toString(), null, "");
-					console.log("enrichedTerms", enrichedTerms);
-
-					if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - generating test with context`, 20)) {
-						return '';
-					}
-				}
-				const generateTestWithContextStartTime = Date.now();
-				const promptObj = generateTestWithContext(document, document.getText(functionSymbol.range), enrichedTerms, fileName);
-				const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model};
-				testCode = await invokeLLM(promptObj, logObj);
-				testCode = parseCode(testCode);
-
-				logger.log("generateTestWithContext", (Date.now() - generateTestWithContextStartTime).toString(), logObj, "");
-				
-				logger.save(fileName);
-				break;
-			case GenerationType.EXPERIMENTAL:
-				break;
-			default:
-				throw new Error(`Invalid generation type: ${getConfigInstance().generationType}`);
-		}
-
-		await saveToIntermediate(
-			testCode,
-			srcPath,
-			fileName,
-			path.join(getConfigInstance().savePath, "initial"),
-			languageId
-		);
-
-		if (getConfigInstance().generationType === GenerationType.NAIVE || getConfigInstance().fixType === FixType.NOFIX) {
-			if (!await reportProgressWithCancellation(progress, token, `[${getConfigInstance().generationType} mode] - completed`, 50)) {
-				return '';
-			}
-			return testCode;
-		}
-
-		// Step 3: Diagnostic Fix
-		let diagnosticReport: DiagnosticReport | null = null;
-		let finalCode: string = testCode;
-
-		const fixstartTime = Date.now();
-		const report = await fixDiagnostics(
-			srcPath,
-			testCode,
-			document.getText(functionSymbol.range),
-			model,
-			languageId,
-			model,
-			getConfigInstance().historyPath,
-			fileName,
-			logger,
-			getConfigInstance().maxRound,
-			progress,
-			token
-		);
-		diagnosticReport = report.diagnosticReport;
-		finalCode = report.finalCode;
-		logger.log("fixDiagnostics", (Date.now() - fixstartTime).toString(), null, "");
-		
-		// Step 4: Save Results
-		
-		// Save diagnostic report
-		if (!await reportProgressWithCancellation(progress, token, "Finalizing test code...", 10)) {
-			return '';
-		}
-		// const reportPath = path.join(getConfigInstance().logSavePath, `${fileName}_diagnostic_report.json`);
-		// fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-		// console.log('generate::diagnosticReport', JSON.stringify(diagnosticReport, null, 2));
-		// fs.writeFileSync(reportPath, JSON.stringify(diagnosticReport, null, 2));
-		logger.saveDiagnosticReport(diagnosticReport);
-		await saveToIntermediate(
-			finalCode,
-			srcPath,
-			fileName,
-			path.join(getConfigInstance().savePath, "final"),
-			languageId
-		);
-		// await saveGeneratedCodeToFolder(finalCode, path.join(getConfigInstance().workspace, getConfigInstance().savePath), fileName);
-		logger.save(fileName);
-
-		if (report.success) {
-			return finalCode;
-		} else {
-				return '';
-			}
-		} catch (error) {
-			console.error('Failed to generate unit test:', error);
-			vscode.window.showErrorMessage('Failed to generate unit test!');
-			return '';
-		}
-	});
+    });
 }
-

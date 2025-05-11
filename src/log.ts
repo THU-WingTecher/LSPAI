@@ -101,7 +101,7 @@ export class ExpLogger {
 }
 
 async function saveExperimentData(expData: ExpLogs[], expLogPath: string, fileName: string, method: string) {
-	const jsonFilePath = path.join(expLogPath, method, `${fileName}.json`);
+	const jsonFilePath = path.join(expLogPath, `${fileName}.json`);
 	// const jsonFilePath = path.join(expLogPath, method, `${fileName}_${new Date().toLocaleString('en-US', { timeZone: 'CST', hour12: false }).replace(/[/,: ]/g, '_')}.json`);
 
 	// Prepare the data to be saved
@@ -120,16 +120,16 @@ async function saveExperimentData(expData: ExpLogs[], expLogPath: string, fileNa
 		} : null
 	}));
 
-	const dir = path.dirname(jsonFilePath);
-	if (!fs.existsSync(dir)) {
-		fs.mkdirSync(dir, { recursive: true });
-	}
+	// const dir = path.dirname(jsonFilePath);
+	// if (!fs.existsSync(dir)) {
+	// 	fs.mkdirSync(dir, { recursive: true });
+	// }
 
 	// Check if file exists and initialize empty array if not
-	let jsonContent = [];
-	if (fs.existsSync(jsonFilePath)) {
-		jsonContent = JSON.parse(fs.readFileSync(jsonFilePath, 'utf8'));
-	}
+	// let jsonContent = [];
+	// if (fs.existsSync(jsonFilePath)) {
+	let	jsonContent = JSON.parse(fs.readFileSync(jsonFilePath, 'utf8'));
+	// }
 
 	// Append the current experiment's data
 	jsonContent.push(...formattedData);
