@@ -268,6 +268,8 @@ export class Configuration {
                 throw new Error('savePath cannot contain workspace value');
             }
             const savePath = path.join(this.config.workspace, this.config.savePath);
+            // savePath should be updated 
+            this.config.savePath = savePath;
             this.createSavePathIfNotExists(savePath);
             this.createSavePathIfNotExists(path.join(savePath, '..', 'history'));
             this.createSavePathIfNotExists(path.join(savePath, '..', 'logs'));
@@ -372,7 +374,6 @@ export class Configuration {
             throw new Error('Missing required configuration for genSaveName');
         }
         return path.join(
-            this.config.workspace,
             "lspai-workspace",
             this.startTimestamp,
             this.projectName,
