@@ -90,7 +90,7 @@ export function inspectTest(source_code: string, unit_test_code: string): ChatMe
 export function generatePathBasedTests(
     document: vscode.TextDocument, 
     source_code: string, 
-    paths: { code: string, path: string }[], 
+    paths: any[], 
     fileName: string,
     template?: { system_prompt: string, user_prompt: string }
 ): ChatMessage[][] {
@@ -131,7 +131,7 @@ export function generateTestWithContextWithCFG(
     functionSymbol: vscode.DocumentSymbol,
     source_code: string, 
     context_info: ContextTerm[], 
-    paths: { code: string, path: string }[],
+    paths: any[],
     fileName: string,
     template?: { system_prompt: string, user_prompt: string }
 ): ChatMessage[] {
@@ -139,10 +139,10 @@ export function generateTestWithContextWithCFG(
     let context_info_str = "";
     for (const item of context_info) {
         if (item.need_definition && item.context && item.context!=item.name) {
-            result.push(`\n## Source Code of ${item.name}\n${item.context}`);
+            result.push(`\n#### Definition of ${item.name}\n${item.context}`);
         }
         if (item.need_example && item.example && item.example!=item.name) {
-            result.push(`\n## Example of ${item.name}\n${item.example}`);
+            result.push(`\n#### Example of ${item.name}\n${item.example}`);
         }
     }
     if (result.length > 0) {
@@ -472,7 +472,7 @@ export function loadPathTestTemplate(): {
 // export function generatePathBasedTests(
 //     document: vscode.TextDocument, 
 //     source_code: string, 
-//     paths: { code: string, path: string }[], 
+//     paths: any }[], 
 //     fileName: string,
 //     template?: { system_prompt: string, user_prompt: string }
 // ): ChatMessage[] {
@@ -512,7 +512,7 @@ export function loadPathTestTemplate(): {
 // export function inspectPathBasedTests(
 //     source_code: string, 
 //     unit_test_code: string, 
-//     paths: { code: string, path: string }[]
+//     paths: any }[]
 // ): ChatMessage[] {
 //     const configPath = findTemplateFile("pathTestGenerator.ini");
 //     const configData = fs.readFileSync(configPath, 'utf8');

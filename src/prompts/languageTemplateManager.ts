@@ -52,8 +52,9 @@ ${packageString}
 
 public class ${fileName} {
 ${testFunctions}
-    {Replace with needed setup}
-    {Write your test test function here}
+@Test
+public void {write your test function name here}() {
+    {Write your test code here}
 }
 \`\`\`
 `;

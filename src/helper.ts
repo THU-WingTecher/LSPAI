@@ -5,7 +5,7 @@ import { MIN_FUNCTION_LINES, SRC_PATHS } from "./config";
 import { ProjectName } from "./config";
 import { generateFileNameForDiffLanguage, findFiles } from "./fileHandler";
 import { getLanguageSuffix } from "./language";
-import { getAllSymbols } from "./lsp";
+import { getAllSymbols, getSymbolFromDocument } from "./lsp";
 import { getConfigInstance } from "./config";
 import { generateUnitTestForAFunction } from "./generate";
 
@@ -277,6 +277,20 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
     initializeSeededRandom(SEED); // Initialize the seeded random generator
     const randomIndex = Math.floor(Math.random() * Files.length);
     return Files[randomIndex];
+}
+
+export async function selectOneSymbolFileFromWorkspace(fileName:string, symbolName:string, language:string) : Promise<{symbol: vscode.DocumentSymbol, document: vscode.TextDocument}> {
+    const filePath = findAFileFromWorkspace(fileName, 'java');
+    console.log("filePATH :: ", filePath);
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+    const symbol = await getSymbolFromDocument(document, symbolName);
+    if (!symbol) {
+        throw new Error(`Symbol ${symbolName} not found in file ${filePath}`);
+    }
+    return {
+        symbol,
+        document
+    };
 }
 
 export function findAFileFromWorkspace(targetFile: string, language: string) {
