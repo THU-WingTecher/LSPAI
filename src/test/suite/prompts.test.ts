@@ -84,7 +84,7 @@ suite('Experiment Test Suite', () => {
         const onlyFileName = fileName.split('/').pop()?.split(".")[0]!;
         const identifiedTerms = await contextSelectorForCFG.identifyContextTerms(functionText, []);
 
-        const enrichedTerms = await contextSelectorForCFG.gatherContext(identifiedTerms);
+        const enrichedTerms = await contextSelectorForCFG.gatherContext(identifiedTerms, symbol);
         // const enrichedTerms: ContextTerm[] = [];
         // console.log("enrichedTerms", enrichedTerms);
         const promptObj = generateTestWithContextWithCFG(

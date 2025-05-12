@@ -203,13 +203,19 @@ export class ContextSelector {
      * @param codebase Optional codebase information to help with context gathering
      * @returns The same terms with description fields populated
      */
-    public async gatherContext(terms: ContextTerm[]): Promise<ContextTerm[]> {
+    public async gatherContext(terms: ContextTerm[], functionSymbol: vscode.DocumentSymbol | null): Promise<ContextTerm[]> {
         const logObj: any = {};
         const enrichedTerms: ContextTerm[] = [];
         console.log("document", this.document.uri.fsPath);
         // console.log("tokens", this.tokens);
         console.log("targetTerms", this.targetSymbol);
         for (const term of terms) {
+            if (term.name == "i") {
+                console.log("Option", term);
+            }
+            if (term.name == "ch") {
+                console.log("term", term);
+            }
             // Prepare prompt using the template from config
             // find the symbol of term in AllTokens 
             const targetToken = this.tokens.find(token => token.word === term.name);
@@ -217,6 +223,7 @@ export class ContextSelector {
             if (targetToken) {
                 const currentToken = await retrieveDef(this.document, targetToken);
                 // const symbols = await getAllSymbols(this.document.uri);
+                // const isDefUnderFocalMethod = isDefUnderFocalMethod(currentToken, functionSymbol);
                 if (isInWorkspace(currentToken.definition[0].uri)) {
 
                     if (currentToken.definition && currentToken.definition[0].range && currentToken.definition.length > 0) {
@@ -228,18 +235,27 @@ export class ContextSelector {
                                 }
                              }
                             if (term.need_definition) {
-                                if (currentToken.definition[0].range) {
-                                    if (currentToken.defSymbol != null){
-                                        currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
-                                    }
-                                    if (currentToken.defSymbol) {
-                                        // if need_full_definition is not defined => false, defined && value is true => true, defined && value is false => false
-                                        const needFullDefinition = term.need_full_definition === undefined ? false : term.need_full_definition;
-                                        term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, needFullDefinition);
+                                const isBetweenFocalMethod = functionSymbol && (currentToken.definition[0].range.start.line > functionSymbol.range.start.line && currentToken.definition[0].range.end.line < functionSymbol.range.end.line);
+                                if (currentToken.definition[0].range && !isBetweenFocalMethod) {
+                                    if (currentToken.type == 'variable' || currentToken.type == 'property') {
+                                        // Some tokens don't have to find symbol, directly recall its definition
+                                        const defSymbolDoc = await vscode.workspace.openTextDocument(currentToken.definition[0].uri);
+                                        term.context = defSymbolDoc.lineAt(currentToken.definition[0].range.start.line).text.trim();
                                         enriched = true;
+                                    } else {    
+                                        // fir method, functions, we need first find out its symbol to recall its definition
+                                        if (currentToken.defSymbol === null){
+                                            currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
                                         }
+                                        if (currentToken.defSymbol && currentToken.defSymbol !== functionSymbol) {
+                                            // if need_full_definition is not defined => false, defined && value is true => true, defined && value is false => false
+                                            const needFullDefinition = term.need_full_definition === undefined ? false : term.need_full_definition;
+                                            term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, needFullDefinition);
+                                            enriched = true;
+                                            }
                                     }
                             }
+                        }
                     } else {
                         console.log(`No definition found for "${JSON.stringify(term)}"`);
                         continue;

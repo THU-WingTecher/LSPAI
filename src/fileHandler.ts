@@ -9,6 +9,23 @@ import { goSpecificEnvGen, sleep } from './helper';
 import { ExpLogs } from './log';
 import * as path from 'path';
 
+/**
+ * Reads a .txt file and returns its content as a string.
+ * @param filePath The path to the .txt file.
+ * @returns The file content as a string.
+ */
+export async function readTxtFile(filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        fs.readFile(path.resolve(filePath), 'utf8', (err, data) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve(data);
+        });
+    });
+}
+
 export function getTraditionalTestDirAtCurWorkspace(language: string): string {
     const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
     if (language === 'java') {

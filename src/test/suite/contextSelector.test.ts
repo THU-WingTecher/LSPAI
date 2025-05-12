@@ -99,7 +99,7 @@ suite('Context Selector Agent Tests', () => {
         const contextSelector = await getContextSelectorInstance(
             document, 
             targetSymbol!);
-        const enrichedTerms = await contextSelector.gatherContext(sampleJson);
+        const enrichedTerms = await contextSelector.gatherContext(sampleJson, null);
         assert.ok(enrichedTerms.length == sampleJson.length, 'Should identify at least one context term');
         // console.log("enrichedTerms", JSON.stringify(enrichedTerms, null, 2));
     });
@@ -121,14 +121,14 @@ suite('Context Selector Agent Tests', () => {
         // Test the context term identification
         const symbols = await getAllSymbols(document.uri);
         // console.log("symbols", symbols.map(s => s.name));
-        const targetSymbol = symbols.find(s => s.name.includes('flatten'));
+        const targetSymbol = symbols.find(s => s.name.includes('flatten'))!;
         const sourceCode = getSourcCodes(document, targetSymbol!);
         const contextSelector = await getContextSelectorInstance(
             document, 
             targetSymbol!);
         const identifiedTerms = await contextSelector.identifyContextTerms(sourceCode, []);
         console.log("identifiedTerms", JSON.stringify(identifiedTerms, null, 2));
-        const enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
+        const enrichedTerms = await contextSelector.gatherContext(identifiedTerms, targetSymbol);
         console.log("enrichedTerms", JSON.stringify(enrichedTerms, null, 2));
         // // Verify we got some terms
         // assert.ok(identifiedTerms.length > 0, 'Should identify at least one context term');
