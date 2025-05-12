@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
 import { saveTaskList } from './helper';
-import { getConfigInstance, GenerationType, PromptType, FixType, SRC_PATHS, ProjectName } from './config';
+import { getConfigInstance, GenerationType, PromptType, FixType, SRC_PATHS, ProjectName, Provider } from './config';
 import { generateFileNameForDiffLanguage } from './fileHandler';
 import { generateUnitTestForAFunction } from './generate';
 import { activate } from './lsp';
@@ -12,7 +12,7 @@ import { PathCollector } from './cfg/path';
 import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
 import pLimit from 'p-limit';
-const limit = pLimit(5);
+const limit = pLimit(32);
 
 export async function collectPathforSymbols(
     symbols: any, // Use the correct type if available
@@ -58,6 +58,8 @@ export async function runGenerateTestCodeSuite(
     generationType: GenerationType,
     fixType: FixType,
     promptType: PromptType,
+    model: string,
+    provider: Provider,
     symbols: any, // Use the correct type if available
     languageId: string
 ) {
@@ -68,7 +70,9 @@ export async function runGenerateTestCodeSuite(
     getConfigInstance().updateConfig({
         generationType,
         fixType,
-        promptType
+        promptType,
+        model: model,
+        provider: provider
     });
     const savePath = getConfigInstance().genSaveName();
     getConfigInstance().updateConfig({

@@ -10,26 +10,18 @@ import { BaseTestGenerator } from '../base';
 
 export class AgentTestGenerator extends BaseTestGenerator {
 	async generateTest(): Promise<string> {
-		const contextSelector = await getContextSelectorInstance(this.document, this.functionSymbol);
-
-		let enrichedTerms: ContextTerm[] = [];
+		
+		let enrichedTerms;
 		if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-			if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - identifying context terms`, 20)) {
-				return '';
+			enrichedTerms = await this.collectInfo();
+			if (enrichedTerms === null) {
+				return "";
 			}
-
-			const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens());
-			if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
-				return '';
-			}
-
-			enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
 		}
-
 		const promptObj = generateTestWithContext(
 			this.document,
 			this.document.getText(this.functionSymbol.range),
-			enrichedTerms,
+			enrichedTerms!,
 			this.fileName
 		);
 

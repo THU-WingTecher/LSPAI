@@ -5,7 +5,8 @@ import { ContextInfo, collectInfo } from '../generate';
 import { ExpLogger } from '../log';
 import { reportProgressWithCancellation } from '../userInteraction';
 import { TestGenerationStrategy } from './types';
-
+import { ContextTerm, getContextSelectorInstance } from '../agents/contextSelector';
+import { getContextTermsFromTokens } from '../tokenAnalyzer';
 
 export abstract class BaseTestGenerator implements TestGenerationStrategy {
 	constructor(
@@ -20,6 +21,21 @@ export abstract class BaseTestGenerator implements TestGenerationStrategy {
 	) { }
 
 	abstract generateTest(): Promise<string>;
+
+	protected async collectInfo(conditions : Set<string> = new Set<string>()): Promise<ContextTerm[] | null> {
+		let enrichedTerms: ContextTerm[] = [];
+		const tokenCollectTime = Date.now();
+		const contextSelector = await getContextSelectorInstance(this.document, this.functionSymbol);
+		const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens(), conditions);
+		this.logger.log("getContextTermsFromTokens", (Date.now() - tokenCollectTime).toString(), null, "");
+		if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
+			return null;
+		}
+		const retreiveTime = Date.now();
+		enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
+		this.logger.log("gatherContext", (Date.now() - retreiveTime).toString(), null, "");
+		return enrichedTerms;
+	}
 
 	protected async reportProgress(message: string, increment: number): Promise<boolean> {
 		return reportProgressWithCancellation(this.progress, this.token, message, increment);
