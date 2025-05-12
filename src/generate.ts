@@ -13,7 +13,7 @@ import { getConfigInstance, GenerationType, PromptType } from './config';
 import { ContextTerm, getContextSelectorInstance } from './agents/contextSelector';
 import { SupportedLanguage } from './ast';
 import { PathCollector } from './cfg/path';
-import { getContextTermsFromTokens } from './algorithm';
+import { getContextTermsFromTokens } from './tokenAnalyzer';
 import { reportProgressWithCancellation, showDiffAndAllowSelection } from './userInteraction';
 import { createCFGBuilder } from './cfg/builderFactory';
 import { ChatMessage } from './prompts/ChatMessage';

@@ -1,5 +1,5 @@
 import { getContextSelectorInstance, ContextTerm } from '../../agents/contextSelector';
-import { getContextTermsFromTokens } from '../../algorithm';
+import { getContextTermsFromTokens } from '../../tokenAnalyzer';
 import { getConfigInstance, PromptType } from '../../config';
 import { invokeLLM } from '../../invokeLLM';
 import { LLMLogs } from '../../log';
@@ -18,7 +18,7 @@ export class AgentTestGenerator extends BaseTestGenerator {
 				return '';
 			}
 
-			const identifiedTerms = getContextTermsFromTokens(contextSelector.getTokens());
+			const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens());
 			if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
 				return '';
 			}

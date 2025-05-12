@@ -15,7 +15,7 @@ export interface DecodedToken {
     definition: vscode.Location[];
     context: string;
     defSymbol: vscode.DocumentSymbol | null;
-
+    document: vscode.TextDocument;
 }
 
 export function getTokensFromStr(str: string): string[] {
@@ -261,6 +261,7 @@ async function decodeSemanticTokens(document: vscode.TextDocument, data: number[
                     modifiers: modifiers,
                     definition: [],
                     context: "",
+                    document: document,
                     defSymbol: null,
                 });
                 } catch (error) {

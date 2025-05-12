@@ -175,11 +175,6 @@ async function getOuterSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]
     );
 }
 
-async function getSymbolByLocation(document: vscode.TextDocument, location: vscode.Position): Promise<vscode.DocumentSymbol | null> {
-    const symbols = await getAllSymbols(document.uri);
-    return symbols.find(s => s.range.contains(location)) || null;
-}
-
 interface ParentDefinition {
     parent: vscode.DocumentSymbol;
     uri: string;

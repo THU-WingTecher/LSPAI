@@ -1,7 +1,9 @@
 // ... existing code ...
 
 import { ContextTerm } from "./agents/contextSelector";
+import { retrieveDef } from "./retrieve";
 import { DecodedToken } from "./token";
+import { getSymbolByLocation } from "./lsp";
 import * as vscode from 'vscode';
 // 1. Define the type for the algorithm
 type HelpfulnessAlgorithm = 'default' | 'alternative1' | 'cfg';
@@ -20,8 +22,13 @@ export function isReturnTypeBoolean(symbol: vscode.DocumentSymbol): boolean {
     return symbol.detail.includes("boolean");
 }
 
-export function isMethodOrFunctionReturnBoolean(token: DecodedToken): boolean {
-    return isFunctionArg(token) && isReturnTypeBoolean(token.defSymbol!);
+export async function isReturnBoolean(token: DecodedToken): Promise<boolean> {
+        // Example: Only functions are helpful
+        // return getTokenInPaths(token, paths);
+    if (!token.defSymbol) {
+        await loadDefAndSaveToDefSymbol(token);
+    }
+    return token.defSymbol!==null && isReturnTypeBoolean(token.defSymbol);
 }
 
 export function isFunctionArg(token: DecodedToken): boolean {
@@ -77,17 +84,38 @@ function defaultGetContextTermsFromTokens(tokens: DecodedToken[]): ContextTerm[]
     }));
 }
 
-function returnTypeNotVoid(token: DecodedToken): boolean {
-    return isFunctionArg(token) && !isReturnTypeVoid(token.defSymbol!);
-}
+// function returnTypeNotVoid(token: DecodedToken): boolean {
+//     return isFunctionArg(token) && token.defSymbol !== null && !isReturnTypeVoid(token.defSymbol!);
+// }
 
 export function isReturnTypeVoid(symbol: vscode.DocumentSymbol): boolean {
     return symbol.detail.includes("void");
 }
+
+async function loadDefAndSaveToDefSymbol(token: DecodedToken) {
+    await retrieveDef(token.document, token);
+    if (token.definition && token.definition[0].range && token.definition.length > 0) {
+        const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
+        token.defSymbol = await getSymbolByLocation(defSymbolDoc, token.definition[0].range.start);
+    }
+}
 // --- Alternative Algorithm Example ---
-function cfgBasedIsDefinitionHelpful(token: DecodedToken, paths: Set<string>): boolean {
+async function cfgBasedIsDefinitionHelpful(token: DecodedToken, paths: Set<string>): Promise<boolean> {
     // Example: Only functions are helpful
-    return (getTokenInPaths(token, paths) && returnTypeNotVoid(token)) || isUsedAsFunctionArgument(token);
+    // return getTokenInPaths(token, paths);
+    if (token.word == "hasShortOption") {
+        console.log("token", token);
+    }
+    if (getTokenInPaths(token, paths)) {
+        if (isFunctionArg(token)) {
+            if (!token.defSymbol) {
+                await loadDefAndSaveToDefSymbol(token);
+            }
+            return token.defSymbol!==null && !isReturnTypeVoid(token.defSymbol);
+        }
+        return true;
+    }
+    return false;
 }
 
 function cfgBasedIsReferenceHelpful(token: DecodedToken, paths: Set<string>): boolean {
@@ -118,32 +146,36 @@ export function getTokensInPaths(tokens: DecodedToken[], paths: Set<string>): De
         Array.from(paths).some(path => isTokenInPath(token, path))
     );
 }
-function cfgGetContextTermsFromTokens(tokens: DecodedToken[], paths: any): ContextTerm[] {
-    return tokens.map(token => ({
+
+async function cfgGetContextTermsFromTokens(tokens: DecodedToken[], paths: any): Promise<ContextTerm[]> {
+    return Promise.all(tokens.map(async token => ({
         name: token.word,
-        need_definition: cfgBasedIsDefinitionHelpful(token, paths),
+        need_definition: await cfgBasedIsDefinitionHelpful(token, paths),
         need_example: cfgBasedIsReferenceHelpful(token, paths),
+        need_full_definition: isFunctionArg(token) && await isReturnBoolean(token),
         context: "",
         example: "",
         token: token,
-    }));
+    })));
 }
 
 // 4. Main exported functions delegate to the selected algorithm
-export function getContextTermsFromTokens(tokens: DecodedToken[], paths: Set<string> = new Set()): ContextTerm[] {
+export async function getContextTermsFromTokens(tokens: DecodedToken[], paths: Set<string> = new Set()): Promise<ContextTerm[]> {
     switch (helpfulnessAlgorithm) {
         case 'cfg':
-            return cfgGetContextTermsFromTokens(tokens, paths).filter(term => term.need_definition !== false && term.need_example !== false);
+            const filteredTerms = await cfgGetContextTermsFromTokens(tokens, paths);
+            // console.log("filteredTerms", filteredTerms);
+            return filteredTerms.filter(term => term.need_definition !== false || term.need_example !== false);
         case 'default':
         default:
-            return defaultGetContextTermsFromTokens(tokens).filter(term => term.need_definition !== false && term.need_example !== false);
+            return defaultGetContextTermsFromTokens(tokens).filter(term => term.need_definition !== false || term.need_example !== false);
     }
 }
 
-export function isDefinitionHelpfulForUnitTest(token: DecodedToken, paths: Set<string>): boolean {
+export async function isDefinitionHelpfulForUnitTest(token: DecodedToken, paths: Set<string>): Promise<boolean> {
     switch (helpfulnessAlgorithm) {
         case 'cfg':
-            return cfgBasedIsDefinitionHelpful(token, paths);
+            return await cfgBasedIsDefinitionHelpful(token, paths);
         case 'default':
         default:
             return defaultIsDefinitionHelpful(token);

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getContextTermsFromTokens, getTokensInPaths } from '../../algorithm';
+import { getContextTermsFromTokens, getTokensInPaths } from '../../tokenAnalyzer';
 import { SupportedLanguage } from '../../ast';
 import { createCFGBuilder } from '../../cfg/builderFactory';
 import { Path, PathCollector } from '../../cfg/path';
@@ -287,7 +287,7 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
         // Gather context if needed
         let enrichedTerms: ContextTerm[] = [];
         if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-            const identifiedTerms = getContextTermsFromTokens(contextSelector.getTokens());
+            const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens());
 
             // const identifiedTerms = getTokensInPaths(contextSelector.getTokens(), uniqueConditions);
             if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {

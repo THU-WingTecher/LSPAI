@@ -19,6 +19,7 @@ export interface ContextTerm {
     need_example?: boolean; // Whether the term needs example code
     need_definition?: boolean; // Whether the term needs context
     token?: DecodedToken;
+    need_full_definition?: boolean; // Whether the term needs full definition
 }
 
 export class ContextSelector {
@@ -228,9 +229,13 @@ export class ContextSelector {
                              }
                             if (term.need_definition) {
                                 if (currentToken.definition[0].range) {
-                                    currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
+                                    if (currentToken.defSymbol != null){
+                                        currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
+                                    }
                                     if (currentToken.defSymbol) {
-                                        term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, false);
+                                        // if need_full_definition is not defined => false, defined && value is true => true, defined && value is false => false
+                                        const needFullDefinition = term.need_full_definition === undefined ? false : term.need_full_definition;
+                                        term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, needFullDefinition);
                                         enriched = true;
                                         }
                                     }
