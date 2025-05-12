@@ -1,5 +1,5 @@
 import { getConfigInstance } from './config';
-import fs from 'fs';
+import fs, { exists } from 'fs';
 import path from 'path';
 import { Path, PathResult } from './cfg/path';
 import { DiagnosticReport } from './fix';
@@ -120,16 +120,16 @@ async function saveExperimentData(expData: ExpLogs[], expLogPath: string, fileNa
 		} : null
 	}));
 
-	// const dir = path.dirname(jsonFilePath);
-	// if (!fs.existsSync(dir)) {
-	// 	fs.mkdirSync(dir, { recursive: true });
-	// }
+	const dir = path.dirname(jsonFilePath);
+	if (!fs.existsSync(dir)) {
+		fs.mkdirSync(dir, { recursive: true });
+	}
 
 	// Check if file exists and initialize empty array if not
-	// let jsonContent = [];
-	// if (fs.existsSync(jsonFilePath)) {
-	let	jsonContent = JSON.parse(fs.readFileSync(jsonFilePath, 'utf8'));
-	// }
+	let jsonContent = [];
+	if (fs.existsSync(jsonFilePath)) {
+		let	jsonContent = JSON.parse(fs.readFileSync(jsonFilePath, 'utf8'));
+	}
 
 	// Append the current experiment's data
 	jsonContent.push(...formattedData);

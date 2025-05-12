@@ -272,15 +272,14 @@ export async function generateTestWithContextWithCFG(
 
 export class ExperimentalTestGenerator extends BaseTestGenerator {
     async generateTest(): Promise<string> {
-        const contextSelector = await getContextSelectorInstance(this.document, this.functionSymbol);
         const functionText = this.document.getText(this.functionSymbol.range);
         
         // Build CFG
-        const builder = createCFGBuilder(this.languageId as SupportedLanguage);
         const cfgBuildingStartTime = Date.now();
+        const builder = createCFGBuilder(this.languageId as SupportedLanguage);
         const cfg = await builder.buildFromCode(functionText);
         this.logger.log("buildCFG", (Date.now() - cfgBuildingStartTime).toString(), null, "");
-
+        
         // Collect paths
         const pathCollectorStartTime = Date.now();
         const pathCollector = new PathCollector(this.languageId);
@@ -289,24 +288,21 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
         const uniqueConditions = pathCollector.getUniqueConditions();
         this.logger.log("collectCFGPaths", (Date.now() - pathCollectorStartTime).toString(), null, "");
         this.logger.saveCFGPaths(functionText, minimizedPaths);
-
+        
         // Gather context if needed
-        let enrichedTerms: ContextTerm[] = [];
+        let enrichedTerms;
         if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-            const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens(), uniqueConditions);
-            console.log(identifiedTerms)
-            // const identifiedTerms = getTokensInPaths(contextSelector.getTokens(), uniqueConditions);
-            if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
-                return '';
-            }
-            enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
+            enrichedTerms = await this.collectInfo(uniqueConditions);
+			if (enrichedTerms === null) {
+				return "";
+			}
         }
 
         // Generate test
         // const promptObj = paths.length > 1 
         //     ? generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms, paths, this.fileName)
         //     : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
-        const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms, minimizedPaths, this.fileName)
+        const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms!, minimizedPaths, this.fileName)
             // : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
 
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};

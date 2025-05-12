@@ -176,9 +176,9 @@ export async function getContextTermsFromTokens(tokens: DecodedToken[], paths: S
         case 'cfg':
             const tokensInPaths = getTokensInPaths(tokens, paths);
             const uniqueTokensInPaths = removeRedundantTokens(tokensInPaths);
-            console.log("uniqueTokensInPaths :", uniqueTokensInPaths)
+            // console.log("uniqueTokensInPaths :", uniqueTokensInPaths)
             const filteredTerms = await cfgGetContextTermsFromTokens(uniqueTokensInPaths, paths);
-            console.log("filteredTerms :", filteredTerms)
+            // console.log("filteredTerms :", filteredTerms)
             return filteredTerms.filter(term => term.need_definition == true || term.need_example == true);
         case 'default':
         default:

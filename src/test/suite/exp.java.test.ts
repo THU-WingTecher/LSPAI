@@ -13,7 +13,7 @@ import { runGenerateTestCodeSuite } from '../../experiment';
 
 suite('Experiment Test Suite - JAVA', () => {
     const projectPath = "/LSPAI/experiments/projects/commons-cli";
-    const sampleNumber = 40;
+    const sampleNumber = 1;
     const languageId = 'java';
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
@@ -96,11 +96,13 @@ suite('Experiment Test Suite - JAVA', () => {
     //     );
     // });
 
-    test('CFG - experimental', async () => {
+    test('CFG - experimental - 4o-mini', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.EXPERIMENTAL,
             FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
+            'gpt-4o-mini',
+            'openai' as Provider,
             symbols,
             languageId
         );
@@ -116,15 +118,41 @@ suite('Experiment Test Suite - JAVA', () => {
     //     );
     // });
 
-    test('AGENT - with context', async () => {
+    test('AGENT - with context - 4omini', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.AGENT,
             FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
+            'gpt-4o-mini',
+            'openai' as Provider,
             symbols,
             languageId
         );
     });
+
+    // test('CFG - experimental - 4o', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.EXPERIMENTAL,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'gpt-4o',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
+
+    // test('AGENT - with context - 4o', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.AGENT,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'gpt-4o',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
 
     // test('AGENT - without context', async () => {
     //     await runGenerateTestCodeSuite(

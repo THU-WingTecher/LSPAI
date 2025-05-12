@@ -62,6 +62,8 @@ suite('Experiment Test Suite - GO', async () => {
             GenerationType.CFG,
             FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
+            'gpt-4o-mini',
+            'openai' as Provider,
             symbols,
             languageId
         );

@@ -67,6 +67,8 @@ suite('Experiment Test Suite', () => {
             GenerationType.CFG,
             FixType.NOFIX,
             PromptType.WITHCONTEXT,
+            'gpt-4o-mini',
+            'openai' as Provider,
             symbols,
             'python'
         );
@@ -77,6 +79,8 @@ suite('Experiment Test Suite', () => {
             GenerationType.CFG,
             FixType.NOFIX,
             PromptType.DETAILED,
+            'gpt-4o-mini',
+            'openai' as Provider,
             symbols,
             'python'
         );
@@ -87,6 +91,8 @@ suite('Experiment Test Suite', () => {
             GenerationType.AGENT,
             FixType.NOFIX,
             PromptType.WITHCONTEXT,
+            'gpt-4o-mini',
+            'openai' as Provider,
             symbols,
             'python'
         );
@@ -97,6 +103,8 @@ suite('Experiment Test Suite', () => {
             GenerationType.AGENT,
             FixType.NOFIX,
             PromptType.DETAILED,
+            'gpt-4o-mini',
+            'openai' as Provider,
             symbols,
             'python'
         );
