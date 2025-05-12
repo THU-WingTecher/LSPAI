@@ -38,7 +38,7 @@ export class CFGTestGenerator extends BaseTestGenerator {
             if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
                 return '';
             }
-            enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
+            enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
         }
 
         // Generate test

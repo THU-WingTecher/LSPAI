@@ -23,7 +23,7 @@ export class AgentTestGenerator extends BaseTestGenerator {
 				return '';
 			}
 
-			enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
+			enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
 		}
 
 		const promptObj = generateTestWithContext(

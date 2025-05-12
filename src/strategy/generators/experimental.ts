@@ -7,7 +7,7 @@ import { getContextSelectorInstance, ContextTerm } from '../../agents/contextSel
 import { getConfigInstance, PromptType } from '../../config';
 import { parseCode } from '../../utils';
 import { BaseTestGenerator } from '../base';
-import { generateTestWithContext, loadPathTestTemplate } from '../../prompts/promptBuilder';
+import { findTemplateFile, generateTestWithContext, loadPathTestTemplate } from '../../prompts/promptBuilder';
 import { LLMLogs } from '../../log';
 import { invokeLLM } from '../../invokeLLM';
 import { ChatMessage } from '../../prompts/ChatMessage';
@@ -15,6 +15,7 @@ import { getPackageStatement, getImportStatement } from '../../retrieve';
 import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
 import { error } from 'console';
 import { DecodedToken } from '../../token';
+import { readTxtFile } from '../../fileHandler';
 
 const unitTestTemplateForhandleShortAndLongOption = `package org.apache.commons.cli;
 {Replace With Needed Imports}
@@ -211,7 +212,8 @@ public void {write your test function name here}() {
 }
 `
 
-export function generateTestWithContextWithCFG(
+
+export async function generateTestWithContextWithCFG(
     document: vscode.TextDocument,
     functionSymbol: vscode.DocumentSymbol,
     source_code: string, 
@@ -219,7 +221,7 @@ export function generateTestWithContextWithCFG(
     paths: any[],
     fileName: string,
     template?: { system_prompt: string, user_prompt: string }
-): ChatMessage[] {
+): Promise<ChatMessage[]> {
     const result = [];
     let context_info_str = "";
     for (const item of context_info) {
@@ -235,15 +237,18 @@ export function generateTestWithContextWithCFG(
     }
     const packageStatement = getPackageStatement(document, document.languageId);
     const importString = getImportStatement(document, document.languageId, functionSymbol);
-    const prompts = template || loadPathTestTemplate();
+    let systemPrompt = await readTxtFile(findTemplateFile("lspaiSystem.txt"));
+    let userPrompt = await readTxtFile(findTemplateFile("lspaiUser.txt"));
+    let example = await readTxtFile(findTemplateFile("example1.txt"));
+    // const prompts = template || loadPathTestTemplate();
     
     // if filname contains /, remove it
     if (fileName.includes("/")) {
         fileName = fileName.split("/").pop() || fileName;
     }
 
-    const systemPrompt = prompts.system_prompt;
-    let userPrompt = prompts.user_prompt;
+    // const systemPrompt = prompts.system_prompt;
+    // let userPrompt = prompts.user_prompt;
     const pathsWithIndex = paths.map((p, index) => `${index+1}. ${p.simple}`).join('\n')
     // Replace variables in the user prompt
     userPrompt = userPrompt
@@ -257,7 +262,8 @@ export function generateTestWithContextWithCFG(
             importString,
             []
         ));
-    
+    systemPrompt = systemPrompt
+        .replace('{example}', example);
     return [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
@@ -287,20 +293,20 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
         // Gather context if needed
         let enrichedTerms: ContextTerm[] = [];
         if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-            const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens());
-
+            const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens(), uniqueConditions);
+            console.log(identifiedTerms)
             // const identifiedTerms = getTokensInPaths(contextSelector.getTokens(), uniqueConditions);
             if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
                 return '';
             }
-            enrichedTerms = await contextSelector.gatherContext(identifiedTerms);
+            enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
         }
 
         // Generate test
         // const promptObj = paths.length > 1 
         //     ? generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms, paths, this.fileName)
         //     : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
-        const promptObj = generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms, [], this.fileName)
+        const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms, minimizedPaths, this.fileName)
             // : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
 
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};

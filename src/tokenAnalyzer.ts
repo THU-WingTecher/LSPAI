@@ -8,7 +8,7 @@ import * as vscode from 'vscode';
 // 1. Define the type for the algorithm
 type HelpfulnessAlgorithm = 'default' | 'alternative1' | 'cfg';
 
-let helpfulnessAlgorithm: HelpfulnessAlgorithm = 'default';
+let helpfulnessAlgorithm: HelpfulnessAlgorithm = 'cfg';
 export function setHelpfulnessAlgorithm(algo: HelpfulnessAlgorithm) {
     helpfulnessAlgorithm = algo;
 }
@@ -38,6 +38,10 @@ export function isFunctionArg(token: DecodedToken): boolean {
 
 export function isMutated(token: DecodedToken): boolean {
     return token.type === "assignment";
+}
+
+export function isClass(token: DecodedToken): boolean {
+    return token.type === "class";
 }
 
 export function isUsedAsReturnValue(token: DecodedToken): boolean {
@@ -103,19 +107,14 @@ async function loadDefAndSaveToDefSymbol(token: DecodedToken) {
 async function cfgBasedIsDefinitionHelpful(token: DecodedToken, paths: Set<string>): Promise<boolean> {
     // Example: Only functions are helpful
     // return getTokenInPaths(token, paths);
-    if (token.word == "hasShortOption") {
-        console.log("token", token);
-    }
-    if (getTokenInPaths(token, paths)) {
-        if (isFunctionArg(token)) {
-            if (!token.defSymbol) {
-                await loadDefAndSaveToDefSymbol(token);
-            }
-            return token.defSymbol!==null && !isReturnTypeVoid(token.defSymbol);
+    if (isFunctionArg(token)) {
+        if (!token.defSymbol) {
+            await loadDefAndSaveToDefSymbol(token);
         }
-        return true;
+        return token.defSymbol!==null && !isReturnTypeVoid(token.defSymbol);
     }
-    return false;
+    // currently, we do not give definition of Class, since it is too long
+    return !isClass(token);    
 }
 
 function cfgBasedIsReferenceHelpful(token: DecodedToken, paths: Set<string>): boolean {
@@ -146,8 +145,20 @@ export function getTokensInPaths(tokens: DecodedToken[], paths: Set<string>): De
         Array.from(paths).some(path => isTokenInPath(token, path))
     );
 }
-
+// Add this new function before getContextTermsFromTokens
+function removeRedundantTokens(tokens: DecodedToken[]): DecodedToken[] {
+    const uniqueTokens = new Map<string, DecodedToken>();
+    
+    for (const token of tokens) {
+        if (!uniqueTokens.has(token.word)) {
+            uniqueTokens.set(token.word, token);
+        }
+    }
+    
+    return Array.from(uniqueTokens.values());
+}
 async function cfgGetContextTermsFromTokens(tokens: DecodedToken[], paths: any): Promise<ContextTerm[]> {
+    // comming tokens are all appeared in CFG path.
     return Promise.all(tokens.map(async token => ({
         name: token.word,
         need_definition: await cfgBasedIsDefinitionHelpful(token, paths),
@@ -163,32 +174,35 @@ async function cfgGetContextTermsFromTokens(tokens: DecodedToken[], paths: any):
 export async function getContextTermsFromTokens(tokens: DecodedToken[], paths: Set<string> = new Set()): Promise<ContextTerm[]> {
     switch (helpfulnessAlgorithm) {
         case 'cfg':
-            const filteredTerms = await cfgGetContextTermsFromTokens(tokens, paths);
-            // console.log("filteredTerms", filteredTerms);
-            return filteredTerms.filter(term => term.need_definition !== false || term.need_example !== false);
+            const tokensInPaths = getTokensInPaths(tokens, paths);
+            const uniqueTokensInPaths = removeRedundantTokens(tokensInPaths);
+            console.log("uniqueTokensInPaths :", uniqueTokensInPaths)
+            const filteredTerms = await cfgGetContextTermsFromTokens(uniqueTokensInPaths, paths);
+            console.log("filteredTerms :", filteredTerms)
+            return filteredTerms.filter(term => term.need_definition == true || term.need_example == true);
         case 'default':
         default:
-            return defaultGetContextTermsFromTokens(tokens).filter(term => term.need_definition !== false || term.need_example !== false);
+            return defaultGetContextTermsFromTokens(tokens).filter(term => term.need_definition == true || term.need_example == true);
     }
 }
 
-export async function isDefinitionHelpfulForUnitTest(token: DecodedToken, paths: Set<string>): Promise<boolean> {
-    switch (helpfulnessAlgorithm) {
-        case 'cfg':
-            return await cfgBasedIsDefinitionHelpful(token, paths);
-        case 'default':
-        default:
-            return defaultIsDefinitionHelpful(token);
-    }
-}
-export function isReferenceHelpfulForUnitTest(token: DecodedToken, paths: Set<string>): boolean {
-    switch (helpfulnessAlgorithm) {
-        case 'cfg':
-            return cfgBasedIsReferenceHelpful(token, paths);
-        case 'default':
-        default:
-            return defaultIsReferenceHelpful(token);
-    }
-}
+// export async function isDefinitionHelpfulForUnitTest(token: DecodedToken, paths: Set<string>): Promise<boolean> {
+//     switch (helpfulnessAlgorithm) {
+//         case 'cfg':
+//             return await cfgBasedIsDefinitionHelpful(token, paths);
+//         case 'default':
+//         default:
+//             return defaultIsDefinitionHelpful(token);
+//     }
+// }
+// export function isReferenceHelpfulForUnitTest(token: DecodedToken, paths: Set<string>): boolean {
+//     switch (helpfulnessAlgorithm) {
+//         case 'cfg':
+//             return cfgBasedIsReferenceHelpful(token, paths);
+//         case 'default':
+//         default:
+//             return defaultIsReferenceHelpful(token);
+//     }
+// }
 
 // ... existing code ...

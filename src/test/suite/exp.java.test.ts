@@ -13,11 +13,11 @@ import { runGenerateTestCodeSuite } from '../../experiment';
 
 suite('Experiment Test Suite - JAVA', () => {
     const projectPath = "/LSPAI/experiments/projects/commons-cli";
-    const sampleNumber = 2;
+    const sampleNumber = 40;
     const languageId = 'java';
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
-        model: 'o1',
+        model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
         expProb: 1,
         promptType: PromptType.DETAILED,
@@ -47,43 +47,43 @@ suite('Experiment Test Suite - JAVA', () => {
         // console.log(`#### One file: ${oneFile}`);
 
         // ==== LOAD TARGET SYMBOL ====
-        const fileName = "DefaultParser.java";
-        const symbolName = "handleConcatenatedOptions";
-        const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, languageId);
-        console.log(`#### One file: ${symbolDocumentMap}`);
-        symbols.push(symbolDocumentMap);
+        // const fileName = "DefaultParser.java";
+        // const symbolName = "handleConcatenatedOptions";
+        // const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, languageId);
+        // console.log(`#### One file: ${symbolDocumentMap}`);
+        // symbols.push(symbolDocumentMap);
         // ==== LOAD TARGET SYMBOL ====
         // ==== LOAD TARGET SYMBOL ====
-        const fileName2 = "DefaultParser.java";
-        const symbolName2 = "handleShortAndLongOption";
-        const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
-        console.log(`#### One file: ${symbolDocumentMap2}`);
-        symbols.push(symbolDocumentMap2);
+        // const fileName2 = "DefaultParser.java";
+        // const symbolName2 = "handleShortAndLongOption";
+        // const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
+        // console.log(`#### One file: ${symbolDocumentMap2}`);
+        // symbols.push(symbolDocumentMap2);
         // ==== LOAD TARGET SYMBOL ====
         
         // ==== LOAD ALL SYMBOLS ====
-        // symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
-        // if (sampleNumber > 0) {
-        //     const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
-        //     symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
-        // }
+        symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+        if (sampleNumber > 0) {
+            const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
+            symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
+        }
         // ==== LOAD ALL SYMBOLS ====
         assert.ok(symbols.length > 0, 'symbols should not be empty');
         console.log(`#### Number of symbols: ${symbols.length}`);
     });
 
-    test('select target file name and symbol', async () => {
-        if (process.env.NODE_DEBUG !== 'true') {
-            console.log('activate');
-            await activate();
-        }
-        const fileName = "DefaultParser.java";
-        const symbolName = "handleConcatenatedOptions";
-        const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, 'java');
-        console.log(`#### One file: ${symbolDocumentMap}`);
-        symbols.push(symbolDocumentMap);
-        assert.ok(symbols.length > 0, 'symbols should not be empty');
-    });
+    // test('select target file name and symbol', async () => {
+    //     if (process.env.NODE_DEBUG !== 'true') {
+    //         console.log('activate');
+    //         await activate();
+    //     }
+    //     const fileName = "DefaultParser.java";
+    //     const symbolName = "handleConcatenatedOptions";
+    //     const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, 'java');
+    //     console.log(`#### One file: ${symbolDocumentMap}`);
+    //     symbols.push(symbolDocumentMap);
+    //     assert.ok(symbols.length > 0, 'symbols should not be empty');
+    // });
 
 
     // test('CFG - with context', async () => {
@@ -96,15 +96,15 @@ suite('Experiment Test Suite - JAVA', () => {
     //     );
     // });
 
-    // test('CFG - experimental', async () => {
-    //     await runGenerateTestCodeSuite(
-    //         GenerationType.EXPERIMENTAL,
-    //         FixType.ORIGINAL,
-    //         PromptType.WITHCONTEXT,
-    //         symbols,
-    //         languageId
-    //     );
-    // });
+    test('CFG - experimental', async () => {
+        await runGenerateTestCodeSuite(
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
+            PromptType.WITHCONTEXT,
+            symbols,
+            languageId
+        );
+    });
 
     // test('CFG - without context', async () => {
     //     await runGenerateTestCodeSuite(
