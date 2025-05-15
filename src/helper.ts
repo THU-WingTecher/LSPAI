@@ -280,7 +280,7 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
 }
 
 export async function selectOneSymbolFileFromWorkspace(fileName:string, symbolName:string, language:string) : Promise<{symbol: vscode.DocumentSymbol, document: vscode.TextDocument}> {
-    const filePath = findAFileFromWorkspace(fileName, 'java');
+    const filePath = findAFileFromWorkspace(fileName, language);
     console.log("filePATH :: ", filePath);
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
     const symbol = await getSymbolFromDocument(document, symbolName);

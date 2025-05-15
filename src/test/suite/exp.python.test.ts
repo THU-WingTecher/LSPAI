@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
 import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../diagnostic';
-import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, saveTaskList, setWorkspaceFolders } from '../../helper';
+import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, saveTaskList, selectOneSymbolFileFromWorkspace, setWorkspaceFolders } from '../../helper';
 import { loadPrivateConfig, SRC_PATHS } from '../../config';
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../config';
@@ -80,23 +80,42 @@ suite('Experiment Test Suite', () => {
         assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
     });
 
-    // test('experiment helper functions', async () => {
-    //     if (process.env.NODE_DEBUG !== 'true') {
-    //         console.log('activate');
-    //         await activate();
-    //     }
+    test('experiment helper functions', async () => {
+        if (process.env.NODE_DEBUG !== 'true') {
+            console.log('activate');
+            await activate();
+        }
         
-    //     const workspaceFolders = await setWorkspaceFolders(projectPath);
-    //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
-    //     const oneFile = randomlySelectOneFileFromWorkspace('python');
-    //     console.log(`#### One file: ${oneFile}`);
+        const workspaceFolders = setWorkspaceFolders(projectPath);
+        // await updateWorkspaceFolders(workspaceFolders);
+        console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
+        // const oneFile = randomlySelectOneFileFromWorkspace(languageId);
+        // console.log(`#### One file: ${oneFile}`);
 
-    //     symbols = await loadAllTargetSymbolsFromWorkspace('python');
-    //     assert.ok(symbols.length > 0, 'symbols should not be empty');
-        
-    //     const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
-    //     symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
-    // });
+        // ==== LOAD TARGET SYMBOL ====
+        // const fileName = "comments.py";
+        // const symbolName = "_generate_ignored_nodes_from_fmt_skip";
+        // const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, languageId);
+        // console.log(`#### One file: ${symbolDocumentMap}`);
+        // symbols.push(symbolDocumentMap);
+        // ==== LOAD TARGET SYMBOL ====
+        // ==== LOAD TARGET SYMBOL ====
+        // const fileName2 = "DefaultParser.java";
+        // const symbolName2 = "handleShortAndLongOption";
+        // const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
+        // console.log(`#### One file: ${symbolDocumentMap2}`);
+        // symbols.push(symbolDocumentMap2);
+        // ==== LOAD TARGET SYMBOL ====
+        // ==== LOAD ALL SYMBOLS ====
+        symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+        if (sampleNumber > 0) {
+            const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
+            symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
+        }
+        // ==== LOAD ALL SYMBOLS ====
+        assert.ok(symbols.length > 0, 'symbols should not be empty');
+        console.log(`#### Number of symbols: ${symbols.length}`);
+    });
 
     test('CFG - experimental - deepseek-coder', async () => {
         await runGenerateTestCodeSuite(
