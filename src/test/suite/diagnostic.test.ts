@@ -47,19 +47,19 @@ suite('Diagnostic Test Suite', () => {
     //     assert.ok(result.every(d => !d.message.includes("is not on the classpath of project")), "should not report missing java classpath");
     // });
 
-    // test('PYTHON - test language server has launched', async () => {
-    //     const symbols = await getAllSymbols(vscode.Uri.file(pythonPath));
-    //     assert.ok(symbols.length > 0);
-    // });
+    test('PYTHON - test language server has launched', async () => {
+        const symbols = await getAllSymbols(vscode.Uri.file(pythonPath));
+        assert.ok(symbols.length > 0);
+    });
 
-    // test('PYTHON - test diagnostic against python code', async () => {
-    //     await setPythonInterpreterPath(pythonInterpreterPath);
-    //     await setPythonExtraPaths([blackModuleImportPath]);
-    //     const fileUri = vscode.Uri.file(pythonPath);
-    //     const result = await getDiagnosticsForFilePath(pythonPath);
-    //     console.log('result', result);
-    //     assert.ok(result.length > 0);
-    // });
+    test('PYTHON - test diagnostic against python code', async () => {
+        await setPythonInterpreterPath(pythonInterpreterPath);
+        await setPythonExtraPaths([blackModuleImportPath]);
+        const fileUri = vscode.Uri.file(pythonPath);
+        const result = await getDiagnosticsForFilePath(pythonPath);
+        console.log('result', result);
+        assert.ok(result.length > 0);
+    });
 
     test('GO - test language server has launched', async () => {
         const projectPath = "/LSPAI/experiments/projects/cobra";

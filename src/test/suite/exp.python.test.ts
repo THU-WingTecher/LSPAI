@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
+import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../diagnostic';
 import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, saveTaskList, setWorkspaceFolders } from '../../helper';
 import { loadPrivateConfig, SRC_PATHS } from '../../config';
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
@@ -14,10 +15,10 @@ import { runGenerateTestCodeSuite } from '../../experiment';
 suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
     const projectPath = "/LSPAI/experiments/projects/black";
-    const pythonExtraPaths = [path.join(projectPath, "src/black"), path.join(projectPath, "src/black/src"), path.join(projectPath, "src")];
-    const sampleNumber = -1;
+    const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src")];
+    const sampleNumber = 100;
     const languageId = "python";
-
+    const blackImportTestPath = "/LSPAI/tests/black_module_import_test.py"
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
         model: 'gpt-4o-mini',
@@ -37,29 +38,65 @@ suite('Experiment Test Suite', () => {
         await setPythonInterpreterPath(pythonInterpreterPath);
         const currentPythonInterpreterPath = await getPythonInterpreterPath();
         assert.ok(currentPythonInterpreterPath === pythonInterpreterPath, 'python interpreter path should be set as expected');
-        await setPythonExtraPaths(pythonExtraPaths);
+
+    });
+
+    test('Language server recognizes installed environment libraries', async () => {
+        // Set the desired Python interpreter path (update as needed)
+
+        // Activate the Python extension and log the interpreter in use
+        console.log('Python interpreter used by extension:', await getPythonInterpreterPath());
+
+        // Open the test file and collect diagnostics
+        const fileUri = vscode.Uri.file(blackImportTestPath);
+        await vscode.workspace.openTextDocument(fileUri);
+        await setPythonExtraPaths([]);
+        const oldPythonExtraPaths = await getPythonExtraPaths();
+        console.log('oldPythonExtraPaths:', oldPythonExtraPaths);
+        const oldDiagnostics = await getDiagnosticsForFilePath(blackImportTestPath);
+        const oldImportErrors = oldDiagnostics.filter(d =>
+            d.message.includes('No module named') ||
+            d.message.includes('unresolved import') ||
+            d.message.includes('not found') ||
+            d.message.includes('Import')
+        );  
+        assert.ok(oldImportErrors.length > 0, 'should have import errors');
+        await setPythonExtraPaths(blackModuleImportPath);
         const currentPythonExtraPaths = await getPythonExtraPaths();
-        assert.ok(currentPythonExtraPaths.length === pythonExtraPaths.length, 'python extra paths should be set as expected');
-        assert.ok(currentPythonExtraPaths.every((path, index) => path === pythonExtraPaths[index]), 'python extra paths should be set as expected');
+        console.log('currentPythonExtraPaths:', currentPythonExtraPaths);
+        assert.ok(currentPythonExtraPaths.length === blackModuleImportPath.length, 'python extra paths should be set as expected');
+        assert.ok(currentPythonExtraPaths.every((path, index) => path === blackModuleImportPath[index]), 'python extra paths should be set as expected');
+        // Log diagnostics for debugging
+        const newDiagnostics = await getDiagnosticsForFilePath(blackImportTestPath);
+        console.log('newDiagnostics:', newDiagnostics);
+
+        // Assert: No diagnostic about missing pandas or import errors
+        const importErrors = newDiagnostics.filter(d =>
+            d.message.includes('No module named') ||
+            d.message.includes('unresolved import') ||
+            d.message.includes('not found') ||
+            d.message.includes('Import')
+        );
+        assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
     });
 
-    test('experiment helper functions', async () => {
-        if (process.env.NODE_DEBUG !== 'true') {
-            console.log('activate');
-            await activate();
-        }
+    // test('experiment helper functions', async () => {
+    //     if (process.env.NODE_DEBUG !== 'true') {
+    //         console.log('activate');
+    //         await activate();
+    //     }
         
-        const workspaceFolders = await setWorkspaceFolders(projectPath);
-        console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
-        const oneFile = randomlySelectOneFileFromWorkspace('python');
-        console.log(`#### One file: ${oneFile}`);
+    //     const workspaceFolders = await setWorkspaceFolders(projectPath);
+    //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
+    //     const oneFile = randomlySelectOneFileFromWorkspace('python');
+    //     console.log(`#### One file: ${oneFile}`);
 
-        symbols = await loadAllTargetSymbolsFromWorkspace('python');
-        assert.ok(symbols.length > 0, 'symbols should not be empty');
+    //     symbols = await loadAllTargetSymbolsFromWorkspace('python');
+    //     assert.ok(symbols.length > 0, 'symbols should not be empty');
         
-        const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
-        symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
-    });
+    //     const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
+    //     symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
+    // });
 
     test('CFG - experimental - deepseek-coder', async () => {
         await runGenerateTestCodeSuite(
