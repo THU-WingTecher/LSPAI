@@ -243,9 +243,6 @@ export async function generateTestWithContextWithCFG(
     // const prompts = template || loadPathTestTemplate();
     
     // if filname contains /, remove it
-    if (fileName.includes("/")) {
-        fileName = fileName.split("/").pop() || fileName;
-    }
 
     // const systemPrompt = prompts.system_prompt;
     // let userPrompt = prompts.user_prompt;
@@ -302,11 +299,12 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
         // const promptObj = paths.length > 1 
         //     ? generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms, paths, this.fileName)
         //     : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
+        const generationStartTime = Date.now();
         const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms!, minimizedPaths, this.fileName)
             // : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
-
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
         const testCode = await invokeLLM(promptObj, logObj);
+        this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");
         return parseCode(testCode);
     }
 }

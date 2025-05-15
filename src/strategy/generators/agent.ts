@@ -26,7 +26,9 @@ export class AgentTestGenerator extends BaseTestGenerator {
 		);
 
 		const logObj: LLMLogs = { tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model };
+		const generationStartTime = Date.now();
 		const testCode = await invokeLLM(promptObj, logObj);
+		this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");
 		return parseCode(testCode);
 	}
 }

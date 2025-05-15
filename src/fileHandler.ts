@@ -375,5 +375,8 @@ export function getFileName(fullFileName: string) {
 	if (fileName.startsWith("/")) {
 		return fileName.replace("/", "");
 	}
+    if (fileName.includes("/")) {
+        return fileName.split("/")[1];
+    }
 	return fileName;
 }

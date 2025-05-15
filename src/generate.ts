@@ -165,29 +165,6 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 
 // }
 
-export async function generateInitialTestCode(
-	collectedData: any,
-	languageId: string,
-	logger: ExpLogger
-): Promise<string> {
-
-	const promptObj = await genPrompt(collectedData, getConfigInstance().model, languageId);
-	const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
-	const startLLMTime = Date.now();
-	try {
-		const testCode = await invokeLLM(promptObj, logObj);
-		const parsedCode = parseCode(testCode);
-		logger.log("invokeLLM", (Date.now() - startLLMTime).toString(), logObj, "");
-		return parsedCode;
-	} catch (error) {
-		if (error instanceof TokenLimitExceededError) {
-			console.warn('Token limit exceeded, continuing...');
-			logger.log("TokenLimitation", (Date.now() - startLLMTime).toString(), logObj, "");
-		}
-		throw error;
-	}
-}
-
 export async function generateUnitTestForAFunction(
     srcPath: string,
     document: vscode.TextDocument,
