@@ -124,13 +124,15 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 			}
 			
 			// Log the prompt and response
-			const logData = {
-				prompt: promptObj[1].content,
-				response: response,
-				timestamp: new Date().toISOString()
-			};
-			const logFilePath = path.join(getConfigInstance().logSavePath, 'llm_logs.json');
-			fs.appendFileSync(logFilePath, JSON.stringify(logData) + '\n');
+			if (fs.existsSync(getConfigInstance().logSavePath)) {
+				const logData = {
+					prompt: promptObj[1].content,
+					response: response,
+					timestamp: new Date().toISOString()
+				};
+				const logFilePath = path.join(getConfigInstance().logSavePath, 'llm_logs.json');
+				fs.appendFileSync(logFilePath, JSON.stringify(logData) + '\n');
+			}
 
 			return response;
 		} catch (error) {
