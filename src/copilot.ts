@@ -23,6 +23,7 @@ import { workspace } from 'vscode';
 import { getConfigInstance } from './config';
 import { getUnitTestTemplateOnly } from './prompts/template';
 import { sleep } from './helper';
+import path from 'path';
 
 // --------------------
 // 1. SPAWN THE SERVER
@@ -465,6 +466,8 @@ export async function generateUnitTestsForFocalMethod(
   console.log('generateUnitTestsForFocalMethod', uriOfMethod, focalMethod, fileName, unitTestTemplate, languageCode)
   try {
     // 1) Create a “prompt” that provides context about what we want Copilot to do.
+    console.log("workspace", getConfigInstance().workspace)
+    console.log("savePath", getConfigInstance().savePath)
     await init(connection, getConfigInstance().workspace);
     let startContent = unitTestTemplate;
     // 2) We’ll represent this prompt as if it were a file in the workspace.
@@ -472,9 +475,10 @@ export async function generateUnitTestsForFocalMethod(
     // Goal : testFileName is a real file and will be generated, 
     const version = 1;
     await saveGeneratedCodeToFolder(startContent, getConfigInstance().savePath, fileName);  
-    const textDocument = await workspace.openTextDocument(fileName);
+    const textDocument = await workspace.openTextDocument(path.join(getConfigInstance().savePath, fileName));
+    const fileUri = vscode.Uri.file(path.join(getConfigInstance().savePath, fileName));
     const textDocumentItem: TextDocumentItem = {
-      uri: textDocument.uri.fsPath,
+      uri: fileUri.toString(),
       languageId: languageCode,
       version,
       text: textDocument.getText()
@@ -484,13 +488,13 @@ export async function generateUnitTestsForFocalMethod(
     connection.sendNotification(DidOpenTextDocumentNotification.type, {
       textDocument: textDocumentItem
     }); 
-    await vscode.workspace.openTextDocument(document.uri);
-    await vscode.window.showTextDocument(document); // Add this line to physically open the document
+    await vscode.workspace.openTextDocument(fileUri);
+    await vscode.window.showTextDocument(fileUri); // Add this line to physically open the document
 
     connection.sendNotification(DidOpenTextDocumentNotification.type, {
       textDocument: {
-        uri: document.uri.fsPath,
-        languageId: document.languageId,
+        uri: fileUri.toString(),
+        languageId: languageCode,
         version: document.version,
         text: document.getText()
       }
