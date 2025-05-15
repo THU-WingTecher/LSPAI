@@ -85,50 +85,29 @@ suite('Experiment Test Suite - JAVA', () => {
     //     assert.ok(symbols.length > 0, 'symbols should not be empty');
     // });
 
-
-    // test('CFG - with context', async () => {
-    //     await runGenerateTestCodeSuite(
-    //         GenerationType.CFG,
-    //         FixType.ORIGINAL,
-    //         PromptType.WITHCONTEXT,
-    //         symbols,
-    //         languageId
-    //     );
-    // });
-
-    test('CFG - experimental - 4o-mini', async () => {
+    test('CFG - experimental - deepseek-coder', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
+            FixType.NOFIX,
             PromptType.WITHCONTEXT,
-            'gpt-4o-mini',
-            'openai' as Provider,
+            'deepseek-coder',
+            'deepseek' as Provider,
             symbols,
             languageId
         );
     });
 
-    // test('CFG - without context', async () => {
+    // test('AGENT - with context - deepseek-coder', async () => {
     //     await runGenerateTestCodeSuite(
-    //         GenerationType.CFG,
+    //         GenerationType.AGENT,
     //         FixType.ORIGINAL,
-    //         PromptType.DETAILED,
+    //         PromptType.WITHCONTEXT,
+    //         'deepseek-coder',
+    //         'deepseek' as Provider,
     //         symbols,
     //         languageId
     //     );
     // });
-
-    test('AGENT - with context - 4omini', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.AGENT,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            'gpt-4o-mini',
-            'openai' as Provider,
-            symbols,
-            languageId
-        );
-    });
 
     // test('CFG - experimental - 4o', async () => {
     //     await runGenerateTestCodeSuite(
@@ -154,14 +133,5 @@ suite('Experiment Test Suite - JAVA', () => {
     //     );
     // });
 
-    // test('AGENT - without context', async () => {
-    //     await runGenerateTestCodeSuite(
-    //         GenerationType.AGENT,
-    //         FixType.ORIGINAL,
-    //         PromptType.DETAILED,
-    //         symbols,
-    //         languageId
-    //     );
-    // });
 
 }); 

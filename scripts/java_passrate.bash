@@ -3,75 +3,61 @@
 # Check if the required parameters are provided
 if [ -z "$1" ]; then
     echo "Error: Target project path is missing."
-    echo "Usage: $0 <target_project_path> <test_dir1> [test_dir2 ...]"
+    echo "Usage: $0 <target_project_path> <test_save_dir> [report_dir]"
     exit 1
 fi
 
 if [ -z "$2" ]; then
-    echo "Error: At least one test directory is required."
-    echo "Usage: $0 <target_project_path> <test_dir1> [test_dir2 ...]"
+    echo "Error: Test file save path is missing."
+    echo "Usage: $0 <target_project_path> <test_save_dir> [report_dir]"
     exit 1
 fi
 
 # Input parameters
 TARGET_PROJECT_PATH=$1
-shift  # Remove the first argument (target project path)
-
-# Get all test directories
-TEST_DIRS=("$@")
+TEST_DIR=$2
+REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
+OUTPUT_DIR="${TEST_DIR}-compiled"  # Default value if not provided
 
 # Initialize counters
-total_valid_files_count=0
+valid_files_count=0
 total_files_count=0
 
-# Set total files count based on project type
-# if [[ "$TARGET_PROJECT_PATH" == *cli ]]; then
-#     total_files_count=150
-# elif [[ "$TARGET_PROJECT_PATH" == *csv ]]; then
-#     total_files_count=74
-# fi
-total_files_count=0
-# Process each test directory
-for test_dir in "${TEST_DIRS[@]}"; do
-    # Get the corresponding output directory name
-    dir_name=$(basename "$test_dir")
-    output_dir="${dir_name}-compiled"
+if [[ "$TARGET_PROJECT_PATH" == *cli ]]; then
+    total_files_count=150
+fi
+if [[ "$TARGET_PROJECT_PATH" == *csv ]]; then
+    total_files_count=74
+fi
+
+# total_files_count=0
+# Iterate through each .java file in the TEST_DIR
+for java_file in $(find "$TEST_DIR" -type f -name "*.java"); do
+    # Get the corresponding .class file name
+    base_name=$(basename "$java_file" .java)
+    class_files=$(find "$OUTPUT_DIR" -type f -name "${base_name}*.class" | wc -l)
     
-    echo "Processing $test_dir"
-    echo "============================"
-    
-    # Initialize counters for this directory
-    valid_files_count=0
-    
-    # Iterate through each .java file in the test directory
-    for java_file in $(find "$test_dir" -type f -name "*.java"); do
-        # Get the corresponding .class file name
-        base_name=$(basename "$java_file" .java)
-        class_files=$(find "$output_dir" -type f -name "${base_name}*.class" | wc -l)
-        total_files_count=$((total_files_count + 1))
-        # Count the .java file if it has corresponding .class files
-        if [ "$class_files" -gt 0 ]; then
-            valid_files_count=$((valid_files_count + 1))
-            total_valid_files_count=$((total_valid_files_count + 1))
-        fi
-    done
-    
-    # Calculate the pass rate for this directory
-    percentage=$(echo "$valid_files_count $total_files_count" | awk '{ printf "%.2f\n", ($1 / $2) * 100 }')
-    
-    # Echo the result for this directory
-    echo "Total .java files: $total_files_count"
-    echo "Files with corresponding .class files: $valid_files_count"
-    echo "Pass rate: $percentage%"
-    echo "============================"
+    # Count the .java file if it has corresponding .class files
+    if [ "$class_files" -gt 0 ]; then
+        valid_files_count=$((valid_files_count + 1))
+    fi
+
+    # total_files_count=$((total_files_count + 1))
 done
 
-# Calculate and display overall pass rate
-overall_percentage=$(echo "$total_valid_files_count $total_files_count" | awk '{ printf "%.2f\n", ($1 / $2) * 100 }')
+# # If there are no Java files, avoid division by zero
+# if [ "$total_files_count" -eq 0 ]; then
+#     echo "No .java files found in the target directory."
+#     exit 1
+# fi
 
-echo "Overall Results"
+# Calculate the pass rate
+percentage=$(echo "$valid_files_count $total_files_count" | awk '{ printf "%.2f\n", ($1 / $2) * 100 }')
+
+# Echo the result
+echo "Pass rate for $TEST_DIR"
 echo "============================"
 echo "Total .java files: $total_files_count"
-echo "Total files with corresponding .class files: $total_valid_files_count"
-echo "Overall pass rate: $overall_percentage%"
+echo "Files with corresponding .class files: $valid_files_count"
+echo "Pass rate: $percentage%"
 echo "============================"

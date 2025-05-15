@@ -15,8 +15,8 @@ suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
     const projectPath = "/LSPAI/experiments/projects/black";
     const pythonExtraPaths = [path.join(projectPath, "src/black"), path.join(projectPath, "src/black/src"), path.join(projectPath, "src")];
-    const sampleNumber = 60;
-
+    const sampleNumber = -1;
+    const languageId = "python";
 
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
@@ -61,53 +61,76 @@ suite('Experiment Test Suite', () => {
         symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
     });
 
-
-    test('CFG - with context', async () => {
+    test('CFG - experimental - deepseek-coder', async () => {
         await runGenerateTestCodeSuite(
-            GenerationType.CFG,
-            FixType.NOFIX,
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
-            'gpt-4o-mini',
-            'openai' as Provider,
+            'deepseek-coder',
+            'deepseek' as Provider,
             symbols,
-            'python'
+            languageId
         );
     });
 
-    test('CFG - without context', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.CFG,
-            FixType.NOFIX,
-            PromptType.DETAILED,
-            'gpt-4o-mini',
-            'openai' as Provider,
-            symbols,
-            'python'
-        );
-    });
-
-    test('AGENT - with context', async () => {
+    test('AGENT - with context - deepseek-coder', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.AGENT,
-            FixType.NOFIX,
+            FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
-            'gpt-4o-mini',
-            'openai' as Provider,
+            'deepseek-coder',
+            'deepseek' as Provider,
             symbols,
-            'python'
+            languageId
         );
     });
+    
+    // test('CFG - experimental - 4o-mini', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.EXPERIMENTAL,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'gpt-4o-mini',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
 
-    test('AGENT - without context', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.AGENT,
-            FixType.NOFIX,
-            PromptType.DETAILED,
-            'gpt-4o-mini',
-            'openai' as Provider,
-            symbols,
-            'python'
-        );
-    });
+    // test('AGENT - with context - 4omini', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.AGENT,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'gpt-4o-mini',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
+
+    // test('CFG - experimental - 4o', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.EXPERIMENTAL,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'gpt-4o',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
+
+    // test('AGENT - with context - 4o', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.AGENT,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'gpt-4o',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
 
 }); 
