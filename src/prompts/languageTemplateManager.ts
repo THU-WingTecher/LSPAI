@@ -20,6 +20,9 @@ export class LanguageTemplateManager {
         if (fileName.includes(".")) {
             fileName = fileName.split(".")[0];
         }
+        if (fileName.includes("/")) {
+            fileName = fileName.split("/").pop() || fileName;
+        }
         switch(languageId) {
             case 'java':
                 return LanguageTemplateManager.getJavaTemplate(fileName, packageString, paths);
