@@ -224,6 +224,10 @@ export class ContextSelector {
                 const currentToken = await retrieveDef(this.document, targetToken);
                 // const symbols = await getAllSymbols(this.document.uri);
                 // const isDefUnderFocalMethod = isDefUnderFocalMethod(currentToken, functionSymbol);
+                if (!currentToken.definition || !currentToken.definition[0] || !currentToken.definition[0].uri) {
+                    console.log(`No definition found for "${JSON.stringify(term)}"`);
+                    continue;
+                }
                 if (isInWorkspace(currentToken.definition[0].uri)) {
 
                     if (currentToken.definition && currentToken.definition[0].range && currentToken.definition.length > 0) {
