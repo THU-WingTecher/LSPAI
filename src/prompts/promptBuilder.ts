@@ -8,7 +8,6 @@ import ini from "ini";
 import { getPackageStatement, getImportStatement } from "../retrieve";
 import * as vscode from 'vscode';
 import { LanguageTemplateManager } from "./languageTemplateManager";
-import { isFunctionSymbol } from "../utils";
 
 // Define the template directory name
 const templateDirName = "templates";
@@ -402,7 +401,7 @@ ${code}
 /**
  * Generates a prompt based on context information
  */
-export async function genPrompt(data: ContextInfo, method: string, language: string): Promise<any> {
+export async function genPrompt(data: ContextInfo, method: GenerationType): Promise<any> {
     let mainFunctionDependencies = "";
     let dependentContext = "";
     let mainfunctionParent = "";
@@ -410,7 +409,7 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
     const systemPromptText = ChatUnitTestSystemPrompt(data.languageId);
     const textCode = data.SourceCode;
     
-    if (getConfigInstance().generationType !== GenerationType.NAIVE) {
+    if (method === GenerationType.ORIGINAL) {
         dependentContext = data.dependentContext;
         mainFunctionDependencies = data.mainFunctionDependencies;
         mainfunctionParent = data.mainfunctionParent;
@@ -426,7 +425,7 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
             data.fileName, 
             data.referenceCodes
         );
-    } else {
+    } else if (method === GenerationType.NAIVE) {
         prompt = ChatUnitTestBaseUserPrompt(
             textCode, 
             data.languageId, 
@@ -438,6 +437,8 @@ export async function genPrompt(data: ContextInfo, method: string, language: str
             data.importString, 
             data.fileName
         );
+    } else {
+        throw new Error(`Invalid generation type: ${method}`);
     }
     
     const chatMessages: ChatMessage[] = [

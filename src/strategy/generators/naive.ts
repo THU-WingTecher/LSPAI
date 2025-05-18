@@ -9,11 +9,10 @@ import { BaseTestGenerator } from '../base';
 
 export async function generateInitialTestCode(
 	collectedData: any,
-	languageId: string,
 	logObj: LLMLogs
 ): Promise<string> {
 
-	const promptObj = await genPrompt(collectedData, getConfigInstance().model, languageId);
+	const promptObj = await genPrompt(collectedData, getConfigInstance().generationType);
 	try {
 		const testCode = await invokeLLM(promptObj, logObj);
 		const parsedCode = parseCode(testCode);
@@ -39,7 +38,6 @@ export class NaiveTestGenerator extends BaseTestGenerator {
 
 		const testCode = await generateInitialTestCode(
 			collectedData,
-			this.languageId,
 			logObj
 		);
 		this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");

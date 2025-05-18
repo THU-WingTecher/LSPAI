@@ -16,8 +16,8 @@ export enum PromptType {
 }
 
 export enum GenerationType {
-    NAIVE = 'naive',
-    ORIGINAL = 'original',
+    NAIVE = 'naive', // without context, only template
+    ORIGINAL = 'original', // with context, naive context, only template
     AGENT = 'agent',
     EXPERIMENTAL = 'experimental',
     FASTEST = 'fastest',

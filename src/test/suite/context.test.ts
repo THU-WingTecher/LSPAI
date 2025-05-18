@@ -2,8 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { getDependentContext } from '../../retrieve';
-import { getConfigInstance, PromptType } from '../../config';
+import { getConfigInstance, PromptType, GenerationType } from '../../config';
 import { genPrompt } from '../../prompts/promptBuilder';
 import { getDocUri, activate } from '../../lsp';
 import { collectInfo, ContextInfo } from '../../generate';
@@ -97,7 +96,7 @@ suite('Context and Prompt Tests', () => {
         console.log(JSON.stringify(collectedInfo.dependentContext, null, 2));
         
         // Generate prompt with full context
-        const promptObjFull = await genPrompt(collectedInfo, 'test', 'java');
+        const promptObjFull = await genPrompt(collectedInfo, GenerationType.ORIGINAL);
         
         console.log('=== Prompt Template (Full) ===');
         console.log(promptObjFull[1].content);
@@ -130,13 +129,13 @@ suite('Context and Prompt Tests', () => {
 
         // Generate prompts with different prompt types
         getConfigInstance().updateConfig({ promptType: PromptType.BASIC });
-        const summarizedBasicPrompt = await genPrompt(collectedInfoSummarized, 'test', 'java');
+        const summarizedBasicPrompt = await genPrompt(collectedInfoSummarized, GenerationType.ORIGINAL);
         
         getConfigInstance().updateConfig({ promptType: PromptType.DETAILED });
-        const summarizedDetailedPrompt = await genPrompt(collectedInfoSummarized, 'test', 'java');
+        const summarizedDetailedPrompt = await genPrompt(collectedInfoSummarized, GenerationType.ORIGINAL);
         
         getConfigInstance().updateConfig({ promptType: PromptType.CONCISE });
-        const summarizedConcisePrompt = await genPrompt(collectedInfoSummarized, 'test', 'java');
+        const summarizedConcisePrompt = await genPrompt(collectedInfoSummarized, GenerationType.ORIGINAL);
         
         console.log('===SUMMARIZED Basic Prompt Template ===');
         console.log(summarizedBasicPrompt[1].content);
@@ -150,13 +149,13 @@ suite('Context and Prompt Tests', () => {
 
         // Generate prompts with different prompt types
         getConfigInstance().updateConfig({ promptType: PromptType.BASIC });
-        const basicPrompt = await genPrompt(collectedInfo, 'test', 'java');
+        const basicPrompt = await genPrompt(collectedInfo, GenerationType.ORIGINAL);
         
         getConfigInstance().updateConfig({ promptType: PromptType.DETAILED });
-        const detailedPrompt = await genPrompt(collectedInfo, 'test', 'java');
+        const detailedPrompt = await genPrompt(collectedInfo, GenerationType.ORIGINAL);
         
         getConfigInstance().updateConfig({ promptType: PromptType.CONCISE });
-        const concisePrompt = await genPrompt(collectedInfo, 'test', 'java');
+        const concisePrompt = await genPrompt(collectedInfo, GenerationType.ORIGINAL);
         
         console.log('===FULL Basic Prompt Template ===');
         console.log(basicPrompt[1].content);
