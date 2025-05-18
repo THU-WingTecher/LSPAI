@@ -22,6 +22,7 @@ export enum GenerationType {
     EXPERIMENTAL = 'experimental',
     FASTEST = 'fastest',
     BEST = 'best',
+    SymPrompt = 'symprompt',
     CFG = 'cfg'
 }
 
