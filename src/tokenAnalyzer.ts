@@ -107,6 +107,7 @@ async function loadDefAndSaveToDefSymbol(token: DecodedToken) {
 async function cfgBasedIsDefinitionHelpful(token: DecodedToken, paths: Set<string>): Promise<boolean> {
     // Example: Only functions are helpful
     // return getTokenInPaths(token, paths);
+    
     if (isFunctionArg(token)) {
         if (!token.defSymbol) {
             await loadDefAndSaveToDefSymbol(token);
@@ -117,9 +118,9 @@ async function cfgBasedIsDefinitionHelpful(token: DecodedToken, paths: Set<strin
     return !isClass(token);    
 }
 
-function cfgBasedIsReferenceHelpful(token: DecodedToken, paths: Set<string>): boolean {
+function cfgBasedIsReferenceHelpful(token: DecodedToken, paths: Set<string>, functionInfo: Map<string, string>): boolean {
     // Example: Only if used as return value
-    return isUsedAsReturnValue(token);
+    return false;
 }
 
 function isTokenInPath(token: DecodedToken, path: any): boolean {
@@ -157,27 +158,56 @@ function removeRedundantTokens(tokens: DecodedToken[]): DecodedToken[] {
     
     return Array.from(uniqueTokens.values());
 }
-async function cfgGetContextTermsFromTokens(tokens: DecodedToken[], paths: any): Promise<ContextTerm[]> {
+
+async function cfgGetContextTermsFromTokens(tokens: DecodedToken[], paths: any, functionInfo: Map<string, string> = new Map()): Promise<ContextTerm[]> {
     // comming tokens are all appeared in CFG path.
-    return Promise.all(tokens.map(async token => ({
-        name: token.word,
-        need_definition: await cfgBasedIsDefinitionHelpful(token, paths),
-        need_example: cfgBasedIsReferenceHelpful(token, paths),
-        need_full_definition: isFunctionArg(token) && await isReturnBoolean(token),
-        context: "",
-        example: "",
-        token: token,
-    })));
+    // For definitions, we only care about tokens in paths
+    let tokenInSignature: DecodedToken[] = [];
+    const tokensInPaths = getTokensInPaths(tokens, paths);
+    if (functionInfo.size > 0 && functionInfo.has('signature')) {
+         tokenInSignature = getTokensInPath(tokens, functionInfo.get('signature'));
+    }
+    // Process all tokens to create the unified structure
+    return Promise.all(tokens.map(async token => {
+        // For definition, only consider tokens in paths
+        const needDefinition = tokensInPaths.includes(token) && 
+            await cfgBasedIsDefinitionHelpful(token, paths);
+        
+        // For examples, consider all tokens
+        const needExample = tokenInSignature.includes(token) || cfgBasedIsReferenceHelpful(token, paths, functionInfo);
+        
+        return {
+            name: token.word,
+            need_definition: needDefinition,
+            need_example: needExample,
+            need_full_definition: isFunctionArg(token) && await isReturnBoolean(token),
+            context: "",
+            example: "",
+            token: token,
+        };
+    }));
+    // const needDefinitionTokens = tokensInPaths.filter(token => cfgBasedIsDefinitionHelpful(token, paths));
+    // const needExampleTokens = tokens.filter(token => cfgBasedIsReferenceHelpful(token, paths));
+    // // return all tokens indexing with need_definition and need_example
+
+    // return Promise.all(tokens.map(async token => ({
+    //     name: token.word,
+    //     need_definition: await cfgBasedIsDefinitionHelpful(token, paths),
+    //     need_example: cfgBasedIsReferenceHelpful(token, paths),
+    //     need_full_definition: isFunctionArg(token) && await isReturnBoolean(token),
+    //     context: "",
+    //     example: "",
+    //     token: token,
+    // })));
 }
 
 // 4. Main exported functions delegate to the selected algorithm
-export async function getContextTermsFromTokens(tokens: DecodedToken[], paths: Set<string> = new Set()): Promise<ContextTerm[]> {
+export async function getContextTermsFromTokens(tokens: DecodedToken[], paths: Set<string> = new Set(), functionInfo: Map<string, string> = new Map()): Promise<ContextTerm[]> {
     switch (helpfulnessAlgorithm) {
         case 'cfg':
-            const tokensInPaths = getTokensInPaths(tokens, paths);
-            const uniqueTokensInPaths = removeRedundantTokens(tokensInPaths);
+            const uniqueTokens = removeRedundantTokens(tokens);
             // console.log("uniqueTokensInPaths :", uniqueTokensInPaths)
-            const filteredTerms = await cfgGetContextTermsFromTokens(uniqueTokensInPaths, paths);
+            const filteredTerms = await cfgGetContextTermsFromTokens(uniqueTokens, paths, functionInfo);
             // console.log("filteredTerms :", filteredTerms)
             return filteredTerms.filter(term => term.need_definition == true || term.need_example == true);
         case 'default':

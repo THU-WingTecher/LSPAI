@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { removeComments } from './utils';
 import { getAllSymbols, getSymbolByLocation } from './lsp';
 import { DecodedToken, getDecodedTokensFromSybol } from './token';
-import { retrieveDef } from './retrieve';
 
 function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
     let shortestSymbol: vscode.DocumentSymbol | null = null;

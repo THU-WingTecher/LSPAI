@@ -5,9 +5,6 @@ import { ContextTerm, getContextSelectorInstance } from '../../agents/contextSel
 import { PathCollector } from '../../cfg/path';
 import { createCFGBuilder } from '../../cfg/builderFactory';
 import { SupportedLanguage } from '../../ast';
-import { retrieveDef, retrieveDefs } from '../../retrieve';
-import { getTokenInPaths } from '../../tokenAnalyzer';
-import * as vscode from 'vscode';
 import { activate, getSymbolByLocation } from '../../lsp';
 
 suite('tokenAnalyzer Helpfulness Algorithm', () => {
@@ -117,5 +114,45 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
         // for (const term of expectedTerms) {
         //     assert.ok(defaultTerms.map(t => t.name).includes(term), `term ${term} should be in expectedTerms`);
         // }
+    });
+
+    test('checkout identifying terms for given symbol : handleConcatenatedOptions', async () => {
+        if (process.env.NODE_DEBUG !== 'true') {
+            console.log('activate');
+            await activate();
+        }
+        const projectPath = "/LSPAI/experiments/projects/commons-cli";
+        const workspaceFolders = setWorkspaceFolders(projectPath);
+        const fileName = "DefaultParser.java";
+        const symbolName = "handleOption";
+        const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, 'java');
+        console.log(`#### One file: ${symbolDocumentMap.document.uri}, ${symbolDocumentMap.symbol.name}`);
+        const contextSelectorForCFG = await getContextSelectorInstance(
+            symbolDocumentMap.document, 
+            symbolDocumentMap.symbol);
+        const decodedTokens = contextSelectorForCFG.getTokens();
+        console.log("decodedTokens", decodedTokens);
+        const builder = createCFGBuilder(symbolDocumentMap.document.languageId as SupportedLanguage);
+        const cfg = await builder.buildFromCode(symbolDocumentMap.document.getText(symbolDocumentMap.symbol.range));
+        const pathCollector = new PathCollector(symbolDocumentMap.document.languageId);
+        const paths = pathCollector.collect(cfg.entry);
+        const functionInfo = builder.getFunctionInfo();
+        console.log("functionInfo", functionInfo);
+        // console.log("paths", paths);
+        const uniqueConditions = pathCollector.getUniqueConditions();
+        console.log("uniqueConditions size", uniqueConditions.size);
+        console.log("unique Conditions :", Array.from(uniqueConditions));
+        // Default algorithm
+        const defaultTerms = await getContextTermsFromTokens(decodedTokens, uniqueConditions, functionInfo);
+        console.log("", defaultTerms);
+        const enrichedTerms = await contextSelectorForCFG.gatherContext(defaultTerms, symbolDocumentMap.symbol);
+        console.log("handleConcatenatedOptions::enrichedTerms", enrichedTerms);
+        const expectedTerms = [
+            'Option',
+        ]
+        // defaultTerms's name should be in expectedTerms
+        for (const term of expectedTerms) {
+            assert.ok(defaultTerms.map(t => t.name).includes(term), `term ${term} should be in expectedTerms`);
+        }
     });
 });
