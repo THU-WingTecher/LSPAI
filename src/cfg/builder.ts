@@ -11,6 +11,7 @@ function pruneText(nodeText: string): string {
 }
 export class CFGBuilder {
     private ast!: Parser.Tree;
+    protected functionInfo: Map<string, string> = new Map();
     private nodes: Map<string, CFGNode>;
     private language: SupportedLanguage;
     protected loopHeaderExtractor: LoopHeaderExtractor;
@@ -22,6 +23,20 @@ export class CFGBuilder {
         this.loopHeaderExtractor = LoopHeaderExtractorFactory.createExtractor(language);
     }
 
+    // protected processFunction(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
+    //     const functionNode = this.createNode(CFGNodeType.FUNCTION, node);
+    //     this.connect(current, functionNode);
+    //     return functionNode;
+    // }
+    protected processFunctionArgument(node: Parser.SyntaxNode, current: CFGNode): CFGNode {
+        this.functionInfo.set("signature", node.text);
+        return current;
+    }
+
+    getFunctionInfo(): Map<string, string> {
+        return this.functionInfo;
+    }
+    
     protected createNode(type: CFGNodeType, astNode: Parser.SyntaxNode): CFGNode {
         const node: CFGNode = {
             id: uuidv4(),
@@ -145,6 +160,10 @@ export class CFGBuilder {
     }
 
     protected getConditionText(node: Parser.SyntaxNode): string {
+        // When searching for condition text
+        console.log("CONDITION TEXT", node.text);
+        console.log("Conditin parent node's children", node.children.map(child => child.type));
+        console.log("Conditin parent node's children", node.children.map(child => child.text));
         return node.childForFieldName('condition')?.text || (node as any).conditionNode.text || "";
     }
 

@@ -7,12 +7,15 @@ export class PythonCFGBuilder extends CFGBuilder {
     protected processNode(node: Parser.SyntaxNode, current: CFGNode): CFGNode | null {
         
         switch (node.type) {
+            case 'function_definition':  // Add this case
             case 'module':
             case 'block':
-            case 'function_definition':  // Add this case
                 // Process each child in sequence
                 return this.processBlock(node, current);
 
+            case 'parameters':
+                return this.processFunctionArgument(node, current);
+                
             case 'if_statement':
                 // Python: consequence field is 'consequence', else clause type is 'else_clause'
                 return this.processIfStatement(node, current, 'consequence', 'else_clause');

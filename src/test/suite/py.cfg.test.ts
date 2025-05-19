@@ -243,7 +243,7 @@ for i in range(5):
 test('Python CFG - Complex Control Flow with Multiple Paths', async function() {
     const builder = new PythonCFGBuilder('python');
     const code = `
-def process_value(x):
+def process_value(x: int):
     result = 0
     if x > 0:
         while x > 10:
@@ -268,6 +268,10 @@ def process_value(x):
     `;
     const cfg = await builder.buildFromCode(code);
     builder.printCFGGraph(cfg.entry);
+    // Find Function Signature Information 
+    const functionInfo = builder.getFunctionInfo();
+    assert.equal(functionInfo.get('signature'), '(x: int)', "Should have the correct function signature");
+        
     // Find all conditions by their AST node type
     const conditions = Array.from(cfg.nodes.values())
         .filter(n => n.type === CFGNodeType.CONDITION && 

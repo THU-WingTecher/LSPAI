@@ -12,7 +12,8 @@ export class JavaCFGBuilder extends CFGBuilder {
             case 'class_body':
                 // Java: process all children in sequence
                 return this.processBlock(node, current);
-
+            case 'formal_parameters':
+                return this.processFunctionArgument(node, current);
             case 'if_statement':
                 // Java: consequence field is 'consequence', else clause type is 'else'
                 // (adjust if your parser uses different names)

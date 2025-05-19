@@ -292,6 +292,10 @@ func processValue(x int) int {
     `;
     const cfg = await builder.buildFromCode(code);
     builder.printCFGGraph(cfg.entry);
+    // Find Function Signature Information 
+    const functionInfo = builder.getFunctionInfo();
+    assert.equal(functionInfo.get('signature'), '(x int)', "Should have the correct function signature");
+
     // Find all conditions by their AST node type
     const conditions = Array.from(cfg.nodes.values())
         .filter(n => n.type === CFGNodeType.CONDITION);

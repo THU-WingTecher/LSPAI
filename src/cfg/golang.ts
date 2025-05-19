@@ -9,11 +9,18 @@ export class GolangCFGBuilder extends CFGBuilder {
             case 'func':
             case 'function_declaration':
             case 'method_declaration':
-
+                // When searching for parameter list key term
+                // console.log("FUNCTION DECLARATION", node.text);
+                // console.log("FUNCTION DECLARATION", node.children);
+                // console.log("func type", node.children.map(child => child.type));
+                // console.log("func text", node.children.map(child => child.text));
             case 'source_file':
             case 'block':
                 // Go: process all children in sequence
                 return this.processBlock(node, current);
+
+            case 'parameter_list':
+                return this.processFunctionArgument(node, current);
 
             case 'if_statement':
                 // Go: consequence field is 'consequence', else clause type is 'else'

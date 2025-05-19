@@ -111,6 +111,9 @@ public int calculate(int x) {
     const conditions = Array.from(cfg.nodes.values()).filter(n => n.type === CFGNodeType.CONDITION);
     const loop = Array.from(cfg.nodes.values()).find(n => n.type === CFGNodeType.LOOP);
     
+    // Find Function Signature Information 
+    const functionInfo = builder.getFunctionInfo();
+    assert.equal(functionInfo.get('signature'), '(int x)', "Should have the correct function signature");
     // should have two conditions 
     assert.equal(conditions.length, 3, "Should have three conditions");
     assert.notEqual(conditions[0], undefined, "Should have a condition node");
