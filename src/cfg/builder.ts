@@ -161,14 +161,14 @@ export class CFGBuilder {
 
     protected getConditionText(node: Parser.SyntaxNode): string {
         // When searching for condition text
-        console.log("CONDITION TEXT", node.text);
-        console.log("Conditin parent node's children", node.children.map(child => child.type));
-        console.log("Conditin parent node's children", node.children.map(child => child.text));
+        // console.log("CONDITION TEXT", node.text);
+        // console.log("Conditin parent node's children", node.children.map(child => child.type));
+        // console.log("Conditin parent node's children", node.children.map(child => child.text));
         return node.childForFieldName('condition')?.text || (node as any).conditionNode.text || "";
     }
 
     protected checkConditionText(conditionNode: CFGNode, node: Parser.SyntaxNode): void {
-        if (conditionNode.condition === "unknown") {
+        if (!conditionNode.condition) {
             console.warn("CFGERROR:: conditionNode.condition is empty");
             console.log("Parent's children node Info:", node.children.map(child => child.type).join("::"));
             console.log("Parent's children node Info:", node.children.map(child => child.text).join("::"));

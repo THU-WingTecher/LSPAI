@@ -98,10 +98,10 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
         const paths = pathCollector.collect(cfg.entry);
         // console.log("paths", paths);
         const uniqueConditions = pathCollector.getUniqueConditions();
-        console.log("uniqueConditions size", uniqueConditions.size);
+        // console.log("uniqueConditions size", uniqueConditions.size);
         console.log("unique Conditions :", Array.from(uniqueConditions));
         // Default algorithm
-        const defaultTerms = await getContextTermsFromTokens(decodedTokens, uniqueConditions);
+        const defaultTerms = await getContextTermsFromTokens(symbolDocumentMap.document, decodedTokens, uniqueConditions);
         console.log("defaultTerms", defaultTerms);
         const enrichedTerms = await contextSelectorForCFG.gatherContext(defaultTerms, symbolDocumentMap.symbol);
         console.log("handleConcatenatedOptions::enrichedTerms", enrichedTerms);
@@ -140,10 +140,10 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
         console.log("functionInfo", functionInfo);
         // console.log("paths", paths);
         const uniqueConditions = pathCollector.getUniqueConditions();
-        console.log("uniqueConditions size", uniqueConditions.size);
+        // console.log("uniqueConditions size", uniqueConditions.size);
         console.log("unique Conditions :", Array.from(uniqueConditions));
         // Default algorithm
-        const defaultTerms = await getContextTermsFromTokens(decodedTokens, uniqueConditions, functionInfo);
+        const defaultTerms = await getContextTermsFromTokens(symbolDocumentMap.document, decodedTokens, uniqueConditions, functionInfo);
         console.log("", defaultTerms);
         const enrichedTerms = await contextSelectorForCFG.gatherContext(defaultTerms, symbolDocumentMap.symbol);
         console.log("handleConcatenatedOptions::enrichedTerms", enrichedTerms);

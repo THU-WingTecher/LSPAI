@@ -7,7 +7,7 @@ import { reportProgressWithCancellation } from '../userInteraction';
 import { TestGenerationStrategy } from './types';
 import { ContextTerm, getContextSelectorInstance } from '../agents/contextSelector';
 import { getContextTermsFromTokens } from '../tokenAnalyzer';
-
+import { ConditionAnalysis } from '../cfg/path';
 export abstract class BaseTestGenerator implements TestGenerationStrategy {
 	constructor(
 		protected readonly document: vscode.TextDocument,
@@ -22,11 +22,11 @@ export abstract class BaseTestGenerator implements TestGenerationStrategy {
 
 	abstract generateTest(): Promise<string>;
 
-	protected async collectInfo(conditions : Set<string> = new Set<string>()): Promise<ContextTerm[] | null> {
+	protected async collectInfo(conditions : ConditionAnalysis[] = []): Promise<ContextTerm[] | null> {
 		let enrichedTerms: ContextTerm[] = [];
 		const tokenCollectTime = Date.now();
 		const contextSelector = await getContextSelectorInstance(this.document, this.functionSymbol);
-		const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens(), conditions);
+		const identifiedTerms = await getContextTermsFromTokens(this.document, contextSelector.getTokens(), conditions);
 		this.logger.log("getContextTermsFromTokens", (Date.now() - tokenCollectTime).toString(), null, "");
 		if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
 			return null;

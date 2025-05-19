@@ -20,6 +20,7 @@ export interface ContextTerm {
     need_definition?: boolean; // Whether the term needs context
     token?: DecodedToken;
     need_full_definition?: boolean; // Whether the term needs full definition
+    hint?: string[]; // hint for the term
 }
 
 export class ContextSelector {
@@ -210,12 +211,6 @@ export class ContextSelector {
         // console.log("tokens", this.tokens);
         console.log("targetTerms", this.targetSymbol);
         for (const term of terms) {
-            if (term.name == "i") {
-                console.log("Option", term);
-            }
-            if (term.name == "ch") {
-                console.log("term", term);
-            }
             // Prepare prompt using the template from config
             // find the symbol of term in AllTokens 
             const targetToken = this.tokens.find(token => token.word === term.name);

@@ -2,6 +2,8 @@ import { CFGNode, CFGNodeType } from './types';
 import { ExceptionExtractorFactory, ExceptionTypeExtractor } from "./languageAgnostic";
 import { removeComments } from '../utils';
 import { collapseTextChangeRangesAcrossMultipleVersions } from 'typescript/lib/typescript';
+import { ContextTerm } from '../agents/contextSelector';
+
 interface PathSegment {
     code: string;
     condition?: string;
@@ -11,6 +13,13 @@ export interface PathResult {
     code: string;
     path: string;
     simple: string;
+}
+
+export interface ConditionAnalysis {
+    condition: string;
+    depth: number;        // How deeply nested this condition is
+    dependencies: Set<string>; // Variables/functions this condition depends on
+    complexity: number;   // Complexity score based on operators and nesting
 }
 
 export class Path {
@@ -62,6 +71,7 @@ export class PathCollector {
     private visitedLoops: Map<string, number> = new Map(); // Track loop iterations
     private MAX_LOOP_ITERATIONS = 2; // Limit loop traversal
     private exceptionExtractor: ExceptionTypeExtractor;
+    private conditionAnalysis: Map<string, ConditionAnalysis> = new Map();
 
     constructor(private readonly language: string) {
         this.exceptionExtractor = ExceptionExtractorFactory.createExtractor(language);
@@ -80,17 +90,67 @@ export class PathCollector {
     setMaxLoopIterations(maxLoopIterations: number) {
         this.MAX_LOOP_ITERATIONS = maxLoopIterations;
     }
+    // Modify getUniqueConditions to return analyzed conditions
+    // getUniqueConditions(): ConditionAnalysis[] {
+    //     const uniqueConditions = new Set<string>();
+    //     const conditionAnalyses: ConditionAnalysis[] = [];
 
-    getUniqueConditions(): Set<string> {
-        const uniqueConditions = new Set<string>();
+    //     for (const path of this.paths) {
+    //         for (const condition of path.condition) {
+    //             if (condition && !uniqueConditions.has(condition)) {
+    //                 uniqueConditions.add(condition);
+    //                 // Analyze the condition with its depth in the path
+    //                 const analysis = this.analyzeCondition(condition, this.getConditionDepth(path, condition));
+    //                 conditionAnalyses.push(analysis);
+    //             }
+    //         }
+    //     }
+
+    //     // Sort conditions by complexity and depth
+    //     return conditionAnalyses.sort((a, b) => {
+    //         // First sort by complexity
+    //         if (a.complexity !== b.complexity) {
+    //             return a.complexity - b.complexity;
+    //         }
+    //         // Then by depth
+    //         return a.depth - b.depth;
+    //     });
+    // }
+
+    getUniqueConditions(): ConditionAnalysis[] {
+        const normalizedConditions = new Map<string, string>();
+        const conditionAnalyses: ConditionAnalysis[] = [];
+
         for (const path of this.paths) {
             for (const condition of path.condition) {
                 if (condition) {
-                    uniqueConditions.add(condition);
+                    // Skip if empty after normalization
+                    const normalized = this.normalizeCondition(condition);
+                    // console.log("condition", condition);
+                    // console.log("normalized", normalized);
+                    if (normalized) {
+                        // Store original condition with its normalized form
+                        const analysis = this.analyzeCondition(normalized, this.getConditionDepth(path, condition));
+                        if (conditionAnalyses.find(c => c.condition === normalized)) {
+                            continue;
+                        }
+                        conditionAnalyses.push(analysis);
+                        normalizedConditions.set(normalized, condition);
+                    }
                 }
             }
         }
-        return uniqueConditions;
+        
+        // Convert back to original conditions that have unique normalized forms
+        // Sort conditions by complexity and depth
+        return conditionAnalyses.sort((a, b) => {
+            // First sort by complexity
+            if (a.complexity !== b.complexity) {
+                return a.complexity - b.complexity;
+            }
+            // Then by depth
+            return a.depth - b.depth;
+        });
     }
     /**
      * Minimizes the set of paths by removing those whose constraints are already covered.
@@ -120,6 +180,150 @@ export class PathCollector {
             }
         }
         return this.prunePaths(minPaths);
+    }
+
+    private normalizeCondition(condition: string): string {
+        // Remove outer parentheses
+        let normalized = condition.trim();
+        
+        // Handle negated condition: !(A) -> normalize as A but mark as negated
+        const isNegated = normalized.startsWith('!(') && normalized.endsWith(')');
+        
+        if (isNegated) {
+            // Remove negation and outer parentheses
+            normalized = normalized.substring(2, normalized.length - 1).trim();
+            
+            // If the normalized condition itself starts with a negation, simplify it
+            // !(!(B)) -> B (double negation)
+            if (normalized.startsWith('!(') && normalized.endsWith(')')) {
+                return this.normalizeCondition(normalized);
+            }
+            return normalized;
+            // Mark this as a negated condition by adding a special prefix
+            // We'll use this normalized form for comparison only
+            // return `__NEGATED__${normalized}`;
+        }
+        
+        // Remove redundant outer parentheses: (A) -> A
+        while (normalized.startsWith('(') && normalized.endsWith(')')) {
+            const inner = normalized.substring(1, normalized.length - 1).trim();
+            // Check if parentheses are balanced within the inner part
+            if (this.hasBalancedParentheses(inner)) {
+                normalized = inner;
+            } else {
+                break; // Parentheses are part of the expression
+            }
+        }
+        
+        return normalized;
+    }
+
+    private hasBalancedParentheses(expr: string): boolean {
+        let count = 0;
+        for (const char of expr) {
+            if (char === '(') count++;
+            if (char === ')') count--;
+            if (count < 0) return false; // Closing parenthesis without matching opening
+        }
+        return count === 0; // All parentheses are matched
+    }
+
+    // Add method to analyze a single condition
+    private analyzeCondition(condition: string, depth: number): ConditionAnalysis {
+        // Skip if already analyzed
+        if (this.conditionAnalysis.has(condition)) {
+            return this.conditionAnalysis.get(condition)!;
+        }
+
+        // Extract dependencies (variables and function calls)
+        const dependencies = new Set<string>();
+        // const dependencies = this.extractDependencies(condition);
+        // Calculate complexity score
+        const complexity = this.calculateComplexity(condition);
+
+        const analysis: ConditionAnalysis = {
+            condition,
+            depth,
+            dependencies,
+            complexity
+        };
+
+        this.conditionAnalysis.set(condition, analysis);
+        return analysis;
+    }
+
+    // private extractDependencies(condition: string): string[] {
+    //     // Remove operators and parentheses
+    //     const cleanCondition = condition
+    //         .replace(/[()!&|<>=\+\-\*\/%]/g, ' ')
+    //         .replace(/\s+/g, ' ')
+    //         .trim();
+
+    //     // Split into words and filter out empty strings and numbers
+    //     return cleanCondition
+    //         .split(' ')
+    //         .filter(word => word && !/^\d+$/.test(word));
+    // }
+
+    private calculateComplexity(condition: string): number {
+        let complexity = 0;
+        
+        // Count operators
+        const operators = condition.match(/[!&|<>=\+\-\*\/%]/g) || [];
+        complexity += operators.length;
+
+        // Add weight for nested parentheses
+        let maxNesting = 0;
+        let currentNesting = 0;
+        for (const char of condition) {
+            if (char === '(') {
+                currentNesting++;
+                maxNesting = Math.max(maxNesting, currentNesting);
+            } else if (char === ')') {
+                currentNesting--;
+            }
+        }
+        complexity += maxNesting * 2;
+
+        // Add weight for logical operators
+        if (condition.includes('&&') || condition.includes('||')) {
+            complexity += 2;
+        }
+
+        return complexity;
+    }
+
+
+    // Helper method to get the depth of a condition in a path
+    private getConditionDepth(path: Path, targetCondition: string): number {
+        let depth = 0;
+        for (const condition of path.condition) {
+            if (condition === targetCondition) {
+                return depth;
+            }
+            if (condition) {
+                depth++;
+            }
+        }
+        return depth;
+    }
+
+    // Add method to get conditions organized by their dependencies
+    getOrganizedConditions(): Map<string, ConditionAnalysis[]> {
+        const organizedConditions = new Map<string, ConditionAnalysis[]>();
+        const allConditions = this.getUniqueConditions();
+
+        // Group conditions by their dependencies
+        for (const analysis of allConditions) {
+            for (const dep of analysis.dependencies) {
+                if (!organizedConditions.has(dep)) {
+                    organizedConditions.set(dep, []);
+                }
+                organizedConditions.get(dep)!.push(analysis);
+            }
+        }
+
+        return organizedConditions;
     }
 
     private prunePaths(paths: PathResult[]): PathResult[] {
@@ -176,7 +380,8 @@ export class PathCollector {
                 break;
 
             case CFGNodeType.RETURN:
-                currentPath.addSegment("", node.astNode.text);
+                // currentPath.addSegment("", node.astNode.text);
+                currentPath.addSegment(node.astNode.text, "");
             case CFGNodeType.EXIT:
                 if (currentPath.length > 0) {
                     this.paths.push(currentPath);

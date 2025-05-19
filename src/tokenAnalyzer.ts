@@ -5,9 +5,10 @@ import { retrieveDef } from "./retrieve";
 import { DecodedToken } from "./token";
 import { getSymbolByLocation } from "./lsp";
 import * as vscode from 'vscode';
+import { ConditionAnalysis } from "./cfg/path";
 // 1. Define the type for the algorithm
 type HelpfulnessAlgorithm = 'default' | 'alternative1' | 'cfg';
-
+const ASSIGNMENT_OPERATOR = "=";
 let helpfulnessAlgorithm: HelpfulnessAlgorithm = 'cfg';
 export function setHelpfulnessAlgorithm(algo: HelpfulnessAlgorithm) {
     helpfulnessAlgorithm = algo;
@@ -104,7 +105,7 @@ async function loadDefAndSaveToDefSymbol(token: DecodedToken) {
     }
 }
 // --- Alternative Algorithm Example ---
-async function cfgBasedIsDefinitionHelpful(token: DecodedToken, paths: Set<string>): Promise<boolean> {
+async function cfgBasedIsDefinitionHelpful(token: DecodedToken): Promise<boolean> {
     // Example: Only functions are helpful
     // return getTokenInPaths(token, paths);
     
@@ -118,7 +119,7 @@ async function cfgBasedIsDefinitionHelpful(token: DecodedToken, paths: Set<strin
     return !isClass(token);    
 }
 
-function cfgBasedIsReferenceHelpful(token: DecodedToken, paths: Set<string>, functionInfo: Map<string, string>): boolean {
+function cfgBasedIsReferenceHelpful(token: DecodedToken): boolean {
     // Example: Only if used as return value
     return false;
 }
@@ -147,92 +148,146 @@ export function getTokensInPaths(tokens: DecodedToken[], paths: Set<string>): De
     );
 }
 // Add this new function before getContextTermsFromTokens
-function removeRedundantTokens(tokens: DecodedToken[]): DecodedToken[] {
-    const uniqueTokens = new Map<string, DecodedToken>();
+function removeRedundantTokens(tokens: ContextTerm[]): ContextTerm[] {
+    const uniqueTokens = new Map<string, ContextTerm>();
     
     for (const token of tokens) {
-        if (!uniqueTokens.has(token.word)) {
-            uniqueTokens.set(token.word, token);
+        if (!uniqueTokens.has(token.name)) {
+            uniqueTokens.set(token.name, token);
         }
     }
     
     return Array.from(uniqueTokens.values());
 }
 
-async function cfgGetContextTermsFromTokens(tokens: DecodedToken[], paths: any, functionInfo: Map<string, string> = new Map()): Promise<ContextTerm[]> {
+// async function cfgGetContextTermsFromTokens(document: vscode.TextDocument, tokens: DecodedToken[], paths: any, functionInfo: Map<string, string> = new Map()): Promise<ContextTerm[]> {
+//     // comming tokens are all appeared in CFG path.
+//     // For definitions, we only care about tokens in paths
+//     let tokenInSignature: DecodedToken[] = [];
+//     let tokensRelatedWithPaths: DecodedToken[] = [];
+//     // const uniqueTokens = removeRedundantTokens(tokens);
+//     const tokensInPaths = getTokensInPaths(tokens, paths);
+//     tokensRelatedWithPaths.push(...tokensInPaths);
+//     // traverse all tokens and find out the token that is at same location with one of the tokensInPath 
+//     for (const token of tokens) {
+//         if (tokensInPaths.some(t => t.line === token.line && document.lineAt(token.line).text.includes(ASSIGNMENT_OPERATOR))) {
+//             tokensRelatedWithPaths.push(token);
+//         }
+//     }
+
+//     if (functionInfo.size > 0 && functionInfo.has('signature')) {
+//          tokenInSignature = getTokensInPath(tokens, functionInfo.get('signature'));
+//     }
+//     // Process all tokens to create the unified structure
+//     return Promise.all(tokens.map(async token => {
+//         // For definition, only consider tokens in paths
+//         const needDefinition = tokensRelatedWithPaths.includes(token) && 
+//             await cfgBasedIsDefinitionHelpful(token, paths);
+        
+//         // For examples, consider all tokens
+//         const needExample = tokenInSignature.includes(token) || cfgBasedIsReferenceHelpful(token, paths, functionInfo);
+        
+//         return {
+//             name: token.word,
+//             need_definition: needDefinition,
+//             need_example: needExample,
+//             need_full_definition: isFunctionArg(token) && await isReturnBoolean(token),
+//             context: "",
+//             example: "",
+//             token: token,
+//         };
+//     }));
+// }
+async function cfgGetContextTermsFromTokens(
+    document: vscode.TextDocument, 
+    tokens: DecodedToken[], 
+    conditions: ConditionAnalysis[],
+    functionInfo: Map<string, string> = new Map()
+    ): Promise<ContextTerm[]> {
     // comming tokens are all appeared in CFG path.
     // For definitions, we only care about tokens in paths
     let tokenInSignature: DecodedToken[] = [];
-    const tokensInPaths = getTokensInPaths(tokens, paths);
+    let tokensRelatedWithPaths: DecodedToken[] = [];
+    // Map to store which paths each token is related to
+    const tokenPathMap = new Map<DecodedToken, Set<string>>();
+    
+    // Find tokens in paths and record which paths they appear in
+    for (const token of tokens) {
+        const relatedPaths: Set<string> = new Set();
+        for (const condition of conditions) {
+            if (isTokenInPath(token, condition.condition)) {
+                relatedPaths.add(condition.condition);
+                condition.dependencies.add(token.word);
+            }
+        }
+        
+        if (relatedPaths.size > 0) {
+            tokenPathMap.set(token, relatedPaths);
+            tokensRelatedWithPaths.push(token);
+        }
+    }
+    
+    // Find tokens on same line as a token in paths
+    for (const token of tokens) {
+        if (!tokensRelatedWithPaths.includes(token) && 
+            tokensRelatedWithPaths.some(t => t.line === token.line && 
+            document.lineAt(token.line).text.includes(ASSIGNMENT_OPERATOR))) {
+            // Find which path the token on the same line is related to
+            const sameLineToken = tokensRelatedWithPaths.find(t => t.line === token.line);
+            if (sameLineToken && tokenPathMap.has(sameLineToken)) {
+                tokenPathMap.set(token, tokenPathMap.get(sameLineToken)!);
+                tokensRelatedWithPaths.push(token);
+            }
+        }
+    }
+
     if (functionInfo.size > 0 && functionInfo.has('signature')) {
          tokenInSignature = getTokensInPath(tokens, functionInfo.get('signature'));
     }
+    
     // Process all tokens to create the unified structure
     return Promise.all(tokens.map(async token => {
         // For definition, only consider tokens in paths
-        const needDefinition = tokensInPaths.includes(token) && 
-            await cfgBasedIsDefinitionHelpful(token, paths);
+        const needDefinition = tokensRelatedWithPaths.includes(token) && 
+            await cfgBasedIsDefinitionHelpful(token);
         
         // For examples, consider all tokens
-        const needExample = tokenInSignature.includes(token) || cfgBasedIsReferenceHelpful(token, paths, functionInfo);
+        const needExample = tokenInSignature.includes(token) || cfgBasedIsReferenceHelpful(token);
+        
+        // Get the associated paths for this token
+        const relatedPaths = tokenPathMap.get(token) || new Set<string>();
         
         return {
             name: token.word,
             need_definition: needDefinition,
             need_example: needExample,
-            need_full_definition: isFunctionArg(token) && await isReturnBoolean(token),
+            need_full_definition: isFunctionArg(token), // && await isReturnBoolean(token),
             context: "",
             example: "",
             token: token,
+            hint: relatedPaths.size > 0 ? Array.from(relatedPaths) : undefined, // Add the hint field with related paths
         };
     }));
-    // const needDefinitionTokens = tokensInPaths.filter(token => cfgBasedIsDefinitionHelpful(token, paths));
-    // const needExampleTokens = tokens.filter(token => cfgBasedIsReferenceHelpful(token, paths));
-    // // return all tokens indexing with need_definition and need_example
-
-    // return Promise.all(tokens.map(async token => ({
-    //     name: token.word,
-    //     need_definition: await cfgBasedIsDefinitionHelpful(token, paths),
-    //     need_example: cfgBasedIsReferenceHelpful(token, paths),
-    //     need_full_definition: isFunctionArg(token) && await isReturnBoolean(token),
-    //     context: "",
-    //     example: "",
-    //     token: token,
-    // })));
 }
 
 // 4. Main exported functions delegate to the selected algorithm
-export async function getContextTermsFromTokens(tokens: DecodedToken[], paths: Set<string> = new Set(), functionInfo: Map<string, string> = new Map()): Promise<ContextTerm[]> {
+export async function getContextTermsFromTokens(
+    document: vscode.TextDocument, 
+    tokens: DecodedToken[], 
+    conditions: ConditionAnalysis[], 
+    functionInfo: Map<string, string> = new Map()
+): Promise<ContextTerm[]> {
     switch (helpfulnessAlgorithm) {
         case 'cfg':
-            const uniqueTokens = removeRedundantTokens(tokens);
-            // console.log("uniqueTokensInPaths :", uniqueTokensInPaths)
-            const filteredTerms = await cfgGetContextTermsFromTokens(uniqueTokens, paths, functionInfo);
+            // console.log("tokens :", tokens)
+            const needContextTerms = await cfgGetContextTermsFromTokens(document, tokens, conditions, functionInfo);
+            const filteredTerms = needContextTerms.filter(term => term.need_definition == true || term.need_example == true);
             // console.log("filteredTerms :", filteredTerms)
-            return filteredTerms.filter(term => term.need_definition == true || term.need_example == true);
+            const uniqueTokens = removeRedundantTokens(filteredTerms);
+            // console.log("uniqueTokens :", uniqueTokens)
+            return uniqueTokens;
         case 'default':
         default:
             return defaultGetContextTermsFromTokens(tokens).filter(term => term.need_definition == true || term.need_example == true);
     }
 }
-
-// export async function isDefinitionHelpfulForUnitTest(token: DecodedToken, paths: Set<string>): Promise<boolean> {
-//     switch (helpfulnessAlgorithm) {
-//         case 'cfg':
-//             return await cfgBasedIsDefinitionHelpful(token, paths);
-//         case 'default':
-//         default:
-//             return defaultIsDefinitionHelpful(token);
-//     }
-// }
-// export function isReferenceHelpfulForUnitTest(token: DecodedToken, paths: Set<string>): boolean {
-//     switch (helpfulnessAlgorithm) {
-//         case 'cfg':
-//             return cfgBasedIsReferenceHelpful(token, paths);
-//         case 'default':
-//         default:
-//             return defaultIsReferenceHelpful(token);
-//     }
-// }
-
-// ... existing code ...
