@@ -6,11 +6,12 @@ import { CFGNode, CFGNodeType } from './types';
 export class GolangCFGBuilder extends CFGBuilder {
     protected processNode(node: Parser.SyntaxNode, current: CFGNode): CFGNode | null {
         switch (node.type) {
-            case 'source_file':
-            case 'block':
             case 'func':
             case 'function_declaration':
             case 'method_declaration':
+
+            case 'source_file':
+            case 'block':
                 // Go: process all children in sequence
                 return this.processBlock(node, current);
 
@@ -61,10 +62,10 @@ export class GolangCFGBuilder extends CFGBuilder {
                 node.children.find(child => child.type === 'range_clause')?.text ||
                 node.children.find(child => child.type === 'identifier')?.text ||
                 node.children.find(child => child.type === 'unary_expression')?.text ||
-                node.children.find(child => child.type === 'for_clause')?.text ||
+                // node.children.find(child => child.type === 'for_clause')?.text ||
                 node.children.find(child => child.type === 'call_expression')?.text ||
                 // (node as any).conditionNode?.text ||
-                "unknown";
+                "";
     }
 
     protected processForStatement(node: Parser.SyntaxNode, current: CFGNode, bodyType: string): CFGNode {
