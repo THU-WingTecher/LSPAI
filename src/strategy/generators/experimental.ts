@@ -17,200 +17,200 @@ import { error } from 'console';
 import { DecodedToken } from '../../token';
 import { readTxtFile } from '../../fileHandler';
 
-const unitTestTemplateForhandleShortAndLongOption = `package org.apache.commons.cli;
-{Replace With Needed Imports}
+// const unitTestTemplateForhandleShortAndLongOption = `package org.apache.commons.cli;
+// {Replace With Needed Imports}
 
-public class DefaultParser_handleShortAndLongOption_0_1Test {
+// public class DefaultParser_handleShortAndLongOption_0_1Test {
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_0() {
-    /*
-        where (
-\t(token.length() == 1)
-\t(options.hasShortOption(token))
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_0() {
+//     /*
+//         where (
+// \t(token.length() == 1)
+// \t(options.hasShortOption(token))
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_1() {
-    /*
-        where (
-\t(token.length() == 1)
-\t!(options.hasShortOption(token))
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_1() {
+//     /*
+//         where (
+// \t(token.length() == 1)
+// \t!(options.hasShortOption(token))
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_2() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t(pos == -1)
-\t(options.hasShortOption(token))
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_2() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t(pos == -1)
+// \t(options.hasShortOption(token))
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_3() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t(pos == -1)
-\t!(options.hasShortOption(token))
-\t(!getMatchingLongOptions(token).isEmpty())
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_3() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t(pos == -1)
+// \t!(options.hasShortOption(token))
+// \t(!getMatchingLongOptions(token).isEmpty())
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_4() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t(pos == -1)
-\t!(options.hasShortOption(token))
-\t!(!getMatchingLongOptions(token).isEmpty())
-\t(opt != null && options.getOption(opt).acceptsArg())
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_4() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t(pos == -1)
+// \t!(options.hasShortOption(token))
+// \t!(!getMatchingLongOptions(token).isEmpty())
+// \t(opt != null && options.getOption(opt).acceptsArg())
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_5() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t(pos == -1)
-\t!(options.hasShortOption(token))
-\t!(!getMatchingLongOptions(token).isEmpty())
-\t!(opt != null && options.getOption(opt).acceptsArg())
-\t(isJavaProperty(token))
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_5() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t(pos == -1)
+// \t!(options.hasShortOption(token))
+// \t!(!getMatchingLongOptions(token).isEmpty())
+// \t!(opt != null && options.getOption(opt).acceptsArg())
+// \t(isJavaProperty(token))
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_6() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t(pos == -1)
-\t!(options.hasShortOption(token))
-\t!(!getMatchingLongOptions(token).isEmpty())
-\t!(opt != null && options.getOption(opt).acceptsArg())
-\t!(isJavaProperty(token))
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_6() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t(pos == -1)
+// \t!(options.hasShortOption(token))
+// \t!(!getMatchingLongOptions(token).isEmpty())
+// \t!(opt != null && options.getOption(opt).acceptsArg())
+// \t!(isJavaProperty(token))
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_7() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t!(pos == -1)
-\t(opt.length() == 1)
-\t(option != null && option.acceptsArg())
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_7() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t!(pos == -1)
+// \t(opt.length() == 1)
+// \t(option != null && option.acceptsArg())
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_8() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t!(pos == -1)
-\t(opt.length() == 1)
-\t!(option != null && option.acceptsArg())
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_8() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t!(pos == -1)
+// \t(opt.length() == 1)
+// \t!(option != null && option.acceptsArg())
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_9() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t!(pos == -1)
-\t!(opt.length() == 1)
-\t(isJavaProperty(opt))
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_9() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t!(pos == -1)
+// \t!(opt.length() == 1)
+// \t(isJavaProperty(opt))
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleShortAndLongOption_0_1Test_10() {
-    /*
-        where (
-\t!(token.length() == 1)
-\t!(pos == -1)
-\t!(opt.length() == 1)
-\t!(isJavaProperty(opt))
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleShortAndLongOption_0_1Test_10() {
+//     /*
+//         where (
+// \t!(token.length() == 1)
+// \t!(pos == -1)
+// \t!(opt.length() == 1)
+// \t!(isJavaProperty(opt))
+// )
+//     */
+//     }
     
-    {Replace with needed setup}
-    {Write your test test function here}
-}
-`
+//     {Replace with needed setup}
+//     {Write your test test function here}
+// }
+// `
 
-const unitTestTemplateForhandleConcatenatedOptions = `package org.apache.commons.cli;
-{Replace With Needed Imports}
+// const unitTestTemplateForhandleConcatenatedOptions = `package org.apache.commons.cli;
+// {Replace With Needed Imports}
 
-public class DefaultParser_handleConcatenatedOptions_0_1Test {
+// public class DefaultParser_handleConcatenatedOptions_0_1Test {
 
-    @Test
-    public void DefaultParser_handleConcatenatedOptions_0_1Test_0() {
-    /*
-        where (
-\t(!options.hasOption(ch))
-)
-    */
-    }
-    
-
-    @Test
-    public void DefaultParser_handleConcatenatedOptions_0_1Test_1() {
-    /*
-        where (
-\t!(!options.hasOption(ch))
-\t(currentOption != null && token.length() != i + 1)
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleConcatenatedOptions_0_1Test_0() {
+//     /*
+//         where (
+// \t(!options.hasOption(ch))
+// )
+//     */
+//     }
     
 
-    @Test
-    public void DefaultParser_handleConcatenatedOptions_0_1Test_2() {
-    /*
-        where (
-\t!(!options.hasOption(ch))
-\t!(currentOption != null && token.length() != i + 1)
-)
-    */
-    }
+//     @Test
+//     public void DefaultParser_handleConcatenatedOptions_0_1Test_1() {
+//     /*
+//         where (
+// \t!(!options.hasOption(ch))
+// \t(currentOption != null && token.length() != i + 1)
+// )
+//     */
+//     }
     
-@Test
-public void {write your test function name here}() {
-    {Write your test code here}
-}
-}
-`
+
+//     @Test
+//     public void DefaultParser_handleConcatenatedOptions_0_1Test_2() {
+//     /*
+//         where (
+// \t!(!options.hasOption(ch))
+// \t!(currentOption != null && token.length() != i + 1)
+// )
+//     */
+//     }
+    
+// @Test
+// public void {write your test function name here}() {
+//     {Write your test code here}
+// }
+// }
+// `
 
 
 export async function generateTestWithContextWithCFG(
@@ -238,7 +238,7 @@ export async function generateTestWithContextWithCFG(
     const packageStatement = getPackageStatement(document, document.languageId);
     const importString = getImportStatement(document, document.languageId, functionSymbol);
     let systemPrompt = await readTxtFile(findTemplateFile("lspaiSystem.txt"));
-    let userPrompt = await readTxtFile(findTemplateFile("lspaiUser.txt"));
+    let userPrompt = await readTxtFile(findTemplateFile("lspaiUser_v2.txt"));
     let example = await readTxtFile(findTemplateFile("example1.txt"));
     // const prompts = template || loadPathTestTemplate();
     

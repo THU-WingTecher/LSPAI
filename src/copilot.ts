@@ -488,13 +488,13 @@ export async function generateUnitTestsForFocalMethod(
     connection.sendNotification(DidOpenTextDocumentNotification.type, {
       textDocument: textDocumentItem
     }); 
-    await vscode.workspace.openTextDocument(fileUri);
-    await vscode.window.showTextDocument(fileUri); // Add this line to physically open the document
+    await vscode.workspace.openTextDocument(document.uri);
+    await vscode.window.showTextDocument(document); // Add this line to physically open the document
 
     connection.sendNotification(DidOpenTextDocumentNotification.type, {
       textDocument: {
-        uri: fileUri.toString(),
-        languageId: languageCode,
+        uri: document.uri.toString(),
+        languageId: document.languageId,
         version: document.version,
         text: document.getText()
       }
