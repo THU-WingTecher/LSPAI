@@ -22,7 +22,8 @@
     "ms-python.python",
     "ms-python.vscode-pylance",
     "redhat.java",
-    "golang.go"
+    "golang.go",
+    "ms-vscode.cpptools"
   ],
   "main": "./out/extension.js",
   "contributes": {

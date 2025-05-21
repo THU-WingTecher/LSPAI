@@ -93,7 +93,7 @@ async function main() {
 	// const installExtensions = ['ms-python.python', 'oracle.oracle-java', 'golang.go'];
     cp.spawnSync(
       cliPath,
-		[...args, '--install-extension', 'ms-python.python', '--install-extension', 'redhat.java', '--install-extension', 'golang.go'],
+		[...args, '--install-extension', 'ms-python.python', '--install-extension', 'redhat.java', '--install-extension', 'golang.go', '--install-extension', 'ms-vscode.cpptools'],
 		{
         encoding: 'utf-8',
         stdio: 'inherit'
