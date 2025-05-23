@@ -1,3 +1,6 @@
+.env
+*.pyc
+all_diagnostic
 test-results/
 target/
 out

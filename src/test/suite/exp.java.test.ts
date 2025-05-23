@@ -13,7 +13,7 @@ import { runGenerateTestCodeSuite } from '../../experiment';
 
 suite('Experiment Test Suite - JAVA', () => {
     const projectPath = "/LSPAI/experiments/projects/commons-cli";
-    const sampleNumber = 1;
+    const sampleNumber = -1;
     const languageId = 'java';
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
@@ -88,7 +88,7 @@ suite('Experiment Test Suite - JAVA', () => {
     test('CFG - experimental - deepseek-coder', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.EXPERIMENTAL,
-            FixType.NOFIX,
+            FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
             'deepseek-coder',
             'deepseek' as Provider,
