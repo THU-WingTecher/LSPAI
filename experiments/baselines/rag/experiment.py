@@ -22,13 +22,14 @@ class ExperimentPipeline:
         self.task_list_path = task_list_path
         self.project_path = project_path
         self.output_dir = os.path.join(
+            self.project_path,
             "lspai-workspace",
             f"{generationType}_{model}_{self.generate_timestamp_string()}"
         )
         self.results = []
         
         # Create output directory if it doesn't exist
-        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(self.output_dir, exist_ok=True)
         
     def load_tasks(self) -> List[Dict]:
         """
@@ -171,6 +172,11 @@ if __name__ == "__main__":
     project_path = "/LSPAI/experiments/projects/commons-cli"
     generationType = "standardRag"
 
+    if project_path.endswith("commons-cli"):
+        source_code_path = os.path.join(project_path, "src/main/java")
+    else :
+        source_code_path = project_path
+
     pipeline = ExperimentPipeline(
         task_list_path=task_list_path,
         project_path=project_path,
@@ -185,7 +191,7 @@ if __name__ == "__main__":
             llm_model=MODEL,
             embedding_dir="embeddings"
         )
-        generator.setup_rag(project_path=project_path)
+        generator.setup_rag(project_path=project_path, force_recompute=True)
     # elif generationType == "cfg":
     #     generator = CFGGenerator(MODEL)
     # elif generationType == "naive":

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { assert } from 'console';
 import { getPackageStatement } from './retrieve';
 import { getConfigInstance } from './config';
+import { activate } from './lsp';
 
 // patterns.ts
 

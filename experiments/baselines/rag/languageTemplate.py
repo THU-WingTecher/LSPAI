@@ -17,7 +17,7 @@ class LanguageTemplateManager:
         elif language_id == 'go':
             return LanguageTemplateManager.get_go_template(file_name, package_string, paths)
         elif language_id == 'python':
-            return LanguageTemplateManager.get_python_template(file_name, package_string, import_string, paths)
+            return LanguageTemplateManager.get_python_template(file_name, package_string, paths)
         else:
             raise ValueError(f"Unsupported language: {language_id}")
             # return LanguageTemplateManager.get_default_template()
@@ -111,20 +111,19 @@ You are a powerful AI coding assistant, powered by Claude 3.7 Sonnet. You operat
 
 <test_generation>
 1. Generate DIVERSE test cases so that maximize coverage of the given focal methods.
-2. You should Step-by-step Reasoning following below chain of thought.
-    a. Interpret given condition one by one, if definition/reference is given for the term under coniditon, utilize it to help your understanding.
-    b. Create Example that satisfy the condition to empower your understanding.
-    c. generate code or input tokens that match your understanding.
-    d. move to next condition 
-3. After reasoning, generate unit test case follow below unit test format. Final Code should be wrapped by ```.
+2. When generating test cases, you should consider the context of the source code.
+3. After generating code, generate unit test case follow below unit test format. Final Code should be wrapped by ```.
 </test_generation>
         """
     
     @staticmethod
-    def generate_prompt(template, source_code):
+    def generate_prompt(template, source_code, context):
         return f"""
         Source Code:
         {source_code}
+
+        Context:
+        {context}
 
         Template:
         {template}

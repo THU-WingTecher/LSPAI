@@ -52,6 +52,39 @@ export function setWorkspaceFolders(projectPath: string) {
     return workspaceFolders;
 }
 
+function getImportString(text: string) {
+    let importString = "";
+    // Find import statements including multi-line parenthesized imports
+    const importRegex = /^(?:from\s+[\w.]+\s+import\s+(?:\(\s*[\w,.\s]+(?:[\w,.\s]+\s*)*\)|[\w,.\s]+)|import\s+(?:[\w.]+(?:\s*,\s*[\w.]+)*))(?:\s*\))?(?=\s*$|\s*#)/gm;
+
+    // Get all matches
+    let matches = text.match(importRegex);
+    if (matches) {
+        // Process each match to ensure proper parenthesis closure
+        importString = matches
+            .map(stmt => {
+                let lines = stmt.split('\n').map(line => line.trim());
+                
+                // Clean up each line
+                lines = lines.map(line => {
+                    // Remove trailing comma
+                    line = line.replace(/,\s*$/, '');
+                    return line;
+                });
+                
+                stmt = lines.join('\n');
+                stmt = stmt.trim();
+                // If statement has opening parenthesis but no closing one, add it
+                if ((stmt.match(/\(/g) || []).length > (stmt.match(/\)/g) || []).length) {
+                    stmt += ')';
+                }
+                return stmt;
+            })
+            .filter(stmt => !stmt.match(/^.*(?:import\s+(?:and|in|or|is|not|as)\s*|^\s*and\s*|^\s*,\s*|\s+$)/))
+            .join('\n');
+    }
+    return importString;
+}
 export async function saveTaskList(
     symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[],
     workspaceFolderPath: string,
@@ -62,9 +95,14 @@ export async function saveTaskList(
     // Build the data to be written
     const data = symbolDocumentMap.map(({ symbol, document }) => {
         const relativePath = path.relative(workspaceFolderPath, document.uri.fsPath);
+        let importString = ""
+        if (document.languageId === "python") {
+            importString = getImportString(document.getText());
+        }
         return {
             symbolName: symbol.name,
             sourceCode: document.getText(symbol.range),
+            importString: importString,
             lineNum: symbol.range.end.line - symbol.range.start.line,
             relativeDocumentPath: relativePath
         };
