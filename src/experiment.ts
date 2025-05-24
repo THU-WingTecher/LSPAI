@@ -12,7 +12,7 @@ import { PathCollector } from './cfg/path';
 import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
 import pLimit from 'p-limit';
-const limit = pLimit(8);
+const limit = pLimit(32);
 
 export async function collectPathforSymbols(
     symbols: any, // Use the correct type if available
@@ -52,6 +52,35 @@ export async function collectPathforSymbols(
     const paths = await findJsonFilesRecursively(pathFolder);
     console.log(`#### Paths: ${paths.length}`);
         // assert.equal(paths.length, symbolFilePairsToTest.length, 'paths json files should exist for each function');
+}
+
+export async function findMatchedSymbolsFromTaskList(
+    taskListFilePath: string,
+    allSymbols: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[],
+    workspaceFolderPath: string
+): Promise<{ symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[]> {
+    // Read the taskList file
+    const taskListContent = await fs.promises.readFile(taskListFilePath, 'utf8');
+    const taskList = JSON.parse(taskListContent) as Array<{
+        symbolName: string;
+        relativeDocumentPath: string;
+    }>;
+
+    // Find matching symbols
+    const matchedSymbols = allSymbols.filter(({ symbol, document }) => {
+        const currentRelativePath = path.relative(workspaceFolderPath, document.uri.fsPath);
+        
+        // Find a matching entry in taskList
+        const matchingTask = taskList.find(task => 
+            task.symbolName === symbol.name && 
+            task.relativeDocumentPath === currentRelativePath
+        );
+
+        return matchingTask !== undefined;
+    });
+
+    console.log(`Found ${matchedSymbols.length} matching symbols from taskList`);
+    return matchedSymbols;
 }
 
 export async function runGenerateTestCodeSuite(

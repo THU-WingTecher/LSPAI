@@ -23,6 +23,42 @@ export interface ContextTerm {
     hint?: string[]; // hint for the term
 }
 
+
+// export function contextToString(contextTerms: ContextTerm[]): string {
+//     const result = [];
+//     let context_info_str = "";
+//     for (const item of contextTerms) {
+//         const relativePath = path.relative(getConfigInstance().workspace, item.token!.definition[0].uri.path);
+//         if (item.need_definition && item.context && item.context!=item.name) {
+//             result.push(`\n#### Definition of ${item.name}\n${item.context}`);
+//         }
+//         if (item.need_example && item.example && item.example!=item.name) {
+//             result.push(`\n#### Example of ${item.name}\n${item.example}`);
+//         }
+//     }
+//     if (result.length > 0) {
+//         context_info_str = result.join('\n');
+//     }
+//     return context_info_str;
+// }
+export function contextToString(contextTerms: ContextTerm[]): string {
+    const result = [];
+    let context_info_str = "";
+    for (const item of contextTerms) {
+        const relativePath = path.relative(getConfigInstance().workspace, item.token!.definition[0].uri.path);
+        if (item.need_definition && item.context && item.context!=item.name) {
+            result.push(`\n# ${relativePath}\n${item.context}`);
+        }
+        if (item.need_example && item.example && item.example!=item.name) {
+            result.push(`\n# ${relativePath}\n${item.example}`);
+        }
+    }
+    if (result.length > 0) {
+        context_info_str = result.join('\n');
+    }
+    return context_info_str;
+}
+
 export class ContextSelector {
     private static instance: ContextSelector;
     private config: ContextSelectorConfig;
@@ -234,13 +270,17 @@ export class ContextSelector {
                                 }
                              }
                             if (term.need_definition) {
-                                const isBetweenFocalMethod = functionSymbol && (currentToken.definition[0].range.start.line > functionSymbol.range.start.line && currentToken.definition[0].range.end.line < functionSymbol.range.end.line);
-                                if (currentToken.definition[0].range && !isBetweenFocalMethod) {
+                                if (currentToken.definition[0].range && !isBetweenFocalMethod(currentToken.definition[0].range, functionSymbol)) {
                                     if (currentToken.type == 'variable' || currentToken.type == 'property') {
                                         // Some tokens don't have to find symbol, directly recall its definition
                                         const defSymbolDoc = await vscode.workspace.openTextDocument(currentToken.definition[0].uri);
                                         term.context = defSymbolDoc.lineAt(currentToken.definition[0].range.start.line).text.trim();
-                                        enriched = true;
+                                        if (this.document.getText(this.targetSymbol.range).includes(term.context)) {
+                                            // we don't need to find the definition of the term if it is in the source code
+                                            term.context = "";
+                                        } else {
+                                            enriched = true;
+                                        }
                                     } else {    
                                         // fir method, functions, we need first find out its symbol to recall its definition
                                         if (currentToken.defSymbol === null){
@@ -274,6 +314,26 @@ export class ContextSelector {
         return enrichedTerms;
     }
     
+}
+
+/**
+ * Checks if a token's definition is located between the start and end lines of a focal method
+ * @param tokenRange The range of the token's definition
+ * @param focalMethodSymbol The symbol representing the focal method
+ * @returns true if the token's definition is between the focal method's lines, false otherwise
+ */
+function isBetweenFocalMethod(
+    tokenRange: vscode.Range,
+    focalMethodSymbol: vscode.DocumentSymbol | null
+): boolean {
+    if (!focalMethodSymbol) {
+        return false;
+    }
+
+    return (
+        tokenRange.start.line > focalMethodSymbol.range.start.line && 
+        tokenRange.end.line < focalMethodSymbol.range.end.line
+    );
 }
 
 // Export a convenience function to get the singleton instance

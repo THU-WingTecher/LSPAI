@@ -118,12 +118,12 @@ async function loadChatUnitestTaskList(tasklist: string, symbolDocumentMaps: {do
     let matchedSymbols: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[] = [];
     const flattedJson: string[] = Object.values(json).flat() as string[];
     let additionalCases: string[] = [];
-    if (getConfigInstance().workspace.includes("commons-csv")) {
-        additionalCases = ['create()', 'create(CSVFormat)', 'build()'];
-    } else if (getConfigInstance().workspace.includes("commons-cli")) {
-        additionalCases.push(...symbolDocumentMaps.filter(({document, symbol}) => getCleanedSymbolName(symbol).startsWith("getParsedOptionValue(char")).map(symbol => symbol.symbol.name));
-        additionalCases.push('addArg(String)', "addOption(Option)", "build()");
-    }
+    // if (getConfigInstance().workspace.includes("commons-csv")) {
+    //     additionalCases = ['create()', 'create(CSVFormat)', 'build()'];
+    // } else if (getConfigInstance().workspace.includes("commons-cli")) {
+    //     additionalCases.push(...symbolDocumentMaps.filter(({document, symbol}) => getCleanedSymbolName(symbol).startsWith("getParsedOptionValue(char")).map(symbol => symbol.symbol.name));
+    //     additionalCases.push('addArg(String)', "addOption(Option)", "build()");
+    // }
     for (const entry of symbolDocumentMaps) {
         console.log(entry.document.uri.path);
         // if (entry.document.uri.path.includes("CommandLine")) {

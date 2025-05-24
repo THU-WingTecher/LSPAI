@@ -8,6 +8,8 @@ import { TestGenerationStrategy } from './types';
 import { ContextTerm, getContextSelectorInstance } from '../agents/contextSelector';
 import { getContextTermsFromTokens } from '../tokenAnalyzer';
 import { ConditionAnalysis } from '../cfg/path';
+import { saveContextTerms } from '../fileHandler';
+
 export abstract class BaseTestGenerator implements TestGenerationStrategy {
 	constructor(
 		protected readonly document: vscode.TextDocument,
@@ -17,8 +19,11 @@ export abstract class BaseTestGenerator implements TestGenerationStrategy {
 		protected readonly logger: ExpLogger,
 		protected readonly progress: vscode.Progress<{ message?: string; increment?: number; }>,
 		protected readonly token: vscode.CancellationToken,
-		protected readonly srcPath: string // Added srcPath parameter
-	) { }
+		protected readonly srcPath: string, // Added srcPath parameter
+		protected readonly sourceCode: string = ""
+	) { 
+		this.sourceCode = this.document.getText(this.functionSymbol.range);
+	}
 
 	abstract generateTest(): Promise<string>;
 
@@ -34,6 +39,7 @@ export abstract class BaseTestGenerator implements TestGenerationStrategy {
 		const retreiveTime = Date.now();
 		enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
 		this.logger.log("gatherContext", (Date.now() - retreiveTime).toString(), null, "");
+		await saveContextTerms(this.sourceCode, enrichedTerms, getConfigInstance().logSavePath!, this.fileName);
 		return enrichedTerms;
 	}
 

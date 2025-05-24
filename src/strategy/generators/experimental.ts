@@ -13,8 +13,10 @@ import { invokeLLM } from '../../invokeLLM';
 import { ChatMessage } from '../../prompts/ChatMessage';
 import { getPackageStatement, getImportStatement } from '../../retrieve';
 import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
-import { readTxtFile } from '../../fileHandler';
+import { readTxtFile, saveContextTerms } from '../../fileHandler';
 import { getReferenceInfo } from '../../reference';
+import path from 'path';
+import fs from 'fs';
 // const unitTestTemplateForhandleShortAndLongOption = `package org.apache.commons.cli;
 // {Replace With Needed Imports}
 
@@ -322,8 +324,6 @@ export async function generateTestWithContextWithCFG(
 
 export class ExperimentalTestGenerator extends BaseTestGenerator {
 
-
-
 	protected async collectInfo(conditions : ConditionAnalysis[] = []): Promise<ContextTerm[] | null> {
 		let enrichedTerms: ContextTerm[] = [];
 		const tokenCollectTime = Date.now();
@@ -344,6 +344,7 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
         }
         enrichedTerms.unshift(contextTermsForFunctionSymbol);
         this.logger.log("gatherContext", (Date.now() - retreiveTime).toString(), null, "");
+        saveContextTerms(this.sourceCode, enrichedTerms, getConfigInstance().logSavePath!, this.fileName);
 		return enrichedTerms;
 	}
 
@@ -383,8 +384,9 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
         const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms!, conditionAnalyses, this.fileName)
             // : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
-        const testCode = await invokeLLM(promptObj, logObj);
-        this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");
-        return parseCode(testCode);
+        // const testCode = await invokeLLM(promptObj, logObj);
+        // this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");
+        // return parseCode(testCode);
+        return "testing";
     }
 }

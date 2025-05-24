@@ -126,7 +126,7 @@ suite('Experiment Test Suite', () => {
     test('CFG - experimental - gpt-4o-mini', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
+            FixType.NOFIX,
             PromptType.WITHCONTEXT,
             'gpt-4o-mini',
             'openai' as Provider,

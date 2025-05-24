@@ -8,6 +8,37 @@ import { DEFAULT_FILE_ENCODING, TIME_FORMAT_OPTIONS, getConfigInstance } from '.
 import { goSpecificEnvGen, sleep } from './helper';
 import { ExpLogs } from './log';
 import * as path from 'path';
+import { ContextTerm, contextToString } from './agents/contextSelector';
+
+/**
+ * Saves an array of ContextTerms to a JSON file in the specified folder
+ * @param terms Array of ContextTerms to save
+ * @param saveFolder Base folder path where terms should be saved
+ * @param fileName Name of the file being processed (used to generate the log filename)
+ * @returns The full path of the saved file
+ */
+export function saveContextTerms(sourceCode: string, terms: ContextTerm[], saveFolder: string, fileName: string): string {
+    // Create the specific folder for identified terms
+    const logFolder = path.join(saveFolder, 'context');
+    if (!fs.existsSync(logFolder)) {
+        fs.mkdirSync(logFolder, { recursive: true });
+    }
+
+    // Generate timestamp and filename
+    // const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    // const logFileName = `${fileName}_identified_terms_${timestamp}.json`;
+    const logFilePath = path.join(logFolder, `${fileName}.json`);
+
+    // Save the terms as formatted JSON
+    fs.writeFileSync(logFilePath, JSON.stringify(terms, null, 2));
+    
+    const contextString = contextToString(terms);
+
+    const contextFilePath = path.join(logFolder, `${fileName}_context_prompt.txt`);
+    fs.writeFileSync(contextFilePath, contextString);
+
+    return logFilePath;
+}
 
 /**
  * Reads a .txt file and returns its content as a string.
