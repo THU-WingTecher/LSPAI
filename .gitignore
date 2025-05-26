@@ -1,6 +1,6 @@
 .env
 *.pyc
-all_diagnostic
+diagnostic*
 test-results/
 target/
 out
