@@ -154,6 +154,14 @@ function removeRedundantTokens(tokens: ContextTerm[]): ContextTerm[] {
     for (const token of tokens) {
         if (!uniqueTokens.has(token.name)) {
             uniqueTokens.set(token.name, token);
+        } else {
+            // Get existing token with the same name
+            const existingToken = uniqueTokens.get(token.name)!;
+            // Perform OR operation on need_definition and need_example
+            existingToken.need_definition = existingToken.need_definition || token.need_definition;
+            existingToken.need_example = existingToken.need_example || token.need_example;
+            // Preserve other properties from the existing token
+            uniqueTokens.set(token.name, existingToken);
         }
     }
     
@@ -269,10 +277,19 @@ async function cfgGetContextTermsFromTokens(
         };
     }));
 }
-
+/**
+ * Removes the focal method from context terms to avoid redundant information
+ * @param contextTerms List of context terms to filter
+ * @param focalMethodName Name of the focal method to exclude
+ * @returns Filtered list of context terms without the focal method
+ */
+function removeFocalMethodFromContextTerms(contextTerms: ContextTerm[], focalMethodName: string): ContextTerm[] {
+    return contextTerms.filter(term => term.name !== focalMethodName);
+}
 // 4. Main exported functions delegate to the selected algorithm
 export async function getContextTermsFromTokens(
     document: vscode.TextDocument, 
+    symbol: vscode.DocumentSymbol,
     tokens: DecodedToken[], 
     conditions: ConditionAnalysis[], 
     functionInfo: Map<string, string> = new Map()
@@ -282,9 +299,9 @@ export async function getContextTermsFromTokens(
             // console.log("tokens :", tokens)
             const needContextTerms = await cfgGetContextTermsFromTokens(document, tokens, conditions, functionInfo);
             const filteredTerms = needContextTerms.filter(term => term.need_definition == true || term.need_example == true);
-            // console.log("filteredTerms :", filteredTerms)
-            const uniqueTokens = removeRedundantTokens(filteredTerms);
-            // console.log("uniqueTokens :", uniqueTokens)
+            let uniqueTokens = removeRedundantTokens(filteredTerms);
+            uniqueTokens = removeFocalMethodFromContextTerms(uniqueTokens, symbol.name);
+            console.log("needContextTerms :", uniqueTokens.map(term => [term.name, term.need_definition, term.need_example]))
             return uniqueTokens;
         case 'default':
         default:

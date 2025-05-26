@@ -533,6 +533,92 @@ async def schedule_formatting(
     // assert.equal(minimizedPaths.length, 10, "Should have exactly 10 paths");
 });
 
+test('Python CFG Path - Path Minimization', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `  
+async def schedule_formatting(
+    sources: set[Path],
+    fast: bool,
+    write_back: WriteBack,
+    mode: Mode,
+    report: \"Report\",
+    loop: asyncio.AbstractEventLoop,
+    executor: \"Executor\",
+) -> None:
+    \"\"\"Run formatting of "sources" in parallel using the provided "executor".
+
+    (Use ProcessPoolExecutors for actual parallelism.)
+
+    "write_back", "fast", and "mode" options are passed to
+    :func:"format_file_in_place".
+    \"\"\"
+    cache = Cache.read(mode)
+    if write_back not in (WriteBack.DIFF, WriteBack.COLOR_DIFF):
+        sources, cached = cache.filtered_cached(sources)
+        for src in sorted(cached):
+            report.done(src, Changed.CACHED)
+    if not sources:
+        return
+
+    cancelled = []
+    sources_to_cache = []
+    lock = None
+    if write_back in (WriteBack.DIFF, WriteBack.COLOR_DIFF):
+        # For diff output, we need locks to ensure we don't interleave output
+        # from different processes.
+        manager = Manager()
+        lock = manager.Lock()
+    tasks = {
+        asyncio.ensure_future(
+            loop.run_in_executor(
+                executor, format_file_in_place, src, fast, mode, write_back, lock
+            )
+        ): src
+        for src in sorted(sources)
+    }
+    pending = tasks.keys()
+    try:
+        loop.add_signal_handler(signal.SIGINT, cancel, pending)
+        loop.add_signal_handler(signal.SIGTERM, cancel, pending)
+    except NotImplementedError:
+        # There are no good alternatives for these on Windows.
+        pass
+    while pending:
+        done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            src = tasks.pop(task)
+            if task.cancelled():
+                cancelled.append(task)
+            elif exc := task.exception():
+                if report.verbose:
+                    traceback.print_exception(type(exc), exc, exc.__traceback__)
+                report.failed(src, str(exc))
+            else:
+                changed = Changed.YES if task.result() else Changed.NO
+                # If the file was written back or was successfully checked as
+                # well-formatted, store this information in the cache.
+                if write_back is WriteBack.YES or (
+                    write_back is WriteBack.CHECK and changed is Changed.NO
+                ):
+                    sources_to_cache.append(src)
+                report.done(src, changed)
+    if cancelled:
+        await asyncio.gather(*cancelled, return_exceptions=True)
+    if sources_to_cache:
+        cache.write(sources_to_cache)"
+    `;
+    const cfg = await builder.buildFromCode(code);
+    // builder.printCFGGraph(cfg.entry);
+    const pathCollector = new PathCollector('python');
+    const paths = pathCollector.collect(cfg.entry);
+    console.log("before minimization", paths.length);
+    // assert.equal(paths.length, 162, "Should have exactly 162 paths");
+    const minimizedPaths = pathCollector.minimizePaths(paths);
+    console.log("after minimization", minimizedPaths.length);
+    console.log(minimizedPaths.map(p => p.path));
+    // assert.equal(minimizedPaths.length, 10, "Should have exactly 10 paths");
+});
+
 test('Run all functions under a repository : black', async function() {
     if (process.env.NODE_DEBUG !== 'true') {
         console.log('activate');

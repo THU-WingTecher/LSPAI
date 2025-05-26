@@ -8,6 +8,7 @@ import ini from "ini";
 import { getPackageStatement, getImportStatement } from "../retrieve";
 import * as vscode from 'vscode';
 import { LanguageTemplateManager } from "./languageTemplateManager";
+import { ConditionAnalysis } from "../cfg/path";
 
 // Define the template directory name
 const templateDirName = "templates";
@@ -121,7 +122,54 @@ export function generatePathBasedTests(
         ];
     });
 }
+    /**
+ * Converts a ConditionAnalysis object into a structured prompt format
+ * @param analysis The ConditionAnalysis object to convert
+ * @returns A formatted string representing the analysis as a prompt
+ */
+export function conditionToPrompt(analysis: ConditionAnalysis): string {
 
+            const lines: string[] = [];
+            
+            // Add the target condition
+            lines.push(`GOAL : COVER BELOW CONDITION\n\t\t${analysis.condition}`);
+            
+            // Add intermediate conditions if there are any paths
+            if (analysis.minimumPathToCondition.length > 0) {
+                const path = analysis.minimumPathToCondition[0];
+                const conditions = path.path
+                    .split('\n\t')
+                    .filter(c => c && c.trim() !== 'where (' && c.trim() !== ')')
+                    .map(c => c.trim());
+    
+                if (conditions.length > 1) {
+                    lines.push('\n\t\tTo cover the above condition, you need to cover below conditions:');
+                    // Get all conditions except the last one (which is our target condition)
+                    const intermediateConditions = conditions.slice(0, -1);
+                    intermediateConditions.forEach((cond, index) => {
+                        lines.push(`\t\t${index + 1}. ${cond}`);
+                    });
+                } else {
+                    // lines.push('\nNo intermediate conditions required.');
+                }
+    
+                // // Add code context if available
+                // if (path.code) {
+                //     lines.push('\nRelevant code context:');
+                //     lines.push('```');
+                //     lines.push(path.code);
+                //     lines.push('```');
+                // }
+            } else {
+                lines.push('\nNo path information available for this condition.');
+            }
+    
+            // Add complexity information
+            // lines.push(`\nCondition complexity: ${analysis.complexity}`);
+            // lines.push(`Nesting depth: ${analysis.depth}`);
+    
+            return lines.join('\n');
+        }
 /**
  * Generates test with context information
  */

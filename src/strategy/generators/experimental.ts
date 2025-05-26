@@ -3,215 +3,71 @@ import { getContextTermsFromTokens, getTokensInPaths } from '../../tokenAnalyzer
 import { SupportedLanguage } from '../../ast';
 import { createCFGBuilder } from '../../cfg/builderFactory';
 import { ConditionAnalysis, Path, PathCollector } from '../../cfg/path';
-import { getContextSelectorInstance, ContextTerm } from '../../agents/contextSelector';
+import { getContextSelectorInstance, ContextTerm, contextToString, ContextSelector } from '../../agents/contextSelector';
 import { getConfigInstance, PromptType } from '../../config';
 import { parseCode } from '../../utils';
 import { BaseTestGenerator } from '../base';
-import { findTemplateFile, generateTestWithContext, loadPathTestTemplate } from '../../prompts/promptBuilder';
+import { conditionToPrompt, findTemplateFile, generateTestWithContext, loadPathTestTemplate } from '../../prompts/promptBuilder';
 import { LLMLogs } from '../../log';
 import { invokeLLM } from '../../invokeLLM';
 import { ChatMessage } from '../../prompts/ChatMessage';
-import { getPackageStatement, getImportStatement } from '../../retrieve';
+import { getPackageStatement, getImportStatement, getOuterSymbols } from '../../retrieve';
 import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
 import { readTxtFile, saveContextTerms } from '../../fileHandler';
 import { getReferenceInfo } from '../../reference';
 import path from 'path';
 import fs from 'fs';
-// const unitTestTemplateForhandleShortAndLongOption = `package org.apache.commons.cli;
-// {Replace With Needed Imports}
+import { getAllSymbols } from '../../lsp';
+import { DecodedToken } from '../../token';
 
-// public class DefaultParser_handleShortAndLongOption_0_1Test {
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_0() {
-//     /*
-//         where (
-// \t(token.length() == 1)
-// \t(options.hasShortOption(token))
-// )
-//     */
-//     }
+async function constructSourceCodeWithRelatedInfo(
+    document: vscode.TextDocument, 
+    functionSymbol: vscode.DocumentSymbol
+): Promise<string> {
+    // Get the source code of the function
+    const sourceCode = document.getText(functionSymbol.range);
     
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_1() {
-//     /*
-//         where (
-// \t(token.length() == 1)
-// \t!(options.hasShortOption(token))
-// )
-//     */
-//     }
+    // Get the file name and relative path
+    const absolutePath = document.uri.fsPath;
+    const workspaceRoot = getConfigInstance().workspace || '';
+    const relativePath = path.relative(workspaceRoot, absolutePath);
+    const fileName = path.basename(absolutePath);
     
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_2() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t(pos == -1)
-// \t(options.hasShortOption(token))
-// )
-//     */
-//     }
+    // Get class name if the function is a method
+    let className = '';
+    if (functionSymbol.kind === vscode.SymbolKind.Method) {
+        // Find the parent class symbol
+        const parentClass = await findParentClass(document, functionSymbol);
+        if (parentClass) {
+            className = parentClass.name;
+        }
+    }
     
+    // Add the information to functionInfo map
+    let result = "";
+    result += `File: ${fileName}\n`;
+    result += `Relative Path: ${relativePath}\n`;
+    if (className) {
+        result += `Class Name: ${className}\n`;
+    }
+    result += `\n${sourceCode}`;
+    return result;
+}
 
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_3() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t(pos == -1)
-// \t!(options.hasShortOption(token))
-// \t(!getMatchingLongOptions(token).isEmpty())
-// )
-//     */
-//     }
+// Helper function to find parent class of a method
+async function findParentClass(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): Promise<vscode.DocumentSymbol | undefined> {
+    // Get all symbols in the document
+    const symbols = await getOuterSymbols(document.uri);
     
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_4() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t(pos == -1)
-// \t!(options.hasShortOption(token))
-// \t!(!getMatchingLongOptions(token).isEmpty())
-// \t(opt != null && options.getOption(opt).acceptsArg())
-// )
-//     */
-//     }
-    
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_5() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t(pos == -1)
-// \t!(options.hasShortOption(token))
-// \t!(!getMatchingLongOptions(token).isEmpty())
-// \t!(opt != null && options.getOption(opt).acceptsArg())
-// \t(isJavaProperty(token))
-// )
-//     */
-//     }
-    
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_6() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t(pos == -1)
-// \t!(options.hasShortOption(token))
-// \t!(!getMatchingLongOptions(token).isEmpty())
-// \t!(opt != null && options.getOption(opt).acceptsArg())
-// \t!(isJavaProperty(token))
-// )
-//     */
-//     }
-    
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_7() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t!(pos == -1)
-// \t(opt.length() == 1)
-// \t(option != null && option.acceptsArg())
-// )
-//     */
-//     }
-    
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_8() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t!(pos == -1)
-// \t(opt.length() == 1)
-// \t!(option != null && option.acceptsArg())
-// )
-//     */
-//     }
-    
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_9() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t!(pos == -1)
-// \t!(opt.length() == 1)
-// \t(isJavaProperty(opt))
-// )
-//     */
-//     }
-    
-
-//     @Test
-//     public void DefaultParser_handleShortAndLongOption_0_1Test_10() {
-//     /*
-//         where (
-// \t!(token.length() == 1)
-// \t!(pos == -1)
-// \t!(opt.length() == 1)
-// \t!(isJavaProperty(opt))
-// )
-//     */
-//     }
-    
-//     {Replace with needed setup}
-//     {Write your test test function here}
-// }
-// `
-
-// const unitTestTemplateForhandleConcatenatedOptions = `package org.apache.commons.cli;
-// {Replace With Needed Imports}
-
-// public class DefaultParser_handleConcatenatedOptions_0_1Test {
-
-//     @Test
-//     public void DefaultParser_handleConcatenatedOptions_0_1Test_0() {
-//     /*
-//         where (
-// \t(!options.hasOption(ch))
-// )
-//     */
-//     }
-    
-
-//     @Test
-//     public void DefaultParser_handleConcatenatedOptions_0_1Test_1() {
-//     /*
-//         where (
-// \t!(!options.hasOption(ch))
-// \t(currentOption != null && token.length() != i + 1)
-// )
-//     */
-//     }
-    
-
-//     @Test
-//     public void DefaultParser_handleConcatenatedOptions_0_1Test_2() {
-//     /*
-//         where (
-// \t!(!options.hasOption(ch))
-// \t!(currentOption != null && token.length() != i + 1)
-// )
-//     */
-//     }
-    
-// @Test
-// public void {write your test function name here}() {
-//     {Write your test code here}
-// }
-// }
-// `
-
+    // Find the parent class by checking if the method's range is within the class's range
+    for (const sym of symbols) {
+        if (sym.kind === vscode.SymbolKind.Class && 
+            sym.range.contains(symbol.range)) {
+            return sym;
+        }
+    }
+    return undefined;
+}
 
 export async function generateTestWithContextWithCFG(
     document: vscode.TextDocument,
@@ -223,23 +79,13 @@ export async function generateTestWithContextWithCFG(
     template?: { system_prompt: string, user_prompt: string }
 ): Promise<ChatMessage[]> {
     const result = [];
-    let context_info_str = "";
-    for (const item of context_info) {
-        if (item.need_definition && item.context && item.context!=item.name) {
-            result.push(`\n#### Definition of ${item.name}\n${item.context}`);
-        }
-        if (item.need_example && item.example && item.example!=item.name) {
-            result.push(`\n#### Example of ${item.name}\n${item.example}`);
-        }
-    }
-    if (result.length > 0) {
-        context_info_str = result.join('\n');
-    }
+    const context_info_str = contextToString(context_info);
     const packageStatement = getPackageStatement(document, document.languageId);
     const importString = getImportStatement(document, document.languageId, functionSymbol);
     let systemPrompt = await readTxtFile(findTemplateFile("lspaiSystem.txt"));
     let userPrompt = await readTxtFile(findTemplateFile("lspaiUser_v2.txt"));
     let example = await readTxtFile(findTemplateFile("example1.txt"));
+    const source_code_str = await constructSourceCodeWithRelatedInfo(document, functionSymbol);
     // const prompts = template || loadPathTestTemplate();
     
     // if filname contains /, remove it
@@ -249,7 +95,7 @@ export async function generateTestWithContextWithCFG(
     const conditionsWithIndex = conditionAnalyses.map((p, index) => `${index+1}. ${p.condition}`).join('\n')
     // Replace variables in the user prompt
     userPrompt = userPrompt
-        .replace('{focal_method}', source_code)
+        .replace('{focal_method}', source_code_str)
         .replace('{conditions}', conditionsWithIndex)
         .replace('{context}', context_info_str)
         .replace('{test_format}', LanguageTemplateManager.getUnitTestTemplate(
@@ -257,8 +103,9 @@ export async function generateTestWithContextWithCFG(
             fileName,
             packageStatement ? packageStatement[0] : "",
             importString,
-            []
+            conditionAnalyses.map(c=>conditionToPrompt(c))
         ));
+
     systemPrompt = systemPrompt
         .replace('{example}', example);
     return [
@@ -324,12 +171,24 @@ export async function generateTestWithContextWithCFG(
 
 export class ExperimentalTestGenerator extends BaseTestGenerator {
 
-	protected async collectInfo(conditions : ConditionAnalysis[] = []): Promise<ContextTerm[] | null> {
+	protected async collectInfo(conditions : ConditionAnalysis[] = [], functionInfo: Map<string, string> = new Map()): Promise<ContextTerm[] | null> {
 		let enrichedTerms: ContextTerm[] = [];
 		const tokenCollectTime = Date.now();
-		const contextSelector = await getContextSelectorInstance(this.document, this.functionSymbol);
-		const identifiedTerms = await getContextTermsFromTokens(this.document, contextSelector.getTokens(), conditions);
-		this.logger.log("getContextTermsFromTokens", (Date.now() - tokenCollectTime).toString(), null, "");
+		const contextSelector = await ContextSelector.create(this.document, this.functionSymbol);
+        const tokens = await contextSelector.loadTokens();
+		// const identifiedTerms = await getContextTermsFromTokens(this.document, this.functionSymbol, contextSelector.getTokens(), conditions, functionInfo);
+        // const tokens = contextSelector.getTokens();
+        console.log("source code", this.document.getText(this.functionSymbol.range));
+        console.log("tokens", tokens.map((t : DecodedToken) => t.word));
+        console.log("conditions", conditions.map((c : ConditionAnalysis) => c.condition));
+        // console.log("functionInfo", functionInfo.get());
+        const identifiedTerms = await getContextTermsFromTokens(
+            this.document, 
+            this.functionSymbol,
+            tokens,
+            conditions, 
+            functionInfo);
+        this.logger.log("getContextTermsFromTokens", (Date.now() - tokenCollectTime).toString(), null, "");
 		if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
 			return null;
 		}
@@ -341,6 +200,7 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
             name: this.functionSymbol.name,
             context: referenceStrings,
             need_example: true,
+            hint: ["focal method"]
         }
         enrichedTerms.unshift(contextTermsForFunctionSymbol);
         this.logger.log("gatherContext", (Date.now() - retreiveTime).toString(), null, "");
@@ -370,23 +230,20 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
         // Gather context if needed
         let enrichedTerms;
         if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-            enrichedTerms = await this.collectInfo(conditionAnalyses);
+            enrichedTerms = await this.collectInfo(conditionAnalyses, builder.getFunctionInfo());
 			if (enrichedTerms === null) {
 				return "";
 			}
         }
 
         // Generate test
-        // const promptObj = paths.length > 1 
-        //     ? generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms, paths, this.fileName)
-        //     : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
         const generationStartTime = Date.now();
         const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms!, conditionAnalyses, this.fileName)
-            // : generateTestWithContext(this.document, functionText, enrichedTerms, this.fileName);
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
-        // const testCode = await invokeLLM(promptObj, logObj);
-        // this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");
-        // return parseCode(testCode);
+        console.log("promptObj:", promptObj[1].content);
+        const testCode = await invokeLLM(promptObj, logObj);
+        this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");
+        return parseCode(testCode);
         return "testing";
     }
 }

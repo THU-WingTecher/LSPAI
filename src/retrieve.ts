@@ -4,7 +4,7 @@ import { getSymbolDetail, isStandardClass, removeComments } from './utils';
 import { getAllSymbols } from './lsp';
 import path from 'path';
 import { getConfigInstance, Configuration } from './config';
-
+import { genPythonicSrcImportStatement } from './helper';
 export function getSourcCodes(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): string {
     const functionRange = functionSymbol.range;
     const text = document.getText(functionRange);
@@ -168,7 +168,7 @@ export async function getDependentContext(
     return result;
 }
 
-async function getOuterSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+export async function getOuterSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
     return await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
         'vscode.executeDocumentSymbolProvider',
         uri
@@ -534,25 +534,44 @@ export function getPackageStatement(document: vscode.TextDocument, language: str
     }
 }
 
-function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vscode.DocumentSymbol | null): string {
-    // const workspaceFolders = getConfigInstance().workspace;
-    // if (!workspaceFolders) {
-    //     throw new Error("No workspace folder found");
-    // }
+// function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vscode.DocumentSymbol | null): string {
+//     // const workspaceFolders = getConfigInstance().workspace;
+//     // if (!workspaceFolders) {
+//     //     throw new Error("No workspace folder found");
+//     // }
 
-    const workspacePath = getConfigInstance().workspace;
-    let importStatement = document.uri.fsPath.replace(workspacePath, '');
-    // Check if the import statement starts with a '/', and remove it if it does
-    if (importStatement.startsWith('/')) {
-        importStatement = importStatement.substring(1);
-    }
-    importStatement = importStatement.replace(/\//g, ".").replace(/\.py/g, "");
-    let res = `from ${importStatement} import *\n`;
-    if (symbol) {
-        res.replace("import *", `import ${document.getText(symbol.selectionRange)}`);
-    }
-    return res;
-}
+//     const workspacePath = getConfigInstance().workspace;
+//     let importStatement = document.uri.fsPath.replace(workspacePath, '');
+//     // Check if the import statement starts with a '/', and remove it if it does
+//     if (importStatement.startsWith('/')) {
+//         importStatement = importStatement.substring(1);
+//     }
+//     importStatement = importStatement.replace(/\//g, ".").replace(/\.py/g, "");
+//     let res = `from ${importStatement} import *\n`;
+//     if (symbol) {
+//         res.replace("import *", `import ${document.getText(symbol.selectionRange)}`);
+//     }
+//     return res;
+// }
+// function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vscode.DocumentSymbol | null): string {
+//     // const workspaceFolders = getConfigInstance().workspace;
+//     // if (!workspaceFolders) {
+//     //     throw new Error("No workspace folder found");
+//     // }
+
+//     const workspacePath = getConfigInstance().workspace;
+//     let importStatement = document.uri.fsPath.replace(workspacePath, '');
+//     // Check if the import statement starts with a '/', and remove it if it does
+//     if (importStatement.startsWith('/')) {
+//         importStatement = importStatement.substring(1);
+//     }
+//     importStatement = importStatement.replace(/\//g, ".").replace(/\.py/g, "");
+//     let res = `from ${importStatement} import *\n`;
+//     if (symbol) {
+//         res.replace("import *", `import ${document.getText(symbol.selectionRange)}`);
+//     }
+//     return res;
+// }
 
 export function getImportStatement(document: vscode.TextDocument, language: string, symbol: vscode.DocumentSymbol | null = null): string {
     let allImportStatements = "";
@@ -561,7 +580,7 @@ export function getImportStatement(document: vscode.TextDocument, language: stri
     switch (language) {
         case "python":
             // Python: Match 'import' or 'from ... import'
-            allImportStatements += genPythonicSrcImportStatement(document, symbol); // from src.black 
+            allImportStatements += genPythonicSrcImportStatement(documentText); // from src.black 
             // importStatements = documentText.match(/(?:import\s+\w+|from\s+\w+\s+import\s+\w+)/g);
             // allImportStatements += importStatements ? importStatements.join('\n') + '\n' : '';
             break;

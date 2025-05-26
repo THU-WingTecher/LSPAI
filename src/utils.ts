@@ -155,14 +155,9 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
     //     return '';
     // }
     let detail = '';
-    if (!getConfigInstance().summarizeContext) {
-        return removeComments(document.getText(symbol.range));
-    }
-    // if (getFullInfo && document.getText(symbol.range).split('\n').length < 40 ) {
-    //     return removeComments(document.getText(symbol.range));
-    // } 
+
     if (getFullInfo) {
-        return removeComments(document.getText(symbol.range));
+        return document.getText(symbol.range);
     } 
     if (symbol.kind === vscode.SymbolKind.Class) {
         // Retrieve the line text where the class is defined

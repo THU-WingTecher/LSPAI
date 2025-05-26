@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { removeComments } from './utils';
-import { getAllSymbols, getSymbolByLocation } from './lsp';
+import { activate, getAllSymbols, getSymbolByLocation } from './lsp';
 import { DecodedToken, getDecodedTokensFromSybol } from './token';
 
 function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
@@ -55,60 +55,243 @@ export function isTestFile(uri: vscode.Uri, document: vscode.TextDocument): bool
 }
 
 
-export async function getReferenceInfo(document: vscode.TextDocument, range: vscode.Range, refWindow: number = 60, skipTestCode: boolean = true): Promise<string> {
-    const targetToken = document.getText(range)
-    const position = range.start;
-    const refes = await vscode.commands.executeCommand<vscode.Location[]>(
-        'vscode.executeReferenceProvider',
-        document.uri,
-        position,
-    );
-    // console.log('References:', refes);
-
-    const referenceCodes: string[] = [];
-    for (const ref of refes) {
-        const refDocument = await vscode.workspace.openTextDocument(ref.uri);
-        // Skip test files if requested
-        if (skipTestCode && isTestFile(ref.uri, refDocument)) {
-            // console.log(`Skipping test file: ${ref.uri.fsPath}`);
-            continue;
-        // console.log('symbolUsage', symbolUsage);
-        }
-        const symbols = await getAllSymbols(ref.uri);
-        const shortestSymbol = getShortestSymbol(symbols, ref.range);
-        const targetTokenUsages = await determineTargetTokenUsageByLocation(ref.uri, ref.range, targetToken);
-
-        if (shortestSymbol) {
-            if (ref.uri.toString() === document.uri.toString() && shortestSymbol.range.start.isBeforeOrEqual(position) && shortestSymbol.range.end.isAfterOrEqual(position)) {
-                continue; // Skip the reference at the same position and URI
-            }
-            const allAreParameters = targetTokenUsages.every(usage => usage === "parameters");
-            if (allAreParameters) {
-                // console.log("All targetTokenUsage values are 'parameters'.");
-                continue;
-            } 
-            const refText = removeComments(refDocument.getText(shortestSymbol.range)).trim();
-            if (refWindow === -1) {
-                referenceCodes.push(refText);
-            } else {
-                const refTextLines = refText.split('\n').length;
-                const currentTotalLines = referenceCodes.reduce((acc, code) => acc + code.split('\n').length, 0);
-                if (currentTotalLines + refTextLines <= refWindow) {
-                    referenceCodes.push(refText);
-                } else {
-                    break;
-                }
-            }
-        }
+export async function getReferenceInfo(
+    document: vscode.TextDocument, 
+    range: vscode.Range, 
+    refWindow: number = 60, 
+    skipTestCode: boolean = false
+): Promise<string> {
+    const targetToken = document.getText(range);
+    const start = range.start;
+    const end = range.end;
+    
+    console.log(`[getReferenceInfo] Starting reference search for token "${targetToken}" at position ${start.line}:${start.character}`);
+    
+    const references = await findReferences(document, start);
+    if (!references || references.length === 0) {
+        console.log('[getReferenceInfo] No references found');
+        return '';
     }
-    // console.log('Reference Codes:', referenceCodes.join('\n'));
+    
+    console.log(`[getReferenceInfo] Found ${references.length} references to analyze`);
+    const referenceCodes = await processReferences(document, references, {
+        targetToken,
+        start,
+        end,
+        refWindow,
+        skipTestCode
+    });
+    
+    console.log(`[getReferenceInfo] Processed ${referenceCodes.length} valid reference codes`);
     return referenceCodes.join('\n');
 }
+
+interface ReferenceProcessingOptions {
+    targetToken: string;
+    start: vscode.Position;
+    end: vscode.Position;
+    refWindow: number;
+    skipTestCode: boolean;
+}
+
+export async function findReferences(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Location[]> {
+    return await vscode.commands.executeCommand<vscode.Location[]>(
+        'vscode.executeReferenceProvider',
+        document.uri,
+        position
+    );
+}
+
+// async function processReferences(
+//     document: vscode.TextDocument,
+//     references: vscode.Location[],
+//     options: ReferenceProcessingOptions
+// ): Promise<string[]> {
+//     const referenceCodes: string[] = [];
+//     let totalLines = 0;
+
+//     for (const ref of references) {
+//         console.log(`[processReferences] Processing reference in file: ${ref.uri.fsPath}`);
+        
+//         const refDocument = await vscode.workspace.openTextDocument(ref.uri);
+        
+//         if (options.skipTestCode && isTestFile(ref.uri, refDocument)) {
+//             console.log(`[processReferences] Skipping test file: ${ref.uri.fsPath}`);
+//             continue;
+//         }
+
+//         const processedCode = await processReference(document, refDocument, ref, options);
+//         if (!processedCode) {
+//             continue;
+//         }
+
+//         const newLines = processedCode.split('\n').length;
+//         if (options.refWindow !== -1 && totalLines + newLines > options.refWindow) {
+//             console.log(`[processReferences] Reached reference window limit of ${options.refWindow} lines`);
+//             break;
+//         }
+
+//         referenceCodes.push(processedCode);
+//         totalLines += newLines;
+//         console.log(`[processReferences] Added reference code (${newLines} lines). Total lines: ${totalLines}`);
+//     }
+
+//     return referenceCodes;
+// }
+async function processReferences(
+    document: vscode.TextDocument,
+    references: vscode.Location[],
+    options: ReferenceProcessingOptions
+): Promise<string[]> {
+    const referenceCodes: string[] = [];
+    let totalLines = 0;
+
+    // First sort references by range size (smaller ranges first)
+    references.sort((a, b) => {
+        const rangeA = a.range.end.line - a.range.start.line;
+        const rangeB = b.range.end.line - b.range.start.line;
+        return rangeA - rangeB;
+    });
+
+    // Process references in order
+    for (const ref of references) {
+        // Early exit if we've hit the window limit
+        if (options.refWindow !== -1 && totalLines >= options.refWindow) {
+            break;
+        }
+
+        const refDocument = await vscode.workspace.openTextDocument(ref.uri);
+        
+        // Skip test files if requested
+        if (options.skipTestCode && isTestFile(ref.uri, refDocument)) {
+            continue;
+        }
+
+        const processedCode = await processReference(document, refDocument, ref, options);
+        if (!processedCode) {
+            continue;
+        }
+
+        const newLines = processedCode.split('\n').length;
+        if (options.refWindow !== -1 && totalLines + newLines > options.refWindow) {
+            break;
+        }
+
+        referenceCodes.push(processedCode);
+        totalLines += newLines;
+        console.log(`[processReferences] Added reference code (${newLines} lines). Total lines: ${totalLines}`);
+    }
+
+    return referenceCodes;
+}
+
+async function processReference(
+    originalDocument: vscode.TextDocument,
+    refDocument: vscode.TextDocument,
+    ref: vscode.Location,
+    options: ReferenceProcessingOptions
+): Promise<string | null> {
+    const symbols = await getAllSymbols(ref.uri);
+    const refSymbol = getShortestSymbol(symbols, ref.range);
+    
+    if (!refSymbol) {
+        console.log(`[processReference] No matching symbol found in ${ref.uri.fsPath}`);
+        return null;
+    }
+
+    // Check if this is the original reference location
+    if (isSameLocation(ref, originalDocument, options.start, options.end, refSymbol)) {
+        console.log('[processReference] Skipping original reference location');
+        return null;
+    }
+
+    const targetTokenUsages = await determineTargetTokenUsageByLocation(
+        ref.uri,
+        ref.range,
+        options.targetToken
+    );
+
+    if (targetTokenUsages.every(usage => usage === "parameters")) {
+        console.log('[processReference] Skipping parameter-only usage');
+        return null;
+    }
+
+    const refText = removeComments(refDocument.getText(refSymbol.range)).trim();
+    console.log(`[processReference] Extracted reference code of ${refText.split('\n').length} lines`);
+    return refText;
+}
+
+function isSameLocation(
+    ref: vscode.Location,
+    originalDocument: vscode.TextDocument,
+    start: vscode.Position,
+    end: vscode.Position,
+    refSymbol: vscode.DocumentSymbol
+): boolean {
+    // start <= ref.range <= end 
+    return ref.uri.toString() === originalDocument.uri.toString() &&
+            refSymbol.range.start.isAfterOrEqual(start) &&
+            refSymbol.range.end.isBeforeOrEqual(end);
+}
+
+
+// export async function getReferenceInfo(document: vscode.TextDocument, range: vscode.Range, refWindow: number = 60, skipTestCode: boolean = true): Promise<string> {
+//     const targetToken = document.getText(range)
+//     const position = range.start;
+//     const refes = await vscode.commands.executeCommand<vscode.Location[]>(
+//         'vscode.executeReferenceProvider',
+//         document.uri,
+//         position,
+//     );
+//     // console.log('References:', refes);
+
+//     const referenceCodes: string[] = [];
+//     console.log("targetToken:", targetToken);
+//     for (const ref of refes) {
+//         const refDocument = await vscode.workspace.openTextDocument(ref.uri);
+//         // Skip test files if requested
+//         if (skipTestCode && isTestFile(ref.uri, refDocument)) {
+//             // console.log(`Skipping test file: ${ref.uri.fsPath}`);
+//             continue;
+//         // console.log('symbolUsage', symbolUsage);
+//         }
+//         const symbols = await getAllSymbols(ref.uri);
+//         const shortestSymbol = getShortestSymbol(symbols, ref.range);
+//         const targetTokenUsages = await determineTargetTokenUsageByLocation(ref.uri, ref.range, targetToken);
+
+//         if (shortestSymbol) {
+//             if (ref.uri.toString() === document.uri.toString() && shortestSymbol.range.start.isBeforeOrEqual(position) && shortestSymbol.range.end.isAfterOrEqual(position)) {
+//                 continue; // Skip the reference at the same position and URI
+//             }
+//             const allAreParameters = targetTokenUsages.every(usage => usage === "parameters");
+//             if (allAreParameters) {
+//                 // console.log("All targetTokenUsage values are 'parameters'.");
+//                 continue;
+//             } 
+//             const refText = removeComments(refDocument.getText(shortestSymbol.range)).trim();
+//             if (refWindow === -1) {
+//                 referenceCodes.push(refText);
+//             } else {
+//                 const refTextLines = refText.split('\n').length;
+//                 const currentTotalLines = referenceCodes.reduce((acc, code) => acc + code.split('\n').length, 0);
+//                 if (currentTotalLines + refTextLines <= refWindow) {
+//                     referenceCodes.push(refText);
+//                 } else {
+//                     break;
+//                 }
+//             }
+//         }
+//     }
+//     console.log('Reference Codes:', referenceCodes.join('\n'));
+//     return referenceCodes.join('\n');
+// }
 
 async function determineTargetTokenUsageByLocation(uri: vscode.Uri, location: vscode.Range, targetToken: string): Promise<string[]> {
     try {
         const document = await vscode.workspace.openTextDocument(uri);
+        // await activate(uri);
         const allSymbols = await getAllSymbols(uri);
+        console.log("determineTargetTokenUsageByLocation:", uri.fsPath, location, targetToken);
         const shortestSymbol = getShortestSymbol(allSymbols, location)!;
         const allTokens = await getDecodedTokensFromSybol(document, shortestSymbol);
         const finalTokens = allTokens.filter(token => token.word === targetToken);

@@ -101,7 +101,7 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
         // console.log("uniqueConditions size", uniqueConditions.size);
         console.log("unique Conditions :", Array.from(uniqueConditions));
         // Default algorithm
-        const defaultTerms = await getContextTermsFromTokens(symbolDocumentMap.document, decodedTokens, uniqueConditions);
+        const defaultTerms = await getContextTermsFromTokens(symbolDocumentMap.document, symbolDocumentMap.symbol, decodedTokens, uniqueConditions);
         console.log("defaultTerms", defaultTerms);
         const enrichedTerms = await contextSelectorForCFG.gatherContext(defaultTerms, symbolDocumentMap.symbol);
         console.log("handleConcatenatedOptions::enrichedTerms", enrichedTerms);
@@ -143,7 +143,7 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
         // console.log("uniqueConditions size", uniqueConditions.size);
         console.log("unique Conditions :", Array.from(uniqueConditions));
         // Default algorithm
-        const defaultTerms = await getContextTermsFromTokens(symbolDocumentMap.document, decodedTokens, uniqueConditions, functionInfo);
+        const defaultTerms = await getContextTermsFromTokens(symbolDocumentMap.document, symbolDocumentMap.symbol, decodedTokens, uniqueConditions, functionInfo);
         console.log("", defaultTerms);
         const enrichedTerms = await contextSelectorForCFG.gatherContext(defaultTerms, symbolDocumentMap.symbol);
         console.log("handleConcatenatedOptions::enrichedTerms", enrichedTerms);

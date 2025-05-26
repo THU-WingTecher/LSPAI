@@ -20,21 +20,24 @@ import { ContextTerm, contextToString } from './agents/contextSelector';
 export function saveContextTerms(sourceCode: string, terms: ContextTerm[], saveFolder: string, fileName: string): string {
     // Create the specific folder for identified terms
     const logFolder = path.join(saveFolder, 'context');
-    if (!fs.existsSync(logFolder)) {
-        fs.mkdirSync(logFolder, { recursive: true });
-    }
+
 
     // Generate timestamp and filename
     // const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     // const logFileName = `${fileName}_identified_terms_${timestamp}.json`;
     const logFilePath = path.join(logFolder, `${fileName}.json`);
-
+    if (!fs.existsSync(path.dirname(logFilePath))) {
+        fs.mkdirSync(path.dirname(logFilePath), { recursive: true });
+    }
     // Save the terms as formatted JSON
     fs.writeFileSync(logFilePath, JSON.stringify(terms, null, 2));
     
-    const contextString = contextToString(terms);
+    const contextString = `# Source Code\n${sourceCode}\n\n# Context\n${contextToString(terms)}`;
 
     const contextFilePath = path.join(logFolder, `${fileName}_context_prompt.txt`);
+    if (!fs.existsSync(path.dirname(contextFilePath))) {
+        fs.mkdirSync(path.dirname(contextFilePath), { recursive: true });
+    }
     fs.writeFileSync(contextFilePath, contextString);
 
     return logFilePath;

@@ -12,7 +12,7 @@ import { PathCollector } from './cfg/path';
 import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
 import pLimit from 'p-limit';
-const limit = pLimit(32);
+const limit = pLimit(1);
 
 export async function collectPathforSymbols(
     symbols: any, // Use the correct type if available

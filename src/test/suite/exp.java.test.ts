@@ -13,7 +13,7 @@ import { runGenerateTestCodeSuite } from '../../experiment';
 
 suite('Experiment Test Suite - JAVA', () => {
     const projectPath = "/LSPAI/experiments/projects/commons-cli";
-    const sampleNumber = -1;
+    const sampleNumber = 20;
     const languageId = 'java';
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
@@ -54,11 +54,11 @@ suite('Experiment Test Suite - JAVA', () => {
         // symbols.push(symbolDocumentMap);
         // ==== LOAD TARGET SYMBOL ====
         // ==== LOAD TARGET SYMBOL ====
-        // const fileName2 = "DefaultParser.java";
-        // const symbolName2 = "handleShortAndLongOption";
-        // const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
-        // console.log(`#### One file: ${symbolDocumentMap2}`);
-        // symbols.push(symbolDocumentMap2);
+        const fileName2 = "DefaultParser.java";
+        const symbolName2 = "handleShortAndLongOption";
+        const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
+        console.log(`#### One file: ${symbolDocumentMap2}`);
+        symbols.push(symbolDocumentMap2);
         // ==== LOAD TARGET SYMBOL ====
         
         // ==== LOAD ALL SYMBOLS ====
@@ -88,10 +88,10 @@ suite('Experiment Test Suite - JAVA', () => {
     test('CFG - experimental - deepseek-coder', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
+            FixType.NOFIX,
             PromptType.WITHCONTEXT,
-            'deepseek-coder',
-            'deepseek' as Provider,
+            'gpt-4o-mini',
+            'openai' as Provider,
             symbols,
             languageId
         );

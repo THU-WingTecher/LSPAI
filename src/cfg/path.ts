@@ -20,6 +20,7 @@ export interface ConditionAnalysis {
     depth: number;        // How deeply nested this condition is
     dependencies: Set<string>; // Variables/functions this condition depends on
     complexity: number;   // Complexity score based on operators and nesting
+    minimumPathToCondition: PathResult[];
 }
 
 export class Path {
@@ -117,23 +118,69 @@ export class PathCollector {
     //     });
     // }
 
+    private findMinimumPath(paths: PathResult[]): PathResult[] {
+        if (paths.length === 0) {
+            return [];
+        }
+
+        // Score each path based on:
+        // 1. Number of conditions (fewer is better)
+        // 2. Length of code (shorter is better)
+        // 3. Complexity of conditions
+        return paths.sort((a, b) => {
+            const aConditions = a.path.split('\n\t').length;
+            const bConditions = b.path.split('\n\t').length;
+            
+            // First prioritize number of conditions
+            if (aConditions !== bConditions) {
+                return aConditions - bConditions;
+            }
+
+            // Then prioritize code length
+            const aCodeLength = a.code.split('\n').length;
+            const bCodeLength = b.code.split('\n').length;
+            
+            return aCodeLength - bCodeLength;
+        }).slice(0, 1); // Return only the best path
+    }
+
     getUniqueConditions(): ConditionAnalysis[] {
         const normalizedConditions = new Map<string, string>();
         const conditionAnalyses: ConditionAnalysis[] = [];
 
+        // First, collect all paths for each condition
+        const conditionPaths = new Map<string, PathResult[]>();
+
+        for (const path of this.paths) {
+            const pathResult = path.toResult();
+            for (const condition of path.condition) {
+                if (condition) {
+                    const normalized = this.normalizeCondition(condition);
+                    if (normalized) {
+                        if (!conditionPaths.has(normalized)) {
+                            conditionPaths.set(normalized, []);
+                        }
+                        conditionPaths.get(normalized)!.push(pathResult);
+                    }
+                }
+            }
+        }
+
+        // Now process each condition with its paths
         for (const path of this.paths) {
             for (const condition of path.condition) {
                 if (condition) {
-                    // Skip if empty after normalization
                     const normalized = this.normalizeCondition(condition);
-                    // console.log("condition", condition);
-                    // console.log("normalized", normalized);
                     if (normalized) {
-                        // Store original condition with its normalized form
                         const analysis = this.analyzeCondition(normalized, this.getConditionDepth(path, condition));
                         if (conditionAnalyses.find(c => c.condition === normalized)) {
                             continue;
                         }
+
+                        // Find the minimum path for this condition
+                        const paths = conditionPaths.get(normalized) || [];
+                        analysis.minimumPathToCondition = this.findMinimumPath(paths);
+
                         conditionAnalyses.push(analysis);
                         normalizedConditions.set(normalized, condition);
                     }
@@ -141,17 +188,48 @@ export class PathCollector {
             }
         }
         
-        // Convert back to original conditions that have unique normalized forms
-        // Sort conditions by complexity and depth
         return conditionAnalyses.sort((a, b) => {
-            // First sort by complexity
             if (a.complexity !== b.complexity) {
                 return a.complexity - b.complexity;
             }
-            // Then by depth
             return a.depth - b.depth;
         });
     }
+    // getUniqueConditions(): ConditionAnalysis[] {
+    //     const normalizedConditions = new Map<string, string>();
+    //     const conditionAnalyses: ConditionAnalysis[] = [];
+
+    //     for (const path of this.paths) {
+    //         for (const condition of path.condition) {
+    //             if (condition) {
+    //                 // Skip if empty after normalization
+    //                 const normalized = this.normalizeCondition(condition);
+    //                 // console.log("condition", condition);
+    //                 // console.log("normalized", normalized);
+    //                 if (normalized) {
+    //                     // Store original condition with its normalized form
+    //                     const analysis = this.analyzeCondition(normalized, this.getConditionDepth(path, condition));
+    //                     if (conditionAnalyses.find(c => c.condition === normalized)) {
+    //                         continue;
+    //                     }
+    //                     conditionAnalyses.push(analysis);
+    //                     normalizedConditions.set(normalized, condition);
+    //                 }
+    //             }
+    //         }
+    //     }
+        
+    //     // Convert back to original conditions that have unique normalized forms
+    //     // Sort conditions by complexity and depth
+    //     return conditionAnalyses.sort((a, b) => {
+    //         // First sort by complexity
+    //         if (a.complexity !== b.complexity) {
+    //             return a.complexity - b.complexity;
+    //         }
+    //         // Then by depth
+    //         return a.depth - b.depth;
+    //     });
+    // }
     /**
      * Minimizes the set of paths by removing those whose constraints are already covered.
      * @param paths The array of PathResult to minimize.
@@ -245,7 +323,8 @@ export class PathCollector {
             condition,
             depth,
             dependencies,
-            complexity
+            complexity,
+            minimumPathToCondition: []
         };
 
         this.conditionAnalysis.set(condition, analysis);

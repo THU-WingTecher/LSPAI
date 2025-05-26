@@ -31,7 +31,7 @@ export abstract class BaseTestGenerator implements TestGenerationStrategy {
 		let enrichedTerms: ContextTerm[] = [];
 		const tokenCollectTime = Date.now();
 		const contextSelector = await getContextSelectorInstance(this.document, this.functionSymbol);
-		const identifiedTerms = await getContextTermsFromTokens(this.document, contextSelector.getTokens(), conditions);
+		const identifiedTerms = await getContextTermsFromTokens(this.document, this.functionSymbol, contextSelector.getTokens(), conditions);
 		this.logger.log("getContextTermsFromTokens", (Date.now() - tokenCollectTime).toString(), null, "");
 		if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
 			return null;

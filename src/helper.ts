@@ -52,7 +52,7 @@ export function setWorkspaceFolders(projectPath: string) {
     return workspaceFolders;
 }
 
-function getImportString(text: string) {
+export function genPythonicSrcImportStatement(text: string) {
     let importString = "";
     // Find import statements including multi-line parenthesized imports
     const importRegex = /^(?:from\s+[\w.]+\s+import\s+(?:\(\s*[\w,.\s]+(?:[\w,.\s]+\s*)*\)|[\w,.\s]+)|import\s+(?:[\w.]+(?:\s*,\s*[\w.]+)*))(?:\s*\))?(?=\s*$|\s*#)/gm;
@@ -97,7 +97,7 @@ export async function saveTaskList(
         const relativePath = path.relative(workspaceFolderPath, document.uri.fsPath);
         let importString = ""
         if (document.languageId === "python") {
-            importString = getImportString(document.getText());
+            importString = genPythonicSrcImportStatement(document.getText());
         }
         return {
             symbolName: symbol.name,

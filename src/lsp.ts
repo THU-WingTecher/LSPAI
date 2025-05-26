@@ -78,7 +78,7 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 		throw new Error('Extension not found');
 	}	
 	await ext.activate();
-    console.log("activate docUri", docUri);
+    console.log("activate docUri", docUri?.path);
 	if (docUri) {
 		try {
 			doc = await vscode.workspace.openTextDocument(docUri);
@@ -104,14 +104,6 @@ export async function setTestContent(content: string): Promise<boolean> {
 		doc.positionAt(doc.getText().length)
 	);
 	return editor.edit(eb => eb.replace(all, content));
-}
-
-export async function getReference(symbol: vscode.DocumentSymbol): Promise<string> {
-    const reference = symbol.children.find(child => child.name === 'Reference');
-    if (reference) {
-        return reference.children[0].name;
-    }
-    return '';
 }
 
 export async function getSymbolFromDocument(document: vscode.TextDocument, symbolName: string): Promise<vscode.DocumentSymbol | null> {
