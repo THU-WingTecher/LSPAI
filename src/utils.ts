@@ -66,14 +66,22 @@ export function isStandardClass(uri: string, language: string): boolean {
     return patterns.some(pattern => decodedUri.includes(pattern));
 }
 
+// export async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+// 	const symbols = await Promise.race([
+// 		vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+// 			'vscode.executeDocumentSymbolProvider',
+// 			uri
+// 		),
+// 		new Promise<vscode.DocumentSymbol[]>(resolve => setTimeout(() => resolve([]), 5000))
+// 	]);
+// 	return symbols || [];
+// }
+
 export async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
-	const symbols = await Promise.race([
-		vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-			'vscode.executeDocumentSymbolProvider',
-			uri
-		),
-		new Promise<vscode.DocumentSymbol[]>(resolve => setTimeout(() => resolve([]), 5000))
-	]);
+	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+        'vscode.executeDocumentSymbolProvider',
+        uri
+    )
 	return symbols || [];
 }
 

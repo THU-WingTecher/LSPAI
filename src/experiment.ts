@@ -107,6 +107,9 @@ export async function runGenerateTestCodeSuite(
     getConfigInstance().updateConfig({
         savePath: savePath
     });
+
+    getConfigInstance().logAllConfig();
+    console.log(`#### test ${symbols.length} focal method`);
     const workspace = getConfigInstance().workspace;
     const projectName = path.basename(workspace);
     let currentSrcPath;
@@ -118,17 +121,6 @@ export async function runGenerateTestCodeSuite(
 
     const symbolFilePairsToTest = getSymbolFilePairsToTest(symbols, languageId);
     await saveTaskList(symbolFilePairsToTest, workspace, getConfigInstance().savePath);
-    // for (const symbolFilePair of symbolFilePairsToTest) {
-    //     const { document, symbol, fileName } = symbolFilePair;
-    //     const result = await generateUnitTestForAFunction(
-    //         currentSrcPath,
-    //         document, 
-    //         symbol, 
-    //         fileName, 
-    //         false,
-    //     );
-    //     console.log(`#### Test Code: ${result}`);
-    // }
 
     const testGenerationPromises = symbolFilePairsToTest.map(symbolFilePair => 
         limit(async () => {

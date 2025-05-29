@@ -5,7 +5,7 @@ import { MIN_FUNCTION_LINES, SRC_PATHS } from "./config";
 import { ProjectName } from "./config";
 import { generateFileNameForDiffLanguage, findFiles } from "./fileHandler";
 import { getLanguageSuffix } from "./language";
-import { getAllSymbols, getSymbolFromDocument } from "./lsp";
+import { activate, getAllSymbols, getSymbolFromDocument } from "./lsp";
 import { getConfigInstance } from "./config";
 import { generateUnitTestForAFunction } from "./generate";
 
@@ -21,20 +21,101 @@ function initializeSeededRandom(seed: number) {
     };
 }
 
-export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]) {
-    for (const workspaceFolder of workspaceFolders) {
-        if (vscode.workspace.workspaceFolders?.find(folder => folder.name === workspaceFolder.name)) {
-            console.log('workspaceFolder', workspaceFolder.name, 'already exists');
-        } else {
-            await vscode.workspace.updateWorkspaceFolders(
-                0,
-                null,
-                ...workspaceFolders
+// export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]) {
+//     for (const workspaceFolder of workspaceFolders) {
+//         if (vscode.workspace.workspaceFolders?.find(folder => folder.name === workspaceFolder.name)) {
+//             console.log('workspaceFolder', workspaceFolder.name, 'already exists');
+//         } else {
+//             await vscode.workspace.updateWorkspaceFolders(
+//                 0,
+//                 null,
+//                 ...workspaceFolders
+//             );
+//         }
+//     }
+//     return workspaceFolders;
+// }
+
+export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]): Promise<vscode.WorkspaceFolder[]> {
+    try {
+        // First, remove all existing workspaces
+        if (vscode.workspace.workspaceFolders?.length) {
+            const removeResult = await vscode.workspace.updateWorkspaceFolders(
+                0,  // Start index
+                vscode.workspace.workspaceFolders.length  // Number of workspaces to remove
             );
+            if (!removeResult) {
+                throw new Error('Failed to remove existing workspaces');
+            }
         }
+
+        // Wait a bit for the workspace to clear
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        console.log('Adding workspace:', workspaceFolders[0].uri.fsPath);
+        
+        // Then add the new workspace
+        const addResult = await vscode.workspace.updateWorkspaceFolders(
+            0,  // Start index
+            null,  // Number of workspaces to remove (use 0 instead of null)
+            // {
+            //     uri: vscode.Uri.file(workspaceFolders[0].uri.fsPath),
+            //     name: workspaceFolders[0].name
+            // }
+            ...workspaceFolders
+        );
+
+        if (!addResult) {
+            throw new Error('Failed to add new workspace');
+        }
+
+        // Wait for workspace to be updated
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Verify the workspace was updated
+        const currentWorkspace = vscode.workspace.workspaceFolders?.[0];
+        if (!currentWorkspace) {
+            throw new Error('Workspace not properly set after update');
+        }
+
+        console.log('Successfully updated workspace to:', currentWorkspace.uri.fsPath);
+        return workspaceFolders;
+
+    } catch (error) {
+        console.error('Workspace update failed:', error);
+        throw error;
     }
-    return workspaceFolders;
 }
+
+// export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]) {
+//     // First, remove all existing workspaces
+//     if (vscode.workspace.workspaceFolders?.length) {
+//         const removeResult = await vscode.workspace.updateWorkspaceFolders(
+//             0,  // Start index
+//             vscode.workspace.workspaceFolders.length  // Number of workspaces to remove
+//         );
+//         if (!removeResult) {
+//             console.error('Failed to remove existing workspaces');
+//             return workspaceFolders;
+//         }
+//     }
+//     console.log('adding workspaceFolders', workspaceFolders[0].uri.fsPath);
+//     console.log('adding workspaceFolders-info', workspaceFolders[0]);
+//     // Then add the new workspace
+//     const addResult = await vscode.workspace.updateWorkspaceFolders(
+//         0,  // Start index
+//         null,  // Number of workspaces to remove (0 since we already removed them)
+//         workspaceFolders[0]  // Add only the first workspace
+//     );
+//     const currentWorkspace = vscode.workspace.workspaceFolders?.[0];
+//     console.log('currentWorkspace', currentWorkspace?.uri.fsPath);
+//     console.log('workspaceFolders', workspaceFolders);
+//     if (!addResult) {
+//         console.error('Failed to add new workspace');
+//     }
+
+//     return workspaceFolders;
+// }
 
 export function setWorkspaceFolders(projectPath: string) {
     getConfigInstance().updateConfig({
@@ -355,6 +436,7 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string) :
         throw new Error("No workspace folders found");
     }
     let testFilesPath: string;
+    console.log('all workspace folders', vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath));
     console.log('current workspace', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
     const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
@@ -365,17 +447,17 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string) :
         testFilesPath = path.join(workspace, SRC_PATHS.DEFAULT);
     }
     const suffix = getLanguageSuffix(language); 
-    console.log('testFilesPath', testFilesPath);
     findFiles(testFilesPath, Files, language, suffix);
     initializeSeededRandom(SEED); // Initialize the seeded random generator
     const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
-    if (language === "go") {
-        await goSpecificEnvGen(getConfigInstance().savePath, language, testFilesPath);
-    }
+    // if (language === "go") {
+    //     await goSpecificEnvGen(getConfigInstance().savePath, language, testFilesPath);
+    // }
 	for (const filePath of Files) {
         console.log('filePath', filePath);
 		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
 		console.log(`#### Preparing symbols under file: ${filePath}`);
+        await activate(document.uri);
 		const symbols = await getAllSymbols(document.uri);
         console.log(`#### Symbols: ${symbols.length}`);
 		if (symbols) {
@@ -395,5 +477,6 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string) :
 		}
 		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
 	}
+    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${MIN_FUNCTION_LINES} lines`);
     return symbolDocumentMap;
 }

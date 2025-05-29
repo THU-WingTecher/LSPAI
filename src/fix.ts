@@ -23,6 +23,24 @@ function defaultReturn(finalCode: string) {
 	};
 }
 
+// export async function collectRelatedInfo(diagnostics: vscode.Diagnostic[], languageId: string): Promise<string> {
+// 	// Summary Statistics:
+// 	// ================================================================================
+// 	// Category                                 | Frequency 
+// 	// ----------------------------------------------------
+// 	// Redeclaration/Duplicate Definition       | 28300     
+// 	// Import/Module Resolution Error           | 13517     
+// 	// Syntax Error                             | 5467      
+// 	// Member Access/Usage Error (Field/Method/Visibility) | 13387     
+// 	// Type Mismatch/Compatibility Error        | 4388      
+// 	// Constructor Call Error                   | 1670      
+// 	// Unhandled Exception                      | 179       
+// 	// ----------------------------------------------------
+// 	// Total                                    | 66908     
+	
+// 	// return diagnosticReport;
+// }
+
 export async function performFixingRound(
 	srcPath: string,
 	round: number,

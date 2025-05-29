@@ -523,6 +523,7 @@ export const SRC_PATHS = {
     "commons-csv": 'src/main/java/',
     "black": '/src',
     "crawl4ai": '/crawl4ai',
+    "tornado": '/tornado',
     DEFAULT: '/'
 } as const;
 

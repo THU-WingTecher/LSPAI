@@ -7,10 +7,59 @@ import { getContextSelectorInstance } from '../../agents/contextSelector';
 import { getConfigInstance, PromptType } from '../../config';
 import { parseCode } from '../../utils';
 import { BaseTestGenerator } from '../base';
-import { generateTestWithContext } from '../../prompts/promptBuilder';
-import { generateTestWithContextWithCFG } from '../../prompts/promptBuilder';
 import { LLMLogs } from '../../log';
 import { invokeLLM } from '../../invokeLLM';
+import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
+import { ChatMessage } from '../../prompts/ChatMessage';
+import { getPackageStatement, getImportStatement } from "../../retrieve";
+import * as vscode from 'vscode';
+import { findTemplateFile, generateTestWithContext, loadPathTestTemplate } from '../../prompts/promptBuilder';
+
+/**
+ * Generates test with context information
+ */
+export function generateTestSymprompt(
+    document: vscode.TextDocument,
+    functionSymbol: vscode.DocumentSymbol,
+    source_code: string, 
+    context_info: ContextTerm[], 
+    paths: any[],
+    fileName: string,
+    functionInfo: Map<string, string>
+): ChatMessage[] {
+    const result = [];
+    let context_info_str = "";
+    const packageStatement = getPackageStatement(document, document.languageId);
+    const importString = getImportStatement(document, document.languageId, functionSymbol);
+    const prompts = loadPathTestTemplate();
+    
+    // if filname contains /, remove it
+    if (fileName.includes("/")) {
+        fileName = fileName.split("/").pop() || fileName;
+    }
+
+    const systemPrompt = prompts.system_prompt
+    let userPrompt = prompts.user_prompt;
+    userPrompt = userPrompt
+        .replace("Important terms' context information:\n\n{context_info}", context_info_str)
+        .replace('{source_code}', source_code)
+        .replace(
+            '{unit_test_template}', 
+            LanguageTemplateManager.getUnitTestTemplate(
+            document.languageId, 
+            fileName, 
+            packageStatement ? packageStatement[0] : "",
+            importString,
+            paths.map((p) => p.path),
+            functionInfo
+        )
+    );
+    
+    return [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+    ];
+}
 
 export class SymPromptTestGenerator extends BaseTestGenerator {
     async generateTest(): Promise<string> {
@@ -27,22 +76,19 @@ export class SymPromptTestGenerator extends BaseTestGenerator {
         const pathCollectorStartTime = Date.now();
         const pathCollector = new PathCollector(this.languageId);
         const paths = pathCollector.collect(cfg.entry);
+        const functionInfo = builder.getFunctionInfo();
+
+        this.functionInfo.set('signature', functionInfo.get('signature') || "");
+        
         const minimizedPaths = pathCollector.minimizePaths(paths);
         this.logger.log("collectCFGPaths", (Date.now() - pathCollectorStartTime).toString(), null, "");
         this.logger.saveCFGPaths(functionText, minimizedPaths);
 
         // Gather context if needed
         let enrichedTerms: ContextTerm[] = [];
-        // if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-        //     const identifiedTerms = await getContextTermsFromTokens(contextSelector.getTokens());
-        //     if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - gathering context`, 20)) {
-        //         return '';
-        //     }
-        //     enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
-        // }
 
         // Generate test
-        const promptObj = generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms, paths, this.fileName)
+        const promptObj = generateTestSymprompt(this.document, this.functionSymbol, functionText, enrichedTerms, paths, this.fileName, this.functionInfo)
 
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
         const testCode = await invokeLLM(promptObj, logObj);

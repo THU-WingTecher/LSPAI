@@ -1,0 +1,190 @@
+import * as assert from 'assert';
+import * as vscode from 'vscode';
+import path from 'path';
+import { 
+    loadAllTargetSymbolsFromWorkspace, 
+    setWorkspaceFolders, 
+    updateWorkspaceFolders 
+} from '../../helper';
+import { loadPrivateConfig } from '../../config';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
+import { 
+    getConfigInstance, 
+    GenerationType, 
+    PromptType, 
+    Provider, 
+    FixType 
+} from '../../config';
+import { runGenerateTestCodeSuite } from '../../experiment';
+
+interface ProjectConfig {
+    path: string;
+    languageId: string;
+    name: string;
+    settings?: any;
+}
+
+// Model configurations
+interface ModelConfig {
+    model: string;
+    provider: Provider;
+}
+
+const MODELS: ModelConfig[] = [
+    { model: 'gpt-4o-mini', provider: 'openai' },
+    // { model: 'gpt-4o', provider: 'openai' },
+    // { model: 'deepseek-chat', provider: 'deepseek' }
+];
+
+// Prompt Types to test
+const GENERATION_TYPES = [
+    GenerationType.NAIVE,
+    GenerationType.SymPrompt
+];
+
+// Project configurations
+const GO_PROJECTS: ProjectConfig[] = [
+    {
+        path: "/LSPAI/experiments/projects/logrus",
+        languageId: 'go',
+        name: 'logrus'
+    },
+    {
+        path: "/LSPAI/experiments/projects/cobra",
+        languageId: 'go',
+        name: 'cobra'
+    }
+];
+
+const JAVA_PROJECTS: ProjectConfig[] = [
+    {
+        path: "/LSPAI/experiments/projects/commons-cli",
+        languageId: 'java',
+        name: 'commons-cli'
+    },
+    {
+        path: "/LSPAI/experiments/projects/commons-csv",
+        languageId: 'java',
+        name: 'commons-csv'
+    }
+];
+
+const PYTHON_PROJECTS: ProjectConfig[] = [
+    {
+        path: "/LSPAI/experiments/projects/tornado",
+        languageId: 'python',
+        name: 'tornado',
+        settings: {
+                pythonPath: "/root/miniconda3/envs/lspai/bin/python",
+                extraPaths: [
+                    path.join("/LSPAI/experiments/projects/tornado", "tornado"),    
+                ]
+            }
+        },
+    {
+        path: "/LSPAI/experiments/projects/black",
+        languageId: 'python',
+        name: 'black',
+        settings: {
+            pythonPath: "/root/miniconda3/envs/lspai/bin/python",
+            extraPaths: [
+                path.join("/LSPAI/experiments/projects/black", "src/black"), 
+                path.join("/LSPAI/experiments/projects/black", "src/blackd"), 
+                path.join("/LSPAI/experiments/projects/black", "src/blib2to3"), 
+                path.join("/LSPAI/experiments/projects/black", "src")  
+            ]
+        }
+    },
+];
+
+// const ALL_PROJECTS = [...JAVA_PROJECTS, ...PYTHON_PROJECTS, ...GO_PROJECTS];
+const ALL_PROJECTS = [PYTHON_PROJECTS[0]];
+
+
+// ... existing code ...
+suite('Multi-Project Test Suite', () => {
+    const sampleNumber = 3;
+    const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
+    console.log(`#### Sample number: ${sampleNumber}`);
+    // Single test that runs all projects sequentially
+    test('Run all projects sequentially', async () => {
+        // Activate extension if needed
+        if (process.env.NODE_DEBUG !== 'true') {
+            await activate();
+        }
+
+        // Process each project sequentially
+        for (const project of ALL_PROJECTS) {
+            console.log(`#### Starting tests for ${project.name} ####`);
+            
+            // Setup workspace for this project
+            const workspaceFolders = await setWorkspaceFolders(project.path);
+            await updateWorkspaceFolders(workspaceFolders);
+            
+            // Add delay to ensure language servers are ready
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            await setLanguageServerConfig(project);
+            // Load symbols
+            let symbols = await loadAllTargetSymbolsFromWorkspace(project.languageId);
+            assert.ok(symbols.length > 0, `${project.name} should have symbols`);
+            
+            // Sample symbols if needed
+            if (sampleNumber > 0) {
+                const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
+                symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
+            }
+            console.log(`#### ${project.name}: Found ${symbols.length} symbols`);
+
+            // Process each model sequentially
+            for (const modelConfig of MODELS) {
+                console.log(`#### Testing with model: ${modelConfig.model} ####`);
+                
+                const currentConfig = {
+                    model: modelConfig.model,
+                    provider: modelConfig.provider,
+                    expProb: 1,
+                    workspace: project.path,
+                    ...privateConfig
+                };
+                getConfigInstance().updateConfig(currentConfig);
+
+                // Process each generation type sequentially
+                for (const generationType of GENERATION_TYPES) {
+                    console.log(`#### Testing generation type: ${generationType} ####`);
+                    
+                    await runGenerateTestCodeSuite(
+                        generationType,
+                        FixType.NOFIX,
+                        PromptType.DETAILED,
+                        modelConfig.model,
+                        modelConfig.provider,
+                        symbols,
+                        project.languageId
+                    );
+                }
+            }
+        }
+    });
+});
+
+
+async function setLanguageServerConfig(project: ProjectConfig) {
+    if (project.languageId === 'python') {
+        await setPythonInterpreterPath(project.settings.pythonPath);
+        const currentPythonInterpreterPath = await getPythonInterpreterPath();
+        assert.ok(currentPythonInterpreterPath === project.settings.pythonPath, 'python interpreter path should be set as expected');
+        console.log('Python interpreter used by extension:', await getPythonInterpreterPath());
+
+
+        await setPythonExtraPaths([]);
+        const oldPythonExtraPaths = await getPythonExtraPaths();
+        console.log('oldPythonExtraPaths:', oldPythonExtraPaths);
+
+        await setPythonExtraPaths(project.settings.extraPaths);
+        const currentPythonExtraPaths = await getPythonExtraPaths();
+        console.log('currentPythonExtraPaths:', currentPythonExtraPaths);
+        assert.ok(currentPythonExtraPaths.length === project.settings.extraPaths.length, 'python extra paths should be set as expected');
+        assert.ok(currentPythonExtraPaths.every((path, index) => path === project.settings.extraPaths[index]), 'python extra paths should be set as expected');
+    }
+}

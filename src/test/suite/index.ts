@@ -21,9 +21,9 @@ export async function run(): Promise<void> {
 	if (process.env.npm_config_testfile) {
 		const testFiles = process.env.npm_config_testfile.split(',');
 		if (testFiles.length > 1) {
-			testFilesReg = `**/*{${testFiles.join(',')}}.test.js`;
+			testFilesReg = `**/*{${testFiles.join(',')}}*.test.js`;
 		} else {
-			testFilesReg = `**/*${process.env.npm_config_testfile}.test.js`;
+			testFilesReg = `**/*${process.env.npm_config_testfile}*.test.js`;
 		}
 	}
 	console.log("testFilesReg", testFilesReg);
@@ -43,10 +43,15 @@ export async function run(): Promise<void> {
 				}
 
 				// Add files to the test suite
-				files.forEach(f => mocha.addFile(path.resolve(testsRoot, f)));
-
+				// files.forEach(f => mocha.addFile(path.resolve(testsRoot, f)));
+				files.forEach(f => {
+					console.log(`Running test file: ${f}`);
+					mocha.addFile(path.resolve(testsRoot, f));
+				});
 				try {
 					// Run the mocha test
+					console.log(`Running ${files.length} tests`);
+					
 					mocha.run(failures => {
 						if (failures > 0) {
 							e(new Error(`${failures} tests failed.`));

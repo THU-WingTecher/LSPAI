@@ -4,7 +4,7 @@ import pathlib
 from typing import List, Dict
 from datetime import datetime
 import re
-from standardRag import standardRag
+from baseline import Baseline
 
 class ExperimentPipeline:
     def __init__(self, 
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     language = "java"
     task_list_path = "/LSPAI/experiments/projects/commons-cli/lspai-workspace/5_12_2025__05_29_28/commons-cli/experimental_withcontext_original/gpt-4o-mini/results/taskList.json"
     project_path = "/LSPAI/experiments/projects/commons-cli"
-    generationType = "standardRag"
+    generationType = "Baseline"
 
     if project_path.endswith("commons-cli"):
         source_code_path = os.path.join(project_path, "src/main/java")
@@ -186,8 +186,8 @@ if __name__ == "__main__":
     task_list = pipeline.load_tasks()
 
     generator = None 
-    if generationType == "standardRag":
-        generator = standardRag(
+    if generationType == "Baseline":
+        generator = Baseline(
             llm_model=MODEL,
             embedding_dir="embeddings"
         )

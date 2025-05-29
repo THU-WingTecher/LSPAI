@@ -6,7 +6,6 @@ import * as vscode from 'vscode';
 // import * as myExtension from '../../extension';
 import * as fs from 'fs';
 import path from 'path';
-import { main } from '../../train/collectTrainData';
 import { activate } from '../../lsp';
 import { getDocUri } from '../../lsp';
 import { generateUnitTestForAFunction } from '../../generate';

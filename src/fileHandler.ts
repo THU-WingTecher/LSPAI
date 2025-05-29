@@ -185,7 +185,7 @@ export async function saveToIntermediate(
 // }
 
 // const ignoreFileNames = ['_test.go', 'Test.java', '_test.ts'];
-const ignoreDirNamesToStartWith = ['lspai'];
+const ignoreDirNamesToStartWith = ['lspai', 'test'];
 export function findFiles(folderPath: string, Files: string[] = [], language:string, suffix:string) {
     fs.readdirSync(folderPath).forEach(file => {
         const fullPath = path.join(folderPath, file);

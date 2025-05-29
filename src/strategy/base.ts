@@ -20,9 +20,12 @@ export abstract class BaseTestGenerator implements TestGenerationStrategy {
 		protected readonly progress: vscode.Progress<{ message?: string; increment?: number; }>,
 		protected readonly token: vscode.CancellationToken,
 		protected readonly srcPath: string, // Added srcPath parameter
-		protected readonly sourceCode: string = ""
+		protected readonly sourceCode: string = "",
+		protected readonly functionInfo: Map<string, string> = new Map()
 	) { 
 		this.sourceCode = this.document.getText(this.functionSymbol.range);
+		this.functionInfo.set('name', this.document.getText(this.functionSymbol.selectionRange));
+		console.log("this.functionInfo.get('name')",this.functionInfo.get('name'));
 	}
 
 	abstract generateTest(): Promise<string>;

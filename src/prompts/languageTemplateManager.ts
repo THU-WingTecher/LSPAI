@@ -14,7 +14,8 @@ export class LanguageTemplateManager {
         fileName: string, 
         packageString: string, 
         importString: string = '',
-        paths: string[] = []
+        paths: string[] = [],
+        functionInfo: Map<string, string> = new Map()
     ): string {
         // if filename has suffix like .py, .go, .java, remove it
         if (fileName.includes(".")) {
@@ -23,13 +24,18 @@ export class LanguageTemplateManager {
         if (fileName.includes("/")) {
             fileName = fileName.split("/").pop() || fileName;
         }
+        let signature = ""
+        if (functionInfo.size > 0 && functionInfo.has('signature')) {
+            signature += functionInfo.get('name') || "";
+            signature += functionInfo.get('signature') || "";
+       }
         switch(languageId) {
             case 'java':
-                return LanguageTemplateManager.getJavaTemplate(fileName, packageString, paths);
+                return LanguageTemplateManager.getJavaTemplate(fileName, packageString, paths, signature);
             case 'go':
-                return LanguageTemplateManager.getGoTemplate(fileName, packageString, paths);
+                return LanguageTemplateManager.getGoTemplate(fileName, packageString, paths, signature);
             case 'python':
-                return LanguageTemplateManager.getPythonTemplate(fileName, packageString, importString, paths);
+                return LanguageTemplateManager.getPythonTemplate(fileName, packageString, importString, paths, signature);
             default:
                 return LanguageTemplateManager.getDefaultTemplate();
         }
@@ -38,11 +44,12 @@ export class LanguageTemplateManager {
     /**
      * Get Java unit test template
      */
-    private static getJavaTemplate(fileName: string, packageString: string, paths: string[]): string {
+    private static getJavaTemplate(fileName: string, packageString: string, paths: string[], signature: string): string {
         const testFunctions = paths.map((p, idx) => `
     @Test
     public void ${fileName}_${idx}() {
     /*
+    ${signature}
         ${p}
     */
     }
@@ -67,10 +74,11 @@ ${testFunctions}
     /**
      * Get Go unit test template
      */
-    private static getGoTemplate(fileName: string, packageString: string, paths: string[]): string {
+    private static getGoTemplate(fileName: string, packageString: string, paths: string[], signature: string): string {
         const testFunctions = paths.map((p, idx) => `
     func Test${fileName}_${idx}(t *testing.T) {
     /*
+    ${signature}
         ${p}
     */
     }
@@ -98,10 +106,11 @@ func Test${fileName}(t *testing.T) {
     /**
      * Get Python unit test template
      */
-    private static getPythonTemplate(fileName: string, packageString: string, importString: string, path: string[]): string {
+    private static getPythonTemplate(fileName: string, packageString: string, importString: string, path: string[], signature: string): string {
         const testFunctions = path.map((p, idx) => `
     def test_${fileName}_${idx}(self):
         """
+        ${signature}
         ${p}
         """
         {Write your test code here}

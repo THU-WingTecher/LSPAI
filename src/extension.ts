@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { generateUnitTestForSelectedRange } from './generate';
 import { Configuration, getConfigInstance } from './config';
-import { collectTrainData, main } from './train/collectTrainData';
-import * as fs from 'fs';
 import path from 'path';
 import { getCodeAction } from './diagnostic';
 import { generateUnitTestsForFocalMethod, init, signIn, copilotServer } from './copilot';
@@ -10,7 +8,6 @@ import { GenerationType, PromptType, FixType } from './config';
 import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace, saveTaskList } from './helper';
 import { experimentWithCopilot } from './copilot';
 import { generateTimestampString } from './fileHandler';
-import { TelemetryService } from './telemetry/telemetryService';
 import { invokeLLM } from './invokeLLM';
 
 export async function activate(context: vscode.ExtensionContext) {
