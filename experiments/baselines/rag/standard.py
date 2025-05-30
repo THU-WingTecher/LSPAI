@@ -47,7 +47,8 @@ class StandardRAG(Baseline):
         # Define directories to ignore
         self.ignore_dirs = {
             'node_modules', '.git', '__pycache__', 'target', 'build',
-            'dist', '.idea', '.vscode', 'venv', 'env', '.gradle'
+            'dist', '.idea', '.vscode', 'venv', 'env', '.gradle',
+            'lspai-workspace', 'lspai-tests', 'lspai'
         }
 
     def find_code_files(self, project_path: str) -> List[Dict]:
@@ -194,60 +195,145 @@ class StandardRAG(Baseline):
             'retrieval_time': retrieval_time,
             'token_count': token_count
         }
+
+def project_path_to_source_code_path(project_path: str) -> str:
     
-if __name__ == "__main__":
-    MODEL = "gpt-4o-mini"
-    # ==== black ====
-    language = "python"
-    task_list_path = "/LSPAI/experiments/lsprag_data/black/taskList.json"
-    project_path = "/LSPAI/experiments/projects/black"
-    generationType = "standardRag"
-    # ==== black ====
-
-    # ==== commons-cli ====
-    # language = "java"
-    # task_list_path = "/LSPAI/experiments/lsprag_data/commons-cli/taskList.json"
-    # project_path = "/LSPAI/experiments/projects/commons-cli"
-    # generationType = "codeQA"
-    # ==== commons-cli ====
-
-    if project_path.endswith("commons-cli"):
+    if project_path.endswith("commons-cli") or project_path.endswith("commons-csv"):
         source_code_path = os.path.join(project_path, "src/main/java")
     elif project_path.endswith("black"):
         source_code_path = os.path.join(project_path, "src")
-    else :
+    elif project_path.endswith("tornado"):
+        source_code_path = os.path.join(project_path, "tornado")
+    else : # logrus, cobra
         source_code_path = project_path
+    return source_code_path
 
-    pipeline = ExperimentPipeline(
-        task_list_path=task_list_path,
-        project_path=project_path,
-        generationType=generationType,
-        model=MODEL
-    )
-    task_list = pipeline.load_tasks()
-    generator = StandardRAG(
-        llm="gpt-4",
-        embedding_dir="embeddings/black",
-        output_dir="output/black"
-    )
-    # Setup embeddings with your project
-    generator.setup_embeddings(
-        source_code_path=source_code_path,
-        force_recompute=False  # Set to True to recompute embeddings
-    )
+if __name__ == "__main__":
+    from rag.config import PROJECT_CONFIGS
 
-    # Process tasks
-    for task in task_list:
-        # Generate unique file name
-        print(f"Processing task: {task['symbolName']}")
-        file_path = pipeline.generate_file_name(
-            method_name=task['symbolName'],
-            language=language  # or other language
-        )
-        result = generator.retrieve_context(task)
-        result = generator.process_task(task, language, file_path)
-        additional_save_path=""
-        if project_path.endswith("commons-cli"):
-            additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
-        print(f"Additional save path: {additional_save_path}")
-        pipeline.save_result(result, file_path, additional_save_path=additional_save_path)
+    MODELS = [
+        "deepseek-chat",
+        "gpt-4o",
+        "gpt-4o-mini"
+    ]
+    # List of projects to run experiments on
+    projects_to_run = [
+        "black",
+        "logrus", 
+        "commons-cli"
+    ]  # Add or remove projects as needed
+
+    # Run experiments for each project
+    for project_name in projects_to_run:
+        print(f"\n=== Starting experiments for project: {project_name} ===\n")
+        
+        config = PROJECT_CONFIGS[project_name]
+        
+        # Get configuration from the selected project
+        language = config["language"]
+        task_list_path = config["task_list_path"]
+        project_path = config["project_path"]
+        generationType = "standardRag"  # This is constant for all projects
+
+        # Get the appropriate source code path
+        source_code_path = project_path_to_source_code_path(project_path)
+
+        # Iterate through each model
+        for MODEL in MODELS:
+            print(f"\n=== Testing {project_name} with model: {MODEL} ===\n")
+            embedding_dir = os.path.join("/LSPAI/experiments/baselines/rag/embeddings", MODEL, project_name)
+            output_dir = os.path.join("/LSPAI/experiments/baselines/rag/output", MODEL, project_name)
+            pipeline = ExperimentPipeline(
+                task_list_path=task_list_path,
+                project_path=project_path,
+                generationType=generationType,
+                model=MODEL
+            )
+            task_list = pipeline.load_tasks()
+            generator = StandardRAG(
+                llm=MODEL,
+                embedding_dir=embedding_dir,
+                output_dir=output_dir
+            )
+            # Setup embeddings with your project
+            generator.setup_embeddings(
+                source_code_path=source_code_path,
+                force_recompute=True  # Set to True to recompute embeddings
+            )
+
+            task_list = pipeline.load_tasks()
+
+            # Process tasks
+            for task in task_list:
+                print(f"Processing task: {task['symbolName']}")
+                file_path = pipeline.generate_file_name(
+                    method_name=task['symbolName'],
+                    language=language
+                )
+                
+                result = generator.process_task(task, language, file_path)
+                print(f"Result: {result}")
+                
+                additional_save_path = ""
+                if project_path.endswith("commons-cli"):
+                    additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+                print(f"Additional save path: {additional_save_path}")
+                
+                # Add model name and project name to the file path to separate results
+                model_specific_file_path = f"{project_name}_{MODEL}_{file_path}"
+                pipeline.save_result(result, model_specific_file_path, additional_save_path=additional_save_path)
+
+        print(f"\n=== Completed experiments for project: {project_name} ===\n")
+
+    print("\n=== All experiments completed ===\n")
+
+# if __name__ == "__main__":
+#     MODEL = "gpt-4o-mini"
+#     # ==== black ====
+#     language = "python"
+#     task_list_path = "/LSPAI/experiments/lsprag_data/black/taskList.json"
+#     project_path = "/LSPAI/experiments/projects/black"
+#     generationType = "standardRag"
+#     # ==== black ====
+
+#     # ==== commons-cli ====
+#     # language = "java"
+#     # task_list_path = "/LSPAI/experiments/lsprag_data/commons-cli/taskList.json"
+#     # project_path = "/LSPAI/experiments/projects/commons-cli"
+#     # generationType = "codeQA"
+#     # ==== commons-cli ====
+
+
+#     pipeline = ExperimentPipeline(
+#         task_list_path=task_list_path,
+#         project_path=project_path,
+#         generationType=generationType,
+#         model=MODEL
+#     )
+#     task_list = pipeline.load_tasks()
+#     generator = StandardRAG(
+#         llm="gpt-4",
+#         embedding_dir="embeddings/black",
+#         output_dir="output/black"
+#     )
+#     # Setup embeddings with your project
+#     generator.setup_embeddings(
+#         source_code_path=source_code_path,
+#         force_recompute=False  # Set to True to recompute embeddings
+#     )
+
+#     # Process tasks
+#     for task in task_list:
+#         # Generate unique file name
+#         print(f"Processing task: {task['symbolName']}")
+#         file_path = pipeline.generate_file_name(
+#             method_name=task['symbolName'],
+#             language=language  # or other language
+#         )
+#         result = generator.retrieve_context(task)
+#         result = generator.process_task(task, language, file_path)
+#         additional_save_path=""
+#         if project_path.endswith("commons-cli"):
+#             additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+#         print(f"Additional save path: {additional_save_path}")
+#         pipeline.save_result(result, file_path, additional_save_path=additional_save_path)

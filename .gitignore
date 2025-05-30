@@ -1,3 +1,5 @@
+experiments/baselines/rag/embeddings/
+experiments/settings/
 experiments/lsprag_data/
 .env
 *.pyc
