@@ -430,7 +430,7 @@ export function findAFileFromWorkspace(targetFile: string, language: string) {
     return Files.filter(f => f.endsWith(targetFile))[0];
 }   
  
-export async function loadAllTargetSymbolsFromWorkspace(language: string) : 
+export async function loadAllTargetSymbolsFromWorkspace(language: string, minLineNumber: number = MIN_FUNCTION_LINES) : 
             Promise<{ symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[]> {
     if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {
         throw new Error("No workspace folders found");

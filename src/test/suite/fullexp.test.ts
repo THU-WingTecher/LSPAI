@@ -22,6 +22,7 @@ interface ProjectConfig {
     languageId: string;
     name: string;
     settings?: any;
+    tasklist?: string;
 }
 
 // Model configurations
@@ -32,8 +33,8 @@ interface ModelConfig {
 
 const MODELS: ModelConfig[] = [
     { model: 'gpt-4o-mini', provider: 'openai' },
-    // { model: 'gpt-4o', provider: 'openai' },
-    // { model: 'deepseek-chat', provider: 'deepseek' }
+    { model: 'gpt-4o', provider: 'openai' },
+    { model: 'deepseek-chat', provider: 'deepseek' }
 ];
 
 // Prompt Types to test
@@ -47,7 +48,8 @@ const GO_PROJECTS: ProjectConfig[] = [
     {
         path: "/LSPAI/experiments/projects/logrus",
         languageId: 'go',
-        name: 'logrus'
+        name: 'logrus',
+        tasklist: '',
     },
     {
         path: "/LSPAI/experiments/projects/cobra",
@@ -97,13 +99,14 @@ const PYTHON_PROJECTS: ProjectConfig[] = [
     },
 ];
 
-// const ALL_PROJECTS = [...JAVA_PROJECTS, ...PYTHON_PROJECTS, ...GO_PROJECTS];
-const ALL_PROJECTS = [PYTHON_PROJECTS[0]];
+const ALL_PROJECTS = [...JAVA_PROJECTS, ...PYTHON_PROJECTS, ...GO_PROJECTS];
+// const ALL_PROJECTS = [PYTHON_PROJECTS[0]];
 
 
 // ... existing code ...
 suite('Multi-Project Test Suite', () => {
-    const sampleNumber = 3;
+    const sampleNumber = -1;
+    const minLineNumber = 5;
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     console.log(`#### Sample number: ${sampleNumber}`);
     // Single test that runs all projects sequentially
@@ -126,7 +129,7 @@ suite('Multi-Project Test Suite', () => {
             
             await setLanguageServerConfig(project);
             // Load symbols
-            let symbols = await loadAllTargetSymbolsFromWorkspace(project.languageId);
+            let symbols = await loadAllTargetSymbolsFromWorkspace(project.languageId, minLineNumber);
             assert.ok(symbols.length > 0, `${project.name} should have symbols`);
             
             // Sample symbols if needed

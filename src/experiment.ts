@@ -12,7 +12,7 @@ import { PathCollector } from './cfg/path';
 import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
 import pLimit from 'p-limit';
-const limit = pLimit(1);
+const limit = pLimit(32);
 
 export async function collectPathforSymbols(
     symbols: any, // Use the correct type if available
@@ -83,6 +83,17 @@ export async function findMatchedSymbolsFromTaskList(
     return matchedSymbols;
 }
 
+export function countTestFile(finalTestPath: string) {
+        // Add test file counting
+        if (fs.existsSync(finalTestPath)) {
+            const testFiles = fs.readdirSync(finalTestPath).filter(file => file.toLowerCase().includes('test'));
+            // console.log(`#### Found ${testFiles.length} test files in ${finalTestPath}`);
+            return testFiles.length;
+        } else {
+            // console.log(`#### No test files found in ${finalTestPath}`);
+        }
+        return 0;
+    }
 export async function runGenerateTestCodeSuite(
     generationType: GenerationType,
     fixType: FixType,
@@ -138,6 +149,9 @@ export async function runGenerateTestCodeSuite(
     );
 
     const results = await Promise.all(testGenerationPromises);
+    const finalTestPath = path.join(getConfigInstance().savePath, "final");
+    const testFiles = countTestFile(finalTestPath);
+    console.log(`#### Test files: ${testFiles}`);
     const logPath = getConfigInstance().logSavePath;
     console.log(`#### Log path: ${logPath}`);
     assert.ok(fs.existsSync(logPath), 'log path should exist');
