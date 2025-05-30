@@ -1,0 +1,58 @@
+[
+  {
+    "symbolName": "intersect",
+    "sourceCode": "func intersect(a, b []string) []string {\n\tsort.Strings(a)\n\tsort.Strings(b)\n\n\tres := make([]string, 0, func() int {\n\t\tif len(a) < len(b) {\n\t\t\treturn len(a)\n\t\t}\n\t\treturn len(b)\n\t}())\n\n\tfor _, v := range a {\n\t\tidx := sort.SearchStrings(b, v)\n\t\tif idx < len(b) && b[idx] == v {\n\t\t\tres = append(res, v)\n\t\t}\n\t}\n\treturn res\n}",
+    "importString": "",
+    "lineNum": 18,
+    "relativeDocumentPath": "ci/magefile.go"
+  },
+  {
+    "symbolName": "CrossBuild",
+    "sourceCode": "func CrossBuild() error {\n\tmatrix, err := getBuildMatrix()\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tfor os, arches := range matrix {\n\t\tfor _, arch := range arches {\n\t\t\tenv := map[string]string{\n\t\t\t\t\"GOOS\":   os,\n\t\t\t\t\"GOARCH\": arch,\n\t\t\t}\n\t\t\tif mg.Verbose() {\n\t\t\t\tfmt.Printf(\"Building for GOOS=%s GOARCH=%s\\n\", os, arch)\n\t\t\t}\n\t\t\tif err := sh.RunWith(env, \"go\", \"build\", \"./...\"); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t}\n\t}\n\treturn nil\n}",
+    "importString": "",
+    "lineNum": 21,
+    "relativeDocumentPath": "ci/magefile.go"
+  },
+  {
+    "symbolName": "(*Entry).WithFields",
+    "sourceCode": "func (entry *Entry) WithFields(fields Fields) *Entry {\n\tdata := make(Fields, len(entry.Data)+len(fields))\n\tfor k, v := range entry.Data {\n\t\tdata[k] = v\n\t}\n\tfieldErr := entry.err\n\tfor k, v := range fields {\n\t\tisErrField := false\n\t\tif t := reflect.TypeOf(v); t != nil {\n\t\t\tswitch {\n\t\t\tcase t.Kind() == reflect.Func, t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Func:\n\t\t\t\tisErrField = true\n\t\t\t}\n\t\t}\n\t\tif isErrField {\n\t\t\ttmp := fmt.Sprintf(\"can not add field %q\", k)\n\t\t\tif fieldErr != \"\" {\n\t\t\t\tfieldErr = entry.err + \", \" + tmp\n\t\t\t} else {\n\t\t\t\tfieldErr = tmp\n\t\t\t}\n\t\t} else {\n\t\t\tdata[k] = v\n\t\t}\n\t}\n\treturn &Entry{Logger: entry.Logger, Data: data, Time: entry.Time, err: fieldErr, Context: entry.Context}\n}",
+    "importString": "",
+    "lineNum": 26,
+    "relativeDocumentPath": "entry.go"
+  },
+  {
+    "symbolName": "getPackageName",
+    "sourceCode": "func getPackageName(f string) string {\n\tfor {\n\t\tlastPeriod := strings.LastIndex(f, \".\")\n\t\tlastSlash := strings.LastIndex(f, \"/\")\n\t\tif lastPeriod > lastSlash {\n\t\t\tf = f[:lastPeriod]\n\t\t} else {\n\t\t\tbreak\n\t\t}\n\t}\n\n\treturn f\n}",
+    "importString": "",
+    "lineNum": 12,
+    "relativeDocumentPath": "entry.go"
+  },
+  {
+    "symbolName": "(*SyslogHook).Fire",
+    "sourceCode": "func (hook *SyslogHook) Fire(entry *logrus.Entry) error {\n\tline, err := entry.String()\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Unable to read entry, %v\", err)\n\t\treturn err\n\t}\n\n\tswitch entry.Level {\n\tcase logrus.PanicLevel:\n\t\treturn hook.Writer.Crit(line)\n\tcase logrus.FatalLevel:\n\t\treturn hook.Writer.Crit(line)\n\tcase logrus.ErrorLevel:\n\t\treturn hook.Writer.Err(line)\n\tcase logrus.WarnLevel:\n\t\treturn hook.Writer.Warning(line)\n\tcase logrus.InfoLevel:\n\t\treturn hook.Writer.Info(line)\n\tcase logrus.DebugLevel, logrus.TraceLevel:\n\t\treturn hook.Writer.Debug(line)\n\tdefault:\n\t\treturn nil\n\t}\n}",
+    "importString": "",
+    "lineNum": 23,
+    "relativeDocumentPath": "hooks/syslog/syslog.go"
+  },
+  {
+    "symbolName": "checkIfTerminal",
+    "sourceCode": "func checkIfTerminal(w io.Writer) bool {\n\tswitch v := w.(type) {\n\tcase *os.File:\n\t\thandle := windows.Handle(v.Fd())\n\t\tvar mode uint32\n\t\tif err := windows.GetConsoleMode(handle, &mode); err != nil {\n\t\t\treturn false\n\t\t}\n\t\tmode |= windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING\n\t\tif err := windows.SetConsoleMode(handle, mode); err != nil {\n\t\t\treturn false\n\t\t}\n\t\treturn true\n\t}\n\treturn false\n}",
+    "importString": "",
+    "lineNum": 15,
+    "relativeDocumentPath": "terminal_check_windows.go"
+  },
+  {
+    "symbolName": "(*TextFormatter).isColored",
+    "sourceCode": "func (f *TextFormatter) isColored() bool {\n\tisColored := f.ForceColors || (f.isTerminal && (runtime.GOOS != \"windows\"))\n\n\tif f.EnvironmentOverrideColors {\n\t\tswitch force, ok := os.LookupEnv(\"CLICOLOR_FORCE\"); {\n\t\tcase ok && force != \"0\":\n\t\t\tisColored = true\n\t\tcase ok && force == \"0\", os.Getenv(\"CLICOLOR\") == \"0\":\n\t\t\tisColored = false\n\t\t}\n\t}\n\n\treturn isColored && !f.DisableColors\n}",
+    "importString": "",
+    "lineNum": 13,
+    "relativeDocumentPath": "text_formatter.go"
+  },
+  {
+    "symbolName": "(*TextFormatter).printColored",
+    "sourceCode": "func (f *TextFormatter) printColored(b *bytes.Buffer, entry *Entry, keys []string, data Fields, timestampFormat string) {\n\tvar levelColor int\n\tswitch entry.Level {\n\tcase DebugLevel, TraceLevel:\n\t\tlevelColor = gray\n\tcase WarnLevel:\n\t\tlevelColor = yellow\n\tcase ErrorLevel, FatalLevel, PanicLevel:\n\t\tlevelColor = red\n\tcase InfoLevel:\n\t\tlevelColor = blue\n\tdefault:\n\t\tlevelColor = blue\n\t}\n\n\tlevelText := strings.ToUpper(entry.Level.String())\n\tif !f.DisableLevelTruncation && !f.PadLevelText {\n\t\tlevelText = levelText[0:4]\n\t}\n\tif f.PadLevelText {\n\t\t// Generates the format string used in the next line, for example \"%-6s\" or \"%-7s\".\n\t\t// Based on the max level text length.\n\t\tformatString := \"%-\" + strconv.Itoa(f.levelTextMaxLength) + \"s\"\n\t\t// Formats the level text by appending spaces up to the max length, for example:\n\t\t// \t- \"INFO   \"\n\t\t//\t- \"WARNING\"\n\t\tlevelText = fmt.Sprintf(formatString, levelText)\n\t}\n\n\t// Remove a single newline if it already exists in the message to keep\n\t// the behavior of logrus text_formatter the same as the stdlib log package\n\tentry.Message = strings.TrimSuffix(entry.Message, \"\\n\")\n\n\tcaller := \"\"\n\tif entry.HasCaller() {\n\t\tfuncVal := fmt.Sprintf(\"%s()\", entry.Caller.Function)\n\t\tfileVal := fmt.Sprintf(\"%s:%d\", entry.Caller.File, entry.Caller.Line)\n\n\t\tif f.CallerPrettyfier != nil {\n\t\t\tfuncVal, fileVal = f.CallerPrettyfier(entry.Caller)\n\t\t}\n\n\t\tif fileVal == \"\" {\n\t\t\tcaller = funcVal\n\t\t} else if funcVal == \"\" {\n\t\t\tcaller = fileVal\n\t\t} else {\n\t\t\tcaller = fileVal + \" \" + funcVal\n\t\t}\n\t}\n\n\tswitch {\n\tcase f.DisableTimestamp:\n\t\tfmt.Fprintf(b, \"\\x1b[%dm%s\\x1b[0m%s %-44s \", levelColor, levelText, caller, entry.Message)\n\tcase !f.FullTimestamp:\n\t\tfmt.Fprintf(b, \"\\x1b[%dm%s\\x1b[0m[%04d]%s %-44s \", levelColor, levelText, int(entry.Time.Sub(baseTimestamp)/time.Second), caller, entry.Message)\n\tdefault:\n\t\tfmt.Fprintf(b, \"\\x1b[%dm%s\\x1b[0m[%s]%s %-44s \", levelColor, levelText, entry.Time.Format(timestampFormat), caller, entry.Message)\n\t}\n\tfor _, k := range keys {\n\t\tv := data[k]\n\t\tfmt.Fprintf(b, \" \\x1b[%dm%s\\x1b[0m=\", levelColor, k)\n\t\tf.appendValue(b, v)\n\t}\n}",
+    "importString": "",
+    "lineNum": 64,
+    "relativeDocumentPath": "text_formatter.go"
+  }
+]

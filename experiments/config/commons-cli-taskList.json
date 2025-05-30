@@ -1,0 +1,303 @@
+[
+    {
+      "symbolName": "flatten(Options, String[], boolean)",
+      "sourceCode": "/**\n     * <p>\n     * A simple implementation of {@link Parser}'s abstract {@link Parser#flatten(Options, String[], boolean) flatten}\n     * method.\n     * </p>\n     *\n     * <p>\n     * <strong>Note:</strong> {@code options} and {@code stopAtNonOption} are not used in this {@code flatten} method.\n     * </p>\n     *\n     * @param options The command line {@link Options}\n     * @param arguments The command line arguments to be parsed\n     * @param stopAtNonOption Specifies whether to stop flattening when an non option is found.\n     * @return The {@code arguments} String array.\n     */\n    @Override\n    protected String[] flatten(@SuppressWarnings(\"unused\") final Options options, final String[] arguments,\n        @SuppressWarnings(\"unused\") final boolean stopAtNonOption) {\n        // just echo the arguments\n        return arguments;\n    }",
+      "importString": "",
+      "lineNum": 20,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/BasicParser.java"
+    },
+    {
+      "symbolName": "setDeprecatedHandler(Consumer<Option>)",
+      "sourceCode": "/**\n         * Sets the deprecated option handler.\n         *\n         * @param deprecatedHandler the deprecated option handler.\n         * @return {@code this} instance.\n         * @since 1.7.0\n         */\n        public Builder setDeprecatedHandler(final Consumer<Option> deprecatedHandler) {\n            this.deprecatedHandler = deprecatedHandler;\n            return this;\n        }",
+      "importString": "",
+      "lineNum": 10,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getOptionObject(char)",
+      "sourceCode": "/**\n     * Gets the {@code Object} type of this {@code Option}.\n     *\n     * @deprecated due to System.err message. Instead use getParsedOptionValue(char)\n     * @param optionChar the name of the option.\n     * @return the type of opt.\n     */\n    @Deprecated\n    public Object getOptionObject(final char optionChar) {\n        return getOptionObject(String.valueOf(optionChar));\n    }",
+      "importString": "",
+      "lineNum": 10,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getOptionObject(String)",
+      "sourceCode": "/**\n     * Gets the {@code Object} type of this {@code Option}.\n     *\n     * @param optionName the name of the option.\n     * @return the type of this {@code Option}.\n     * @deprecated due to System.err message. Instead use getParsedOptionValue(String)\n     */\n    @Deprecated\n    public Object getOptionObject(final String optionName) {\n        try {\n            return getParsedOptionValue(optionName);\n        } catch (final ParseException pe) {\n            System.err.println(\"Exception found converting \" + optionName + \" to desired type: \" + pe.getMessage());\n            return null;\n        }\n    }",
+      "importString": "",
+      "lineNum": 15,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getOptionValue(Option, Supplier<String>)",
+      "sourceCode": "/**\n     * Gets the first argument, if any, of an option.\n     *\n     * @param option the option.\n     * @param defaultValue is a supplier for the default value to be returned if the option is not specified.\n     * @return Value of the argument if option is set, and has an argument, otherwise {@code defaultValue}.\n     * @since 1.7.0\n     */\n    public String getOptionValue(final Option option, final Supplier<String> defaultValue) {\n        final String answer = getOptionValue(option);\n        return answer != null ? answer : get(defaultValue);\n    }",
+      "importString": "",
+      "lineNum": 11,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getOptionValue(String, Supplier<String>)",
+      "sourceCode": "/**\n     * Gets the first argument, if any, of an option.\n     *\n     * @param optionName name of the option.\n     * @param defaultValue is a supplier for the default value to be returned if the option is not specified.\n     * @return Value of the argument if option is set, and has an argument, otherwise {@code defaultValue}.\n     * @since 1.7.0\n     */\n    public String getOptionValue(final String optionName, final Supplier<String> defaultValue) {\n        return getOptionValue(resolveOption(optionName), defaultValue);\n    }",
+      "importString": "",
+      "lineNum": 10,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getOptionValues(OptionGroup)",
+      "sourceCode": "/**\n     * Gets the array of values, if any, of an option group.\n     *\n     * @param optionGroup the option group.\n     * @return Values of the argument if option group is selected, and has an argument, otherwise null.\n     * @since 1.9.0\n     */\n    public String[] getOptionValues(final OptionGroup optionGroup) {\n        if (optionGroup == null || !optionGroup.isSelected()) {\n            return null;\n        }\n        return getOptionValues(optionGroup.getSelected());\n    }",
+      "importString": "",
+      "lineNum": 12,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getParsedOptionValue(char, Supplier<T>) <T>",
+      "sourceCode": "/**\n     * Gets a version of this {@code Option} converted to a particular type.\n     *\n     * @param optionChar the name of the option.\n     * @param defaultValue the default value to return if opt is not set.\n     * @param <T> The return type for the method.\n     * @return the value parsed into a particular object or the defaultValue if the option is not set.\n     * @throws ParseException if there are problems turning the option value into the desired type\n     * @see PatternOptionBuilder\n     * @since 1.7.0\n     */\n    public <T> T getParsedOptionValue(final char optionChar, final Supplier<T> defaultValue) throws ParseException {\n        return getParsedOptionValue(String.valueOf(optionChar), defaultValue);\n    }",
+      "importString": "",
+      "lineNum": 13,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getParsedOptionValue(String, T) <T>",
+      "sourceCode": "/**\n     * Gets a version of this {@code Option} converted to a particular type.\n     *\n     * @param optionName the name of the option.\n     * @param defaultValue the default value to return if opt is not set.\n     * @param <T> The return type for the method.\n     * @return the value parsed into a particular object or the defaultValue if the option is not set.\n     * @throws ParseException if there are problems turning the option value into the desired type\n     * @see PatternOptionBuilder\n     * @since 1.7.0\n     */\n    public <T> T getParsedOptionValue(final String optionName, final T defaultValue) throws ParseException {\n        return getParsedOptionValue(resolveOption(optionName), defaultValue);\n    }",
+      "importString": "",
+      "lineNum": 13,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getParsedOptionValues(Option, T[]) <T>",
+      "sourceCode": "/**\n     * Gets a version of this {@code Option} converted to an array of a particular type.\n     *\n     * @param option the option.\n     * @param defaultValue the default value to return if opt is not set.\n     * @param <T> The array type for the return value.\n     * @return the values parsed into an array of objects or the defaultValue if the option is not set.\n     * @throws ParseException if there are problems turning the option value into the desired type\n     * @see PatternOptionBuilder\n     * @since 1.10.0\n     */\n    public <T> T[] getParsedOptionValues(final Option option, final T[] defaultValue) throws ParseException {\n        return getParsedOptionValues(option, () -> defaultValue);\n    }",
+      "importString": "",
+      "lineNum": 13,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getParsedOptionValues(String) <T>",
+      "sourceCode": "/**\n     * Gets a version of this {@code Option} converted to an array of a particular type.\n     *\n     * @param optionName the name of the option.\n     * @param <T> The array type for the return value.\n     * @return the values parsed into an array of objects or null if the option is not set.\n     * @throws ParseException if there are problems turning the option value into the desired type\n     * @see PatternOptionBuilder\n     * @since 1.10.0\n     */\n    public <T> T[] getParsedOptionValues(final String optionName) throws ParseException {\n        return getParsedOptionValues(resolveOption(optionName));\n    }",
+      "importString": "",
+      "lineNum": 12,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "hasOption(Option)",
+      "sourceCode": "/**\n     * Tests to see if an option has been set.\n     *\n     * @param option the option to check.\n     * @return true if set, false if not.\n     * @since 1.5.0\n     */\n    public boolean hasOption(final Option option) {\n        final boolean result = options.contains(option);\n        if (result && option.isDeprecated()) {\n            handleDeprecated(option);\n        }\n        return result;\n    }",
+      "importString": "",
+      "lineNum": 13,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+    },
+    {
+      "symbolName": "getLongPrefix(String)",
+      "sourceCode": "/**\n     * Searches for a prefix that is the long name of an option (-Xmx512m)\n     *\n     * @param token\n     */\n    private String getLongPrefix(final String token) {\n        final String t = Util.stripLeadingHyphens(token);\n        int i;\n        String opt = null;\n        for (i = t.length() - 2; i > 1; i--) {\n            final String prefix = t.substring(0, i);\n            if (options.hasLongOption(prefix)) {\n                opt = prefix;\n                break;\n            }\n        }\n        return opt;\n    }",
+      "importString": "",
+      "lineNum": 17,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+    },
+    {
+      "symbolName": "handleConcatenatedOptions(String)",
+      "sourceCode": "/**\n     * Breaks {@code token} into its constituent parts using the following algorithm.\n     *\n     * <ul>\n     * <li>ignore the first character (\"<strong>-</strong>\")</li>\n     * <li>for each remaining character check if an {@link Option} exists with that id.</li>\n     * <li>if an {@link Option} does exist then add that character prepended with \"<strong>-</strong>\" to the list of processed\n     * tokens.</li>\n     * <li>if the {@link Option} can have an argument value and there are remaining characters in the token then add the\n     * remaining characters as a token to the list of processed tokens.</li>\n     * <li>if an {@link Option} does <strong>NOT</strong> exist <strong>AND</strong> {@code stopAtNonOption} <strong>IS</strong> set then add the\n     * special token \"<strong>--</strong>\" followed by the remaining characters and also the remaining tokens directly to the\n     * processed tokens list.</li>\n     * <li>if an {@link Option} does <strong>NOT</strong> exist <strong>AND</strong> {@code stopAtNonOption} <strong>IS NOT</strong> set then add\n     * that character prepended with \"<strong>-</strong>\".</li>\n     * </ul>\n     *\n     * @param token The current token to be <strong>burst</strong> at the first non-Option encountered.\n     * @throws ParseException if there are any problems encountered while parsing the command line token.\n     */\n    protected void handleConcatenatedOptions(final String token) throws ParseException {\n        for (int i = 1; i < token.length(); i++) {\n            final String ch = String.valueOf(token.charAt(i));\n            if (!options.hasOption(ch)) {\n                handleUnknownToken(stopAtNonOption && i > 1 ? token.substring(i) : token);\n                break;\n            }\n            handleOption(options.getOption(ch));\n            if (currentOption != null && token.length() != i + 1) {\n                // add the trail as an argument of the option\n                currentOption.processValue(stripLeadingAndTrailingQuotesDefaultOff(token.substring(i + 1)));\n                break;\n            }\n        }\n    }",
+      "importString": "",
+      "lineNum": 34,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+    },
+    {
+      "symbolName": "handleLongOptionWithEqual(String)",
+      "sourceCode": "/**\n     * Handles the following tokens:\n     *\n     * --L=V -L=V --l=V -l=V\n     *\n     * @param token the command line token to handle\n     */\n    private void handleLongOptionWithEqual(final String token) throws ParseException {\n        final int pos = indexOfEqual(token);\n        final String value = token.substring(pos + 1);\n        final String opt = token.substring(0, pos);\n        final List<String> matchingOpts = getMatchingLongOptions(opt);\n        if (matchingOpts.isEmpty()) {\n            handleUnknownToken(currentToken);\n        } else if (matchingOpts.size() > 1 && !options.hasLongOption(opt)) {\n            throw new AmbiguousOptionException(opt, matchingOpts);\n        } else {\n            final String key = options.hasLongOption(opt) ? opt : matchingOpts.get(0);\n            final Option option = options.getOption(key);\n            if (option.acceptsArg()) {\n                handleOption(option);\n                currentOption.processValue(stripLeadingAndTrailingQuotesDefaultOff(value));\n                currentOption = null;\n            } else {\n                handleUnknownToken(currentToken);\n            }\n        }\n    }",
+      "importString": "",
+      "lineNum": 27,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+    },
+    {
+      "symbolName": "isLongOption(String)",
+      "sourceCode": "/**\n     * Tests if the token looks like a long option.\n     *\n     * @param token\n     */\n    private boolean isLongOption(final String token) {\n        if (token == null || !token.startsWith(\"-\") || token.length() == 1) {\n            return false;\n        }\n        final int pos = indexOfEqual(token);\n        final String t = pos == -1 ? token : token.substring(0, pos);\n        if (!getMatchingLongOptions(t).isEmpty()) {\n            // long or partial long options (--L, -L, --L=V, -L=V, --l, --l=V)\n            return true;\n        }\n        if (getLongPrefix(token) != null && !token.startsWith(\"--\")) {\n            // -LV\n            return true;\n        }\n        return false;\n    }",
+      "importString": "",
+      "lineNum": 20,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+    },
+    {
+      "symbolName": "isNegativeNumber(String)",
+      "sourceCode": "/**\n     * Tests if the token is a negative number.\n     *\n     * @param token\n     */\n    private boolean isNegativeNumber(final String token) {\n        try {\n            Double.parseDouble(token);\n            return true;\n        } catch (final NumberFormatException e) {\n            return false;\n        }\n    }",
+      "importString": "",
+      "lineNum": 12,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+    },
+    {
+      "symbolName": "parse(Options, String[], Properties)",
+      "sourceCode": "/**\n     * Parses the arguments according to the specified options and properties.\n     *\n     * @param options the specified Options\n     * @param arguments the command line arguments\n     * @param properties command line option name-value pairs\n     * @return the list of atomic option and value tokens\n     * @throws ParseException if there are any problems encountered while parsing the command line tokens.\n     */\n    public CommandLine parse(final Options options, final String[] arguments, final Properties properties) throws ParseException {\n        return parse(options, arguments, properties, false);\n    }",
+      "importString": "",
+      "lineNum": 11,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+    },
+    {
+      "symbolName": "parse(Options, String[], Properties, boolean)",
+      "sourceCode": "/**\n     * Parses the arguments according to the specified options and properties.\n     *\n     * @param options the specified Options\n     * @param arguments the command line arguments\n     * @param properties command line option name-value pairs\n     * @param stopAtNonOption if {@code true} an unrecognized argument stops the parsing and the remaining arguments\n     *        are added to the {@link CommandLine}s args list. If {@code false} an unrecognized argument triggers a\n     *        ParseException.\n     *\n     * @return the list of atomic option and value tokens\n     * @throws ParseException if there are any problems encountered while parsing the command line tokens.\n     */\n    public CommandLine parse(final Options options, final String[] arguments, final Properties properties, final boolean stopAtNonOption)\n        throws ParseException {\n        this.options = options;\n        this.stopAtNonOption = stopAtNonOption;\n        skipParsing = false;\n        currentOption = null;\n        expectedOpts = new ArrayList<>(options.getRequiredOptions());\n        // clear the data from the groups\n        for (final OptionGroup group : options.getOptionGroups()) {\n            group.setSelected(null);\n        }\n        cmd = CommandLine.builder().setDeprecatedHandler(deprecatedHandler).get();\n        if (arguments != null) {\n            for (final String argument : arguments) {\n                handleToken(argument);\n            }\n        }\n        // check the arguments of the last option\n        checkRequiredArgs();\n        // add the default options\n        handleProperties(properties);\n        checkRequiredOptions();\n        return cmd;\n    }",
+      "importString": "",
+      "lineNum": 36,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+    },
+    {
+      "symbolName": "toString()",
+      "sourceCode": "@Override\n    public String toString() {\n        final StringBuilder builder = new StringBuilder(\"Deprecated\");\n        if (forRemoval) {\n            builder.append(\" for removal\");\n        }\n        if (!since.isEmpty()) {\n            builder.append(\" since \");\n            builder.append(since);\n        }\n        if (!description.isEmpty()) {\n            builder.append(\": \");\n            builder.append(description);\n        }\n        return builder.toString();\n    }",
+      "importString": "",
+      "lineNum": 15,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DeprecatedAttributes.java"
+    },
+    {
+      "symbolName": "appendOptions(A, int, Options, int, int) <A extends Appendable>",
+      "sourceCode": "/**\n     * Renders the specified Options and return the rendered Options in a StringBuffer.\n     *\n     * @param sb The StringBuffer to place the rendered Options into.\n     * @param width The number of characters to display per line\n     * @param options The command line Options\n     * @param leftPad the number of characters of padding to be prefixed to each line\n     * @param descPad the number of characters of padding to be prefixed to each description line\n     * @return the StringBuffer with the rendered Options contents.\n     * @throws IOException if an I/O error occurs.\n     */\n    <A extends Appendable> A appendOptions(final A sb, final int width, final Options options, final int leftPad, final int descPad) throws IOException {\n        final String lpad = createPadding(leftPad);\n        final String dpad = createPadding(descPad);\n        // first create list containing only <lpad>-a,--aaa where\n        // -a is opt and --aaa is long opt; in parallel look for\n        // the longest opt string this list will be then used to\n        // sort options ascending\n        int max = 0;\n        final int maxSince = showSince ? determineMaxSinceLength(options) + leftPad : 0;\n        final List<StringBuilder> prefixList = new ArrayList<>();\n        final List<Option> optList = options.helpOptions();\n        if (getOptionComparator() != null) {\n            Collections.sort(optList, getOptionComparator());\n        }\n        for (final Option option : optList) {\n            final StringBuilder optBuf = new StringBuilder();\n            if (option.getOpt() == null) {\n                optBuf.append(lpad).append(\"   \").append(getLongOptPrefix()).append(option.getLongOpt());\n            } else {\n                optBuf.append(lpad).append(getOptPrefix()).append(option.getOpt());\n                if (option.hasLongOpt()) {\n                    optBuf.append(',').append(getLongOptPrefix()).append(option.getLongOpt());\n                }\n            }\n            if (option.hasArg()) {\n                final String argName = option.getArgName();\n                if (argName != null && argName.isEmpty()) {\n                    // if the option has a blank argname\n                    optBuf.append(' ');\n                } else {\n                    optBuf.append(option.hasLongOpt() ? longOptSeparator : \" \");\n                    optBuf.append(\"<\").append(argName != null ? option.getArgName() : getArgName()).append(\">\");\n                }\n            }\n\n            prefixList.add(optBuf);\n            max = Math.max(optBuf.length() + maxSince, max);\n        }\n        final int nextLineTabStop = max + descPad;\n        if (showSince) {\n            final StringBuilder optHeader = new StringBuilder(HEADER_OPTIONS).append(createPadding(max - maxSince - HEADER_OPTIONS.length() + leftPad))\n                    .append(HEADER_SINCE);\n            optHeader.append(createPadding(max - optHeader.length())).append(lpad).append(HEADER_DESCRIPTION);\n            appendWrappedText(sb, width, nextLineTabStop, optHeader.toString());\n            sb.append(getNewLine());\n        }\n\n        int x = 0;\n        for (final Iterator<Option> it = optList.iterator(); it.hasNext();) {\n            final Option option = it.next();\n            final StringBuilder optBuf = new StringBuilder(prefixList.get(x++).toString());\n            if (optBuf.length() < max) {\n                optBuf.append(createPadding(max - maxSince - optBuf.length()));\n                if (showSince) {\n                    optBuf.append(lpad).append(option.getSince() == null ? \"-\" : option.getSince());\n                }\n                optBuf.append(createPadding(max - optBuf.length()));\n            }\n            optBuf.append(dpad);\n\n            if (deprecatedFormatFunction != null && option.isDeprecated()) {\n                optBuf.append(deprecatedFormatFunction.apply(option).trim());\n            } else if (option.getDescription() != null) {\n                optBuf.append(option.getDescription());\n            }\n            appendWrappedText(sb, width, nextLineTabStop, optBuf.toString());\n            if (it.hasNext()) {\n                sb.append(getNewLine());\n            }\n        }\n        return sb;\n    }",
+      "importString": "",
+      "lineNum": 82,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/HelpFormatter.java"
+    },
+    {
+      "symbolName": "renderWrappedTextBlock(A, int, int, String) <A extends Appendable>",
+      "sourceCode": "/**\n     * Renders the specified text width a maximum width. This method differs from renderWrappedText by not removing leading\n     * spaces after a new line.\n     *\n     * @param appendable The StringBuffer to place the rendered text into.\n     * @param width The number of characters to display per line\n     * @param nextLineTabStop The position on the next line for the first tab.\n     * @param text The text to be rendered.\n     */\n    private <A extends Appendable> A renderWrappedTextBlock(final A appendable, final int width, final int nextLineTabStop, final String text) {\n        try {\n            final BufferedReader in = new BufferedReader(new StringReader(text));\n            String line;\n            boolean firstLine = true;\n            while ((line = in.readLine()) != null) {\n                if (!firstLine) {\n                    appendable.append(getNewLine());\n                } else {\n                    firstLine = false;\n                }\n                appendWrappedText(appendable, width, nextLineTabStop, line);\n            }\n        } catch (final IOException e) { // NOPMD\n            // cannot happen\n        }\n        return appendable;\n    }",
+      "importString": "",
+      "lineNum": 26,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/HelpFormatter.java"
+    },
+    {
+      "symbolName": "build()",
+      "sourceCode": "/**\n         * Constructs an Option with the values declared by this {@link Builder}.\n         *\n         * @return the new {@link Option}.\n         * @throws IllegalArgumentException if neither {@code opt} or {@code longOpt} has been set.\n         */\n        public Option build() {\n            if (option == null && longOption == null) {\n                throw new IllegalArgumentException(\"Either opt or longOpt must be specified\");\n            }\n            return new Option(this);\n        }",
+      "importString": "",
+      "lineNum": 11,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+    },
+    {
+      "symbolName": "converter(Converter<?, ?>)",
+      "sourceCode": "/**\n         * Sets the converter for the option.\n         * <p>\n         * Note: See {@link TypeHandler} for serialization discussion.\n         * </p>\n         *\n         * @param converter the Converter to use.\n         * @return this builder, to allow method chaining.\n         * @since 1.7.0\n         */\n        public Builder converter(final Converter<?, ?> converter) {\n            this.converter = converter;\n            return this;\n        }",
+      "importString": "",
+      "lineNum": 13,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+    },
+    {
+      "symbolName": "valueSeparator(char)",
+      "sourceCode": "/**\n         * The Option will use {@code sep} as a means to separate argument values.\n         * <p>\n         * <strong>Example:</strong>\n         * </p>\n         *\n         * <pre>\n         * Option opt = Option.builder(\"D\").hasArgs().valueSeparator('=').build();\n         * Options options = new Options();\n         * options.addOption(opt);\n         * String[] args = { \"-Dkey=value\" };\n         * CommandLineParser parser = new DefaultParser();\n         * CommandLine line = parser.parse(options, args);\n         * String propertyName = line.getOptionValues(\"D\")[0]; // will be \"key\"\n         * String propertyValue = line.getOptionValues(\"D\")[1]; // will be \"value\"\n         * </pre>\n         *\n         * @param valueSeparator The value separator.\n         * @return this builder.\n         */\n        public Builder valueSeparator(final char valueSeparator) {\n            this.valueSeparator = valueSeparator;\n            return this;\n        }",
+      "importString": "",
+      "lineNum": 23,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+    },
+    {
+      "symbolName": "add(String)",
+      "sourceCode": "/**\n     * Adds the value to this Option. If the number of arguments is greater than zero and there is enough space in the list then add the value. Otherwise, throw\n     * a runtime exception.\n     *\n     * @param value The value to be added to this Option.\n     */\n    private void add(final String value) {\n        if (!acceptsArg()) {\n            throw new IllegalArgumentException(\"Cannot add value, list full.\");\n        }\n        // store value\n        values.add(value);\n    }",
+      "importString": "",
+      "lineNum": 12,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+    },
+    {
+      "symbolName": "processValue(String)",
+      "sourceCode": "/**\n     * Processes the value. If this Option has a value separator the value will have to be parsed into individual tokens. When n-1 tokens have been processed\n     * and there are more value separators in the value, parsing is ceased and the remaining characters are added as a single token.\n     *\n     * @param value The String to be processed.\n     */\n    void processValue(final String value) {\n        if (argCount == UNINITIALIZED) {\n            throw new IllegalArgumentException(\"NO_ARGS_ALLOWED\");\n        }\n        String add = value;\n        // this Option has a separator character\n        if (hasValueSeparator()) {\n            // get the separator character\n            final char sep = getValueSeparator();\n            // store the index for the value separator\n            int index = add.indexOf(sep);\n            // while there are more value separators\n            while (index != -1) {\n                // next value to be added\n                if (values.size() == argCount - 1) {\n                    break;\n                }\n                // store\n                add(add.substring(0, index));\n                // parse\n                add = add.substring(index + 1);\n                // get new index\n                index = add.indexOf(sep);\n            }\n        }\n        // store the actual value or the last value that has been parsed\n        add(add);\n    }",
+      "importString": "",
+      "lineNum": 33,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+    },
+    {
+      "symbolName": "create()",
+      "sourceCode": "/**\n     * Creates an Option using the current settings\n     *\n     * @return the Option instance\n     * @throws IllegalArgumentException if {@code longOpt} has not been set.\n     */\n    public static Option create() throws IllegalArgumentException {\n        if (longOption == null) {\n            reset();\n            throw new IllegalArgumentException(\"must specify longopt\");\n        }\n\n        return create(null);\n    }",
+      "importString": "",
+      "lineNum": 13,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+    },
+    {
+      "symbolName": "create(String)",
+      "sourceCode": "/**\n     * Creates an Option using the current settings and with the specified Option {@code char}.\n     *\n     * @param opt the {@code String} representation of the Option\n     * @return the Option instance\n     * @throws IllegalArgumentException if {@code opt} is not a valid character. See Option.\n     */\n    public static Option create(final String opt) throws IllegalArgumentException {\n        Option option;\n        try {\n            // create the option\n            option = new Option(opt, description);\n\n            // set the option properties\n            option.setLongOpt(longOption);\n            option.setRequired(required);\n            option.setOptionalArg(optionalArg);\n            option.setArgs(argCount);\n            option.setType(type);\n            option.setConverter(TypeHandler.getDefault().getConverter(type));\n            option.setValueSeparator(valueSeparator);\n            option.setArgName(argName);\n        } finally {\n            // reset the OptionBuilder properties\n            reset();\n        }\n\n        // return the Option instance\n        return option;\n    }",
+      "importString": "",
+      "lineNum": 29,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+    },
+    {
+      "symbolName": "withType(Class<?>)",
+      "sourceCode": "/**\n     * The next Option created will have a value that will be an instance of {@code type}.\n     *\n     * @param newType the type of the Options argument value\n     * @return the OptionBuilder instance\n     * @since 1.3\n     */\n    public static OptionBuilder withType(final Class<?> newType) {\n        type = newType;\n        return INSTANCE;\n    }",
+      "importString": "",
+      "lineNum": 10,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+    },
+    {
+      "symbolName": "toString()",
+      "sourceCode": "/**\n     * Returns the stringified version of this OptionGroup.\n     *\n     * @return the stringified representation of this group\n     */\n    @Override\n    public String toString() {\n        final StringBuilder buff = new StringBuilder();\n        final Iterator<Option> iter = getOptions().iterator();\n        buff.append(\"[\");\n        while (iter.hasNext()) {\n            final Option option = iter.next();\n            if (option.getOpt() != null) {\n                buff.append(\"-\");\n                buff.append(option.getOpt());\n            } else {\n                buff.append(\"--\");\n                buff.append(option.getLongOpt());\n            }\n\n            if (option.getDescription() != null) {\n                buff.append(Char.SP);\n                buff.append(option.getDescription());\n            }\n\n            if (iter.hasNext()) {\n                buff.append(\", \");\n            }\n        }\n        buff.append(\"]\");\n        return buff.toString();\n    }",
+      "importString": "",
+      "lineNum": 31,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionGroup.java"
+    },
+    {
+      "symbolName": "isValidChar(char)",
+      "sourceCode": "/**\n     * Returns whether the specified character is a valid character.\n     * A character is valid if any of the following conditions are true:\n     * <ul>\n     * <li>it is a letter</li>\n     * <li>it is a currency symbol (such as '$')</li>\n     * <li>it is a connecting punctuation character (such as '_')</li>\n     * <li>it is a digit</li>\n     * <li>it is a numeric letter (such as a Roman numeral character)</li>\n     * <li>it is a combining mark</li>\n     * <li>it is a non-spacing mark</li>\n     * <li>isIdentifierIgnorable returns true for the character</li>\n     * <li>it is a hyphen/dash ('-')</li>\n     * </ul>\n     * @param c the character to validate\n     * @return true if {@code c} is a valid character letter.\n     */\n    private static boolean isValidChar(final char c) {\n        return Character.isJavaIdentifierPart(c) || search(ADDITIONAL_LONG_CHARS, c);\n    }",
+      "importString": "",
+      "lineNum": 19,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionValidator.java"
+    },
+    {
+      "symbolName": "processProperties(Properties)",
+      "sourceCode": "/**\n     * Sets the values of Options using the values in {@code properties}.\n     *\n     * @param properties The value properties to be processed.\n     * @throws ParseException if there are any problems encountered while processing the properties.\n     */\n    protected void processProperties(final Properties properties) throws ParseException {\n        if (properties == null) {\n            return;\n        }\n        for (final Enumeration<?> e = properties.propertyNames(); e.hasMoreElements();) {\n            final String option = e.nextElement().toString();\n            final Option opt = options.getOption(option);\n            if (opt == null) {\n                throw new UnrecognizedOptionException(\"Default option wasn't defined\", option);\n            }\n            // if the option is part of a group, check if another option of the group has been selected\n            final OptionGroup group = options.getOptionGroup(opt);\n            final boolean selected = group != null && group.isSelected();\n            if (!cmd.hasOption(option) && !selected) {\n                // get the value from the properties instance\n                final String value = properties.getProperty(option);\n                if (opt.hasArg()) {\n                    if (Util.isEmpty(opt.getValues())) {\n                        try {\n                            opt.processValue(value);\n                        } catch (final RuntimeException exp) { // NOPMD\n                            // if we cannot add the value don't worry about it\n                        }\n                    }\n                } else if (!(\"yes\".equalsIgnoreCase(value) || \"true\".equalsIgnoreCase(value) || \"1\".equalsIgnoreCase(value))) {\n                    // if the value is not yes, true or 1 then don't add the\n                    // option to the CommandLine\n                    continue;\n                }\n                cmd.addOption(opt);\n                updateRequiredOptions(opt);\n            }\n        }\n    }",
+      "importString": "",
+      "lineNum": 39,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Parser.java"
+    },
+    {
+      "symbolName": "updateRequiredOptions(Option)",
+      "sourceCode": "/**\n     * Removes the option or its group from the list of expected elements.\n     *\n     * @param opt\n     */\n    private void updateRequiredOptions(final Option opt) throws ParseException {\n        // if the option is a required option remove the option from\n        // the requiredOptions list\n        if (opt.isRequired()) {\n            getRequiredOptions().remove(opt.getKey());\n        }\n        // if the option is in an OptionGroup make that option the selected\n        // option of the group\n        if (getOptions().getOptionGroup(opt) != null) {\n            final OptionGroup group = getOptions().getOptionGroup(opt);\n            if (group.isRequired()) {\n                getRequiredOptions().remove(group);\n            }\n            group.setSelected(opt);\n        }\n    }",
+      "importString": "",
+      "lineNum": 20,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Parser.java"
+    },
+    {
+      "symbolName": "burstToken(String, boolean)",
+      "sourceCode": "/**\n     * Breaks {@code token} into its constituent parts using the following algorithm.\n     *\n     * <ul>\n     * <li>ignore the first character (\"<strong>-</strong>\")</li>\n     * <li>for each remaining character check if an {@link Option} exists with that id.</li>\n     * <li>if an {@link Option} does exist then add that character prepended with \"<strong>-</strong>\" to the list of processed\n     * tokens.</li>\n     * <li>if the {@link Option} can have an argument value and there are remaining characters in the token then add the\n     * remaining characters as a token to the list of processed tokens.</li>\n     * <li>if an {@link Option} does <strong>NOT</strong> exist <strong>AND</strong> {@code stopAtNonOption} <strong>IS</strong> set then add the\n     * special token \"<strong>--</strong>\" followed by the remaining characters and also the remaining tokens directly to the\n     * processed tokens list.</li>\n     * <li>if an {@link Option} does <strong>NOT</strong> exist <strong>AND</strong> {@code stopAtNonOption} <strong>IS NOT</strong> set then add\n     * that character prepended with \"<strong>-</strong>\".</li>\n     * </ul>\n     *\n     * @param token The current token to be <strong>burst</strong>\n     * @param stopAtNonOption Specifies whether to stop processing at the first non-Option encountered.\n     */\n    protected void burstToken(final String token, final boolean stopAtNonOption) {\n        for (int i = 1; i < token.length(); i++) {\n            final String ch = String.valueOf(token.charAt(i));\n\n            if (!options.hasOption(ch)) {\n                if (stopAtNonOption) {\n                    processNonOptionToken(token.substring(i), true);\n                } else {\n                    tokens.add(token);\n                }\n                break;\n            }\n            tokens.add(\"-\" + ch);\n            currentOption = options.getOption(ch);\n\n            if (currentOption.hasArg() && token.length() != i + 1) {\n                tokens.add(token.substring(i + 1));\n\n                break;\n            }\n        }\n    }",
+      "importString": "",
+      "lineNum": 41,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/PosixParser.java"
+    },
+    {
+      "symbolName": "processOptionToken(String, boolean)",
+      "sourceCode": "/**\n     * <p>\n     * If an {@link Option} exists for {@code token} then add the token to the processed list.\n     * </p>\n     *\n     * <p>\n     * If an {@link Option} does not exist and {@code stopAtNonOption} is set then add the remaining tokens to the\n     * processed tokens list directly.\n     * </p>\n     *\n     * @param token The current option token\n     * @param stopAtNonOption Specifies whether flattening should halt at the first non option.\n     */\n    private void processOptionToken(final String token, final boolean stopAtNonOption) {\n        if (stopAtNonOption && !options.hasOption(token)) {\n            eatTheRest = true;\n        }\n\n        if (options.hasOption(token)) {\n            currentOption = options.getOption(token);\n        }\n\n        tokens.add(token);\n    }",
+      "importString": "",
+      "lineNum": 23,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/PosixParser.java"
+    },
+    {
+      "symbolName": "createDate(String)",
+      "sourceCode": "/**\n     * Returns the date represented by {@code string}.\n     * <p>\n     * This method is not yet implemented and always throws an {@link UnsupportedOperationException}.\n     * </p>\n     *\n     * @param string the date string\n     * @return The date if {@code string} is a valid date string, otherwise return null.\n     */\n    public static Date createDate(final String string) {\n        return createValueUnchecked(string, Date.class);\n    }",
+      "importString": "",
+      "lineNum": 11,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/TypeHandler.java"
+    },
+    {
+      "symbolName": "createNumber(String)",
+      "sourceCode": "/**\n     * Creates a number from a String. If a '.' is present, it creates a Double, otherwise a Long.\n     *\n     * @param string the value\n     * @return the number represented by {@code string}\n     * @throws ParseException if {@code string} is not a number\n     */\n    @Deprecated // since 1.7.0\n    public static Number createNumber(final String string) throws ParseException {\n        return createValue(string, Number.class);\n    }",
+      "importString": "",
+      "lineNum": 10,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/TypeHandler.java"
+    },
+    {
+      "symbolName": "createObject(String)",
+      "sourceCode": "/**\n     * Creates an Object from the class name and empty constructor.\n     *\n     * @param className the argument value\n     * @return the initialized object\n     * @throws ParseException if the class could not be found or the object could not be created\n     * @deprecated use {@link #createValue(String, Class)}\n     */\n    @Deprecated // since 1.7.0\n    public static Object createObject(final String className) throws ParseException {\n        return createValue(className, Object.class);\n    }",
+      "importString": "",
+      "lineNum": 11,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/TypeHandler.java"
+    },
+    {
+      "symbolName": "printHelp(String, String, Iterable<Option>, String, boolean)",
+      "sourceCode": "/**\n     * Prints the help for a collection of {@link Option}s with the specified command line syntax.\n     *\n     * @param cmdLineSyntax the syntax for this application\n     * @param header        the banner to display at the beginning of the help\n     * @param options       the collection of {@link Option} objects to print.\n     * @param footer        the banner to display at the end of the help\n     * @param autoUsage     whether to print an automatically generated usage statement\n     * @throws IOException If the output could not be written to the {@link HelpAppendable}\n     */\n    public void printHelp(final String cmdLineSyntax, final String header, final Iterable<Option> options, final String footer, final boolean autoUsage)\n            throws IOException {\n        if (Util.isEmpty(cmdLineSyntax)) {\n            throw new IllegalArgumentException(\"cmdLineSyntax not provided\");\n        }\n        if (autoUsage) {\n            helpAppendable.appendParagraphFormat(\"%s %s %s\", syntaxPrefix, cmdLineSyntax, toSyntaxOptions(options));\n        } else {\n            helpAppendable.appendParagraphFormat(\"%s %s\", syntaxPrefix, cmdLineSyntax);\n        }\n        if (!Util.isEmpty(header)) {\n            helpAppendable.appendParagraph(header);\n        }\n        helpAppendable.appendTable(getTableDefinition(options));\n        if (!Util.isEmpty(footer)) {\n            helpAppendable.appendParagraph(footer);\n        }\n    }",
+      "importString": "",
+      "lineNum": 27,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/AbstractHelpFormatter.java"
+    },
+    {
+      "symbolName": "toSyntaxOptions(Iterable<Option>, Function<Option, OptionGroup>)",
+      "sourceCode": "/**\n     * Return the string representation of the options as used in the syntax display.\n     *\n     * @param options The options to create the string representation for.\n     * @param lookup  a function to determine if the Option is part of an OptionGroup that has already been processed.\n     * @return the string representation of the options as used in the syntax display.\n     */\n    protected String toSyntaxOptions(final Iterable<Option> options, final Function<Option, OptionGroup> lookup) {\n        // list of groups that have been processed.\n        final Collection<OptionGroup> processedGroups = new ArrayList<>();\n        final List<Option> optList = sort(options);\n        final StringBuilder buff = new StringBuilder();\n        String prefix = \"\";\n        // iterate over the options\n        for (final Option option : optList) {\n            // get the next Option\n            // check if the option is part of an OptionGroup\n            final OptionGroup group = lookup.apply(option);\n            // if the option is part of a group\n            if (group != null) {\n                // and if the group has not already been processed\n                if (!processedGroups.contains(group)) {\n                    // add the group to the processed list\n                    processedGroups.add(group);\n                    // add the usage clause\n                    buff.append(prefix).append(toSyntaxOptions(group));\n                    prefix = \" \";\n                }\n                // otherwise the option was displayed in the group previously so ignore it.\n            }\n            // if the Option is not part of an OptionGroup\n            else {\n                buff.append(prefix).append(optionFormatBuilder.build(option).toSyntaxOption());\n                prefix = \" \";\n            }\n        }\n        return buff.toString();\n    }",
+      "importString": "",
+      "lineNum": 37,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/AbstractHelpFormatter.java"
+    },
+    {
+      "symbolName": "indexOfWrap(CharSequence, int, int)",
+      "sourceCode": "// @formatter:on\n\n    /**\n     * Finds the next text wrap position after {@code startPos} for the text in {@code text} with the column width {@code width}. The wrap point is the last\n     * position before startPos+width having a whitespace character (space, \\n, \\r). If there is no whitespace character before startPos+width, it will return\n     * startPos+width.\n     *\n     * @param text     The text being searched for the wrap position\n     * @param width    width of the wrapped text\n     * @param startPos position from which to start the lookup whitespace character\n     * @return position on which the text must be wrapped or @{code text.length()} if the wrap position is at the end of the text.\n     */\n    public static int indexOfWrap(final CharSequence text, final int width, final int startPos) {\n        if (width < 1) {\n            throw new IllegalArgumentException(\"Width must be greater than 0\");\n        }\n        // handle case of width > text.\n        // the line ends before the max wrap pos or a new line char found\n        final int limit = Math.min(startPos + width, text.length() - 1);\n        for (int idx = startPos; idx < limit; idx++) {\n            if (BREAK_CHAR_SET.contains(text.charAt(idx))) {\n                return idx;\n            }\n        }\n        if (startPos + width >= text.length()) {\n            return text.length();\n        }\n        int pos;\n        // look for the last whitespace character before limit\n        for (pos = limit; pos >= startPos; --pos) {\n            if (Util.isWhitespace(text.charAt(pos))) {\n                break;\n            }\n        }\n        // if we found it return it, otherwise just chop at limit\n        return pos > startPos ? pos : limit - 1;\n    }",
+      "importString": "",
+      "lineNum": 36,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextHelpAppendable.java"
+    },
+    {
+      "symbolName": "makeColumnQueues(List<String>, List<TextStyle>)",
+      "sourceCode": "/**\n     * For each column in the {@code columnData} apply the associated {@link TextStyle} and generated a queue of strings that are the maximum size of the column\n     * + the left pad.\n     *\n     * @param columnData The column data to output.\n     * @param styles     the styles to apply.\n     * @return A list of queues of strings that represent each column in the table.\n     */\n    protected List<Queue<String>> makeColumnQueues(final List<String> columnData, final List<TextStyle> styles) {\n        final List<Queue<String>> result = new ArrayList<>();\n        for (int i = 0; i < columnData.size(); i++) {\n            result.add(makeColumnQueue(columnData.get(i), styles.get(i)));\n        }\n        return result;\n    }",
+      "importString": "",
+      "lineNum": 14,
+      "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextHelpAppendable.java"
+    }
+  ]

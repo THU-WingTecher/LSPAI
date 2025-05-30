@@ -60,7 +60,8 @@ echo "Starting coverage measurement with JaCoCo..."
 PROJECTCP="$COMPILED_SOURCE:$DEPENDENCY_LIBS:$OUTPUT_DIR"
 # EXCLUDES_PATTERN="*Test*"  # Exclude test classes based on naming pattern ,excludes="$EXCLUDES_PATTERN" \
 
-java -javaagent:"$JACOCO_AGENT_PATH=destfile=$COVERAGE_FILE" \
+timeout 60 java -javaagent:"$JACOCO_AGENT_PATH=destfile=$COVERAGE_FILE" \
+     -Xmx2g \
      -cp "$PROJECTCP" \
      -jar "$JUNIT_CONSOLE_PATH" \
      --include-classname=.* \

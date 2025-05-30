@@ -1,0 +1,23 @@
+[
+    {
+      "symbolName": "(*Command).HelpFunc",
+      "sourceCode": "func (c *Command) HelpFunc() func(*Command, []string) {\n\tif c.helpFunc != nil {\n\t\treturn c.helpFunc\n\t}\n\tif c.HasParent() {\n\t\treturn c.Parent().HelpFunc()\n\t}\n\treturn func(c *Command, a []string) {\n\t\tc.mergePersistentFlags()\n\t\tfn := c.getHelpTemplateFunc()\n\t\t// The help should be sent to stdout\n\t\t// See https://github.com/spf13/cobra/issues/1002\n\t\terr := fn(c.OutOrStdout(), c)\n\t\tif err != nil {\n\t\t\tc.PrintErrln(err)\n\t\t}\n\t}\n}",
+      "importString": "",
+      "lineNum": 17,
+      "relativeDocumentPath": "command.go"
+    },
+    {
+      "symbolName": "(*Command).getHelpTemplateFunc",
+      "sourceCode": "func (c *Command) getHelpTemplateFunc() func(w io.Writer, data interface{}) error {\n\tif c.helpTemplate != nil {\n\t\treturn c.helpTemplate.fn\n\t}\n\n\tif c.HasParent() {\n\t\treturn c.parent.getHelpTemplateFunc()\n\t}\n\n\treturn defaultHelpFunc\n}",
+      "importString": "",
+      "lineNum": 10,
+      "relativeDocumentPath": "command.go"
+    },
+    {
+      "symbolName": "(*Command).UsageString",
+      "sourceCode": "func (c *Command) UsageString() string {\n\t// Storing normal writers\n\ttmpOutput := c.outWriter\n\ttmpErr := c.errWriter\n\n\tbb := new(bytes.Buffer)\n\tc.outWriter = bb\n\tc.errWriter = bb\n\n\tCheckErr(c.Usage())\n\n\t// Setting things back to normal\n\tc.outWriter = tmpOutput\n\tc.errWriter = tmpErr\n\n\treturn bb.String()\n}",
+      "importString": "",
+      "lineNum": 16,
+      "relativeDocumentPath": "command.go"
+    }
+  ]
