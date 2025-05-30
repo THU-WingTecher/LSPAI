@@ -187,7 +187,7 @@ class Baseline:
         Returns:
             Dictionary containing the final results
         """
-        template = LanguageTemplateManager.get_unit_test_template(language, file_path)
+        template = LanguageTemplateManager.get_unit_test_template(language, file_path, task['package'], task['imports'])
         system_prompt = LanguageTemplateManager.generate_system_prompt()
         prompt = LanguageTemplateManager.generate_prompt(template, task['sourceCode'], retrieval_result['context'])
         

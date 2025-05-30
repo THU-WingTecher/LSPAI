@@ -244,6 +244,7 @@ if __name__ == "__main__":
             embedding_dir = os.path.join("/LSPAI/experiments/baselines/rag/embeddings", MODEL, project_name)
             output_dir = os.path.join("/LSPAI/experiments/baselines/rag/output", MODEL, project_name)
             pipeline = ExperimentPipeline(
+                language=language,
                 task_list_path=task_list_path,
                 project_path=project_path,
                 generationType=generationType,
