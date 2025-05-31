@@ -9,8 +9,74 @@ from langchain.vectorstores import FAISS
 import json
 from baseline import Baseline
 from experiment import ExperimentPipeline
+from dotenv import load_dotenv
+import asyncio
+from baseline import process_tasks_parallel
+MAX_WORKERS = 10
 SIMILARITY_THRESHOLD = 0
+load_dotenv()
+async def process_single_task(task, pipeline, generator, project_path, MODEL, language):
+    print(f"Processing task: {task['symbolName']}")
+    file_path = pipeline.generate_file_name(
+        method_name=task['symbolName'],
+        language=language
+    )
+    
+    # Run the CPU-bound task in a thread pool
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None, 
+        generator.process_task,
+        task, 
+        language, 
+        file_path
+    )
+    print(f"Result: {result}")
+    
+    additional_save_path = ""
+    if project_path.endswith("commons-cli"):
+        additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+    if project_path.endswith("commons-csv"):
+        additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+    print(f"Additional save path: {additional_save_path}")
+    
+    # Add model name and project name to the file path to separate results
+    await loop.run_in_executor(
+        None,
+        pipeline.save_result,
+        result, 
+        file_path, 
+        additional_save_path
+    )
 
+async def process_tasks_parallel(task_list, pipeline, generator, project_path, MODEL, language, max_workers: int = 4):
+    """
+    Process tasks in parallel with controlled concurrency.
+    
+    Args:
+        task_list: List of tasks to process
+        pipeline: ExperimentPipeline instance
+        generator: Generator instance
+        project_path: Name of the project
+        MODEL: Model name
+        language: Programming language
+        max_workers: Maximum number of concurrent tasks (default: 4)
+    """
+    # Create a semaphore to limit concurrent tasks
+    semaphore = asyncio.Semaphore(max_workers)
+    
+    async def bounded_process_task(task):
+        async with semaphore:  # This ensures only max_workers tasks run at once
+            return await process_single_task(task, pipeline, generator, project_path, MODEL, language)
+    
+    # Create tasks for all items in task_list
+    tasks = [
+        bounded_process_task(task) for task in task_list
+    ]
+    
+    # Run all tasks with controlled concurrency and wait for them to complete
+    results = await asyncio.gather(*tasks)
+    return results
 class StandardRAG(Baseline):
     def __init__(self, llm: str, 
                  embedding_dir: str = "embeddings", 
@@ -212,15 +278,16 @@ if __name__ == "__main__":
     from rag.config import PROJECT_CONFIGS
 
     MODELS = [
-        "deepseek-chat",
-        "gpt-4o",
+        # "deepseek-chat",
+        # "gpt-4o",
         "gpt-4o-mini"
     ]
     # List of projects to run experiments on
     projects_to_run = [
         "black",
         "logrus", 
-        "commons-cli"
+        "commons-cli",
+        "commons-csv"
     ]  # Add or remove projects as needed
 
     # Run experiments for each project
@@ -263,26 +330,28 @@ if __name__ == "__main__":
             )
 
             task_list = pipeline.load_tasks()
-
+            asyncio.run(process_tasks_parallel(
+                task_list[:2], pipeline, generator, project_path, MODEL, language, max_workers=MAX_WORKERS
+            ))
             # Process tasks
-            for task in task_list:
-                print(f"Processing task: {task['symbolName']}")
-                file_path = pipeline.generate_file_name(
-                    method_name=task['symbolName'],
-                    language=language
-                )
+            # for task in task_list:
+            #     print(f"Processing task: {task['symbolName']}")
+            #     file_path = pipeline.generate_file_name(
+            #         method_name=task['symbolName'],
+            #         language=language
+            #     )
                 
-                result = generator.process_task(task, language, file_path)
-                print(f"Result: {result}")
+            #     result = generator.process_task(task, language, file_path)
+            #     print(f"Result: {result}")
                 
-                additional_save_path = ""
-                if project_path.endswith("commons-cli"):
-                    additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
-                print(f"Additional save path: {additional_save_path}")
+            #     additional_save_path = ""
+            #     if project_path.endswith("commons-cli"):
+            #         additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+            #     print(f"Additional save path: {additional_save_path}")
                 
-                # Add model name and project name to the file path to separate results
-                model_specific_file_path = f"{project_name}_{MODEL}_{file_path}"
-                pipeline.save_result(result, model_specific_file_path, additional_save_path=additional_save_path)
+            #     # Add model name and project name to the file path to separate results
+            #     model_specific_file_path = f"{project_name}_{MODEL}_{file_path}"
+            #     pipeline.save_result(result, model_specific_file_path, additional_save_path=additional_save_path)
 
         print(f"\n=== Completed experiments for project: {project_name} ===\n")
 
