@@ -9,8 +9,74 @@ from langchain.vectorstores import FAISS
 import json
 from baseline import Baseline
 from experiment import ExperimentPipeline
+from dotenv import load_dotenv
+import asyncio
+from baseline import process_tasks_parallel
+MAX_WORKERS = 10
 SIMILARITY_THRESHOLD = 0
+load_dotenv()
+async def process_single_task(task, pipeline, generator, project_path, MODEL, language):
+    print(f"Processing task: {task['symbolName']}")
+    file_path = pipeline.generate_file_name(
+        method_name=task['symbolName'],
+        language=language
+    )
+    
+    # Run the CPU-bound task in a thread pool
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None, 
+        generator.process_task,
+        task, 
+        language, 
+        file_path
+    )
+    print(f"Result: {result}")
+    
+    additional_save_path = ""
+    if project_path.endswith("commons-cli"):
+        additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+    if project_path.endswith("commons-csv"):
+        additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+    print(f"Additional save path: {additional_save_path}")
+    
+    # Add model name and project name to the file path to separate results
+    await loop.run_in_executor(
+        None,
+        pipeline.save_result,
+        result, 
+        file_path, 
+        additional_save_path
+    )
 
+async def process_tasks_parallel(task_list, pipeline, generator, project_path, MODEL, language, max_workers: int = 4):
+    """
+    Process tasks in parallel with controlled concurrency.
+    
+    Args:
+        task_list: List of tasks to process
+        pipeline: ExperimentPipeline instance
+        generator: Generator instance
+        project_path: Name of the project
+        MODEL: Model name
+        language: Programming language
+        max_workers: Maximum number of concurrent tasks (default: 4)
+    """
+    # Create a semaphore to limit concurrent tasks
+    semaphore = asyncio.Semaphore(max_workers)
+    
+    async def bounded_process_task(task):
+        async with semaphore:  # This ensures only max_workers tasks run at once
+            return await process_single_task(task, pipeline, generator, project_path, MODEL, language)
+    
+    # Create tasks for all items in task_list
+    tasks = [
+        bounded_process_task(task) for task in task_list
+    ]
+    
+    # Run all tasks with controlled concurrency and wait for them to complete
+    results = await asyncio.gather(*tasks)
+    return results
 class StandardRAG(Baseline):
     def __init__(self, llm: str, 
                  embedding_dir: str = "embeddings", 
@@ -47,7 +113,8 @@ class StandardRAG(Baseline):
         # Define directories to ignore
         self.ignore_dirs = {
             'node_modules', '.git', '__pycache__', 'target', 'build',
-            'dist', '.idea', '.vscode', 'venv', 'env', '.gradle'
+            'dist', '.idea', '.vscode', 'venv', 'env', '.gradle',
+            'lspai-workspace', 'lspai-tests', 'lspai'
         }
 
     def find_code_files(self, project_path: str) -> List[Dict]:
@@ -194,60 +261,149 @@ class StandardRAG(Baseline):
             'retrieval_time': retrieval_time,
             'token_count': token_count
         }
+
+def project_path_to_source_code_path(project_path: str) -> str:
     
-if __name__ == "__main__":
-    MODEL = "gpt-4o-mini"
-    # ==== black ====
-    language = "python"
-    task_list_path = "/LSPAI/experiments/lsprag_data/black/taskList.json"
-    project_path = "/LSPAI/experiments/projects/black"
-    generationType = "standardRag"
-    # ==== black ====
-
-    # ==== commons-cli ====
-    # language = "java"
-    # task_list_path = "/LSPAI/experiments/lsprag_data/commons-cli/taskList.json"
-    # project_path = "/LSPAI/experiments/projects/commons-cli"
-    # generationType = "codeQA"
-    # ==== commons-cli ====
-
-    if project_path.endswith("commons-cli"):
+    if project_path.endswith("commons-cli") or project_path.endswith("commons-csv"):
         source_code_path = os.path.join(project_path, "src/main/java")
     elif project_path.endswith("black"):
         source_code_path = os.path.join(project_path, "src")
-    else :
+    elif project_path.endswith("tornado"):
+        source_code_path = os.path.join(project_path, "tornado")
+    else : # logrus, cobra
         source_code_path = project_path
+    return source_code_path
 
-    pipeline = ExperimentPipeline(
-        task_list_path=task_list_path,
-        project_path=project_path,
-        generationType=generationType,
-        model=MODEL
-    )
-    task_list = pipeline.load_tasks()
-    generator = StandardRAG(
-        llm="gpt-4",
-        embedding_dir="embeddings/black",
-        output_dir="output/black"
-    )
-    # Setup embeddings with your project
-    generator.setup_embeddings(
-        source_code_path=source_code_path,
-        force_recompute=False  # Set to True to recompute embeddings
-    )
+if __name__ == "__main__":
+    from rag.config import PROJECT_CONFIGS
 
-    # Process tasks
-    for task in task_list:
-        # Generate unique file name
-        print(f"Processing task: {task['symbolName']}")
-        file_path = pipeline.generate_file_name(
-            method_name=task['symbolName'],
-            language=language  # or other language
-        )
-        result = generator.retrieve_context(task)
-        result = generator.process_task(task, language, file_path)
-        additional_save_path=""
-        if project_path.endswith("commons-cli"):
-            additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
-        print(f"Additional save path: {additional_save_path}")
-        pipeline.save_result(result, file_path, additional_save_path=additional_save_path)
+    MODELS = [
+        # "deepseek-chat",
+        # "gpt-4o",
+        "gpt-4o-mini"
+    ]
+    # List of projects to run experiments on
+    projects_to_run = [
+        "black",
+        "logrus", 
+        "commons-cli",
+        "commons-csv"
+    ]  # Add or remove projects as needed
+
+    # Run experiments for each project
+    for project_name in projects_to_run:
+        print(f"\n=== Starting experiments for project: {project_name} ===\n")
+        
+        config = PROJECT_CONFIGS[project_name]
+        
+        # Get configuration from the selected project
+        language = config["language"]
+        task_list_path = config["task_list_path"]
+        project_path = config["project_path"]
+        generationType = "standardRag"  # This is constant for all projects
+
+        # Get the appropriate source code path
+        source_code_path = project_path_to_source_code_path(project_path)
+
+        # Iterate through each model
+        for MODEL in MODELS:
+            print(f"\n=== Testing {project_name} with model: {MODEL} ===\n")
+            embedding_dir = os.path.join("/LSPAI/experiments/baselines/rag/embeddings", MODEL, project_name)
+            output_dir = os.path.join("/LSPAI/experiments/baselines/rag/output", MODEL, project_name)
+            pipeline = ExperimentPipeline(
+                language=language,
+                task_list_path=task_list_path,
+                project_path=project_path,
+                generationType=generationType,
+                model=MODEL
+            )
+            task_list = pipeline.load_tasks()
+            generator = StandardRAG(
+                llm=MODEL,
+                embedding_dir=embedding_dir,
+                output_dir=output_dir
+            )
+            # Setup embeddings with your project
+            generator.setup_embeddings(
+                source_code_path=source_code_path,
+                force_recompute=True  # Set to True to recompute embeddings
+            )
+
+            task_list = pipeline.load_tasks()
+            asyncio.run(process_tasks_parallel(
+                task_list[:2], pipeline, generator, project_path, MODEL, language, max_workers=MAX_WORKERS
+            ))
+            # Process tasks
+            # for task in task_list:
+            #     print(f"Processing task: {task['symbolName']}")
+            #     file_path = pipeline.generate_file_name(
+            #         method_name=task['symbolName'],
+            #         language=language
+            #     )
+                
+            #     result = generator.process_task(task, language, file_path)
+            #     print(f"Result: {result}")
+                
+            #     additional_save_path = ""
+            #     if project_path.endswith("commons-cli"):
+            #         additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+            #     print(f"Additional save path: {additional_save_path}")
+                
+            #     # Add model name and project name to the file path to separate results
+            #     model_specific_file_path = f"{project_name}_{MODEL}_{file_path}"
+            #     pipeline.save_result(result, model_specific_file_path, additional_save_path=additional_save_path)
+
+        print(f"\n=== Completed experiments for project: {project_name} ===\n")
+
+    print("\n=== All experiments completed ===\n")
+
+# if __name__ == "__main__":
+#     MODEL = "gpt-4o-mini"
+#     # ==== black ====
+#     language = "python"
+#     task_list_path = "/LSPAI/experiments/lsprag_data/black/taskList.json"
+#     project_path = "/LSPAI/experiments/projects/black"
+#     generationType = "standardRag"
+#     # ==== black ====
+
+#     # ==== commons-cli ====
+#     # language = "java"
+#     # task_list_path = "/LSPAI/experiments/lsprag_data/commons-cli/taskList.json"
+#     # project_path = "/LSPAI/experiments/projects/commons-cli"
+#     # generationType = "codeQA"
+#     # ==== commons-cli ====
+
+
+#     pipeline = ExperimentPipeline(
+#         task_list_path=task_list_path,
+#         project_path=project_path,
+#         generationType=generationType,
+#         model=MODEL
+#     )
+#     task_list = pipeline.load_tasks()
+#     generator = StandardRAG(
+#         llm="gpt-4",
+#         embedding_dir="embeddings/black",
+#         output_dir="output/black"
+#     )
+#     # Setup embeddings with your project
+#     generator.setup_embeddings(
+#         source_code_path=source_code_path,
+#         force_recompute=False  # Set to True to recompute embeddings
+#     )
+
+#     # Process tasks
+#     for task in task_list:
+#         # Generate unique file name
+#         print(f"Processing task: {task['symbolName']}")
+#         file_path = pipeline.generate_file_name(
+#             method_name=task['symbolName'],
+#             language=language  # or other language
+#         )
+#         result = generator.retrieve_context(task)
+#         result = generator.process_task(task, language, file_path)
+#         additional_save_path=""
+#         if project_path.endswith("commons-cli"):
+#             additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+#         print(f"Additional save path: {additional_save_path}")
+#         pipeline.save_result(result, file_path, additional_save_path=additional_save_path)

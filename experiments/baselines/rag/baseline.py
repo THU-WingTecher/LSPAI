@@ -9,7 +9,9 @@ from langchain_deepseek import ChatDeepSeek
 from langchain.chat_models import ChatOpenAI
 import re
 import tiktoken
-
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 SIMILARITY_THRESHOLD = 0
 def parse_code(response: str) -> str:
     regex = r'```(?:\w+)?(?:~~)?\s*([\s\S]*?)\s*```'
@@ -17,7 +19,78 @@ def parse_code(response: str) -> str:
     if match:
         return match.group(1).strip()
     print("No code block found in the response!")
+
     return response
+
+async def process_single_task(task, pipeline, generator, project_path, MODEL, language):
+    print(f"Processing task: {task['symbolName']}")
+    file_path = pipeline.generate_file_name(
+        method_name=task['symbolName'],
+        language=language
+    )
+    
+    # Run the CPU-bound task in a thread pool
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None, 
+        generator.process_task,
+        task, 
+        language, 
+        file_path
+    )
+    print(f"Result: {result}")
+    
+    additional_save_path = ""
+    if project_path.endswith("commons-cli"):
+        additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+    print(f"Additional save path: {additional_save_path}")
+    
+    # Add model name and project name to the file path to separate results
+    await loop.run_in_executor(
+        None,
+        pipeline.save_result,
+        result, 
+        file_path, 
+        additional_save_path
+    )
+
+# async def process_tasks_parallel(task_list, pipeline, generator, project_name, MODEL, language):
+#     # Create tasks for all items in task_list
+#     tasks = [
+#         process_single_task(
+#             task, pipeline, generator, project_name, MODEL, language
+#         ) for task in task_list
+#     ]
+#     # Run all tasks concurrently and wait for them to complete
+#     await asyncio.gather(*tasks)
+async def process_tasks_parallel(task_list, pipeline, generator, project_name, MODEL, language, max_workers: int = 4):
+    """
+    Process tasks in parallel with controlled concurrency.
+    
+    Args:
+        task_list: List of tasks to process
+        pipeline: ExperimentPipeline instance
+        generator: Generator instance
+        project_name: Name of the project
+        MODEL: Model name
+        language: Programming language
+        max_workers: Maximum number of concurrent tasks (default: 4)
+    """
+    # Create a semaphore to limit concurrent tasks
+    semaphore = asyncio.Semaphore(max_workers)
+    
+    async def bounded_process_task(task):
+        async with semaphore:  # This ensures only max_workers tasks run at once
+            return await process_single_task(task, pipeline, generator, project_name, MODEL, language)
+    
+    # Create tasks for all items in task_list
+    tasks = [
+        bounded_process_task(task) for task in task_list
+    ]
+    
+    # Run all tasks with controlled concurrency and wait for them to complete
+    results = await asyncio.gather(*tasks)
+    return results
 
 class Baseline:
     def __init__(self, llm: str):
@@ -187,7 +260,7 @@ class Baseline:
         Returns:
             Dictionary containing the final results
         """
-        template = LanguageTemplateManager.get_unit_test_template(language, file_path)
+        template = LanguageTemplateManager.get_unit_test_template(language, file_path, task['package'], task['imports'])
         system_prompt = LanguageTemplateManager.generate_system_prompt()
         prompt = LanguageTemplateManager.generate_prompt(template, task['sourceCode'], retrieval_result['context'])
         
@@ -267,16 +340,16 @@ class Baseline:
     # ... (rest of the methods remain the same)
 
 # Example usage
-if __name__ == "__main__":
-    pipeline = RAGTestPipeline(
-        task_list_path="path/to/task_list.json",
-        output_dir="test_results",
-        embedding_dir="embeddings"
-    )
+# if __name__ == "__main__":
+#     pipeline = RAGTestPipeline(
+#         task_list_path="path/to/task_list.json",
+#         output_dir="test_results",
+#         embedding_dir="embeddings"
+#     )
     
-    # Setup RAG with project path
-    project_path = "/absolute/path/to/your/project"
-    pipeline.setup_rag(project_path)
+#     # Setup RAG with project path
+#     project_path = "/absolute/path/to/your/project"
+#     pipeline.setup_rag(project_path)
     
-    # Run tests
-    pipeline.run_tests()
+#     # Run tests
+#     pipeline.run_tests()

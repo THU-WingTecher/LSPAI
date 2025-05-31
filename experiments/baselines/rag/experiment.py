@@ -6,8 +6,75 @@ from datetime import datetime
 import re
 from baseline import Baseline
 
+def parse_package_and_imports(source_code: str, language: str) -> Dict[str, List[str]]:
+    """
+    Parse package and import statements from source code.
+    
+    Args:
+        source_code: The source code to parse
+        language: Programming language of the code ('python', 'java', or 'go')
+        
+    Returns:
+        Dict containing 'package' and 'imports' lists
+    """
+    result = {
+        'package': [],
+        'imports': []
+    }
+    
+    # Split code into lines for processing
+    lines = source_code.split('\n')
+    
+    if language == "python":
+        # Python doesn't have package statements
+        # Match import statements like 'import x' or 'from x import y'
+        import_pattern = r'^(?:import\s+\w+|from\s+[\w.]+\s+import\s+[\w\s,]+)'
+        for line in lines:
+            line = line.strip()
+            if re.match(import_pattern, line):
+                result['imports'].append(line)
+                
+    elif language == "java":
+        # Match package statement (package xxx.xxx;)
+        package_pattern = r'^package\s+[\w.]+;'
+        # Match import statements (import xxx.xxx;)
+        import_pattern = r'^import\s+[\w.]+;'
+        
+        for line in lines:
+            line = line.strip()
+            if re.match(package_pattern, line):
+                result['package'].append(line)
+            elif re.match(import_pattern, line):
+                result['imports'].append(line)
+                
+    elif language == "go":
+        # Match package statement (package xxx)
+        package_pattern = r'^package\s+\w+'
+        # Match both single imports and grouped imports
+        import_single_pattern = r'^import\s+"[\w./]+"'
+        import_group_start = False
+        
+        for line in lines:
+            line = line.strip()
+            if re.match(package_pattern, line):
+                result['package'].append(line)
+            elif line.startswith('import ('):
+                import_group_start = True
+            elif line == ')' and import_group_start:
+                import_group_start = False
+            elif import_group_start and line and not line.startswith('//'):
+                # Add grouped import (cleaning up quotes and whitespace)
+                cleaned_import = line.strip().strip('"')
+                if cleaned_import:
+                    result['imports'].append(f'import "{cleaned_import}"')
+            elif re.match(import_single_pattern, line):
+                result['imports'].append(line)
+    
+    return result
+
 class ExperimentPipeline:
     def __init__(self, 
+                 language: str,
                  task_list_path: str,
                  project_path: str,
                  generationType: str,
@@ -19,6 +86,7 @@ class ExperimentPipeline:
             task_list_path: Path to the JSON file containing the task list
             output_dir: Directory to save the experiment results
         """
+        self.language = language
         self.task_list_path = task_list_path
         self.project_path = project_path
         self.output_dir = os.path.join(
@@ -30,6 +98,35 @@ class ExperimentPipeline:
         
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
+    
+    def parse_source_file_statements(self, relative_path: str, language: str) -> Dict[str, List[str]]:
+        """
+        Read source code from file and parse package and import statements.
+        
+        Args:
+            relative_path: Relative path to the source file from project root
+            language: Programming language of the code ('python', 'java', or 'go')
+            
+        Returns:
+            Dict containing 'package' and 'imports' lists
+        """
+        # Determine the full source code path based on project structure
+        source_code_path = os.path.join(self.project_path, relative_path)
+        
+        try:
+            # Read the source code file
+            with open(source_code_path, 'r', encoding='utf-8') as f:
+                source_code = f.read()
+                
+            # Parse the statements using existing function
+            return parse_package_and_imports(source_code, language)
+            
+        except FileNotFoundError:
+            print(f"Error: Source file not found at {source_code_path}")
+            return {'package': [], 'imports': []}
+        except Exception as e:
+            print(f"Error reading source file: {str(e)}")
+            return {'package': [], 'imports': []}
         
     def load_tasks(self) -> List[Dict]:
         """
@@ -40,6 +137,12 @@ class ExperimentPipeline:
         """
         with open(self.task_list_path, 'r') as f:
             tasks = json.load(f)
+        
+        for task in tasks:
+            res = self.parse_source_file_statements(task['relativeDocumentPath'], self.language)
+            task['package'] = res['package']
+            task['imports'] = res['imports']
+            
         return tasks
         # Organize tasks into a standardized format
         organized_tasks = []
@@ -70,7 +173,7 @@ class ExperimentPipeline:
         file_sig = re.sub(r'<[^>]*>', '', file_sig)  # Remove generics
         file_sig = file_sig.split(",")[0]  # Take first part if multiple parameters
         # suffix corresponding to language 
-
+        file_sig = file_sig.replace("*", "")
         # Add appropriate test suffix based on language
         if language == "java":
             test_suffix = "Test"

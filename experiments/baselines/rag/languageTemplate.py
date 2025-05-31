@@ -17,7 +17,7 @@ class LanguageTemplateManager:
         elif language_id == 'go':
             return LanguageTemplateManager.get_go_template(file_name, package_string, paths)
         elif language_id == 'python':
-            return LanguageTemplateManager.get_python_template(file_name, package_string, paths)
+            return LanguageTemplateManager.get_python_template(file_name, package_string, import_string, paths)
         else:
             raise ValueError(f"Unsupported language: {language_id}")
             # return LanguageTemplateManager.get_default_template()
@@ -75,7 +75,7 @@ func Test{file_name}(t *testing.T) {{
 """
 
     @staticmethod
-    def get_python_template(file_name: str, package_string: str = "", import_string: str = "") -> str:
+    def get_python_template(file_name: str, package_string: str = "", import_string: str = "", paths: list = None) -> str:
         """
         Generate a minimal Python unit test template.
         
