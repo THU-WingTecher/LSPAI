@@ -4,7 +4,8 @@ import path from 'path';
 import { 
     loadAllTargetSymbolsFromWorkspace, 
     setWorkspaceFolders, 
-    updateWorkspaceFolders 
+    updateWorkspaceFolders,
+    extractSymbolDocumentMapFromTaskList
 } from '../../helper';
 import { loadPrivateConfig } from '../../config';
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
@@ -33,8 +34,8 @@ interface ModelConfig {
 
 const MODELS: ModelConfig[] = [
     { model: 'gpt-4o-mini', provider: 'openai' },
-    { model: 'gpt-4o', provider: 'openai' },
     { model: 'deepseek-chat', provider: 'deepseek' }
+    { model: 'gpt-4o', provider: 'openai' },
 ];
 
 // Prompt Types to test
@@ -49,12 +50,13 @@ const GO_PROJECTS: ProjectConfig[] = [
         path: "/LSPAI/experiments/projects/logrus",
         languageId: 'go',
         name: 'logrus',
-        tasklist: '',
+        tasklist: '/LSPAI/experiments/config/logrus-taskList.json',
     },
     {
         path: "/LSPAI/experiments/projects/cobra",
         languageId: 'go',
-        name: 'cobra'
+        name: 'cobra',
+        tasklist: '/LSPAI/experiments/config/cobra-taskList.json',
     }
 ];
 
@@ -62,27 +64,18 @@ const JAVA_PROJECTS: ProjectConfig[] = [
     {
         path: "/LSPAI/experiments/projects/commons-cli",
         languageId: 'java',
-        name: 'commons-cli'
+        name: 'commons-cli',
+        tasklist: '/LSPAI/experiments/config/commons-cli-taskList.json',
     },
     {
         path: "/LSPAI/experiments/projects/commons-csv",
         languageId: 'java',
-        name: 'commons-csv'
+        name: 'commons-csv',
+        tasklist: '/LSPAI/experiments/config/commons-csv-taskList.json',
     }
 ];
 
 const PYTHON_PROJECTS: ProjectConfig[] = [
-    {
-        path: "/LSPAI/experiments/projects/tornado",
-        languageId: 'python',
-        name: 'tornado',
-        settings: {
-                pythonPath: "/root/miniconda3/envs/lspai/bin/python",
-                extraPaths: [
-                    path.join("/LSPAI/experiments/projects/tornado", "tornado"),    
-                ]
-            }
-        },
     {
         path: "/LSPAI/experiments/projects/black",
         languageId: 'python',
@@ -95,12 +88,26 @@ const PYTHON_PROJECTS: ProjectConfig[] = [
                 path.join("/LSPAI/experiments/projects/black", "src/blib2to3"), 
                 path.join("/LSPAI/experiments/projects/black", "src")  
             ]
-        }
+        },
+        tasklist: '/LSPAI/experiments/config/black-taskList.json',
     },
+    {
+        path: "/LSPAI/experiments/projects/tornado",
+        languageId: 'python',
+        name: 'tornado',
+        settings: {
+                pythonPath: "/root/miniconda3/envs/lspai/bin/python",
+                extraPaths: [
+                    path.join("/LSPAI/experiments/projects/tornado", "tornado"),    
+                ]
+            },
+        tasklist: '/LSPAI/experiments/config/tornado-taskList.json',
+        },
 ];
 
-const ALL_PROJECTS = [...JAVA_PROJECTS, ...PYTHON_PROJECTS, ...GO_PROJECTS];
-// const ALL_PROJECTS = [PYTHON_PROJECTS[0]];
+const ALL_PROJECTS = [GO_PROJECTS[0], ...PYTHON_PROJECTS];
+// const ALL_PROJECTS = [...PYTHON_PROJECTS];
+// const ALL_PROJECTS = [...JAVA_PROJECTS, ...PYTHON_PROJECTS, ...GO_PROJECTS];
 
 
 // ... existing code ...
@@ -129,8 +136,9 @@ suite('Multi-Project Test Suite', () => {
             
             await setLanguageServerConfig(project);
             // Load symbols
-            let symbols = await loadAllTargetSymbolsFromWorkspace(project.languageId, minLineNumber);
+            let symbols = await loadAllTargetSymbolsFromWorkspace(project.languageId, 0);
             assert.ok(symbols.length > 0, `${project.name} should have symbols`);
+            symbols = await extractSymbolDocumentMapFromTaskList(project.path, symbols, project.tasklist!);
             
             // Sample symbols if needed
             if (sampleNumber > 0) {
@@ -155,16 +163,32 @@ suite('Multi-Project Test Suite', () => {
                 // Process each generation type sequentially
                 for (const generationType of GENERATION_TYPES) {
                     console.log(`#### Testing generation type: ${generationType} ####`);
-                    
-                    await runGenerateTestCodeSuite(
-                        generationType,
-                        FixType.NOFIX,
-                        PromptType.DETAILED,
-                        modelConfig.model,
-                        modelConfig.provider,
-                        symbols,
-                        project.languageId
-                    );
+                    try { 
+                        await runGenerateTestCodeSuite(
+                            generationType,
+                            FixType.NOFIX,
+                            PromptType.DETAILED,
+                            modelConfig.model,
+                            modelConfig.provider,
+                            symbols,
+                            project.languageId
+                        );
+                    } catch (error) {
+                        console.error(`#### Error: ${error}`);
+                        console.error(`#### Retrying...`);
+                        await runGenerateTestCodeSuite(
+                            generationType,
+                            FixType.NOFIX,
+                            PromptType.DETAILED,
+                            modelConfig.model,
+                            modelConfig.provider,
+                            symbols,
+                            project.languageId,
+                            getConfigInstance().savePath
+                        );
+                    } finally {
+                        console.log(`#### Retrying...`);
+                    }
                 }
             }
         }

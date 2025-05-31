@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
 import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../diagnostic';
-import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, saveTaskList, selectOneSymbolFileFromWorkspace, setWorkspaceFolders } from '../../helper';
+import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, selectOneSymbolFileFromWorkspace, setWorkspaceFolders } from '../../helper';
 import { loadPrivateConfig, SRC_PATHS } from '../../config';
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../config';
@@ -90,26 +90,27 @@ suite('Experiment Test Suite', () => {
             console.log('activate');
             await activate();
         }
-        const taskListPath = "/LSPAI/experiments/lsprag_data/black/taskList.json"
+        const taskListPath = '/LSPAI/experiments/config/black-taskList.json'
         const workspaceFolders = setWorkspaceFolders(projectPath);
         // await updateWorkspaceFolders(workspaceFolders);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
         // const oneFile = randomlySelectOneFileFromWorkspace(languageId);
         // console.log(`#### One file: ${oneFile}`);
-
-        // ==== LOAD TARGET SYMBOL ====
-        const fileName = "brackets.py";
-        const symbolName = "is_split_before_delimiter";
-        const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, languageId);
-        console.log(`#### One file: ${symbolDocumentMap}`);
         
         // ==== LOAD TARGET SYMBOL ====
-        // ==== LOAD TARGET SYMBOL ====
-        // const fileName = "__init__.py";
-        // const symbolName = "spellcheck_pyproject_toml_keys";
+        // const fileName = "tokenize.py";
+        // const symbolName = "detect_encoding";
         // const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, languageId);
         // console.log(`#### One file: ${symbolDocumentMap}`);
         // symbols.push(symbolDocumentMap);
+        
+        // ==== LOAD TARGET SYMBOL ====
+        // ==== LOAD TARGET SYMBOL ====
+        // const fileName2 = "tokenize.py";
+        // const symbolName2 = "find_cookie";
+        // const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
+        // console.log(`#### One file: ${symbolDocumentMap2}`);
+        // symbols.push(symbolDocumentMap2);
         // ==== LOAD TARGET SYMBOL ====
         // ==== LOAD ALL SYMBOLS ====
         symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
@@ -117,62 +118,63 @@ suite('Experiment Test Suite', () => {
             const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
             symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
         }
-        symbols.unshift(symbolDocumentMap);
+        // symbols.unshift(symbolDocumentMap);
         // // ==== LOAD ALL SYMBOLS ====
 
         // // ==== LOAD SYMBOLS FROM TASK LIST ====
-        // symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
-        // if (sampleNumber > 0) {
-        //     const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
-        //     symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
-        // }
+        symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
+        if (sampleNumber > 0) {
+            const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
+            symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
+        }
         // // ==== LOAD SYMBOLS FROM TASK LIST ====
         assert.ok(symbols.length > 0, 'symbols should not be empty');
         console.log(`#### Number of symbols: ${symbols.length}`);
     });
 
-    test('Context Gathering for Terms - PYTHON', async () => {
-        // Create some test terms
-        const sourceCode = getSourcCodes(symbols[0]!.document, symbols[0]!.symbol);
-        console.log("sourceCode", sourceCode);
-        const builder = createCFGBuilder(languageId as SupportedLanguage);
-        const cfg = await builder.buildFromCode(sourceCode);
-        builder.printCFGGraph(cfg.entry);
-        const pathCollector = new PathCollector(languageId);
-        pathCollector.collect(cfg.entry);
-        const functionInfo = builder.getFunctionInfo();
-        const conditionAnalyses = pathCollector.getUniqueConditions();
-        const contextSelector = await getContextSelectorInstance(
-            symbols[0]!.document, 
-            symbols[0]!.symbol);
-        const tokens = await contextSelector!.loadTokens();
-        // const tokens = contextSelector!.getTokens();
-        console.log("tokens", tokens.map((t : DecodedToken) => t.word));
-        // console.log("conditionAnalyses", conditionAnalyses.map((c : ConditionAnalysis) => c.condition));
-        // console.log("conditionAnalyses.length", conditionAnalyses.length);
-        // const identifiedTerms = await getContextTermsFromTokens(
-        //     symbols[0]!.document, 
-        //     symbols[0]!.symbol,
-        //   tokens,
-        //   conditionAnalyses, 
-        //   functionInfo);
-        // const enrichedTerms = await contextSelector!.gatherContext(identifiedTerms, symbolDocumentMap!.symbol);
-        // console.log(`enrichedTerms: ${enrichedTerms.map((term: ContextTerm) => ("\nname: " + term.name + "\ncontext: " + term.context +"\nexample: " + term.example))}`);
-        // console.log(`enrichedTerms: ${enrichedTerms.map((term: ContextTerm) => JSON.stringify(term, null, 2))}`);
-        // assert.ok(enrichedTerms.length > 0, 'Should identify at least one context term');
-        // const promptObj = await generateTestWithContextWithCFG(symbolDocumentMap!.document, symbolDocumentMap!.symbol, sourceCode, enrichedTerms!, conditionAnalyses, "testing")
-        // console.log("promptObj:", promptObj[1].content);
-        })
+    // test('Context Gathering for Terms - PYTHON', async () => {
+    //     // Create some test terms
+    //     const sourceCode = getSourcCodes(symbols[0]!.document, symbols[0]!.symbol);
+    //     console.log("sourceCode", sourceCode);
+    //     const builder = createCFGBuilder(languageId as SupportedLanguage);
+    //     const cfg = await builder.buildFromCode(sourceCode);
+    //     builder.printCFGGraph(cfg.entry);
+    //     const pathCollector = new PathCollector(languageId);
+    //     pathCollector.collect(cfg.entry);
+    //     const functionInfo = builder.getFunctionInfo();
+    //     const conditionAnalyses = pathCollector.getUniqueConditions();
+    //     const contextSelector = await getContextSelectorInstance(
+    //         symbols[0]!.document, 
+    //         symbols[0]!.symbol);
+    //     const tokens = await contextSelector!.loadTokens();
+    //     // const tokens = contextSelector!.getTokens();
+    //     console.log("tokens", tokens.map((t : DecodedToken) => t.word));
+    //     // console.log("conditionAnalyses", conditionAnalyses.map((c : ConditionAnalysis) => c.condition));
+    //     // console.log("conditionAnalyses.length", conditionAnalyses.length);
+    //     // const identifiedTerms = await getContextTermsFromTokens(
+    //     //     symbols[0]!.document, 
+    //     //     symbols[0]!.symbol,
+    //     //   tokens,
+    //     //   conditionAnalyses, 
+    //     //   functionInfo);
+    //     // const enrichedTerms = await contextSelector!.gatherContext(identifiedTerms, symbolDocumentMap!.symbol);
+    //     // console.log(`enrichedTerms: ${enrichedTerms.map((term: ContextTerm) => ("\nname: " + term.name + "\ncontext: " + term.context +"\nexample: " + term.example))}`);
+    //     // console.log(`enrichedTerms: ${enrichedTerms.map((term: ContextTerm) => JSON.stringify(term, null, 2))}`);
+    //     // assert.ok(enrichedTerms.length > 0, 'Should identify at least one context term');
+    //     // const promptObj = await generateTestWithContextWithCFG(symbolDocumentMap!.document, symbolDocumentMap!.symbol, sourceCode, enrichedTerms!, conditionAnalyses, "testing")
+    //     // console.log("promptObj:", promptObj[1].content);
+    //     })
 
     test('CFG - experimental - gpt-4o-mini', async () => {
         await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            'gpt-4o-mini',
-            'openai' as Provider,
+            GenerationType.SymPrompt,
+            FixType.NOFIX,
+            PromptType.DETAILED,
+            'deepseek-coder',
+            'deepseek' as Provider,
             symbols,
-            languageId
+            languageId,
+            "/LSPAI/experiments/projects/black/lspai-workspace/5_31_2025__10_50_31/black/symprompt_detailed_nofix/deepseek-coder/results"
         );
     });
 

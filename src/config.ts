@@ -138,7 +138,7 @@ export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
 }
 
 const DEFAULT_CONFIG = {
-    expProb: 0.2,
+    expProb: 1,
     testNumber: 5,
     parallelCount: 1,
     model: 'deepseek-chat',
@@ -265,12 +265,15 @@ export class Configuration {
 
         if (newConfig.savePath) {
             // if savePath has workspace value, assert error 
+            let savePath = newConfig.savePath;
             if (newConfig.savePath.includes(this.config.workspace)) {
-                throw new Error('savePath cannot contain workspace value');
+                console.log('savepath contains workspace value', newConfig.savePath, this.config.workspace);
+                // throw new Error('savePath cannot contain workspace value');
+            } else {
+                savePath = path.join(this.config.workspace, this.config.savePath);
             }
-            const savePath = path.join(this.config.workspace, this.config.savePath);
             // savePath should be updated 
-            this.config.savePath = savePath;
+            this.config.savePath = newConfig.savePath;
             this.createSavePathIfNotExists(savePath);
             this.createSavePathIfNotExists(path.join(savePath, '..', 'history'));
             this.createSavePathIfNotExists(path.join(savePath, '..', 'logs'));

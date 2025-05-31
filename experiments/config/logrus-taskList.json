@@ -7,6 +7,20 @@
     "relativeDocumentPath": "ci/magefile.go"
   },
   {
+    "symbolName": "getFullBuildMatrix",
+    "sourceCode": "func getFullBuildMatrix() (map[string][]string, error) {\n\tjsonData, err := sh.Output(\"go\", \"tool\", \"dist\", \"list\", \"-json\")\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tvar data []struct {\n\t\tGoos   string\n\t\tGoarch string\n\t}\n\tif err := json.Unmarshal([]byte(jsonData), &data); err != nil {\n\t\treturn nil, err\n\t}\n\n\tmatrix := map[string][]string{}\n\tfor _, v := range data {\n\t\tif val, ok := matrix[v.Goos]; ok {\n\t\t\tmatrix[v.Goos] = append(val, v.Goarch)\n\t\t} else {\n\t\t\tmatrix[v.Goos] = []string{v.Goarch}\n\t\t}\n\t}\n\n\treturn matrix, nil\n}",
+    "importString": "",
+    "lineNum": 23,
+    "relativeDocumentPath": "ci/magefile.go"
+  },
+  {
+    "symbolName": "getBuildMatrix",
+    "sourceCode": "func getBuildMatrix() (map[string][]string, error) {\n\tminimalMatrix := map[string][]string{\n\t\t\"linux\":   []string{\"amd64\"},\n\t\t\"darwin\":  []string{\"amd64\", \"arm64\"},\n\t\t\"freebsd\": []string{\"amd64\"},\n\t\t\"js\":      []string{\"wasm\"},\n\t\t\"solaris\": []string{\"amd64\"},\n\t\t\"windows\": []string{\"amd64\", \"arm64\"},\n\t}\n\n\tfullMatrix, err := getFullBuildMatrix()\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\n\tfor os, arches := range minimalMatrix {\n\t\tif fullV, ok := fullMatrix[os]; !ok {\n\t\t\tdelete(minimalMatrix, os)\n\t\t} else {\n\t\t\tminimalMatrix[os] = intersect(arches, fullV)\n\t\t}\n\t}\n\treturn minimalMatrix, nil\n}",
+    "importString": "",
+    "lineNum": 23,
+    "relativeDocumentPath": "ci/magefile.go"
+  },
+  {
     "symbolName": "CrossBuild",
     "sourceCode": "func CrossBuild() error {\n\tmatrix, err := getBuildMatrix()\n\tif err != nil {\n\t\treturn err\n\t}\n\n\tfor os, arches := range matrix {\n\t\tfor _, arch := range arches {\n\t\t\tenv := map[string]string{\n\t\t\t\t\"GOOS\":   os,\n\t\t\t\t\"GOARCH\": arch,\n\t\t\t}\n\t\t\tif mg.Verbose() {\n\t\t\t\tfmt.Printf(\"Building for GOOS=%s GOARCH=%s\\n\", os, arch)\n\t\t\t}\n\t\t\tif err := sh.RunWith(env, \"go\", \"build\", \"./...\"); err != nil {\n\t\t\t\treturn err\n\t\t\t}\n\t\t}\n\t}\n\treturn nil\n}",
     "importString": "",
@@ -28,11 +42,67 @@
     "relativeDocumentPath": "entry.go"
   },
   {
+    "symbolName": "getCaller",
+    "sourceCode": "func getCaller() *runtime.Frame {\n\t// cache this package's fully-qualified name\n\tcallerInitOnce.Do(func() {\n\t\tpcs := make([]uintptr, maximumCallerDepth)\n\t\t_ = runtime.Callers(0, pcs)\n\n\t\t// dynamic get the package name and the minimum caller depth\n\t\tfor i := 0; i < maximumCallerDepth; i++ {\n\t\t\tfuncName := runtime.FuncForPC(pcs[i]).Name()\n\t\t\tif strings.Contains(funcName, \"getCaller\") {\n\t\t\t\tlogrusPackage = getPackageName(funcName)\n\t\t\t\tbreak\n\t\t\t}\n\t\t}\n\n\t\tminimumCallerDepth = knownLogrusFrames\n\t})\n\n\t// Restrict the lookback frames to avoid runaway lookups\n\tpcs := make([]uintptr, maximumCallerDepth)\n\tdepth := runtime.Callers(minimumCallerDepth, pcs)\n\tframes := runtime.CallersFrames(pcs[:depth])\n\n\tfor f, again := frames.Next(); again; f, again = frames.Next() {\n\t\tpkg := getPackageName(f.Function)\n\n\t\t// If the caller isn't part of this package, we're done\n\t\tif pkg != logrusPackage {\n\t\t\treturn &f //nolint:scopelint\n\t\t}\n\t}\n\n\t// if we got here, we failed to find the caller's context\n\treturn nil\n}",
+    "importString": "",
+    "lineNum": 34,
+    "relativeDocumentPath": "entry.go"
+  },
+  {
+    "symbolName": "(*Entry).log",
+    "sourceCode": "func (entry *Entry) log(level Level, msg string) {\n\tvar buffer *bytes.Buffer\n\n\tnewEntry := entry.Dup()\n\n\tif newEntry.Time.IsZero() {\n\t\tnewEntry.Time = time.Now()\n\t}\n\n\tnewEntry.Level = level\n\tnewEntry.Message = msg\n\n\tnewEntry.Logger.mu.Lock()\n\treportCaller := newEntry.Logger.ReportCaller\n\tbufPool := newEntry.getBufferPool()\n\tnewEntry.Logger.mu.Unlock()\n\n\tif reportCaller {\n\t\tnewEntry.Caller = getCaller()\n\t}\n\n\tnewEntry.fireHooks()\n\tbuffer = bufPool.Get()\n\tdefer func() {\n\t\tnewEntry.Buffer = nil\n\t\tbuffer.Reset()\n\t\tbufPool.Put(buffer)\n\t}()\n\tbuffer.Reset()\n\tnewEntry.Buffer = buffer\n\n\tnewEntry.write()\n\n\tnewEntry.Buffer = nil\n\n\t// To avoid Entry#log() returning a value that only would make sense for\n\t// panic() to use in Entry#Panic(), we avoid the allocation by checking\n\t// directly here.\n\tif level <= PanicLevel {\n\t\tpanic(newEntry)\n\t}\n}",
+    "importString": "",
+    "lineNum": 41,
+    "relativeDocumentPath": "entry.go"
+  },
+  {
+    "symbolName": "(*Entry).fireHooks",
+    "sourceCode": "func (entry *Entry) fireHooks() {\n\tvar tmpHooks LevelHooks\n\tentry.Logger.mu.Lock()\n\ttmpHooks = make(LevelHooks, len(entry.Logger.Hooks))\n\tfor k, v := range entry.Logger.Hooks {\n\t\ttmpHooks[k] = v\n\t}\n\tentry.Logger.mu.Unlock()\n\n\terr := tmpHooks.Fire(entry.Level, entry)\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Failed to fire hook: %v\\n\", err)\n\t}\n}",
+    "importString": "",
+    "lineNum": 13,
+    "relativeDocumentPath": "entry.go"
+  },
+  {
+    "symbolName": "(*Entry).write",
+    "sourceCode": "func (entry *Entry) write() {\n\tentry.Logger.mu.Lock()\n\tdefer entry.Logger.mu.Unlock()\n\tserialized, err := entry.Logger.Formatter.Format(entry)\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Failed to obtain reader, %v\\n\", err)\n\t\treturn\n\t}\n\tif _, err := entry.Logger.Out.Write(serialized); err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Failed to write to log, %v\\n\", err)\n\t}\n}",
+    "importString": "",
+    "lineNum": 11,
+    "relativeDocumentPath": "entry.go"
+  },
+  {
+    "symbolName": "prefixFieldClashes",
+    "sourceCode": "func prefixFieldClashes(data Fields, fieldMap FieldMap, reportCaller bool) {\n\ttimeKey := fieldMap.resolve(FieldKeyTime)\n\tif t, ok := data[timeKey]; ok {\n\t\tdata[\"fields.\"+timeKey] = t\n\t\tdelete(data, timeKey)\n\t}\n\n\tmsgKey := fieldMap.resolve(FieldKeyMsg)\n\tif m, ok := data[msgKey]; ok {\n\t\tdata[\"fields.\"+msgKey] = m\n\t\tdelete(data, msgKey)\n\t}\n\n\tlevelKey := fieldMap.resolve(FieldKeyLevel)\n\tif l, ok := data[levelKey]; ok {\n\t\tdata[\"fields.\"+levelKey] = l\n\t\tdelete(data, levelKey)\n\t}\n\n\tlogrusErrKey := fieldMap.resolve(FieldKeyLogrusError)\n\tif l, ok := data[logrusErrKey]; ok {\n\t\tdata[\"fields.\"+logrusErrKey] = l\n\t\tdelete(data, logrusErrKey)\n\t}\n\n\t// If reportCaller is not set, 'func' will not conflict.\n\tif reportCaller {\n\t\tfuncKey := fieldMap.resolve(FieldKeyFunc)\n\t\tif l, ok := data[funcKey]; ok {\n\t\t\tdata[\"fields.\"+funcKey] = l\n\t\t}\n\t\tfileKey := fieldMap.resolve(FieldKeyFile)\n\t\tif l, ok := data[fileKey]; ok {\n\t\t\tdata[\"fields.\"+fileKey] = l\n\t\t}\n\t}\n}",
+    "importString": "",
+    "lineNum": 36,
+    "relativeDocumentPath": "formatter.go"
+  },
+  {
     "symbolName": "(*SyslogHook).Fire",
     "sourceCode": "func (hook *SyslogHook) Fire(entry *logrus.Entry) error {\n\tline, err := entry.String()\n\tif err != nil {\n\t\tfmt.Fprintf(os.Stderr, \"Unable to read entry, %v\", err)\n\t\treturn err\n\t}\n\n\tswitch entry.Level {\n\tcase logrus.PanicLevel:\n\t\treturn hook.Writer.Crit(line)\n\tcase logrus.FatalLevel:\n\t\treturn hook.Writer.Crit(line)\n\tcase logrus.ErrorLevel:\n\t\treturn hook.Writer.Err(line)\n\tcase logrus.WarnLevel:\n\t\treturn hook.Writer.Warning(line)\n\tcase logrus.InfoLevel:\n\t\treturn hook.Writer.Info(line)\n\tcase logrus.DebugLevel, logrus.TraceLevel:\n\t\treturn hook.Writer.Debug(line)\n\tdefault:\n\t\treturn nil\n\t}\n}",
     "importString": "",
     "lineNum": 23,
     "relativeDocumentPath": "hooks/syslog/syslog.go"
+  },
+  {
+    "symbolName": "(*JSONFormatter).Format",
+    "sourceCode": "func (f *JSONFormatter) Format(entry *Entry) ([]byte, error) {\n\tdata := make(Fields, len(entry.Data)+4)\n\tfor k, v := range entry.Data {\n\t\tswitch v := v.(type) {\n\t\tcase error:\n\t\t\t// Otherwise errors are ignored by `encoding/json`\n\t\t\t// https://github.com/sirupsen/logrus/issues/137\n\t\t\tdata[k] = v.Error()\n\t\tdefault:\n\t\t\tdata[k] = v\n\t\t}\n\t}\n\n\tif f.DataKey != \"\" {\n\t\tnewData := make(Fields, 4)\n\t\tnewData[f.DataKey] = data\n\t\tdata = newData\n\t}\n\n\tprefixFieldClashes(data, f.FieldMap, entry.HasCaller())\n\n\ttimestampFormat := f.TimestampFormat\n\tif timestampFormat == \"\" {\n\t\ttimestampFormat = defaultTimestampFormat\n\t}\n\n\tif entry.err != \"\" {\n\t\tdata[f.FieldMap.resolve(FieldKeyLogrusError)] = entry.err\n\t}\n\tif !f.DisableTimestamp {\n\t\tdata[f.FieldMap.resolve(FieldKeyTime)] = entry.Time.Format(timestampFormat)\n\t}\n\tdata[f.FieldMap.resolve(FieldKeyMsg)] = entry.Message\n\tdata[f.FieldMap.resolve(FieldKeyLevel)] = entry.Level.String()\n\tif entry.HasCaller() {\n\t\tfuncVal := entry.Caller.Function\n\t\tfileVal := fmt.Sprintf(\"%s:%d\", entry.Caller.File, entry.Caller.Line)\n\t\tif f.CallerPrettyfier != nil {\n\t\t\tfuncVal, fileVal = f.CallerPrettyfier(entry.Caller)\n\t\t}\n\t\tif funcVal != \"\" {\n\t\t\tdata[f.FieldMap.resolve(FieldKeyFunc)] = funcVal\n\t\t}\n\t\tif fileVal != \"\" {\n\t\t\tdata[f.FieldMap.resolve(FieldKeyFile)] = fileVal\n\t\t}\n\t}\n\n\tvar b *bytes.Buffer\n\tif entry.Buffer != nil {\n\t\tb = entry.Buffer\n\t} else {\n\t\tb = &bytes.Buffer{}\n\t}\n\n\tencoder := json.NewEncoder(b)\n\tencoder.SetEscapeHTML(!f.DisableHTMLEscape)\n\tif f.PrettyPrint {\n\t\tencoder.SetIndent(\"\", \"  \")\n\t}\n\tif err := encoder.Encode(data); err != nil {\n\t\treturn nil, fmt.Errorf(\"failed to marshal fields to JSON, %w\", err)\n\t}\n\n\treturn b.Bytes(), nil\n}",
+    "importString": "",
+    "lineNum": 65,
+    "relativeDocumentPath": "json_formatter.go"
+  },
+  {
+    "symbolName": "ParseLevel",
+    "sourceCode": "func ParseLevel(lvl string) (Level, error) {\n\tswitch strings.ToLower(lvl) {\n\tcase \"panic\":\n\t\treturn PanicLevel, nil\n\tcase \"fatal\":\n\t\treturn FatalLevel, nil\n\tcase \"error\":\n\t\treturn ErrorLevel, nil\n\tcase \"warn\", \"warning\":\n\t\treturn WarnLevel, nil\n\tcase \"info\":\n\t\treturn InfoLevel, nil\n\tcase \"debug\":\n\t\treturn DebugLevel, nil\n\tcase \"trace\":\n\t\treturn TraceLevel, nil\n\t}\n\n\tvar l Level\n\treturn l, fmt.Errorf(\"not a valid logrus Level: %q\", lvl)\n}",
+    "importString": "",
+    "lineNum": 20,
+    "relativeDocumentPath": "logrus.go"
+  },
+  {
+    "symbolName": "(Level).MarshalText",
+    "sourceCode": "func (level Level) MarshalText() ([]byte, error) {\n\tswitch level {\n\tcase TraceLevel:\n\t\treturn []byte(\"trace\"), nil\n\tcase DebugLevel:\n\t\treturn []byte(\"debug\"), nil\n\tcase InfoLevel:\n\t\treturn []byte(\"info\"), nil\n\tcase WarnLevel:\n\t\treturn []byte(\"warning\"), nil\n\tcase ErrorLevel:\n\t\treturn []byte(\"error\"), nil\n\tcase FatalLevel:\n\t\treturn []byte(\"fatal\"), nil\n\tcase PanicLevel:\n\t\treturn []byte(\"panic\"), nil\n\t}\n\n\treturn nil, fmt.Errorf(\"not a valid logrus level %d\", level)\n}",
+    "importString": "",
+    "lineNum": 19,
+    "relativeDocumentPath": "logrus.go"
   },
   {
     "symbolName": "checkIfTerminal",
@@ -42,10 +112,24 @@
     "relativeDocumentPath": "terminal_check_windows.go"
   },
   {
+    "symbolName": "(*TextFormatter).init",
+    "sourceCode": "func (f *TextFormatter) init(entry *Entry) {\n\tif entry.Logger != nil {\n\t\tf.isTerminal = checkIfTerminal(entry.Logger.Out)\n\t}\n\t// Get the max length of the level text\n\tfor _, level := range AllLevels {\n\t\tlevelTextLength := utf8.RuneCount([]byte(level.String()))\n\t\tif levelTextLength > f.levelTextMaxLength {\n\t\t\tf.levelTextMaxLength = levelTextLength\n\t\t}\n\t}\n}",
+    "importString": "",
+    "lineNum": 11,
+    "relativeDocumentPath": "text_formatter.go"
+  },
+  {
     "symbolName": "(*TextFormatter).isColored",
     "sourceCode": "func (f *TextFormatter) isColored() bool {\n\tisColored := f.ForceColors || (f.isTerminal && (runtime.GOOS != \"windows\"))\n\n\tif f.EnvironmentOverrideColors {\n\t\tswitch force, ok := os.LookupEnv(\"CLICOLOR_FORCE\"); {\n\t\tcase ok && force != \"0\":\n\t\t\tisColored = true\n\t\tcase ok && force == \"0\", os.Getenv(\"CLICOLOR\") == \"0\":\n\t\t\tisColored = false\n\t\t}\n\t}\n\n\treturn isColored && !f.DisableColors\n}",
     "importString": "",
     "lineNum": 13,
+    "relativeDocumentPath": "text_formatter.go"
+  },
+  {
+    "symbolName": "(*TextFormatter).Format",
+    "sourceCode": "func (f *TextFormatter) Format(entry *Entry) ([]byte, error) {\n\tdata := make(Fields)\n\tfor k, v := range entry.Data {\n\t\tdata[k] = v\n\t}\n\tprefixFieldClashes(data, f.FieldMap, entry.HasCaller())\n\tkeys := make([]string, 0, len(data))\n\tfor k := range data {\n\t\tkeys = append(keys, k)\n\t}\n\n\tvar funcVal, fileVal string\n\n\tfixedKeys := make([]string, 0, 4+len(data))\n\tif !f.DisableTimestamp {\n\t\tfixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyTime))\n\t}\n\tfixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyLevel))\n\tif entry.Message != \"\" {\n\t\tfixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyMsg))\n\t}\n\tif entry.err != \"\" {\n\t\tfixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyLogrusError))\n\t}\n\tif entry.HasCaller() {\n\t\tif f.CallerPrettyfier != nil {\n\t\t\tfuncVal, fileVal = f.CallerPrettyfier(entry.Caller)\n\t\t} else {\n\t\t\tfuncVal = entry.Caller.Function\n\t\t\tfileVal = fmt.Sprintf(\"%s:%d\", entry.Caller.File, entry.Caller.Line)\n\t\t}\n\n\t\tif funcVal != \"\" {\n\t\t\tfixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyFunc))\n\t\t}\n\t\tif fileVal != \"\" {\n\t\t\tfixedKeys = append(fixedKeys, f.FieldMap.resolve(FieldKeyFile))\n\t\t}\n\t}\n\n\tif !f.DisableSorting {\n\t\tif f.SortingFunc == nil {\n\t\t\tsort.Strings(keys)\n\t\t\tfixedKeys = append(fixedKeys, keys...)\n\t\t} else {\n\t\t\tif !f.isColored() {\n\t\t\t\tfixedKeys = append(fixedKeys, keys...)\n\t\t\t\tf.SortingFunc(fixedKeys)\n\t\t\t} else {\n\t\t\t\tf.SortingFunc(keys)\n\t\t\t}\n\t\t}\n\t} else {\n\t\tfixedKeys = append(fixedKeys, keys...)\n\t}\n\n\tvar b *bytes.Buffer\n\tif entry.Buffer != nil {\n\t\tb = entry.Buffer\n\t} else {\n\t\tb = &bytes.Buffer{}\n\t}\n\n\tf.terminalInitOnce.Do(func() { f.init(entry) })\n\n\ttimestampFormat := f.TimestampFormat\n\tif timestampFormat == \"\" {\n\t\ttimestampFormat = defaultTimestampFormat\n\t}\n\tif f.isColored() {\n\t\tf.printColored(b, entry, keys, data, timestampFormat)\n\t} else {\n\n\t\tfor _, key := range fixedKeys {\n\t\t\tvar value interface{}\n\t\t\tswitch {\n\t\t\tcase key == f.FieldMap.resolve(FieldKeyTime):\n\t\t\t\tvalue = entry.Time.Format(timestampFormat)\n\t\t\tcase key == f.FieldMap.resolve(FieldKeyLevel):\n\t\t\t\tvalue = entry.Level.String()\n\t\t\tcase key == f.FieldMap.resolve(FieldKeyMsg):\n\t\t\t\tvalue = entry.Message\n\t\t\tcase key == f.FieldMap.resolve(FieldKeyLogrusError):\n\t\t\t\tvalue = entry.err\n\t\t\tcase key == f.FieldMap.resolve(FieldKeyFunc) && entry.HasCaller():\n\t\t\t\tvalue = funcVal\n\t\t\tcase key == f.FieldMap.resolve(FieldKeyFile) && entry.HasCaller():\n\t\t\t\tvalue = fileVal\n\t\t\tdefault:\n\t\t\t\tvalue = data[key]\n\t\t\t}\n\t\t\tf.appendKeyValue(b, key, value)\n\t\t}\n\t}\n\n\tb.WriteByte('\\n')\n\treturn b.Bytes(), nil\n}",
+    "importString": "",
+    "lineNum": 97,
     "relativeDocumentPath": "text_formatter.go"
   },
   {
@@ -54,5 +138,33 @@
     "importString": "",
     "lineNum": 64,
     "relativeDocumentPath": "text_formatter.go"
+  },
+  {
+    "symbolName": "(*TextFormatter).needsQuoting",
+    "sourceCode": "func (f *TextFormatter) needsQuoting(text string) bool {\n\tif f.ForceQuote {\n\t\treturn true\n\t}\n\tif f.QuoteEmptyFields && len(text) == 0 {\n\t\treturn true\n\t}\n\tif f.DisableQuote {\n\t\treturn false\n\t}\n\tfor _, ch := range text {\n\t\tif !((ch >= 'a' && ch <= 'z') ||\n\t\t\t(ch >= 'A' && ch <= 'Z') ||\n\t\t\t(ch >= '0' && ch <= '9') ||\n\t\t\tch == '-' || ch == '.' || ch == '_' || ch == '/' || ch == '@' || ch == '^' || ch == '+') {\n\t\t\treturn true\n\t\t}\n\t}\n\treturn false\n}",
+    "importString": "",
+    "lineNum": 19,
+    "relativeDocumentPath": "text_formatter.go"
+  },
+  {
+    "symbolName": "(*TextFormatter).appendValue",
+    "sourceCode": "func (f *TextFormatter) appendValue(b *bytes.Buffer, value interface{}) {\n\tstringVal, ok := value.(string)\n\tif !ok {\n\t\tstringVal = fmt.Sprint(value)\n\t}\n\n\tif !f.needsQuoting(stringVal) {\n\t\tb.WriteString(stringVal)\n\t} else {\n\t\tb.WriteString(fmt.Sprintf(\"%q\", stringVal))\n\t}\n}",
+    "importString": "",
+    "lineNum": 11,
+    "relativeDocumentPath": "text_formatter.go"
+  },
+  {
+    "symbolName": "(*Entry).WriterLevel",
+    "sourceCode": "func (entry *Entry) WriterLevel(level Level) *io.PipeWriter {\n\treader, writer := io.Pipe()\n\n\tvar printFunc func(args ...interface{})\n\n\t// Determine which log function to use based on the specified log level\n\tswitch level {\n\tcase TraceLevel:\n\t\tprintFunc = entry.Trace\n\tcase DebugLevel:\n\t\tprintFunc = entry.Debug\n\tcase InfoLevel:\n\t\tprintFunc = entry.Info\n\tcase WarnLevel:\n\t\tprintFunc = entry.Warn\n\tcase ErrorLevel:\n\t\tprintFunc = entry.Error\n\tcase FatalLevel:\n\t\tprintFunc = entry.Fatal\n\tcase PanicLevel:\n\t\tprintFunc = entry.Panic\n\tdefault:\n\t\tprintFunc = entry.Print\n\t}\n\n\t// Start a new goroutine to scan the input and write it to the logger using the specified print function.\n\t// It splits the input into chunks of up to 64KB to avoid buffer overflows.\n\tgo entry.writerScanner(reader, printFunc)\n\n\t// Set a finalizer function to close the writer when it is garbage collected\n\truntime.SetFinalizer(writer, writerFinalizer)\n\n\treturn writer\n}",
+    "importString": "",
+    "lineNum": 33,
+    "relativeDocumentPath": "writer.go"
+  },
+  {
+    "symbolName": "(*Entry).writerScanner",
+    "sourceCode": "func (entry *Entry) writerScanner(reader *io.PipeReader, printFunc func(args ...interface{})) {\n\tscanner := bufio.NewScanner(reader)\n\n\t// Set the buffer size to the maximum token size to avoid buffer overflows\n\tscanner.Buffer(make([]byte, bufio.MaxScanTokenSize), bufio.MaxScanTokenSize)\n\n\t// Define a split function to split the input into chunks of up to 64KB\n\tchunkSize := bufio.MaxScanTokenSize // 64KB\n\tsplitFunc := func(data []byte, atEOF bool) (int, []byte, error) {\n\t\tif len(data) >= chunkSize {\n\t\t\treturn chunkSize, data[:chunkSize], nil\n\t\t}\n\n\t\treturn bufio.ScanLines(data, atEOF)\n\t}\n\n\t// Use the custom split function to split the input\n\tscanner.Split(splitFunc)\n\n\t// Scan the input and write it to the logger using the specified print function\n\tfor scanner.Scan() {\n\t\tprintFunc(strings.TrimRight(scanner.Text(), \"\\r\\n\"))\n\t}\n\n\t// If there was an error while scanning the input, log an error\n\tif err := scanner.Err(); err != nil {\n\t\tentry.Errorf(\"Error while reading from Writer: %s\", err)\n\t}\n\n\t// Close the reader when we are done\n\treader.Close()\n}",
+    "importString": "",
+    "lineNum": 31,
+    "relativeDocumentPath": "writer.go"
   }
 ]

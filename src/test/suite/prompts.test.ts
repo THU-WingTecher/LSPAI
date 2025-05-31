@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { formatToJSON } from '../../utils';
-import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, saveTaskList, setWorkspaceFolders, findAFileFromWorkspace } from '../../helper';
+import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, setWorkspaceFolders, findAFileFromWorkspace } from '../../helper';
 import { loadPrivateConfig, SRC_PATHS } from '../../config';
 import { activate, getSymbolFromDocument } from '../../lsp';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../config';

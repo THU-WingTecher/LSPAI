@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
-import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, saveTaskList, setWorkspaceFolders, selectOneSymbolFileFromWorkspace } from '../../helper';
+import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders, selectOneSymbolFileFromWorkspace } from '../../helper';
 import { loadPrivateConfig, SRC_PATHS } from '../../config';
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../config';

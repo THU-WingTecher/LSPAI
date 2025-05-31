@@ -37,7 +37,7 @@ export function generateTestSymprompt(
     if (fileName.includes("/")) {
         fileName = fileName.split("/").pop() || fileName;
     }
-
+    console.log(`### generateTestSymprompt::fileName: ${fileName}`);
     const systemPrompt = prompts.system_prompt
     let userPrompt = prompts.user_prompt;
     userPrompt = userPrompt
@@ -81,14 +81,17 @@ export class SymPromptTestGenerator extends BaseTestGenerator {
         this.functionInfo.set('signature', functionInfo.get('signature') || "");
         
         const minimizedPaths = pathCollector.minimizePaths(paths);
+        console.log(`### minimizedPaths: ${minimizedPaths}`);
         this.logger.log("collectCFGPaths", (Date.now() - pathCollectorStartTime).toString(), null, "");
+        
         this.logger.saveCFGPaths(functionText, minimizedPaths);
 
         // Gather context if needed
         let enrichedTerms: ContextTerm[] = [];
 
         // Generate test
-        const promptObj = generateTestSymprompt(this.document, this.functionSymbol, functionText, enrichedTerms, paths, this.fileName, this.functionInfo)
+        console.log(`### generating test for ${this.functionSymbol.name} in ${this.document.uri.fsPath}`);
+        const promptObj = generateTestSymprompt(this.document, this.functionSymbol, functionText, enrichedTerms, minimizedPaths, this.fileName, this.functionInfo)
 
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
         const testCode = await invokeLLM(promptObj, logObj);

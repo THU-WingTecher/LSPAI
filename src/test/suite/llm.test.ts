@@ -12,6 +12,8 @@ suite('LLM invoke Test Suite', () => {
     const projectPath = "/LSPAI/experiments/projects/commons-csv";
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
+        // model: 'deepseek-coder',
+        // provider: 'deepseek' as Provider,
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
         expProb: 0.2,

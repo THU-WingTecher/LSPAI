@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
-import { saveTaskList } from './helper';
+// import { saveTaskList } from './helper';
 import { getConfigInstance, GenerationType, PromptType, FixType, SRC_PATHS, ProjectName, Provider } from './config';
 import { generateFileNameForDiffLanguage } from './fileHandler';
 import { generateUnitTestForAFunction } from './generate';
@@ -12,7 +12,181 @@ import { PathCollector } from './cfg/path';
 import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
 import pLimit from 'p-limit';
-const limit = pLimit(32);
+import { genPythonicSrcImportStatement } from './helper';
+const limit = pLimit(8);
+interface TaskProgress {
+    symbolName: string;
+    relativeDocumentPath: string;
+    sourceCode: string;
+    importString: string;
+    lineNum: number;
+    completed: boolean;
+    timestamp?: string;
+    error?: string;
+}
+
+interface ExperimentProgress {
+    totalTasks: number;
+    completedTasks: number;
+    tasks: TaskProgress[];
+    lastUpdated: string;
+}
+
+
+export class ExperimentContinuityManager {
+    private progressFilePath: string;
+    private taskListPath: string;
+    private progressLock: Promise<void> = Promise.resolve();
+    private experimentDir: string;
+    private workspacePath: string;
+    private isFirstTime: boolean;
+
+    constructor(experimentDir: string, workspacePath: string) {
+        this.experimentDir = experimentDir;
+        if (experimentDir.includes(workspacePath)) {
+            this.experimentDir = path.relative(workspacePath, experimentDir);
+        }
+        this.workspacePath = workspacePath;
+        this.progressFilePath = path.join(workspacePath, this.experimentDir, 'progress.json');
+        this.taskListPath = path.join(workspacePath, this.experimentDir, 'taskList.json');
+        this.isFirstTime = true;
+        this.initializeProgressFile();
+    }
+
+    private initializeProgressFile() {
+        if (!fs.existsSync(this.progressFilePath)) {
+            const initialProgress: ExperimentProgress = {
+                totalTasks: 0,
+                completedTasks: 0,
+                tasks: [],
+                lastUpdated: new Date().toISOString()
+            };
+            fs.writeFileSync(this.progressFilePath, JSON.stringify(initialProgress, null, 2));
+        } else {
+            this.isFirstTime = false;
+        }
+    }
+
+    public isFirstTimeExperiment(): boolean {
+        return this.isFirstTime;
+    }
+
+    private async readProgress(): Promise<ExperimentProgress> {
+        const content = await fs.promises.readFile(this.progressFilePath, 'utf8');
+        console.log(`#### Progress file: ${this.progressFilePath}`);
+        return JSON.parse(content);
+    }
+
+    private async writeProgress(progress: ExperimentProgress): Promise<void> {
+        progress.lastUpdated = new Date().toISOString();
+        await fs.promises.writeFile(this.progressFilePath, JSON.stringify(progress, null, 2));
+    }
+
+    public async saveTaskList(
+        symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[]
+    ): Promise<void> {
+        // Build the data to be written
+        const data = symbolDocumentMap.map(({ symbol, document }) => {
+            const relativePath = path.relative(this.workspacePath, document.uri.fsPath);
+            let importString = "";
+            if (document.languageId === "python") {
+                importString = genPythonicSrcImportStatement(document.getText());
+            }
+            return {
+                symbolName: symbol.name,
+                sourceCode: document.getText(symbol.range),
+                importString: importString,
+                lineNum: symbol.range.end.line - symbol.range.start.line,
+                relativeDocumentPath: relativePath
+            };
+        });
+
+        // Write to JSON file
+        await fs.promises.mkdir(path.dirname(this.taskListPath), { recursive: true });
+        await fs.promises.writeFile(this.taskListPath, JSON.stringify(data, null, 2), "utf8");
+        console.log(`Task list has been saved to ${this.taskListPath}`);
+
+        // Initialize progress tracking with the new task list
+        // await this.initializeFromTaskList(data);
+    }
+
+    public async initializeFromTaskList(taskList: any[]): Promise<void> {
+        // Acquire lock for atomic operation
+        await this.acquireLock(async () => {
+            const progress = await this.readProgress();
+            
+            // Initialize progress for new tasks
+            progress.totalTasks = taskList.length;
+            console.log(`#### Initializing from task list: ${taskList.length}`);
+            const uncompletedTasks = progress.tasks.filter(task => !task.completed);
+            console.log(`#### uncompletedTasks: ${uncompletedTasks.length}`);
+            progress.tasks = taskList.map(task => ({
+                ...task,
+                completed: false
+            }));
+            console.log(`#### progress.tasks: ${progress.tasks.length}`);
+            progress.completedTasks = 0;
+
+            await this.writeProgress(progress);
+        });
+    }
+
+    public async loadTaskList(): Promise<void> {
+        const taskListContent = await fs.promises.readFile(this.taskListPath, 'utf8');
+        const taskList = JSON.parse(taskListContent);
+        await this.initializeFromTaskList(taskList);
+    }
+
+    public async markTaskComplete(symbolName: string, relativeDocumentPath: string, error?: string): Promise<void> {
+        // Acquire lock for atomic operation
+        await this.acquireLock(async () => {
+            const progress = await this.readProgress();
+            
+            const task = progress.tasks.find(t => 
+                t.symbolName === symbolName && 
+                t.relativeDocumentPath === relativeDocumentPath
+            );
+
+            if (task && !task.completed) {
+                task.completed = true;
+                task.timestamp = new Date().toISOString();
+                if (error) {
+                    task.error = error;
+                }
+                progress.completedTasks++;
+                await this.writeProgress(progress);
+            }
+        });
+    }
+
+    public async getUncompletedTasks(): Promise<TaskProgress[]> {
+        const progress = await this.readProgress();
+        console.log(`#### Uncompleted tasks: ${progress.tasks.filter(task => !task.completed).length}`);
+        return progress.tasks.filter(task => !task.completed);
+    }
+
+    public async getProgress(): Promise<ExperimentProgress> {
+        return await this.readProgress();
+    }
+
+    private async acquireLock<T>(operation: () => Promise<T>): Promise<T> {
+        // Wait for previous operation to complete
+        await this.progressLock;
+
+        // Create new lock
+        let resolveLock: () => void;
+        this.progressLock = new Promise(resolve => {
+            resolveLock = resolve;
+        });
+
+        try {
+            const result = await operation();
+            return result;
+        } finally {
+            resolveLock!();
+        }
+    }
+}
 
 export async function collectPathforSymbols(
     symbols: any, // Use the correct type if available
@@ -84,16 +258,17 @@ export async function findMatchedSymbolsFromTaskList(
 }
 
 export function countTestFile(finalTestPath: string) {
-        // Add test file counting
-        if (fs.existsSync(finalTestPath)) {
-            const testFiles = fs.readdirSync(finalTestPath).filter(file => file.toLowerCase().includes('test'));
-            // console.log(`#### Found ${testFiles.length} test files in ${finalTestPath}`);
-            return testFiles.length;
-        } else {
-            // console.log(`#### No test files found in ${finalTestPath}`);
-        }
-        return 0;
+    // Add test file counting
+    if (fs.existsSync(finalTestPath)) {
+        const testFiles = fs.readdirSync(finalTestPath).filter(file => file.toLowerCase().includes('test'));
+        // console.log(`#### Found ${testFiles.length} test files in ${finalTestPath}`);
+        return testFiles.length;
+    } else {
+        // console.log(`#### No test files found in ${finalTestPath}`);
     }
+    return 0;
+}
+
 export async function runGenerateTestCodeSuite(
     generationType: GenerationType,
     fixType: FixType,
@@ -101,12 +276,15 @@ export async function runGenerateTestCodeSuite(
     model: string,
     provider: Provider,
     symbols: any, // Use the correct type if available
-    languageId: string
+    languageId: string,
+    previousExperimentDir?: string // Optional parameter for continuing experiments
 ) {
     if (process.env.NODE_DEBUG !== 'true') {
         console.log('activate');
         await activate();
     }
+
+    // Initialize config
     getConfigInstance().updateConfig({
         generationType,
         fixType,
@@ -114,13 +292,17 @@ export async function runGenerateTestCodeSuite(
         model: model,
         provider: provider
     });
-    const savePath = getConfigInstance().genSaveName();
+
+    // If continuing from previous experiment, use its save path
+    const savePath = previousExperimentDir || getConfigInstance().genSaveName();;
     getConfigInstance().updateConfig({
         savePath: savePath
     });
 
     getConfigInstance().logAllConfig();
     console.log(`#### test ${symbols.length} focal method`);
+    
+    // Setup paths
     const workspace = getConfigInstance().workspace;
     const projectName = path.basename(workspace);
     let currentSrcPath;
@@ -130,48 +312,187 @@ export async function runGenerateTestCodeSuite(
         currentSrcPath = path.join(workspace, SRC_PATHS.DEFAULT);
     }
 
+    // Get symbol pairs and save task list
     const symbolFilePairsToTest = getSymbolFilePairsToTest(symbols, languageId);
-    await saveTaskList(symbolFilePairsToTest, workspace, getConfigInstance().savePath);
+    const continuityManager = new ExperimentContinuityManager(savePath, workspace);
+    
 
-    const testGenerationPromises = symbolFilePairsToTest.map(symbolFilePair => 
+    let symbolPairsToProcess = symbolFilePairsToTest;
+    if (!continuityManager.isFirstTimeExperiment()) {
+        console.log(`#### Continuing experiment from ${previousExperimentDir}`);
+        // await continuityManager.loadTaskList();
+        
+        // Get uncompleted tasks and filter symbols
+        const uncompletedTasks = await continuityManager.getUncompletedTasks();
+        symbolPairsToProcess = symbolFilePairsToTest.filter(({ symbol, document }) => {
+            const relativePath = path.relative(workspace, document.uri.fsPath);
+            return uncompletedTasks.some(task => 
+                task.symbolName === symbol.name && 
+                task.relativeDocumentPath === relativePath
+            );
+        });
+        
+        console.log(`#### Continuing experiment with ${symbolPairsToProcess.length} remaining tasks`);
+    } else {
+        // For new experiments, initialize fresh progress tracking
+        await continuityManager.saveTaskList(symbolFilePairsToTest);
+        // await continuityManager.initializeFromTaskList(symbolFilePairsToTest);
+        console.log(`#### Starting new experiment with ${symbolPairsToProcess.length} tasks`);
+    }
+
+    // Generate test promises with progress tracking
+    const testGenerationPromises = symbolPairsToProcess.map(symbolFilePair => 
         limit(async () => {
             const { document, symbol, fileName } = symbolFilePair;
-            const result = await generateUnitTestForAFunction(
-                currentSrcPath,
-                document, 
-                symbol, 
-                fileName, 
-                false,
-            );
-            console.log(`#### Test Code: ${result}`);
-            return result;
+            try {
+                const result = await generateUnitTestForAFunction(
+                    currentSrcPath,
+                    document, 
+                    symbol, 
+                    fileName, 
+                    false,
+                );
+                
+                if (result) {
+                // Track progress for all experiments
+                await continuityManager.markTaskComplete(
+                    symbol.name,
+                    path.relative(workspace, document.uri.fsPath)
+                );
+                console.log(`#### Test Code: ${result}`);
+                return result;
+            } else {
+                console.log(`#### Test Code: ${result}`);
+                return result;
+            }
+            } catch (error) {
+                // Track failed tasks for all experiments
+                await continuityManager.markTaskComplete(
+                    symbol.name,
+                    path.relative(workspace, document.uri.fsPath),
+                    error instanceof Error ? error.message : String(error)
+                );
+                throw error;
+            }
         })
     );
 
     const results = await Promise.all(testGenerationPromises);
+    console.log(`#### ALL unit test for ${projectName} completed`);
+    
+    // Verify and log results
     const finalTestPath = path.join(getConfigInstance().savePath, "final");
     const testFiles = countTestFile(finalTestPath);
     console.log(`#### Test files: ${testFiles}`);
+    
     const logPath = getConfigInstance().logSavePath;
     console.log(`#### Log path: ${logPath}`);
     assert.ok(fs.existsSync(logPath), 'log path should exist');
+    
     const llmlogs = fs.readdirSync(logPath).filter(file => file.endsWith('llm_logs.json'));
     assert.ok(llmlogs.length > 0, 'llm_logs.json should exist');
+
+    // Check diagnostic reports if needed
     if (getConfigInstance().fixType != FixType.NOFIX && getConfigInstance().generationType != GenerationType.NAIVE) {
         const diagnosticReportFolder = path.join(logPath, 'diagnostic_report');
         const diagnosticReports = await findJsonFilesRecursively(diagnosticReportFolder);
         console.log(`#### Diagnostic reports: ${diagnosticReports.length}`);
-        // assert.equal(diagnosticReports.length, symbolFilePairsToTest.length, 'diagnostic_report json files should exist for each function');
     }
+
+    // Check CFG paths if needed
     if (getConfigInstance().generationType === GenerationType.CFG) {
         const pathFolder = path.join(logPath, 'paths');
         const paths = await findJsonFilesRecursively(pathFolder);
         console.log(`#### Paths: ${paths.length}`);
-        // assert.equal(paths.length, symbolFilePairsToTest.length, 'paths json files should exist for each function');
     }
+
+    // Verify task list exists
     const taskListPath = path.join(getConfigInstance().savePath, 'taskList.json');
     assert.ok(fs.existsSync(taskListPath), 'taskList.json should exist');
+
+    // Log final progress for all experiments
+    const progress = await continuityManager.getProgress();
+    console.log(`#### Experiment progress: ${progress.completedTasks}/${progress.totalTasks} tasks completed`);
 }
+
+// export async function runGenerateTestCodeSuite(
+//     generationType: GenerationType,
+//     fixType: FixType,
+//     promptType: PromptType,
+//     model: string,
+//     provider: Provider,
+//     symbols: any, // Use the correct type if available
+//     languageId: string
+// ) {
+//     if (process.env.NODE_DEBUG !== 'true') {
+//         console.log('activate');
+//         await activate();
+//     }
+//     getConfigInstance().updateConfig({
+//         generationType,
+//         fixType,
+//         promptType,
+//         model: model,
+//         provider: provider
+//     });
+//     const savePath = getConfigInstance().genSaveName();
+//     getConfigInstance().updateConfig({
+//         savePath: savePath
+//     });
+
+//     getConfigInstance().logAllConfig();
+//     console.log(`#### test ${symbols.length} focal method`);
+//     const workspace = getConfigInstance().workspace;
+//     const projectName = path.basename(workspace);
+//     let currentSrcPath;
+//     if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+//         currentSrcPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
+//     } else {
+//         currentSrcPath = path.join(workspace, SRC_PATHS.DEFAULT);
+//     }
+
+//     const symbolFilePairsToTest = getSymbolFilePairsToTest(symbols, languageId);
+//     await saveTaskList(symbolFilePairsToTest, workspace, getConfigInstance().savePath);
+
+//     const testGenerationPromises = symbolFilePairsToTest.map(symbolFilePair => 
+//         limit(async () => {
+//             const { document, symbol, fileName } = symbolFilePair;
+//             const result = await generateUnitTestForAFunction(
+//                 currentSrcPath,
+//                 document, 
+//                 symbol, 
+//                 fileName, 
+//                 false,
+//             );
+//             console.log(`#### Test Code: ${result}`);
+//             return result;
+//         })
+//     );
+
+//     const results = await Promise.all(testGenerationPromises);
+//     const finalTestPath = path.join(getConfigInstance().savePath, "final");
+//     const testFiles = countTestFile(finalTestPath);
+//     console.log(`#### Test files: ${testFiles}`);
+//     const logPath = getConfigInstance().logSavePath;
+//     console.log(`#### Log path: ${logPath}`);
+//     assert.ok(fs.existsSync(logPath), 'log path should exist');
+//     const llmlogs = fs.readdirSync(logPath).filter(file => file.endsWith('llm_logs.json'));
+//     assert.ok(llmlogs.length > 0, 'llm_logs.json should exist');
+//     if (getConfigInstance().fixType != FixType.NOFIX && getConfigInstance().generationType != GenerationType.NAIVE) {
+//         const diagnosticReportFolder = path.join(logPath, 'diagnostic_report');
+//         const diagnosticReports = await findJsonFilesRecursively(diagnosticReportFolder);
+//         console.log(`#### Diagnostic reports: ${diagnosticReports.length}`);
+//         // assert.equal(diagnosticReports.length, symbolFilePairsToTest.length, 'diagnostic_report json files should exist for each function');
+//     }
+//     if (getConfigInstance().generationType === GenerationType.CFG) {
+//         const pathFolder = path.join(logPath, 'paths');
+//         const paths = await findJsonFilesRecursively(pathFolder);
+//         console.log(`#### Paths: ${paths.length}`);
+//         // assert.equal(paths.length, symbolFilePairsToTest.length, 'paths json files should exist for each function');
+//     }
+//     const taskListPath = path.join(getConfigInstance().savePath, 'taskList.json');
+//     assert.ok(fs.existsSync(taskListPath), 'taskList.json should exist');
+// }
 
 export function getSymbolFilePairsToTest(symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[], languageId: string) {
     const symbolFilePairs = symbols.map(({symbol, document}) => {

@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
 import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../diagnostic';
-import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, saveTaskList, selectOneSymbolFileFromWorkspace, setWorkspaceFolders } from '../../helper';
+import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders } from '../../helper';
 import { loadPrivateConfig, SRC_PATHS } from '../../config';
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../config';

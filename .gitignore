@@ -1,3 +1,4 @@
+core
 experiments/lsprag_data/
 .env
 *.pyc

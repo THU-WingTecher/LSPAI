@@ -8,6 +8,7 @@ import { getLanguageSuffix } from "./language";
 import { activate, getAllSymbols, getSymbolFromDocument } from "./lsp";
 import { getConfigInstance } from "./config";
 import { generateUnitTestForAFunction } from "./generate";
+import assert from "assert";
 
 // Add these constants near the top with other constants
 const SEED = 12345; // Fixed seed for reproducibility
@@ -20,21 +21,6 @@ function initializeSeededRandom(seed: number) {
         return (seed - 1) / 2147483646;
     };
 }
-
-// export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]) {
-//     for (const workspaceFolder of workspaceFolders) {
-//         if (vscode.workspace.workspaceFolders?.find(folder => folder.name === workspaceFolder.name)) {
-//             console.log('workspaceFolder', workspaceFolder.name, 'already exists');
-//         } else {
-//             await vscode.workspace.updateWorkspaceFolders(
-//                 0,
-//                 null,
-//                 ...workspaceFolders
-//             );
-//         }
-//     }
-//     return workspaceFolders;
-// }
 
 export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]): Promise<vscode.WorkspaceFolder[]> {
     try {
@@ -166,34 +152,34 @@ export function genPythonicSrcImportStatement(text: string) {
     }
     return importString;
 }
-export async function saveTaskList(
-    symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[],
-    workspaceFolderPath: string,
-    outputFolderPath: string
-): Promise<void> {
-    const taskListFilePath = path.join(outputFolderPath, "taskList.json");
+// export async function saveTaskList(
+//     symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[],
+//     workspaceFolderPath: string,
+//     outputFolderPath: string
+// ): Promise<void> {
+//     const taskListFilePath = path.join(outputFolderPath, "taskList.json");
 
-    // Build the data to be written
-    const data = symbolDocumentMap.map(({ symbol, document }) => {
-        const relativePath = path.relative(workspaceFolderPath, document.uri.fsPath);
-        let importString = ""
-        if (document.languageId === "python") {
-            importString = genPythonicSrcImportStatement(document.getText());
-        }
-        return {
-            symbolName: symbol.name,
-            sourceCode: document.getText(symbol.range),
-            importString: importString,
-            lineNum: symbol.range.end.line - symbol.range.start.line,
-            relativeDocumentPath: relativePath
-        };
-    });
+//     // Build the data to be written
+//     const data = symbolDocumentMap.map(({ symbol, document }) => {
+//         const relativePath = path.relative(workspaceFolderPath, document.uri.fsPath);
+//         let importString = ""
+//         if (document.languageId === "python") {
+//             importString = genPythonicSrcImportStatement(document.getText());
+//         }
+//         return {
+//             symbolName: symbol.name,
+//             sourceCode: document.getText(symbol.range),
+//             importString: importString,
+//             lineNum: symbol.range.end.line - symbol.range.start.line,
+//             relativeDocumentPath: relativePath
+//         };
+//     });
 
-    // Write to JSON file
-    await fs.promises.mkdir(path.dirname(taskListFilePath), { recursive: true });
-    await fs.promises.writeFile(taskListFilePath, JSON.stringify(data, null, 2), "utf8");
-    console.log(`Task list has been saved to ${taskListFilePath}`);
-}
+//     // Write to JSON file
+//     await fs.promises.mkdir(path.dirname(taskListFilePath), { recursive: true });
+//     await fs.promises.writeFile(taskListFilePath, JSON.stringify(data, null, 2), "utf8");
+//     console.log(`Task list has been saved to ${taskListFilePath}`);
+// }
 /**
  * Load symbols specified in 'taskList.json' from the already collected symbol-document list.
  * 
@@ -227,6 +213,7 @@ export async function extractSymbolDocumentMapFromTaskList(
     }
 
     console.log(`Loaded ${matchedSymbols.length} matching symbol-document pairs from taskList.`);
+    assert.ok(matchedSymbols.length === taskList.length, `matchedSymbols.length !== taskList.length: ${matchedSymbols.length} !== ${taskList.length}`);
     return matchedSymbols;
 }
 

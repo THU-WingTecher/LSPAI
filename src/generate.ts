@@ -173,6 +173,7 @@ export async function generateUnitTestForAFunction(
     showGeneratedCode: boolean = true,
     inExperiment: boolean = false
 ): Promise<string> {
+	console.log(`### generating unit test for ${functionSymbol.name} in ${document.uri.fsPath}`);
     const model = getConfigInstance().model;
     const fileName = getFileName(fullFileName);
     const logger = new ExpLogger([], model, fullFileName, fileName, functionSymbol.name);

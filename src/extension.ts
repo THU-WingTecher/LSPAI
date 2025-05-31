@@ -5,7 +5,7 @@ import path from 'path';
 import { getCodeAction } from './diagnostic';
 import { generateUnitTestsForFocalMethod, init, signIn, copilotServer } from './copilot';
 import { GenerationType, PromptType, FixType } from './config';
-import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace, saveTaskList } from './helper';
+import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace } from './helper';
 import { experimentWithCopilot } from './copilot';
 import { generateTimestampString } from './fileHandler';
 import { invokeLLM } from './invokeLLM';
@@ -95,7 +95,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				);
 				console.log(`after extracting, ${symbolDocumentMaps.length} symbolDocumentMaps will be used.`);
 			}
-			await saveTaskList(symbolDocumentMaps, getConfigInstance().workspace, getConfigInstance().savePath);
+			// await saveTaskList(symbolDocumentMaps, getConfigInstance().workspace, getConfigInstance().savePath);
 			// Update config for the experiment
 	
 			// Run the experiment
