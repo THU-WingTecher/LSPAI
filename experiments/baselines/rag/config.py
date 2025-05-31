@@ -55,7 +55,7 @@ COMMONS_CSV_CONFIG = {
     "language": "java",
     "task_list_path": "/LSPAI/experiments/config/commons-csv-taskList.json",
     "project_path": "/LSPAI/experiments/projects/commons-csv",
-    "codebase_path": "/LSPAI/experiments/projects/commons-csv",
+    "codebase_path": "/LSPAI/experiments/projects/commons-csv/src/main/java",
 }
 
 # Dictionary of all available project configurations

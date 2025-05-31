@@ -30,7 +30,7 @@ if [[ "$TARGET_PROJECT_PATH" == *csv ]]; then
     total_files_count=74
 fi
 
-# total_files_count=0
+total_files_count=0
 # Iterate through each .java file in the TEST_DIR
 for java_file in $(find "$TEST_DIR" -type f -name "*.java"); do
     # Get the corresponding .class file name
