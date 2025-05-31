@@ -246,6 +246,21 @@ class Baseline:
         except Exception as e:
             print(f"Error counting tokens: {e}")
             return 0
+        
+    def invoke_llm(self, messages: List[Dict]) -> str:
+        max_retries = 3
+        retry_delay = 1  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                # Your OpenAI API call here
+                response = self.llm.invoke(messages)
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+        return response.content if hasattr(response, 'content') else str(response)
     
     def generate_unit_test(self, task: Dict, retrieval_result: Dict, language: str, file_path: str) -> Dict:
         """
@@ -271,7 +286,7 @@ class Baseline:
         ]
         
         # Invoke LLM with both system and user messages
-        response = self.llm.invoke(messages)
+        response = self.invoke_llm(messages)
         code = parse_code(response.content if hasattr(response, 'content') else str(response))
 
         return {

@@ -5,7 +5,7 @@ from typing import List, Dict
 from datetime import datetime
 import re
 from baseline import Baseline
-
+import random
 def parse_package_and_imports(source_code: str, language: str) -> Dict[str, List[str]]:
     """
     Parse package and import statements from source code.
@@ -174,20 +174,21 @@ class ExperimentPipeline:
         file_sig = file_sig.split(",")[0]  # Take first part if multiple parameters
         # suffix corresponding to language 
         file_sig = file_sig.replace("*", "")
+        random_suffix = str(random.randint(1000, 9999))
         # Add appropriate test suffix based on language
         if language == "java":
             test_suffix = "Test"
-            file_name = f"{file_sig}{test_suffix}.java"
+            file_name = f"{file_sig}_{random_suffix}{test_suffix}.java"
             base_name = file_name.replace("Test.java", "")
             disposable_suffix = "Test.java"
         elif language == "python":
             test_suffix = "_test"
-            file_name = f"{file_sig}{test_suffix}.py"
+            file_name = f"{file_sig}_{random_suffix}{test_suffix}.py"
             base_name = file_name.replace("_test.py", "")
             disposable_suffix = "_test.py"
         elif language == "go":
             test_suffix = "_test"
-            file_name = f"{file_sig}{test_suffix}.go"
+            file_name = f"{file_sig}_{random_suffix}{test_suffix}.go"
             base_name = file_name.replace("_test.go", "")
             disposable_suffix = "_test.go"
             
@@ -197,7 +198,8 @@ class ExperimentPipeline:
         while os.path.exists(os.path.join(self.output_dir, final_name)):
             final_name = f"{base_name}_{counter}{disposable_suffix}"
             counter += 1
-            
+        
+
         return os.path.join(self.output_dir, final_name)
 
     def save_result(self, result: Dict, file_path: str, additional_save_path: str = None) -> None:
