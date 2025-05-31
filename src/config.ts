@@ -273,7 +273,7 @@ export class Configuration {
                 savePath = path.join(this.config.workspace, this.config.savePath);
             }
             // savePath should be updated 
-            this.config.savePath = newConfig.savePath;
+            this.config.savePath = savePath;
             this.createSavePathIfNotExists(savePath);
             this.createSavePathIfNotExists(path.join(savePath, '..', 'history'));
             this.createSavePathIfNotExists(path.join(savePath, '..', 'logs'));
