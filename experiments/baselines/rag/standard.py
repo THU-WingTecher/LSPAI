@@ -38,6 +38,8 @@ async def process_single_task(task, pipeline, generator, project_path, MODEL, la
         additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
     if project_path.endswith("commons-csv"):
         additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+    else :
+        additional_save_path = os.path.dirname(task["relativeDocumentPath"])
     print(f"Additional save path: {additional_save_path}")
     
     # Add model name and project name to the file path to separate results
@@ -278,8 +280,8 @@ if __name__ == "__main__":
     from rag.config import PROJECT_CONFIGS
 
     MODELS = [
-        # "deepseek-chat",
-        # "gpt-4o",
+        "deepseek-chat",
+        "gpt-4o",
         "gpt-4o-mini"
     ]
     # List of projects to run experiments on
@@ -287,7 +289,9 @@ if __name__ == "__main__":
         "black",
         "logrus", 
         "commons-cli",
-        "commons-csv"
+        "commons-csv",
+        "cobra",
+        "tornado"
     ]  # Add or remove projects as needed
 
     # Run experiments for each project
@@ -331,7 +335,7 @@ if __name__ == "__main__":
 
             task_list = pipeline.load_tasks()
             asyncio.run(process_tasks_parallel(
-                task_list[:2], pipeline, generator, project_path, MODEL, language, max_workers=MAX_WORKERS
+                task_list, pipeline, generator, project_path, MODEL, language, max_workers=MAX_WORKERS
             ))
             # Process tasks
             # for task in task_list:

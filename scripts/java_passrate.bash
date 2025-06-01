@@ -42,7 +42,7 @@ for java_file in $(find "$TEST_DIR" -type f -name "*.java"); do
         valid_files_count=$((valid_files_count + 1))
     fi
 
-    # total_files_count=$((total_files_count + 1))
+    total_files_count=$((total_files_count + 1))
 done
 
 # # If there are no Java files, avoid division by zero
