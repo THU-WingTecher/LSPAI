@@ -19,11 +19,11 @@ import { getContextSelectorInstance, ContextTerm } from '../../agents/contextSel
 
 suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
-    const projectPath = "/LSPAI/experiments/projects/black";
-    const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src")];
+    const projectPath = "/LSPAI/experiments/projects/tornado";
+    const taskListPath = '/LSPAI/experiments/config/tornado-taskList.json'
+    const pyExtraPath = [path.join(projectPath, "tornado"), projectPath];
     const sampleNumber = -1;
     const languageId = "python";
-    const blackImportTestPath = "/LSPAI/tests/black_module_import_test.py"
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
         model: 'gpt-4o-mini',
@@ -53,44 +53,18 @@ suite('Experiment Test Suite', () => {
         console.log('Python interpreter used by extension:', await getPythonInterpreterPath());
 
         // Open the test file and collect diagnostics
-        const fileUri = vscode.Uri.file(blackImportTestPath);
-        await vscode.workspace.openTextDocument(fileUri);
-        await setPythonExtraPaths([]);
-        const oldPythonExtraPaths = await getPythonExtraPaths();
-        console.log('oldPythonExtraPaths:', oldPythonExtraPaths);
-        const oldDiagnostics = await getDiagnosticsForFilePath(blackImportTestPath);
-        const oldImportErrors = oldDiagnostics.filter(d =>
-            d.message.includes('No module named') ||
-            d.message.includes('unresolved import') ||
-            d.message.includes('not found') ||
-            d.message.includes('Import')
-        );  
-        assert.ok(oldImportErrors.length > 0, 'should have import errors');
-        await setPythonExtraPaths(blackModuleImportPath);
+        await setPythonExtraPaths(pyExtraPath);
         const currentPythonExtraPaths = await getPythonExtraPaths();
         console.log('currentPythonExtraPaths:', currentPythonExtraPaths);
-        assert.ok(currentPythonExtraPaths.length === blackModuleImportPath.length, 'python extra paths should be set as expected');
-        assert.ok(currentPythonExtraPaths.every((path, index) => path === blackModuleImportPath[index]), 'python extra paths should be set as expected');
-        // Log diagnostics for debugging
-        const newDiagnostics = await getDiagnosticsForFilePath(blackImportTestPath);
-        console.log('newDiagnostics:', newDiagnostics);
-
-        // Assert: No diagnostic about missing pandas or import errors
-        const importErrors = newDiagnostics.filter(d =>
-            d.message.includes('No module named') ||
-            d.message.includes('unresolved import') ||
-            d.message.includes('not found') ||
-            d.message.includes('Import')
-        );
-        assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
+        assert.ok(currentPythonExtraPaths.length === pyExtraPath.length, 'python extra paths should be set as expected');
+        assert.ok(currentPythonExtraPaths.every((path, index) => path === pyExtraPath[index]), 'python extra paths should be set as expected');
     });
-
     test('experiment helper functions', async () => {
         if (process.env.NODE_DEBUG !== 'true') {
             console.log('activate');
             await activate();
         }
-        const taskListPath = '/LSPAI/experiments/config/black-taskList.json'
+        
         const workspaceFolders = setWorkspaceFolders(projectPath);
         // await updateWorkspaceFolders(workspaceFolders);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
@@ -165,16 +139,75 @@ suite('Experiment Test Suite', () => {
     //     // console.log("promptObj:", promptObj[1].content);
     //     })
 
-    test('CFG - experimental - gpt-4o-mini', async () => {
+    test('Naive - gpt-4o-mini', async () => {
+        await runGenerateTestCodeSuite(
+            GenerationType.NAIVE,
+            FixType.NOFIX,
+            PromptType.DETAILED,
+            'gpt-4o-mini',
+            'openai' as Provider,
+            symbols,
+            languageId,
+        );
+    });
+
+    test('Symprompt - gpt-4o-mini', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.SymPrompt,
             FixType.NOFIX,
             PromptType.DETAILED,
-            'deepseek-coder',
+            'gpt-4o-mini',
+            'openai' as Provider,
+            symbols,
+            languageId,
+        );
+    });
+
+    test('Naive - gpt-4o ', async () => {
+        await runGenerateTestCodeSuite(
+            GenerationType.NAIVE,
+            FixType.NOFIX,
+            PromptType.DETAILED,
+            'gpt-4o',
+            'openai' as Provider,
+            symbols,
+            languageId,
+        );
+    });
+
+    test('Symprompt - gpt-4o', async () => {
+        await runGenerateTestCodeSuite(
+            GenerationType.SymPrompt,
+            FixType.NOFIX,
+            PromptType.DETAILED,
+            'gpt-4o',
+            'openai' as Provider,
+            symbols,
+            languageId,
+        );
+    });
+
+    test('Naive - deepseek-chat', async () => {
+        await runGenerateTestCodeSuite(
+            GenerationType.NAIVE,
+            FixType.NOFIX,
+            PromptType.DETAILED,
+            'deepseek-chat',
             'deepseek' as Provider,
             symbols,
             languageId,
-            "/LSPAI/experiments/projects/black/lspai-workspace/5_31_2025__10_50_31/black/symprompt_detailed_nofix/deepseek-coder/results"
+        );
+    });
+
+    test('Symprompt - deepseek-chat', async () => {
+        await runGenerateTestCodeSuite(
+            GenerationType.SymPrompt,
+            FixType.NOFIX,
+            PromptType.DETAILED,
+            'deepseek-chat',
+            'deepseek' as Provider,
+            symbols,
+            languageId,
         );
     });
 
