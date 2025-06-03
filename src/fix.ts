@@ -1,13 +1,14 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getConfigInstance } from './config';
-import { groupDiagnosticsByMessage, groupedDiagnosticsToString, DiagnosticsToString, getDiagnosticsForFilePath, chooseDiagnostic } from './diagnostic';
+import { groupDiagnosticsByMessage, groupedDiagnosticsToString, DiagnosticsToString, getDiagnosticsForFilePath, chooseDiagnostic, markTestCodeWithDiagnostic } from './diagnostic';
 import { saveToIntermediate, showGeneratedCodeWithPreview } from './fileHandler';
 import { invokeLLM, TokenLimitExceededError } from './invokeLLM';
 import { ExpLogs, LLMLogs, ExpLogger } from './log';
 import { experimentalDiagnosticPrompt, constructDiagnosticPrompt, FixSystemPrompt } from './prompts/promptBuilder';
 import { parseCode } from './utils';
 import { reportProgressWithCancellation } from './userInteraction';
+import { collectRelatedInfo } from './collectDiagnosticInfo';
 
 function defaultReturn(finalCode: string) {
 	return {
@@ -41,6 +42,85 @@ function defaultReturn(finalCode: string) {
 // 	// return diagnosticReport;
 // }
 
+// export async function performFixingRound(
+// 	srcPath: string,
+// 	round: number,
+// 	curSavePoint: string,
+// 	currentCode: string,
+// 	diagnostics: vscode.Diagnostic[],
+// 	focal_method: string,
+// 	method: string,
+// 	languageId: string,
+// 	model: string,
+// 	historyPath: string,
+// 	fileName: string,
+// 	logger: ExpLogger): Promise<{ code: string; savePoint: string; diagnostics: vscode.Diagnostic[]; } | null> {
+// 	console.log(`\n--- Round ${round} ---`);
+
+// 	// Construct prompt for fixing
+// 	let diagnosticPrompts;
+// 	const document = await vscode.workspace.openTextDocument(vscode.Uri.file(curSavePoint));
+// 	const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
+// 	const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
+// 	diagnosticPrompts = experimentalDiagnosticPrompt(
+// 		currentCode,
+// 		diagnosticReport,
+// 		focal_method
+// 	);
+
+// 	// Get AI response
+// 	const fixlogObj: LLMLogs = { tokenUsage: "", result: "", prompt: "", model: model };
+// 	const fixStartTime = Date.now();
+// 	let aiResponse: string;
+
+// 	try {
+// 		aiResponse = await invokeLLM(diagnosticPrompts, fixlogObj);
+// 		console.log("fix:performFixingRound:aiResponse", aiResponse);
+// 		logger.log(`FixWithLLM_${round}`, (Date.now() - fixStartTime).toString(), fixlogObj, "");
+// 	} catch (error) {
+// 		if (error instanceof TokenLimitExceededError) {
+// 			console.warn('Token limit exceeded, continuing...');
+// 		}
+// 		logger.log(error instanceof TokenLimitExceededError ? "TokenLimitation" : "UnknownError", (Date.now() - fixStartTime).toString(), fixlogObj, "");
+// 		return null;
+// 	}
+
+// 	// Parse and save the fixed code
+// 	const fixedCode = parseCode(aiResponse);
+// 	console.log("fix:performFixingRound:fixedCode", fixedCode);
+// 	const saveStartTime = Date.now();
+
+// 	try {
+// 		const newSavePoint = await saveToIntermediate(
+// 			fixedCode,
+// 			srcPath,
+// 			fileName,
+// 			path.join(historyPath, getConfigInstance().model, round.toString()),
+// 			languageId
+// 		);
+// 		console.log("fix:performFixingRound:newSavePoint", newSavePoint);
+// 		logger.log("saveGeneratedCodeToFolder", (Date.now() - saveStartTime).toString(), null, "");
+
+// 		// Get updated diagnostics
+// 		const diagStartTime = Date.now();
+// 		const newDiagnostics = await getDiagnosticsForFilePath(newSavePoint);
+// 		const filteredDiagnostics = newDiagnostics.filter(diagnostic => chooseDiagnostic(diagnostic, languageId));
+
+// 		console.log("fix:performFixingRound:filteredDiagnostics", filteredDiagnostics);
+// 		logger.log("getDiagnosticsForFilePath", (Date.now() - diagStartTime).toString(), null, "");
+
+// 		console.log(`Remaining Diagnostics after Round ${round}:`, filteredDiagnostics.length);
+
+// 		return {
+// 			code: fixedCode,
+// 			savePoint: newSavePoint,
+// 			diagnostics: filteredDiagnostics
+// 		};
+// 	} catch (error) {
+// 		console.error('Failed to save or validate fixed code:', error);
+// 		return null;
+// 	}
+// }
 export async function performFixingRound(
 	srcPath: string,
 	round: number,
@@ -53,6 +133,7 @@ export async function performFixingRound(
 	model: string,
 	historyPath: string,
 	fileName: string,
+	focalDocument: vscode.TextDocument,
 	logger: ExpLogger): Promise<{ code: string; savePoint: string; diagnostics: vscode.Diagnostic[]; } | null> {
 	console.log(`\n--- Round ${round} ---`);
 
@@ -60,10 +141,18 @@ export async function performFixingRound(
 	let diagnosticPrompts;
 	const document = await vscode.workspace.openTextDocument(vscode.Uri.file(curSavePoint));
 	const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
+	const testCodeWithMarked = markTestCodeWithDiagnostic(document, groupedDiagnostics);
+	const contextInfo = await collectRelatedInfo(
+		vscode.Uri.file(curSavePoint),
+		focalDocument,
+		groupedDiagnostics,
+		languageId,
+		srcPath
+	);
 	const diagnosticReport = groupedDiagnosticsToString(groupedDiagnostics, document).join('\n');
 	diagnosticPrompts = experimentalDiagnosticPrompt(
-		currentCode,
-		diagnosticReport,
+		testCodeWithMarked,
+		contextInfo,
 		focal_method
 	);
 
@@ -131,6 +220,7 @@ export async function fixDiagnostics(
 	fileName: string,
 	logger: ExpLogger,
 	MAX_ROUNDS: number,
+	focalDocument: vscode.TextDocument,
 	progress: vscode.Progress<{ message: string; increment: number }>,
 	token: vscode.CancellationToken
 	): 
@@ -184,6 +274,7 @@ export async function fixDiagnostics(
 			model,
 			historyPath,
 			fileName,
+			focalDocument,
 			logger
 		);
 

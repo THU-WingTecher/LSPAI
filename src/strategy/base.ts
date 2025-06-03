@@ -85,6 +85,7 @@ export abstract class BaseTestGenerator implements TestGenerationStrategy {
 			this.fileName,
 			this.logger,
 			getConfigInstance().maxRound,
+			this.document,
 			this.progress,
 			this.token
 		);

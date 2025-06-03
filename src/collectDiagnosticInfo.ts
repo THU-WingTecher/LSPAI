@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
 import { DecodedToken, getDecodedTokensFromLine } from './token';
-import { retrieveDefs } from './retrieve';
-import * as path from 'path';
-import { getSymbolByLocation, getTypeInfo } from './lsp';
+import { getImportStatement, getPackageStatement, retrieveDefs } from './retrieve';
+import * as fpath from 'path';
+import { getSymbolByLocation, getTypeInfo, getAllSymbols } from './lsp';
 import { getReferenceInfo } from './reference';
 import { getLinesTexts } from './diagnostic';
 import { isInWorkspace } from './agents/contextSelector';
+import { getConfigInstance } from './config';
 
 // Summary Statistics:
 // ================================================================================
@@ -38,7 +39,7 @@ export async function collectRelatedInfo(
 	groupedDiagnostics: Map<string, vscode.Diagnostic[]>, 
 	languageId: string, 
 	srcPath: string = ""): Promise<string> {
-	const contextBuilder = new DiagnosticContextCollector(testCodeUri, languageId, srcPath);
+	const contextBuilder = new DiagnosticContextCollector(testCodeUri, languageId, srcPath, focalMethodDoc);
 	return await contextBuilder.collectContextForDiagnostics(groupedDiagnostics, focalMethodDoc);
 }
 
@@ -46,13 +47,13 @@ class DiagnosticContextCollector {
 	private languageId: string;
 	private srcPath: string;
 	private uri: vscode.Uri;
+	private focalDoc: vscode.TextDocument;
 
-
-	constructor(uri: vscode.Uri, languageId: string, srcPath: string) {
+	constructor(uri: vscode.Uri, languageId: string, srcPath: string, focalDoc: vscode.TextDocument) {
 		this.languageId = languageId;
 		this.srcPath = srcPath;
 		this.uri = uri;
-		
+		this.focalDoc = focalDoc;
 	}
 
 	private classifyDiagnostic(diagnostic: vscode.Diagnostic): DiagnosticCategory {
@@ -193,6 +194,36 @@ class DiagnosticContextCollector {
 	// 	return result;
 	// }
 	// collect context for each diagnostic
+	static getImportAndPackageStatement(document: vscode.TextDocument, languageId: string): string {
+		let result = "";
+		const relativeFileName = fpath.relative(getConfigInstance().workspace, document.uri.fsPath);
+		result += `File Name: ${relativeFileName}\n`;
+		const packageStatement = getPackageStatement(document, languageId);
+		if (packageStatement) {
+			result += packageStatement.join('\n').trim();
+		}
+		const importStatement = getImportStatement(document, languageId, null);
+		if (importStatement) {
+			result += importStatement.trim();
+		}
+		return result;
+	}
+
+	private async collectConstructorCallInformation(): Promise<string> {
+		const testCodeFileName = fpath.basename(this.uri.fsPath);
+		const testCodeSavedPath = fpath.dirname(this.uri.fsPath);
+		let info = "\n=== Test Code Information ===\n";
+		info += `Test Code File Name: ${testCodeFileName}\n`;
+		info += `Test Code Saved Path: ${testCodeSavedPath}\n`;
+
+		const apiInfo = await this.collectAPIInformation(this.focalDoc);
+		if (apiInfo) {
+			info += "\n=== Focal Document Information ===\n";
+			info += apiInfo;
+		}
+		return info;
+	}
+	
 	async collectContextForDiagnostics(groupedDiagnostics: Map<string, vscode.Diagnostic[]>, focalMethodDoc?: vscode.TextDocument): Promise<string> {
 		const context: string[] = [];
 		const collectedInfo = new Set<string>(); // Track what we've already collected
@@ -208,10 +239,16 @@ class DiagnosticContextCollector {
 		);
 		if (hasImportDiagnostic) {
 			const structureInfo = await this.collectProjectStructure();
+			const importAndPackageStatement = DiagnosticContextCollector.getImportAndPackageStatement(this.focalDoc, this.languageId);
 			if (structureInfo) {
 				context.push("\n" + this.getGoalofContext(DiagnosticCategory.IMPORT_MODULE_RESOLUTION) + "\n");
 				context.push("\n=== Project Structure ===");
 				context.push(structureInfo);
+				if (importAndPackageStatement) {
+					context.push("\n=== Import and Package Statement of Code File that this is testing===");
+					context.push(importAndPackageStatement);
+					context.push("\n")
+				}
 			}
 		}
 		
@@ -241,12 +278,14 @@ class DiagnosticContextCollector {
 					break;
 
 				case DiagnosticCategory.CONSTRUCTOR_CALL:
-					// get current test code file name and its saved path
-					const testCodeFileName = path.basename(this.uri.fsPath);
-					const testCodeSavedPath = path.dirname(this.uri.fsPath);
-					context.push("\n=== Test Code Information ===");
-					context.push(`Test Code File Name: ${testCodeFileName}`);
-					context.push(`Test Code Saved Path: ${testCodeSavedPath}\n`);
+					if (!collectedInfo.has('constructor')) {
+						const constructorInfo = await this.collectConstructorCallInformation();
+						if (constructorInfo) {
+							context.push(constructorInfo);
+							collectedInfo.add('constructor');
+							contextAdded = true;
+						}
+					}
 
 				case DiagnosticCategory.SYNTAX_ERROR:
 				case DiagnosticCategory.MEMBER_ACCESS_USAGE:
@@ -308,84 +347,12 @@ class DiagnosticContextCollector {
 	
 		return context.join('\n');
 	}
-    // async collectContextForDiagnostics(diagnostics: vscode.Diagnostic[], focalMethodDoc?: vscode.TextDocument): Promise<string> {
-    //     const context: string[] = [];
-        
-    //     // Get the first diagnostic from each group
-    //     for (const diagnostic of diagnostics) {
-    //         // Classify the diagnostic
-    //         const category = this.classifyDiagnostic(diagnostic);
-            
-    //         // Add diagnostic information
-    //         context.push("=== Diagnostic Information ===");
-    //         context.push(`Message: ${diagnostic.message}`);
-    //         context.push(`Severity: ${vscode.DiagnosticSeverity[diagnostic.severity]}`);
-    //         context.push(`Category: ${DiagnosticCategory[category]}`);
-            
-    //         // Get related information based on classification
-    //         switch (category) {
-    //             case DiagnosticCategory.REDECLARATION:
-    //                 if (focalMethodDoc) {
-    //                     const scopeInfo = await this.collectScopeInformation(focalMethodDoc);
-    //                     if (scopeInfo) {
-    //                         context.push("\n=== Current Scope Information ===");
-    //                         context.push(scopeInfo);
-    //                     }
-    //                 }
-    //                 break;
-
-    //             case DiagnosticCategory.MEMBER_ACCESS_USAGE:
-    //                 const tokens = await this.locateTokenFromDiagnostics(diagnostic);
-    //                 const refsInfo = await this.getRefsOfDiagnostic(tokens);
-    //                 if (refsInfo) {
-    //                     context.push("\n=== Reference Information ===");
-    //                     context.push(refsInfo);
-    //                 }
-    //                 break;
-
-    //             case DiagnosticCategory.TYPE_MISMATCH:
-    //                 const typeTokens = await this.locateTokenFromDiagnostics(diagnostic);
-    //                 const typeInfo = await this.getTypeAndImplementationInfo(typeTokens);
-    //                 if (typeInfo) {
-    //                     context.push("\n=== Type Information ===");
-    //                     context.push(typeInfo);
-    //                 }
-    //                 break;
-
-    //             case DiagnosticCategory.IMPORT_MODULE_RESOLUTION:
-    //                 const structureInfo = await this.collectProjectStructure();
-    //                 if (structureInfo) {
-    //                     context.push("\n=== Project Structure ===");
-    //                     context.push(structureInfo);
-    //                 }
-    //                 break;
-	// 			case DiagnosticCategory.SYNTAX_ERROR:
-	// 			case DiagnosticCategory.CONSTRUCTOR_CALL:
-
-	// 				break;
-	// 			default:
-	// 				break;
-    //             // case DiagnosticCategory.CONSTRUCTOR_CALL:
-    //             //     const apiInfo = await this.collectAPIInformation(focalMethodDoc);
-    //             //     if (apiInfo) {
-    //             //         context.push("\n=== API Information ===");
-    //             //         context.push(apiInfo);
-    //             //     }
-    //             //     break;
-    //         }
-
-    //         // Add separator between different diagnostics
-    //         context.push("\n" + "=".repeat(80) + "\n");
-    //     }
-
-    //     return context.join('\n');
-    // }
 
 	async getRelatedInfo(diagnostic: vscode.Diagnostic): Promise<string> {
 		let relatedInfo = '';
 		if (diagnostic.relatedInformation){
 			for (const info of diagnostic.relatedInformation) {
-				relatedInfo += `${info.message} from ${path.relative(this.uri.fsPath, info.location.uri.fsPath)}\n`;
+				relatedInfo += `${info.message} from ${fpath.relative(this.uri.fsPath, info.location.uri.fsPath)}\n`;
 			}
 		}
 		return relatedInfo;
@@ -424,7 +391,7 @@ class DiagnosticContextCollector {
 			}
 			if (token.defSymbol) {
 				if (!isInWorkspace(token.definition[0].uri)) {
-					relatedInfo += `${token.defSymbol.name} from ${path.basename(token.definition[0].uri.fsPath)}\n`;
+					relatedInfo += `${token.defSymbol.name} from ${fpath.basename(token.definition[0].uri.fsPath)}\n`;
 					relatedInfo += `${defSymbolDoc.getText(token.defSymbol.range)}\n`;
 				}
 			}
@@ -452,13 +419,6 @@ class DiagnosticContextCollector {
 		const decodedTokens = await getDecodedTokensFromLine(document, diagnostic.range.start.line);
 		await retrieveDefs(document, decodedTokens);
 		return decodedTokens;
-		// const token = decodedTokens.find(d => d.word.includes("token"));
-		// if (!token) {
-		// 	return "";
-		// }
-		// const document = await vscode.workspace.openTextDocument(this.uri);
-		// const line = document.lineAt(token.range.start.line);
-		// return line.text;
 	}
 
 
@@ -522,40 +482,6 @@ class DiagnosticContextCollector {
 	// 		return "";
 	// 	}
 	// }
-
-	private extractImports(text: string, languageId: string): string[] {
-		const imports: string[] = [];
-		const lines = text.split('\n');
-
-		for (const line of lines) {
-			const trimmed = line.trim();
-			
-			switch (languageId) {
-				case 'python':
-					if (trimmed.startsWith('import ') || trimmed.startsWith('from ')) {
-						imports.push(trimmed);
-					}
-					break;
-				case 'java':
-					if (trimmed.startsWith('import ')) {
-						imports.push(trimmed);
-					}
-					break;
-				case 'go':
-					if (trimmed.startsWith('import ') || (trimmed.includes('import') && trimmed.includes('"'))) {
-						imports.push(trimmed);
-					}
-					break;
-				case 'cpp':
-					if (trimmed.startsWith('#include')) {
-						imports.push(trimmed);
-					}
-					break;
-			}
-		}
-
-		return imports;
-	}
 
 	// private async getAvailableModules(): Promise<string[]> {
 	// 	try {
@@ -693,12 +619,14 @@ class DiagnosticContextCollector {
 	}
 	async collectProjectStructure(): Promise<string> {
 		try {
+			console.log('this.srcPath', this.srcPath);
 			if (!this.srcPath) {
 				return "";
 			}
 	
 			const structure: string[] = [`Project structure:`];
-			
+			const focalMethodPath = this.focalDoc.uri.fsPath;
+			console.log('Focal method path:', focalMethodPath);
 			// Get file pattern based on language
 			const filePattern = this.getSourceFilePattern();
 			const excludePattern = this.getExcludePattern();
@@ -712,7 +640,6 @@ class DiagnosticContextCollector {
 			// Create a tree structure using a Map to maintain order
 			const fileTree = new Map<string, Set<string>>();
 			fileTree.set('', new Set<string>());  // Root directory
-	
 			for (const file of files) {
 				// Get path relative to srcPath
 				const fullPath = file.fsPath;
@@ -746,7 +673,7 @@ class DiagnosticContextCollector {
 			// Convert tree to string representation
 			const processedPaths = new Set<string>();
 			
-			function buildTree(path: string, prefix: string = ''): void {
+			const buildTree = (path: string, prefix: string = ''): void => {
 				if (processedPaths.has(path)) {
 					return;
 				}
@@ -770,7 +697,18 @@ class DiagnosticContextCollector {
 					const isDir = fileTree.has(path ? `${path}/${item}` : item);
 					
 					// Add directory indicator for folders
-					const displayName = isDir ? `${item}/` : item;
+					const currentFullPath = path ? path + '/' + item : item;
+					console.log('currentFullPath', currentFullPath);
+					const focalMethodRelativePath = fpath.relative(this.srcPath as string, focalMethodPath);
+					console.log('focalMethodRelativePath', focalMethodRelativePath);
+					const isFocalFile = currentFullPath === focalMethodRelativePath;
+					
+					// Add directory indicator for folders and mark focal method
+					let displayName = isDir ? `${item}/` : item;
+					if (isFocalFile) {
+						displayName += ' [FOCAL METHOD Resides]';
+					}
+					
 					structure.push(prefix + (isLast ? '└── ' : '├── ') + displayName);
 					
 					const newPath = path ? `${path}/${item}` : item;
@@ -778,7 +716,7 @@ class DiagnosticContextCollector {
 						buildTree(newPath, prefix + (isLast ? '    ' : '│   '));
 					}
 				}
-			}
+			};
 	
 			buildTree('');
 			console.log("structure",structure.join('\n'));
@@ -789,17 +727,15 @@ class DiagnosticContextCollector {
 		}
 	}
 
-	private async collectAPIInformation(document?: vscode.TextDocument): Promise<string> {
+	private async collectAPIInformation(document: vscode.TextDocument): Promise<string> {
 		if (!document) return "";
 
 		try {
 			const apiInfo: string[] = [];
 			
 			// Get function/method definitions
-			const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-				'vscode.executeDocumentSymbolProvider',
-				document.uri
-			);
+			const symbols = await getAllSymbols(document.uri);
+
 
 			if (symbols) {
 				const functions = symbols.filter(s => s.kind === vscode.SymbolKind.Function || s.kind === vscode.SymbolKind.Method);
