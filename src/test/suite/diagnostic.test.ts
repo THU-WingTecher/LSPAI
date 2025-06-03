@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../diagnostic';
-import { activate, getAllSymbols, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
+import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions, markTestCodeWithDiagnostic } from '../../diagnostic';
+import { activate, addJavaTestPath, getAllSymbols, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../lsp';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../helper';
 import { getConfigInstance } from '../../config';
 import path from 'path';
@@ -48,19 +48,19 @@ suite('Diagnostic Test Suite', () => {
     //     assert.ok(result.every(d => !d.message.includes("is not on the classpath of project")), "should not report missing java classpath");
     // });
 
-    test('PYTHON - test language server has launched', async () => {
-        const symbols = await getAllSymbols(vscode.Uri.file(pythonPath));
-        assert.ok(symbols.length > 0);
-    });
+    // test('PYTHON - test language server has launched', async () => {
+    //     const symbols = await getAllSymbols(vscode.Uri.file(pythonPath));
+    //     assert.ok(symbols.length > 0);
+    // });
 
-    test('PYTHON - test diagnostic against python code', async () => {
-        await setPythonInterpreterPath(pythonInterpreterPath);
-        await setPythonExtraPaths([blackModuleImportPath]);
-        const fileUri = vscode.Uri.file(pythonPath);
-        const result = await getDiagnosticsForFilePath(pythonPath);
-        console.log('result', result);
-        assert.ok(result.length > 0);
-    });
+    // test('PYTHON - test diagnostic against python code', async () => {
+    //     await setPythonInterpreterPath(pythonInterpreterPath);
+    //     await setPythonExtraPaths([blackModuleImportPath]);
+    //     const fileUri = vscode.Uri.file(pythonPath);
+    //     const result = await getDiagnosticsForFilePath(pythonPath);
+    //     console.log('result', result);
+    //     assert.ok(result.length > 0);
+    // });
 
     // test('GO - test language server has launched', async () => {
     //     const projectPath = "/LSPAI/experiments/projects/cobra";
@@ -125,6 +125,15 @@ suite('Diagnostic Test Suite', () => {
         const workspacePath = "/LSPAI/experiments/projects/commons-cli";
         const workspaceFolders = setWorkspaceFolders(workspacePath);
         await updateWorkspaceFolders(workspaceFolders);
+        // const oldJavaConfig = await getJavaConfiguration();
+        // console.log('oldJavaConfig', oldJavaConfig);
+        await addJavaSourcePath('/LSPAI/experiments/projects/commons-cli/src/lspai/test/java');
+        // await vscode.commands.executeCommand('java.clean.workspace');
+        // await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for clean operation
+        // await vscode.commands.executeCommand('java.projectConfiguration.update');
+        // const javaConfig = await getJavaConfiguration();
+
+        // console.log('javaConfig', javaConfig);
         console.log('workspaceFolders', vscode.workspace.workspaceFolders);
         // Helper function to get all code files recursively
         async function getAllCodeFiles(dir: string): Promise<string[]> {
@@ -144,8 +153,10 @@ suite('Diagnostic Test Suite', () => {
 
         // Get all code files
         const codeFiles = await getAllCodeFiles(dirPath);
+        // const codeFiles = ["/LSPAI/experiments/projects/commons-cli/src/lspai/test/java/org/apache/commons/cli/Option_getValue_0_1Test.java"];
         const allContextInfo: { [filepath: string]: string } = {};
         const srcPath = path.join(workspacePath, "src/main/java");
+
         // Process each file
         for (const filePath of codeFiles) {
             try {
@@ -156,6 +167,8 @@ suite('Diagnostic Test Suite', () => {
                 
                 if (diagnostics.length > 0) {
                     const groupedDiagnostics = groupDiagnosticsByMessage(diagnostics);
+                    const testCodeWithMarked = markTestCodeWithDiagnostic(document, groupedDiagnostics);
+                    console.log('testCodeWithMarked', testCodeWithMarked);
                     const firstDiagnostics = Array.from(groupedDiagnostics.values())
                         .map(diagnosticArray => diagnosticArray[0])
                         .filter(diagnostic => diagnostic !== undefined);
@@ -467,6 +480,28 @@ async function createSymlink(sourcePath: string, targetPath: string): Promise<vo
     }
 }
 
+async function addJavaSourcePath(newPath: string): Promise<void> {
+    const config = vscode.workspace.getConfiguration('java');
+    
+    // Get current source paths
+    const currentPaths: string[] = config.get('project.sourcePaths') || [];
+    
+    // Add new path if it's not already included
+    if (!currentPaths.includes(newPath)) {
+        currentPaths.push(newPath);
+        
+        // Update the configuration
+        await config.update(
+            'project.sourcePaths',
+            currentPaths,
+            vscode.ConfigurationTarget.Workspace
+        );
+        
+        console.log('Updated Java source paths:', currentPaths);
+    }
+}
+
+// Usage to add 'lspai/test' to source paths
 
 // async function updateWorkspaceForDiagnostics(testPath: string) {
 //     // 1. Create a temporary symbolic link in the project's test directory

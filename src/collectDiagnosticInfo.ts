@@ -5,6 +5,7 @@ import * as path from 'path';
 import { getSymbolByLocation, getTypeInfo } from './lsp';
 import { getReferenceInfo } from './reference';
 import { getLinesTexts } from './diagnostic';
+import { isInWorkspace } from './agents/contextSelector';
 
 // Summary Statistics:
 // ================================================================================
@@ -154,6 +155,8 @@ class DiagnosticContextCollector {
 
 	private getGoalofContext(diagnosticCategory: DiagnosticCategory): string {
 		switch (diagnosticCategory) {
+			case DiagnosticCategory.IMPORT_MODULE_RESOLUTION:
+				return "think about the import statement and the module resolution error and find out from project structure";
 			case DiagnosticCategory.REDECLARATION:
 				return "find out redeclared symbol and locate it so that generator do not have to redeclare it and directly use it";
 			case DiagnosticCategory.MEMBER_ACCESS_USAGE:
@@ -170,25 +173,25 @@ class DiagnosticContextCollector {
 
 	groupedDiagnosticToString(message: any, diagList: vscode.Diagnostic[], document: vscode.TextDocument): string[] {
 		const result: string[] = [];
-		result.push(`\nMessage: "${message}"`);
+		// result.push(`\nMessage: "${message}"`);
 		result.push(`Number of occurrences: ${diagList.length}`);
-		result.push('Locations:');
-		diagList.forEach((diag, index) => {
-			result.push(`  ${index + 1}. Line ${diag.range.start.line + 1}, ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)}`);
-		});
-		result.push('------------------------------');
+		// result.push('Locations:');
+		// diagList.forEach((diag, index) => {
+		// 	result.push(`  ${index + 1}. Line ${diag.range.start.line + 1}, ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)}`);
+		// });
+		// result.push('------------------------------');
 		return result;
 	}
 
-	groupedDiagnosticsToString(groupedDiagnostics: Map<string, vscode.Diagnostic[]>, document: vscode.TextDocument): string[] {
-		const result: string[] = [];
-		console.log('Grouped Diagnostics by Message:');
-		console.log('==============================');
-		for (const [message, diagList] of groupedDiagnostics) {
-			result.push(...this.groupedDiagnosticToString(message, diagList, document));
-		}
-		return result;
-	}
+	// groupedDiagnosticsToString(groupedDiagnostics: Map<string, vscode.Diagnostic[]>, document: vscode.TextDocument): string[] {
+	// 	const result: string[] = [];
+	// 	console.log('Grouped Diagnostics by Message:');
+	// 	console.log('==============================');
+	// 	for (const [message, diagList] of groupedDiagnostics) {
+	// 		result.push(...this.groupedDiagnosticToString(message, diagList, document));
+	// 	}
+	// 	return result;
+	// }
 	// collect context for each diagnostic
 	async collectContextForDiagnostics(groupedDiagnostics: Map<string, vscode.Diagnostic[]>, focalMethodDoc?: vscode.TextDocument): Promise<string> {
 		const context: string[] = [];
@@ -199,6 +202,7 @@ class DiagnosticContextCollector {
 		.filter(diagnostic => diagnostic !== undefined);
 
 		// Collect project structure only once if needed
+		context.push("=== Diagnostic Information ===");
 		let hasImportDiagnostic = firstDiagnostics.some(d => 
 			this.classifyDiagnostic(d) === DiagnosticCategory.IMPORT_MODULE_RESOLUTION
 		);
@@ -215,11 +219,12 @@ class DiagnosticContextCollector {
 			const category = this.classifyDiagnostic(diagList[0]);
 			
 			// Add diagnostic information
-			context.push("=== Diagnostic Information ===");
 			// context.push(`Message: ${diagnostic.message}`);
 			// context.push(`Severity: ${vscode.DiagnosticSeverity[diagnostic.severity]}`);
-			// context.push(`Category: ${DiagnosticCategory[category]}`);
+			// context.push(`Type: ${DiagnosticCategory[category]}`);
+			context.push("Diagnostic Group: " + message);
 			context.push(...this.groupedDiagnosticToString(message, diagList, focalMethodDoc!));
+			let contextAdded = false;
 			switch (category) {
 				case DiagnosticCategory.REDECLARATION:
 					// find out redeclared symbol and locate it so that model do not have to redeclare it and directly use it
@@ -230,10 +235,20 @@ class DiagnosticContextCollector {
 							context.push("\n=== Current Scope Information ===");
 							context.push(scopeInfo);
 							collectedInfo.add('scope');
+							contextAdded = true;
 						}
 					}
 					break;
-	
+
+				case DiagnosticCategory.CONSTRUCTOR_CALL:
+					// get current test code file name and its saved path
+					const testCodeFileName = path.basename(this.uri.fsPath);
+					const testCodeSavedPath = path.dirname(this.uri.fsPath);
+					context.push("\n=== Test Code Information ===");
+					context.push(`Test Code File Name: ${testCodeFileName}`);
+					context.push(`Test Code Saved Path: ${testCodeSavedPath}\n`);
+
+				case DiagnosticCategory.SYNTAX_ERROR:
 				case DiagnosticCategory.MEMBER_ACCESS_USAGE:
 				case DiagnosticCategory.TYPE_MISMATCH:
 					const tokens = await this.locateTokenFromDiagnostics(diagList[0]);
@@ -247,6 +262,7 @@ class DiagnosticContextCollector {
 								context.push("\n=== Reference Information ===");
 								context.push(refsInfo);
 								processedTokens.set(`refs_${tokenKey}`, refsInfo);
+								contextAdded = true;
 							}
 						} else {
 							// context.push("\n=== Reference Information ===");
@@ -260,6 +276,7 @@ class DiagnosticContextCollector {
 								context.push("\n=== Definition Information ===");
 								context.push(defInfo);
 								processedTokens.set(`def_${tokenKey}`, defInfo);
+								contextAdded = true;
 							}
 						} else {
 							// context.push("\n=== Reference Information ===");
@@ -273,6 +290,7 @@ class DiagnosticContextCollector {
 								context.push("\n=== Type Information ===");
 								context.push(typeInfo);
 								processedTokens.set(`type_${tokenKey}`, typeInfo);
+								contextAdded = true;
 							}
 						} else {
 							// context.push("\n=== Type Information ===");
@@ -281,9 +299,6 @@ class DiagnosticContextCollector {
 					}
 					break;
 	
-				case DiagnosticCategory.SYNTAX_ERROR:
-				case DiagnosticCategory.CONSTRUCTOR_CALL:
-					break;
 				default:
 					break;
 			}
@@ -385,6 +400,8 @@ class DiagnosticContextCollector {
 			if (typeInfoSymbolOrLocOrNull) {
 				const typeInfoSymbolOrLoc = typeInfoSymbolOrLocOrNull as vscode.Definition | vscode.Location;
 				const defSymbolDoc = await vscode.workspace.openTextDocument(typeInfoSymbolOrLocOrNull.uri);
+				console.log('defSymbolDoc', defSymbolDoc);
+				console.log('typeInfoSymbolOrLocOrNull', typeInfoSymbolOrLocOrNull);
 				const typeInfoSymbol = await getSymbolByLocation(defSymbolDoc, typeInfoSymbolOrLocOrNull.range!.start);
 				if (typeInfoSymbol) {
 					const typeInfoString = defSymbolDoc.getText(typeInfoSymbol.range);
@@ -406,8 +423,10 @@ class DiagnosticContextCollector {
 				}
 			}
 			if (token.defSymbol) {
-				relatedInfo += `${token.defSymbol.name} from ${path.basename(token.definition[0].uri.fsPath)}\n`;
-				relatedInfo += `${defSymbolDoc.getText(token.defSymbol.range)}\n`;
+				if (!isInWorkspace(token.definition[0].uri)) {
+					relatedInfo += `${token.defSymbol.name} from ${path.basename(token.definition[0].uri.fsPath)}\n`;
+					relatedInfo += `${defSymbolDoc.getText(token.defSymbol.range)}\n`;
+				}
 			}
 		}
 		return relatedInfo;
@@ -418,9 +437,11 @@ class DiagnosticContextCollector {
 		for (const token of decodedTokens) {
 			if (token.definition[0].range) {
 				const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
-				const referenceInfo = await getReferenceInfo(defSymbolDoc, token.definition[0].range, 80, false);
-				relatedInfo += `Example of ${token.defSymbol?.name}\n`;
-				relatedInfo += `${referenceInfo}\n`;
+				const referenceInfo = await getReferenceInfo(defSymbolDoc, token.definition[0].range, 40, false);
+				if (referenceInfo) {
+					relatedInfo += `Example of ${token.word}\n`;
+					relatedInfo += `${referenceInfo}\n`;
+				}
 			}
 		}
 		return relatedInfo;
