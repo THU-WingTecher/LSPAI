@@ -231,43 +231,43 @@ export async function activate(context: vscode.ExtensionContext) {
     // );
   // ... existing code ...
 
-	// const diagnosticDisposable = vscode.commands.registerCommand('extension.diagnostic', async () => {
+	const diagnosticDisposable = vscode.commands.registerCommand('extension.diagnostic', async () => {
 
-	// 	// const editor = vscode.window.activeTextEditor;
-	// 	// if (!editor) {
-	// 	// 	vscode.window.showErrorMessage('Please open a file and select a function to generate unit test.');
-	// 	// 	return;
-	// 	// }
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			vscode.window.showErrorMessage('Please open a file and select a function to generate unit test.');
+			return;
+		}
 		
-	// 	// // const filepath = "/LSPAI/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/CSVFormat_getIgnoreEmptyLines1Test.java";
-	// 	// // const uri = vscode.Uri.file(filepath);
-	// 	// const document = editor.document;
-	// 	// const diagnostics = await vscode.languages.getDiagnostics(document.uri);
-	// 	// const codeActions = await getCodeAction(document.uri, diagnostics[0]);
-	// 	// for (const diagnostic of diagnostics) {
-	// 	// 	console.log('diagnostics', diagnostics);
-	// 	// 	const codeActions = await getCodeAction(editor.document.uri, diagnostic);
+		// const filepath = "/LSPAI/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/CSVFormat_getIgnoreEmptyLines1Test.java";
+		// const uri = vscode.Uri.file(filepath);
+		const document = editor.document;
+		const diagnostics = await vscode.languages.getDiagnostics(document.uri);
+		const codeActions = await getCodeAction(document.uri, diagnostics[0]);
+		for (const diagnostic of diagnostics) {
+			console.log('diagnostics', diagnostics);
+			const codeActions = await getCodeAction(editor.document.uri, diagnostic);
 			
-	// 	// 	// Filter for quick fix actions only
-	// 	// 	const quickFixes = codeActions.filter(action => 
-	// 	// 		action.kind && action.kind.contains(vscode.CodeActionKind.QuickFix)
-	// 	// 	);
+			// Filter for quick fix actions only
+			const quickFixes = codeActions.filter(action => 
+				action.kind && action.kind.contains(vscode.CodeActionKind.QuickFix)
+			);
 	
-	// 	// 	// Apply each quick fix
-	// 	// 	for (const fix of quickFixes) {
-	// 	// 		console.log('fix', fix);
-	// 	// 		if (fix.edit) {
-	// 	// 			// Double check we're only modifying the target file
-	// 	// 			const edits = fix.edit.entries();
-	// 	// 			const isTargetFileOnly = edits.every(([uri]) => uri.fsPath === 	document.uri.fsPath);
+			// Apply each quick fix
+			for (const fix of quickFixes) {
+				console.log('fix', fix);
+				if (fix.edit) {
+					// Double check we're only modifying the target file
+					const edits = fix.edit.entries();
+					const isTargetFileOnly = edits.every(([uri]) => uri.fsPath === 	document.uri.fsPath);
 					
-	// 	// 			if (isTargetFileOnly) {
-	// 	// 				await vscode.workspace.applyEdit(fix.edit);
-	// 	// 			}
-	// 	// 		}
-	// 	// 	}
-	// 	// }
-	// });
+					if (isTargetFileOnly) {
+						await vscode.workspace.applyEdit(fix.edit);
+					}
+				}
+			}
+		}
+	});
 
 	// const disposable_exp = await vscode.commands.registerCommand('LSPAI.JavaExperiment', async () => {
 	// 	vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
