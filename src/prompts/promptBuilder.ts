@@ -49,10 +49,28 @@ export function findTemplateFile(fileName: string): string {
     throw new Error(`${fileName} not found in any of the expected locations.`);
 }
 
+// /**
+//  * Creates a diagnostic prompt to fix unit test errors
+//  */
+// export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_report: string, focal_method: string): ChatMessage[] {
+//     const fixTemplatePath = findTemplateFile("fixCode.ini");
+//     const fixTemplateData = fs.readFileSync(fixTemplatePath, 'utf8');
+//     const fixTemplate = ini.parse(fixTemplateData);
+//     const systemPrompt = fixTemplate.prompts.fix_system
+//         .replace('{focal_method}', focal_method);
+//     const userPrompt = fixTemplate.prompts.fix_user
+//         .replace('{unit_test_code}', unit_test_code)
+//         .replace('{diagnostic_report}', diagnostic_report);
+    
+//     return [
+//         { role: "system", content: systemPrompt },
+//         { role: "user", content: userPrompt }
+//     ];
+// }
 /**
  * Creates a diagnostic prompt to fix unit test errors
  */
-export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_report: string, focal_method: string): ChatMessage[] {
+export function experimentalDiagnosticPrompt(unit_test_code: string, context_info: string, focal_method: string): ChatMessage[] {
     const fixTemplatePath = findTemplateFile("fixCode.ini");
     const fixTemplateData = fs.readFileSync(fixTemplatePath, 'utf8');
     const fixTemplate = ini.parse(fixTemplateData);
@@ -60,7 +78,7 @@ export function experimentalDiagnosticPrompt(unit_test_code: string, diagnostic_
         .replace('{focal_method}', focal_method);
     const userPrompt = fixTemplate.prompts.fix_user
         .replace('{unit_test_code}', unit_test_code)
-        .replace('{diagnostic_report}', diagnostic_report);
+        .replace('{context_info}', context_info);
     
     return [
         { role: "system", content: systemPrompt },

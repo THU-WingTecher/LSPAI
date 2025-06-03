@@ -191,53 +191,64 @@ suite('Experiment Test Suite', () => {
     //     );
     // });
 
-    test('Naive - gpt-4o ', async () => {
+    test('LSPAI - gpt-4o-mini ', async () => {
         await runGenerateTestCodeSuite(
-            GenerationType.NAIVE,
-            FixType.NOFIX,
-            PromptType.DETAILED,
-            'gpt-4o',
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
+            PromptType.WITHCONTEXT,
+            'gpt-4o-mini',
             'openai' as Provider,
             symbols,
             languageId,
         );
     });
+    // test('Naive - gpt-4o ', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.NAIVE,
+    //         FixType.NOFIX,
+    //         PromptType.DETAILED,
+    //         'gpt-4o',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId,
+    //     );
+    // });
 
-    test('Symprompt - gpt-4o', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.SymPrompt,
-            FixType.NOFIX,
-            PromptType.DETAILED,
-            'gpt-4o',
-            'openai' as Provider,
-            symbols,
-            languageId,
-        );
-    });
+    // test('Symprompt - gpt-4o', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.SymPrompt,
+    //         FixType.NOFIX,
+    //         PromptType.DETAILED,
+    //         'gpt-4o',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId,
+    //     );
+    // });
 
-    test('Naive - deepseek-chat', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.NAIVE,
-            FixType.NOFIX,
-            PromptType.DETAILED,
-            'deepseek-chat',
-            'deepseek' as Provider,
-            symbols,
-            languageId,
-        );
-    });
+    // test('Naive - deepseek-chat', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.NAIVE,
+    //         FixType.NOFIX,
+    //         PromptType.DETAILED,
+    //         'deepseek-chat',
+    //         'deepseek' as Provider,
+    //         symbols,
+    //         languageId,
+    //     );
+    // });
 
-    test('Symprompt - deepseek-chat', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.SymPrompt,
-            FixType.NOFIX,
-            PromptType.DETAILED,
-            'deepseek-chat',
-            'deepseek' as Provider,
-            symbols,
-            languageId,
-        );
-    });
+    // test('Symprompt - deepseek-chat', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.SymPrompt,
+    //         FixType.NOFIX,
+    //         PromptType.DETAILED,
+    //         'deepseek-chat',
+    //         'deepseek' as Provider,
+    //         symbols,
+    //         languageId,
+    //     );
+    // });
 
     // test('AGENT - with context - deepseek-coder', async () => {
     //     await runGenerateTestCodeSuite(
