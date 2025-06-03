@@ -33,6 +33,9 @@ fi
 
 cp "$TARGET_PROJECT_PATH/go.mod" "$TEST_DIR/"
 cp "$TARGET_PROJECT_PATH/go.sum" "$TEST_DIR/"
+cd "$TARGET_PROJECT_PATH"
+rsync -R $(find . -name "*.go" ! -name "*test.go" ! -path "*lspai*") "$TEST_DIR/"
+cd /LSPAI
 total_files=$(find "$TEST_DIR" -type f -name "*_test.go" | wc -l)
 
 if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then

@@ -38,6 +38,8 @@ async def process_single_task(task, pipeline, generator, project_path, MODEL, la
         additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
     if project_path.endswith("commons-csv"):
         additional_save_path = os.path.dirname(task["relativeDocumentPath"]).replace("src/main/java/", "")
+    else :
+        additional_save_path = os.path.dirname(task["relativeDocumentPath"])
     print(f"Additional save path: {additional_save_path}")
     
     # Add model name and project name to the file path to separate results
@@ -176,8 +178,19 @@ class StandardRAG(Baseline):
         documents = self.create_documents(code_files)
         
         print("Computing embeddings...")
-        self.vector_store = FAISS.from_documents(documents, self.embeddings)
+        # self.vector_store = FAISS.from_documents(documents, self.embeddings)
+        first_batch = documents[:5]  # Start with a small batch
+        self.vector_store = FAISS.from_documents(first_batch, self.embeddings)
         
+        # Process the remaining documents in batches
+        batch_size = 50  # Adjust this number based on your average document size
+        for i in range(5, len(documents), batch_size):
+            batch = documents[i:i + batch_size]
+            print(f"Processing batch {i//batch_size + 1} of {len(documents)//batch_size + 1}")
+            # Add the batch to the existing index
+            if batch:  # Make sure batch is not empty
+                temp_store = FAISS.from_documents(batch, self.embeddings)
+                self.vector_store.merge_from(temp_store)
         # Save embeddings
         self.save_embeddings(documents)
         print("Embeddings setup complete!")
@@ -278,16 +291,18 @@ if __name__ == "__main__":
     from rag.config import PROJECT_CONFIGS
 
     MODELS = [
-        # "deepseek-chat",
-        # "gpt-4o",
+        "deepseek-chat",
+        "gpt-4o",
         "gpt-4o-mini"
     ]
     # List of projects to run experiments on
     projects_to_run = [
-        "black",
-        "logrus", 
-        "commons-cli",
-        "commons-csv"
+        # "black",
+        # "logrus", 
+        # "commons-cli",
+        # "commons-csv",
+        # "cobra",
+        "tornado"
     ]  # Add or remove projects as needed
 
     # Run experiments for each project
@@ -331,7 +346,7 @@ if __name__ == "__main__":
 
             task_list = pipeline.load_tasks()
             asyncio.run(process_tasks_parallel(
-                task_list[:2], pipeline, generator, project_path, MODEL, language, max_workers=MAX_WORKERS
+                task_list, pipeline, generator, project_path, MODEL, language, max_workers=MAX_WORKERS
             ))
             # Process tasks
             # for task in task_list:

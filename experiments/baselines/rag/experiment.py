@@ -144,18 +144,6 @@ class ExperimentPipeline:
             task['imports'] = res['imports']
             
         return tasks
-        # Organize tasks into a standardized format
-        organized_tasks = []
-        for task in tasks:
-            organized_task = {
-                'symbol_name': task.get('symbolName'),
-                'source_code': task.get('sourceCode'),
-                'line_num': task.get('lineNum'),
-                'relative_doc_path': task.get('relativeDocumentPath')
-            }
-            organized_tasks.append(organized_task)
-            
-        return organized_tasks
 
     def generate_file_name(self, method_name: str, language: str) -> str:
         """
@@ -175,6 +163,11 @@ class ExperimentPipeline:
         # suffix corresponding to language 
         file_sig = file_sig.replace("*", "")
         random_suffix = str(random.randint(1000, 9999))
+        # if file_sig starts with "_", and ".", remove them
+        if file_sig.startswith("_") or file_sig.startswith("."):
+            file_sig = file_sig[1:]
+        if file_sig.startswith("_") or file_sig.startswith("."):
+            file_sig = file_sig[1:]
         # Add appropriate test suffix based on language
         if language == "java":
             test_suffix = "Test"

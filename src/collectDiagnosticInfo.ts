@@ -1,75 +1,837 @@
+import * as vscode from 'vscode';
+import { DecodedToken, getDecodedTokensFromLine } from './token';
+import { retrieveDefs } from './retrieve';
+import * as path from 'path';
+import { getSymbolByLocation, getTypeInfo } from './lsp';
+import { getReferenceInfo } from './reference';
+import { getLinesTexts } from './diagnostic';
+import { isInWorkspace } from './agents/contextSelector';
+
 // Summary Statistics:
 // ================================================================================
 // Category                                 | Frequency 
 // ----------------------------------------------------
-// Redeclaration/Duplicate Definition       | 28300     
-// Import/Module Resolution Error           | 13517     
-// Syntax Error                             | 5467      
-// Member Access/Usage Error (Field/Method/Visibility) | 13387     
-// Type Mismatch/Compatibility Error        | 4388      
-// Constructor Call Error                   | 1670      
+// Redeclaration/Duplicate Definition       | 28300     symbol definitions
+// Import/Module Resolution Error           | 13517     project structure,
+// Syntax Error                             | 5467      -
+// Member Access/Usage Error (Field/Method/Visibility) | 13387  references, definition information
+// Type Mismatch/Compatibility Error        | 4388      implementation/type information
+// Constructor Call Error                   | 1670      definition information
 // Unhandled Exception                      | 179       
 // ----------------------------------------------------
 // Total                                    | 66908     
+// ... existing code ...
+enum DiagnosticCategory {
+    REDECLARATION,
+    IMPORT_MODULE_RESOLUTION,
+    SYNTAX_ERROR,
+    MEMBER_ACCESS_USAGE,
+    TYPE_MISMATCH,
+    CONSTRUCTOR_CALL,
+    UNHANDLED_EXCEPTION,
+    UNKNOWN
+}
 
-// return diagnosticReport;
+export async function collectRelatedInfo(
+	testCodeUri: vscode.Uri, 
+	focalMethodDoc: vscode.TextDocument,
+	groupedDiagnostics: Map<string, vscode.Diagnostic[]>, 
+	languageId: string, 
+	srcPath: string = ""): Promise<string> {
+	const contextBuilder = new DiagnosticContextCollector(testCodeUri, languageId, srcPath);
+	return await contextBuilder.collectContextForDiagnostics(groupedDiagnostics, focalMethodDoc);
+}
 
-// Inferring Context Needs by Error Category:
-// Redeclaration/Duplicate Definition (28300 - Highest Frequency):
-// Problem: The LLM generates code that declares a variable, function, class, or method that already exists in the current scope or an imported scope.
-// Context Needed:
-// Symbols in the current scope: A list of all identifiers (variables, functions, classes, methods) already defined or imported into the current file/module before the LLM generates new code.
-// Symbols in imported modules: If import * is used or specific items are imported, the LLM needs to know what names are being brought into the namespace.
-// Class structure (for methods/fields): If generating code within a class, it needs to know existing members (fields and methods) of that class and its parent classes.
-// Test structure awareness: For test files, knowing the names of other test methods, setup/teardown methods (e.g., setUp, tearDown, @BeforeEach, @AfterEach), and helper functions defined within the test class/file.
-// Import/Module Resolution Error (13517):
-// Problem: The LLM tries to import a module/package that doesn't exist, is misspelled, or uses an incorrect path. It might also try to import specific members from a module that don't exist.
-// Context Needed:
-// Project directory structure: Knowledge of how files and folders are organized, especially the location of the code under test (CUT) and the test file itself, to resolve relative imports.
-// List of available modules/packages:
-// Standard library modules for the target language version.
-// Installed third-party libraries (e.g., from requirements.txt, pom.xml, package.json).
-// Project-specific modules/packages and their correct import paths.
-// Public API of modules: For from module import X, the LLM needs to know if X is an exportable member of module.
-// Location of the Code Under Test (CUT): Crucial for generating correct import statements to access the CUT from the test file.
-// Member Access/Usage Error (Field/Method/Visibility) (13387):
-// Problem: The LLM tries to access a field or call a method that doesn't exist on an object, or that is not accessible due to visibility rules (e.g., private, protected).
-// Context Needed:
-// Full class definitions of objects being used: This includes:
-// All fields (instance and static) with their types and visibility.
-// All methods (instance and static) with their signatures (name, parameters + types, return type) and visibility.
-// Inheritance hierarchy: Knowledge of parent classes and interfaces, as members can be inherited.
-// Type information of variables: The LLM needs to know or infer the type of a variable to understand what members can be accessed on it (e.g., my_object.do_something() requires knowing the type of my_object).
-// API documentation snippets: For library code, relevant parts of the API docs.
-// Syntax Error (5467):
-// Problem: The generated code violates the grammatical rules of the programming language (e.g., missing colons, mismatched parentheses, incorrect keywords).
-// Context Needed:
-// Target language and version: E.g., "Python 3.9", "Java 11", "JavaScript ES2020". Subtle syntax differences exist between versions.
-// Surrounding code context: Often, syntax errors are due to local inconsistencies. Providing a few lines before and after the point of generation helps.
-// (Implicit) Language grammar: While LLMs are trained on this, providing specific examples or constraints for complex syntax structures might help.
-// Linting rules/style guides: If a project uses specific linters (like ESLint, Pylint) or style guides, knowledge of these can prevent syntax-adjacent errors.
-// Type Mismatch/Compatibility Error (4388):
-// Problem: Assigning a value of one type to a variable of an incompatible type, or passing an argument of the wrong type to a function/method.
-// Context Needed:
-// Type definitions of variables: Explicit types where available.
-// Function/method signatures: Parameter types and return types for both the CUT and any utility functions/library calls.
-// Constructor signatures: Parameter types for class instantiation.
-// Type inference rules: For dynamically typed languages, or where types are inferred.
-// Allowed type coercions/conversions: Understanding how the language handles implicit type conversions.
-// Generics information (if applicable): E.g., List<String> vs List<Integer>.
-// Constructor Call Error (1670):
-// Problem: Calling a class constructor with the wrong number, order, or types of arguments, or trying to instantiate an abstract class/interface directly.
-// Context Needed:
-// Full class definition, specifically the constructor(s) signature(s):
-// Parameter names, types, order.
-// Default values for parameters.
-// Presence of overloaded constructors.
-// Information about whether a class is abstract or an interface.
-// Dependency Injection (DI) framework awareness: If DI is used, instantiation might be handled differently.
-// Unhandled Exception (179):
-// Problem: Code calls a method that can throw a checked exception (in languages like Java) without a try-catch block or declaring it in the throws clause. Or, for any language, it doesn't anticipate runtime exceptions that are likely given the inputs.
-// Context Needed:
-// Method signatures of called functions/methods: Specifically, information about which exceptions they are declared to throw (e.g., @throws in Javadoc, throws clause in Java/C#).
-// Project's error handling strategy: Are specific exceptions expected to be caught and handled, or propagated?
-// Test intent: Is the test supposed to verify that an exception is thrown? (e.g., pytest.raises, JUnit's assertThrows).
-// Common runtime exceptions: For certain operations (e.g., division by zero, null pointer access, file not found), awareness of potential issues.
+class DiagnosticContextCollector {
+	private languageId: string;
+	private srcPath: string;
+	private uri: vscode.Uri;
+
+
+	constructor(uri: vscode.Uri, languageId: string, srcPath: string) {
+		this.languageId = languageId;
+		this.srcPath = srcPath;
+		this.uri = uri;
+		
+	}
+
+	private classifyDiagnostic(diagnostic: vscode.Diagnostic): DiagnosticCategory {
+		const msgText = diagnostic.message.toLowerCase();
+
+		// Check for Constructor Call Error first (special case)
+		if ((msgText.includes("constructor") && msgText.includes("is undefined")) ||
+			msgText.includes("cannot instantiate the type")) {
+			return DiagnosticCategory.CONSTRUCTOR_CALL;
+		}
+
+		// Redeclaration/Duplicate Definition
+		const redeclarationKeywords = [
+			"redeclared in this block", "other declaration of", "already declared",
+			"is already defined", "field and method with the same name", "duplicate field name"
+		];
+		if (redeclarationKeywords.some(keyword => msgText.includes(keyword))) {
+			return DiagnosticCategory.REDECLARATION;
+		}
+
+		// Import/Module Resolution Error
+		const importKeywords = [
+			"import", "could not be resolved", "no required module provides package",
+			"expected module name", "does not match the expected package",
+			"use of package", "module",
+			"cannot be resolved to a type", "is not defined", "undefined:", "cannot be resolved",
+			"cannot find symbol", "missing type", "lambda expression refers to the missing type",
+			"is not a type",
+			"must be defined in its own file", "declared package", "should be declared in a file named"
+		];
+		if (importKeywords.some(keyword => msgText.includes(keyword))) {
+			// Special case: if "could not be resolved" but no "import" or "module"
+			if (msgText.includes("could not be resolved") && 
+				!msgText.includes("import") && 
+				!msgText.includes("module")) {
+				// Skip this case - it might be a different type of resolution error
+			} else {
+				return DiagnosticCategory.IMPORT_MODULE_RESOLUTION;
+			}
+		}
+
+		// Syntax Error
+		const syntaxKeywords = [
+			"syntax error", "misplaced construct", "expected", "unexpected token",
+			"was not closed", "insert \"", "delete this token", "invalid compilationunit",
+			"unexpected indentation", "unindent not expected", "invalid character constant",
+			"statements must be separated", "no new variables on left side of :=",
+			"positional argument cannot appear after keyword arguments", "unterminated",
+			"illegal character", "await allowed only within async function", "expecting \"}\"",
+			"invalid escape sequence", "not properly closed by a double-quote",
+			"missing ',' in composite literal", "enum classes must not be local"
+		];
+		if (syntaxKeywords.some(keyword => msgText.includes(keyword))) {
+			return DiagnosticCategory.SYNTAX_ERROR;
+		}
+
+		// Member Access/Usage Error
+		const memberAccessKeywords = [
+			"unknown field", "has no field or method", "is undefined for the type",
+			"is not visible", "not a field", "no field or method",
+			"undefined (type", "private access in", "cannot refer to unexported field",
+			"cannot override the final method", "illegal enclosing instance specification",
+			"cannot subclass the final class", "cannot invoke .* on the array type",
+			"error() string"
+		];
+		if (memberAccessKeywords.some(keyword => msgText.includes(keyword))) {
+			return DiagnosticCategory.MEMBER_ACCESS_USAGE;
+		}
+
+		// Type Mismatch/Compatibility Error
+		const typeMismatchKeywords = [
+			"cannot use", "is not applicable for the arguments", "type mismatch",
+			"incompatible with", "cannot convert", "cannot assign", "bound mismatch",
+			"invalid operation:", "incompatible types", "must be a functional interface",
+			"invalid composite literal type", "cannot cast from", "assignment mismatch",
+			"too many arguments in call", "not enough arguments in call",
+			"no value) used as value", "(type) is not an expression",
+			"first argument to append must be a slice", "no suitable method found",
+			"argument mismatch", "cannot be parameterized with arguments",
+			"return type .* is not compatible with", "cannot be converted to",
+			"invalid argument", "cannot infer type arguments"
+		];
+		if (typeMismatchKeywords.some(keyword => msgText.includes(keyword))) {
+			return DiagnosticCategory.TYPE_MISMATCH;
+		}
+
+		// Unhandled Exception
+		const exceptionKeywords = [
+			"unhandled exception type", "unreachable code", 
+			"unreachable catch block", "unreported exception",
+			"must be caught or declared to be thrown"
+		];
+		if (exceptionKeywords.some(keyword => msgText.includes(keyword))) {
+			return DiagnosticCategory.UNHANDLED_EXCEPTION;
+		}
+
+		// If no category matched, return UNKNOWN
+		return DiagnosticCategory.UNKNOWN;
+	}
+
+	private getGoalofContext(diagnosticCategory: DiagnosticCategory): string {
+		switch (diagnosticCategory) {
+			case DiagnosticCategory.IMPORT_MODULE_RESOLUTION:
+				return "think about the import statement and the module resolution error and find out from project structure";
+			case DiagnosticCategory.REDECLARATION:
+				return "find out redeclared symbol and locate it so that generator do not have to redeclare it and directly use it";
+			case DiagnosticCategory.MEMBER_ACCESS_USAGE:
+				return "find out the symbol that is accessed and locate it so that generator do not have to access it and directly use it";
+			case DiagnosticCategory.TYPE_MISMATCH:
+				return "find out the symbol that is used and locate it so that generator do not have to use it and directly use it";
+			case DiagnosticCategory.SYNTAX_ERROR:
+				return "find out the symbol that is used and locate it so that generator do not have to use it and directly use it";
+			default:
+				return "find out the symbol that is used and locate it so that generator do not have to use it and directly use it";
+		}
+	}
+
+
+	groupedDiagnosticToString(message: any, diagList: vscode.Diagnostic[], document: vscode.TextDocument): string[] {
+		const result: string[] = [];
+		// result.push(`\nMessage: "${message}"`);
+		result.push(`Number of occurrences: ${diagList.length}`);
+		// result.push('Locations:');
+		// diagList.forEach((diag, index) => {
+		// 	result.push(`  ${index + 1}. Line ${diag.range.start.line + 1}, ${getLinesTexts(diag.range.start.line, diag.range.end.line, document)}`);
+		// });
+		// result.push('------------------------------');
+		return result;
+	}
+
+	// groupedDiagnosticsToString(groupedDiagnostics: Map<string, vscode.Diagnostic[]>, document: vscode.TextDocument): string[] {
+	// 	const result: string[] = [];
+	// 	console.log('Grouped Diagnostics by Message:');
+	// 	console.log('==============================');
+	// 	for (const [message, diagList] of groupedDiagnostics) {
+	// 		result.push(...this.groupedDiagnosticToString(message, diagList, document));
+	// 	}
+	// 	return result;
+	// }
+	// collect context for each diagnostic
+	async collectContextForDiagnostics(groupedDiagnostics: Map<string, vscode.Diagnostic[]>, focalMethodDoc?: vscode.TextDocument): Promise<string> {
+		const context: string[] = [];
+		const collectedInfo = new Set<string>(); // Track what we've already collected
+		const processedTokens = new Map<string, string>(); // Cache token results
+		const firstDiagnostics = Array.from(groupedDiagnostics.values())
+		.map(diagnosticArray => diagnosticArray[0])
+		.filter(diagnostic => diagnostic !== undefined);
+
+		// Collect project structure only once if needed
+		context.push("=== Diagnostic Information ===");
+		let hasImportDiagnostic = firstDiagnostics.some(d => 
+			this.classifyDiagnostic(d) === DiagnosticCategory.IMPORT_MODULE_RESOLUTION
+		);
+		if (hasImportDiagnostic) {
+			const structureInfo = await this.collectProjectStructure();
+			if (structureInfo) {
+				context.push("\n" + this.getGoalofContext(DiagnosticCategory.IMPORT_MODULE_RESOLUTION) + "\n");
+				context.push("\n=== Project Structure ===");
+				context.push(structureInfo);
+			}
+		}
+		
+		for (const [message, diagList] of groupedDiagnostics) {
+			const category = this.classifyDiagnostic(diagList[0]);
+			
+			// Add diagnostic information
+			// context.push(`Message: ${diagnostic.message}`);
+			// context.push(`Severity: ${vscode.DiagnosticSeverity[diagnostic.severity]}`);
+			// context.push(`Type: ${DiagnosticCategory[category]}`);
+			context.push("Diagnostic Group: " + message);
+			context.push(...this.groupedDiagnosticToString(message, diagList, focalMethodDoc!));
+			let contextAdded = false;
+			switch (category) {
+				case DiagnosticCategory.REDECLARATION:
+					// find out redeclared symbol and locate it so that model do not have to redeclare it and directly use it
+					if (focalMethodDoc && !collectedInfo.has('scope')) {
+						const scopeInfo = await this.collectScopeInformation(focalMethodDoc);
+						if (scopeInfo) {
+							context.push("\n" + this.getGoalofContext(category) + "\n");
+							context.push("\n=== Current Scope Information ===");
+							context.push(scopeInfo);
+							collectedInfo.add('scope');
+							contextAdded = true;
+						}
+					}
+					break;
+
+				case DiagnosticCategory.CONSTRUCTOR_CALL:
+					// get current test code file name and its saved path
+					const testCodeFileName = path.basename(this.uri.fsPath);
+					const testCodeSavedPath = path.dirname(this.uri.fsPath);
+					context.push("\n=== Test Code Information ===");
+					context.push(`Test Code File Name: ${testCodeFileName}`);
+					context.push(`Test Code Saved Path: ${testCodeSavedPath}\n`);
+
+				case DiagnosticCategory.SYNTAX_ERROR:
+				case DiagnosticCategory.MEMBER_ACCESS_USAGE:
+				case DiagnosticCategory.TYPE_MISMATCH:
+					const tokens = await this.locateTokenFromDiagnostics(diagList[0]);
+					const tokenKey = tokens.map(t => t.id).join(',');
+					
+					if (category === DiagnosticCategory.MEMBER_ACCESS_USAGE) {
+						if (!processedTokens.has(`refs_${tokenKey}`)) {
+							const refsInfo = await this.getRefsOfDiagnostic(tokens);
+							if (refsInfo) {
+								context.push("\n" + this.getGoalofContext(category) + "\n");
+								context.push("\n=== Reference Information ===");
+								context.push(refsInfo);
+								processedTokens.set(`refs_${tokenKey}`, refsInfo);
+								contextAdded = true;
+							}
+						} else {
+							// context.push("\n=== Reference Information ===");
+							// context.push(processedTokens.get(`refs_${tokenKey}`)!);
+						}
+
+						if (!processedTokens.has(`def_${tokenKey}`)) {
+							const defInfo = await this.getDefsOfDiagnostic(tokens);
+							if (defInfo) {
+								context.push("\n" + this.getGoalofContext(category) + "\n");
+								context.push("\n=== Definition Information ===");
+								context.push(defInfo);
+								processedTokens.set(`def_${tokenKey}`, defInfo);
+								contextAdded = true;
+							}
+						} else {
+							// context.push("\n=== Reference Information ===");
+							// context.push(processedTokens.get(`refs_${tokenKey}`)!);
+						}
+					} else {
+						if (!processedTokens.has(`type_${tokenKey}`)) {
+							const typeInfo = await this.getTypeAndImplementationInfo(tokens);
+							if (typeInfo) {
+								context.push("\n" + this.getGoalofContext(category) + "\n");
+								context.push("\n=== Type Information ===");
+								context.push(typeInfo);
+								processedTokens.set(`type_${tokenKey}`, typeInfo);
+								contextAdded = true;
+							}
+						} else {
+							// context.push("\n=== Type Information ===");
+							// context.push(processedTokens.get(`type_${tokenKey}`)!);
+						}
+					}
+					break;
+	
+				default:
+					break;
+			}
+	
+			context.push("\n" + "=".repeat(80) + "\n");
+		}
+	
+		return context.join('\n');
+	}
+    // async collectContextForDiagnostics(diagnostics: vscode.Diagnostic[], focalMethodDoc?: vscode.TextDocument): Promise<string> {
+    //     const context: string[] = [];
+        
+    //     // Get the first diagnostic from each group
+    //     for (const diagnostic of diagnostics) {
+    //         // Classify the diagnostic
+    //         const category = this.classifyDiagnostic(diagnostic);
+            
+    //         // Add diagnostic information
+    //         context.push("=== Diagnostic Information ===");
+    //         context.push(`Message: ${diagnostic.message}`);
+    //         context.push(`Severity: ${vscode.DiagnosticSeverity[diagnostic.severity]}`);
+    //         context.push(`Category: ${DiagnosticCategory[category]}`);
+            
+    //         // Get related information based on classification
+    //         switch (category) {
+    //             case DiagnosticCategory.REDECLARATION:
+    //                 if (focalMethodDoc) {
+    //                     const scopeInfo = await this.collectScopeInformation(focalMethodDoc);
+    //                     if (scopeInfo) {
+    //                         context.push("\n=== Current Scope Information ===");
+    //                         context.push(scopeInfo);
+    //                     }
+    //                 }
+    //                 break;
+
+    //             case DiagnosticCategory.MEMBER_ACCESS_USAGE:
+    //                 const tokens = await this.locateTokenFromDiagnostics(diagnostic);
+    //                 const refsInfo = await this.getRefsOfDiagnostic(tokens);
+    //                 if (refsInfo) {
+    //                     context.push("\n=== Reference Information ===");
+    //                     context.push(refsInfo);
+    //                 }
+    //                 break;
+
+    //             case DiagnosticCategory.TYPE_MISMATCH:
+    //                 const typeTokens = await this.locateTokenFromDiagnostics(diagnostic);
+    //                 const typeInfo = await this.getTypeAndImplementationInfo(typeTokens);
+    //                 if (typeInfo) {
+    //                     context.push("\n=== Type Information ===");
+    //                     context.push(typeInfo);
+    //                 }
+    //                 break;
+
+    //             case DiagnosticCategory.IMPORT_MODULE_RESOLUTION:
+    //                 const structureInfo = await this.collectProjectStructure();
+    //                 if (structureInfo) {
+    //                     context.push("\n=== Project Structure ===");
+    //                     context.push(structureInfo);
+    //                 }
+    //                 break;
+	// 			case DiagnosticCategory.SYNTAX_ERROR:
+	// 			case DiagnosticCategory.CONSTRUCTOR_CALL:
+
+	// 				break;
+	// 			default:
+	// 				break;
+    //             // case DiagnosticCategory.CONSTRUCTOR_CALL:
+    //             //     const apiInfo = await this.collectAPIInformation(focalMethodDoc);
+    //             //     if (apiInfo) {
+    //             //         context.push("\n=== API Information ===");
+    //             //         context.push(apiInfo);
+    //             //     }
+    //             //     break;
+    //         }
+
+    //         // Add separator between different diagnostics
+    //         context.push("\n" + "=".repeat(80) + "\n");
+    //     }
+
+    //     return context.join('\n');
+    // }
+
+	async getRelatedInfo(diagnostic: vscode.Diagnostic): Promise<string> {
+		let relatedInfo = '';
+		if (diagnostic.relatedInformation){
+			for (const info of diagnostic.relatedInformation) {
+				relatedInfo += `${info.message} from ${path.relative(this.uri.fsPath, info.location.uri.fsPath)}\n`;
+			}
+		}
+		return relatedInfo;
+	}
+	
+
+	async getTypeAndImplementationInfo(decodedTokens: DecodedToken[]): Promise<string> {
+		let relatedInfo = '';
+		const doc = await vscode.workspace.openTextDocument(this.uri);
+		for (const token of decodedTokens) {
+			const typeInfoSymbolOrLocOrNull = await getTypeInfo(doc.uri, new vscode.Position(token.line, token.startChar));
+			if (typeInfoSymbolOrLocOrNull) {
+				const typeInfoSymbolOrLoc = typeInfoSymbolOrLocOrNull as vscode.Definition | vscode.Location;
+				const defSymbolDoc = await vscode.workspace.openTextDocument(typeInfoSymbolOrLocOrNull.uri);
+				console.log('defSymbolDoc', defSymbolDoc);
+				console.log('typeInfoSymbolOrLocOrNull', typeInfoSymbolOrLocOrNull);
+				const typeInfoSymbol = await getSymbolByLocation(defSymbolDoc, typeInfoSymbolOrLocOrNull.range!.start);
+				if (typeInfoSymbol) {
+					const typeInfoString = defSymbolDoc.getText(typeInfoSymbol.range);
+					relatedInfo += `${typeInfoString}\n`;
+				}
+
+			}
+		}
+		return relatedInfo;		
+	}
+
+	async getDefsOfDiagnostic(decodedTokens: DecodedToken[]): Promise<string> {
+		let relatedInfo = '';
+		for (const token of decodedTokens) {
+			const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
+			if (!token.defSymbol) {
+				if (token.defSymbol === null) {
+					token.defSymbol = await getSymbolByLocation(defSymbolDoc, token.definition[0].range!.start);
+				}
+			}
+			if (token.defSymbol) {
+				if (!isInWorkspace(token.definition[0].uri)) {
+					relatedInfo += `${token.defSymbol.name} from ${path.basename(token.definition[0].uri.fsPath)}\n`;
+					relatedInfo += `${defSymbolDoc.getText(token.defSymbol.range)}\n`;
+				}
+			}
+		}
+		return relatedInfo;
+	}
+
+	async getRefsOfDiagnostic(decodedTokens: DecodedToken[]): Promise<string> {
+		let relatedInfo = '';
+		for (const token of decodedTokens) {
+			if (token.definition[0].range) {
+				const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
+				const referenceInfo = await getReferenceInfo(defSymbolDoc, token.definition[0].range, 40, false);
+				if (referenceInfo) {
+					relatedInfo += `Example of ${token.word}\n`;
+					relatedInfo += `${referenceInfo}\n`;
+				}
+			}
+		}
+		return relatedInfo;
+	}
+		
+	async locateTokenFromDiagnostics(diagnostic: vscode.Diagnostic): Promise<DecodedToken[]> {
+		const document = await vscode.workspace.openTextDocument(this.uri);
+		const decodedTokens = await getDecodedTokensFromLine(document, diagnostic.range.start.line);
+		await retrieveDefs(document, decodedTokens);
+		return decodedTokens;
+		// const token = decodedTokens.find(d => d.word.includes("token"));
+		// if (!token) {
+		// 	return "";
+		// }
+		// const document = await vscode.workspace.openTextDocument(this.uri);
+		// const line = document.lineAt(token.range.start.line);
+		// return line.text;
+	}
+
+
+	private async collectScopeInformation(document: vscode.TextDocument): Promise<string> {
+		try {
+			// Get document symbols to understand scope
+			const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+				'vscode.executeDocumentSymbolProvider',
+				document.uri
+			);
+
+			if (!symbols || symbols.length === 0) {
+				return "";
+			}
+
+			const scopeInfo: string[] = [];
+			scopeInfo.push("Declared symbols in current file:");
+			
+			for (const symbol of symbols) {
+				scopeInfo.push(`- ${symbol.name} (${vscode.SymbolKind[symbol.kind]})`);
+				
+				// Include children (class members, function parameters, etc.)
+				if (symbol.children && symbol.children.length > 0) {
+					for (const child of symbol.children) {
+						scopeInfo.push(`  └─ ${child.name} (${vscode.SymbolKind[child.kind]})`);
+					}
+				}
+			}
+
+			return scopeInfo.join('\n');
+		} catch (error) {
+			console.warn('Failed to collect scope information:', error);
+			return "";
+		}
+	}
+
+	// private async collectImportInformation(document?: vscode.TextDocument): Promise<string> {
+	// 	if (!document) return "";
+
+	// 	try {
+	// 		const text = document.getText();
+	// 		const importInfo: string[] = [];
+			
+	// 		// Extract import statements based on language
+	// 		const imports = this.extractImports(text, this.languageId);
+	// 		if (imports.length > 0) {
+	// 			importInfo.push("Current imports:");
+	// 			imports.forEach(imp => importInfo.push(`- ${imp}`));
+	// 		}
+
+	// 		// Get available packages/modules in workspace
+	// 		const availableModules = await this.getAvailableModules();
+	// 		if (availableModules.length > 0) {
+	// 			importInfo.push("\nAvailable modules in workspace:");
+	// 			availableModules.forEach(mod => importInfo.push(`- ${mod}`));
+	// 		}
+
+	// 		return importInfo.join('\n');
+	// 	} catch (error) {
+	// 		console.warn('Failed to collect import information:', error);
+	// 		return "";
+	// 	}
+	// }
+
+	private extractImports(text: string, languageId: string): string[] {
+		const imports: string[] = [];
+		const lines = text.split('\n');
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+			
+			switch (languageId) {
+				case 'python':
+					if (trimmed.startsWith('import ') || trimmed.startsWith('from ')) {
+						imports.push(trimmed);
+					}
+					break;
+				case 'java':
+					if (trimmed.startsWith('import ')) {
+						imports.push(trimmed);
+					}
+					break;
+				case 'go':
+					if (trimmed.startsWith('import ') || (trimmed.includes('import') && trimmed.includes('"'))) {
+						imports.push(trimmed);
+					}
+					break;
+				case 'cpp':
+					if (trimmed.startsWith('#include')) {
+						imports.push(trimmed);
+					}
+					break;
+			}
+		}
+
+		return imports;
+	}
+
+	// private async getAvailableModules(): Promise<string[]> {
+	// 	try {
+	// 		if (!vscode.workspace.workspaceFolders) {
+	// 			return [];
+	// 		}
+
+	// 		const modules: string[] = [];
+	// 		const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
+			
+	// 		// Find source files that could be imported
+	// 		const sourceFiles = await vscode.workspace.findFiles(
+	// 			this.getSourceFilePattern(this.languageId),
+	// 			'**/node_modules/**'
+	// 		);
+
+	// 		for (const file of sourceFiles.slice(0, 20)) { // Limit to avoid too much output
+	// 			const relativePath = vscode.workspace.asRelativePath(file);
+	// 			modules.push(relativePath);
+	// 		}
+
+	// 		return modules;
+	// 	} catch (error) {
+	// 		console.warn('Failed to get available modules:', error);
+	// 		return [];
+	// 	}
+	// }
+
+	private async collectTypeInformation(document?: vscode.TextDocument, diagnostics?: vscode.Diagnostic[]): Promise<string> {
+		if (!document) return "";
+
+		try {
+			const typeInfo: string[] = [];
+			
+			// Get type definitions from document symbols
+			const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+				'vscode.executeDocumentSymbolProvider',
+				document.uri
+			);
+
+			if (symbols) {
+				const classes = symbols.filter(s => s.kind === vscode.SymbolKind.Class);
+				const interfaces = symbols.filter(s => s.kind === vscode.SymbolKind.Interface);
+				const enums = symbols.filter(s => s.kind === vscode.SymbolKind.Enum);
+
+				if (classes.length > 0) {
+					typeInfo.push("Classes defined in file:");
+					classes.forEach(cls => {
+						typeInfo.push(`- ${cls.name}`);
+						if (cls.children) {
+							const methods = cls.children.filter(c => c.kind === vscode.SymbolKind.Method);
+							const fields = cls.children.filter(c => c.kind === vscode.SymbolKind.Field || c.kind === vscode.SymbolKind.Property);
+							
+							if (methods.length > 0) {
+								typeInfo.push(`  Methods: ${methods.map(m => m.name).join(', ')}`);
+							}
+							if (fields.length > 0) {
+								typeInfo.push(`  Fields: ${fields.map(f => f.name).join(', ')}`);
+							}
+						}
+					});
+				}
+
+				if (interfaces.length > 0) {
+					typeInfo.push("Interfaces:");
+					interfaces.forEach(iface => typeInfo.push(`- ${iface.name}`));
+				}
+
+				if (enums.length > 0) {
+					typeInfo.push("Enums:");
+					enums.forEach(enm => typeInfo.push(`- ${enm.name}`));
+				}
+			}
+
+			return typeInfo.join('\n');
+		} catch (error) {
+			console.warn('Failed to collect type information:', error);
+			return "";
+		}
+	}
+	private getSourceFilePattern(): string {
+		switch (this.languageId) {
+			case 'python':
+				return '**/*.py';
+			case 'typescript':
+			case 'javascript':
+				return '**/*.{ts,tsx,js,jsx}';
+			case 'java':
+				return '**/*.java';
+			case 'cpp':
+				return '**/*.{cpp,hpp,h,cc}';
+			case 'go':
+				return '**/*.go';
+			default:
+				return '**/*.*';  // Default to all files if language is unknown
+		}
+	}
+	private isSourceFile(filename: string): boolean {
+		const extensions = {
+			'python': ['.py'],
+			'typescript': ['.ts', '.tsx'],
+			'javascript': ['.js', '.jsx'],
+			'java': ['.java'],
+			'cpp': ['.cpp', '.hpp', '.h', '.cc'],
+			'go': ['.go']
+		};
+	
+		const validExtensions = extensions[this.languageId as keyof typeof extensions] || [];
+		return validExtensions.some(ext => filename.endsWith(ext));
+	}
+	private getExcludePattern(): string {
+		const commonExcludes = [
+			'**/node_modules/**',
+			'**/lspai-workspace/**',
+			'**/lspai-tests/**',
+			'**/__pycache__/**',
+			'**/build/**',
+			'**/dist/**',
+			'**/.git/**'
+		];
+	
+		// Add language-specific excludes
+		switch (this.languageId) {
+			case 'python':
+				commonExcludes.push('**/*.pyc');
+				break;
+			case 'java':
+				commonExcludes.push('**/target/**');
+				commonExcludes.push('**/*.class');
+				break;
+			// Add more language-specific excludes as needed
+		}
+	
+		return `{${commonExcludes.join(',')}}`;
+	}
+	async collectProjectStructure(): Promise<string> {
+		try {
+			if (!this.srcPath) {
+				return "";
+			}
+	
+			const structure: string[] = [`Project structure:`];
+			
+			// Get file pattern based on language
+			const filePattern = this.getSourceFilePattern();
+			const excludePattern = this.getExcludePattern();
+	
+			// Get source files in the workspace starting from srcPath
+			const files = await vscode.workspace.findFiles(
+				new vscode.RelativePattern(this.srcPath, filePattern),
+				excludePattern
+			);
+	
+			// Create a tree structure using a Map to maintain order
+			const fileTree = new Map<string, Set<string>>();
+			fileTree.set('', new Set<string>());  // Root directory
+	
+			for (const file of files) {
+				// Get path relative to srcPath
+				const fullPath = file.fsPath;
+				const relativePath = fullPath.substring(this.srcPath.length + 1);
+				const parts = relativePath.split('/').filter(p => p !== '');
+				
+				// Add each directory level and its contents
+				let currentPath = '';
+				for (let i = 0; i < parts.length; i++) {
+					const part = parts[i];
+					const parentPath = currentPath;
+					currentPath = currentPath ? `${currentPath}/${part}` : part;
+					
+					// Only process directories and source files
+					if (i < parts.length - 1 || this.isSourceFile(part)) {
+						// Add to parent's children
+						const parentChildren = fileTree.get(parentPath) || new Set<string>();
+						parentChildren.add(part);
+						fileTree.set(parentPath, parentChildren);
+						
+						// Create entry for current path if it's a directory
+						if (i < parts.length - 1) {
+							if (!fileTree.has(currentPath)) {
+								fileTree.set(currentPath, new Set<string>());
+							}
+						}
+					}
+				}
+			}
+	
+			// Convert tree to string representation
+			const processedPaths = new Set<string>();
+			
+			function buildTree(path: string, prefix: string = ''): void {
+				if (processedPaths.has(path)) {
+					return;
+				}
+				processedPaths.add(path);
+				
+				const children = fileTree.get(path);
+				if (!children) return;
+				
+				const items = Array.from(children).sort((a, b) => {
+					// Directories come first
+					const aIsDir = fileTree.has(path ? `${path}/${a}` : a);
+					const bIsDir = fileTree.has(path ? `${path}/${b}` : b);
+					if (aIsDir && !bIsDir) return -1;
+					if (!aIsDir && bIsDir) return 1;
+					return a.localeCompare(b);
+				});
+	
+				for (let i = 0; i < items.length; i++) {
+					const item = items[i];
+					const isLast = i === items.length - 1;
+					const isDir = fileTree.has(path ? `${path}/${item}` : item);
+					
+					// Add directory indicator for folders
+					const displayName = isDir ? `${item}/` : item;
+					structure.push(prefix + (isLast ? '└── ' : '├── ') + displayName);
+					
+					const newPath = path ? `${path}/${item}` : item;
+					if (fileTree.has(newPath)) {
+						buildTree(newPath, prefix + (isLast ? '    ' : '│   '));
+					}
+				}
+			}
+	
+			buildTree('');
+			console.log("structure",structure.join('\n'));
+			return structure.join('\n');
+		} catch (error) {
+			console.warn('Failed to collect project structure:', error);
+			return "";
+		}
+	}
+
+	private async collectAPIInformation(document?: vscode.TextDocument): Promise<string> {
+		if (!document) return "";
+
+		try {
+			const apiInfo: string[] = [];
+			
+			// Get function/method definitions
+			const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+				'vscode.executeDocumentSymbolProvider',
+				document.uri
+			);
+
+			if (symbols) {
+				const functions = symbols.filter(s => s.kind === vscode.SymbolKind.Function || s.kind === vscode.SymbolKind.Method);
+				
+				if (functions.length > 0) {
+					apiInfo.push("Available functions/methods:");
+					for (const func of functions) {
+						// Get function signature from document text
+						const range = func.range;
+						const functionText = document.getText(range).split('\n')[0]; // Get first line (signature)
+						apiInfo.push(`- ${functionText.trim()}`);
+					}
+				}
+
+				// Get constructors specifically
+				const constructors = symbols.flatMap(s => 
+					s.children?.filter(c => c.kind === vscode.SymbolKind.Constructor) || []
+				);
+
+				if (constructors.length > 0) {
+					apiInfo.push("\nConstructors:");
+					constructors.forEach(ctor => {
+						const ctorText = document.getText(ctor.range).split('\n')[0];
+						apiInfo.push(`- ${ctorText.trim()}`);
+					});
+				}
+			}
+
+			return apiInfo.join('\n');
+		} catch (error) {
+			console.warn('Failed to collect API information:', error);
+			return "";
+		}
+	}
+}

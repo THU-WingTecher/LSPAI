@@ -740,6 +740,6 @@ export async function getContextSelectorInstance(document: vscode.TextDocument, 
     return await ContextSelector.getInstance(document, targetSymbol);
 }
 
-function isInWorkspace(uri: vscode.Uri): boolean {
+export function isInWorkspace(uri: vscode.Uri): boolean {
     return uri.fsPath.includes(getConfigInstance().workspace);
 }

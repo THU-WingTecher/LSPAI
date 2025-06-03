@@ -89,7 +89,15 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 		}
 	}
 }
-
+// const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+//     'vscode.executeDocumentSymbolProvider',
+//     document.uri
+// );
+export async function getTypeInfo(uri: vscode.Uri, position: vscode.Position): Promise<any> {
+    const typeInfo = await vscode.commands.executeCommand<vscode.Definition | vscode.Location | null>(
+        'vscode.executeTypeDefinitionProvider', uri, position);
+    return typeInfo;
+}
 
 export const getDocPath = (p: string) => {
 	return path.resolve(__dirname, '../manual-testing-sandbox', p);
@@ -145,5 +153,89 @@ export function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscod
         }
     }
     return shortestSymbol;
+}
+
+export async function getJavaConfiguration(): Promise<any> {
+    return vscode.workspace.getConfiguration('java');
+}
+
+interface JavaSettings {
+    "java.project.referencedLibraries": string[];
+    "java.project.sourcePaths": string[];
+    "java.project.outputPath": string;
+    "java.project.explorer.showNonJavaResources": boolean;
+}
+
+export async function updateJavaWorkspaceConfig(settingsPath: string) {
+    // Create or update .vscode/settings.json in the workspace
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) {
+        throw new Error('No workspace folders found');
+    }
+
+    const vscodePath = path.join(workspaceFolders[0].uri.fsPath, '.vscode');
+    const settingsFilePath = path.join(vscodePath, 'settings.json');
+
+    let settings: Partial<JavaSettings> = {};
+    try {
+        const settingsContent = await vscode.workspace.fs.readFile(vscode.Uri.file(settingsFilePath));
+        settings = JSON.parse(settingsContent.toString());
+    } catch (error) {
+        // File doesn't exist or can't be read, use empty settings
+    }
+
+    // Update Java settings
+    const updatedSettings: JavaSettings = {
+        "java.project.referencedLibraries": ["lib/**/*.jar"],
+        "java.project.sourcePaths": ["src/main/java"],
+        "java.project.outputPath": "bin",
+        "java.project.explorer.showNonJavaResources": false,
+        ...settings
+    };
+
+    // If settingsPath includes test paths, add them
+    if (settingsPath.includes('test')) {
+        updatedSettings["java.project.sourcePaths"].push(settingsPath);
+    }
+
+    // Ensure .vscode directory exists
+    await vscode.workspace.fs.createDirectory(vscode.Uri.file(vscodePath));
+
+    // Write settings file
+    await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(settingsFilePath),
+        Buffer.from(JSON.stringify(updatedSettings, null, 4))
+    );
+
+    console.log('Updated Java workspace settings');
+}
+
+export async function reloadJavaLanguageServer() {
+    try {
+        // Clean Java Language Server Workspace
+        await vscode.commands.executeCommand('java.clean.workspace');
+        
+        // Wait for the clean operation to complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Force update project configuration
+        await vscode.commands.executeCommand('java.projectConfiguration.update');
+        
+        console.log('Java Language Server reloaded successfully');
+    } catch (error) {
+        console.error('Error reloading Java Language Server:', error);
+        throw error;
+    }
+}
+
+export async function addJavaTestPath(testPath: string) {
+    try {
+        await updateJavaWorkspaceConfig(testPath);
+        await reloadJavaLanguageServer();
+        console.log('Added Java test path and reloaded server:', testPath);
+    } catch (error) {
+        console.error('Error adding Java test path:', error);
+        throw error;
+    }
 }
 

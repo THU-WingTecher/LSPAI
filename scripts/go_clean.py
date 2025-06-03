@@ -37,7 +37,10 @@ def parse_error_log(error_log):
         # Looks for _test.go files in stack traces and error messages
         re.compile(r'(?:^|\s)((?:[./\w-]+/)*[.\w-]+_test\.go)(?::\d+)?', re.MULTILINE),
         # Pattern to specifically match panic/failure locations
-        re.compile(r'((?:[./\w-]+/)*[.\w-]+_test_\d+\.go)', re.MULTILINE)
+        re.compile(r'((?:[./\w-]+/)*[.\w-]+_test_\d+\.go)', re.MULTILINE),
+        # Pattern to match test files in doc(...) and main(...) format
+        re.compile(r'doc\s*\(([\w_.]+_test\.go)\)', re.MULTILINE),
+        re.compile(r'main\s*\(([\w_.]+_test\.go)\)', re.MULTILINE)
     ]
 
     problematic_files = set()

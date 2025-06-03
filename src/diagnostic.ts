@@ -12,6 +12,7 @@ import { get } from 'http';
 import { eraseContent } from './fileHandler';
 import { GenerationType } from './config';
 import { getConfigInstance } from './config';
+import { wrapWithComment } from './languageAgnostic';
 export enum DiagnosticTag {
     Unnecessary = 1,
     Deprecated
@@ -77,6 +78,36 @@ export async function applyCodeActions(targetUri: vscode.Uri, codeActions: vscod
             }
         }
     }
+}
+
+export function markTestCodeWithDiagnostic(document: vscode.TextDocument, groupedDiagnostics: Map<string, vscode.Diagnostic[]>): string {
+    const lines = document.getText().split('\n');
+    const languageId = document.languageId;
+    
+    // Process each group of diagnostics
+    for (const [message, diagnostics] of groupedDiagnostics) {
+        // Sort diagnostics by line number in descending order to handle multi-line diagnostics correctly
+        const sortedDiagnostics = [...diagnostics].sort((a, b) => 
+            b.range.start.line - a.range.start.line
+        );
+
+        for (const diag of sortedDiagnostics) {
+            const startLine = diag.range.start.line;
+            const endLine = diag.range.end.line;
+            const originalText = getLinesTexts(startLine, endLine, document);
+            const errorMessage = `Error Group: "${message}" - ${diag.message}`;
+            const markedText = `${originalText} ${wrapWithComment(errorMessage, languageId)}`;
+            
+            // Replace the content of all affected lines with the marked text
+            lines[startLine] = markedText;
+            // Clear any additional lines in multi-line diagnostics
+            for (let i = startLine + 1; i <= endLine; i++) {
+                lines[i] = '';
+            }
+        }
+    }
+    
+    return lines.join('\n');
 }
 
 export function groupDiagnosticsByMessage(diagnostics: vscode.Diagnostic[]): Map<string, vscode.Diagnostic[]> {
@@ -201,7 +232,7 @@ export async function getDiagnosticsForFilePath(filePath: string): Promise<vscod
     return diagnostics;
 }
 
-async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
+export async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
     console.log('Initial diagnostics:', await vscode.languages.getDiagnostics(uri));
     await activate(uri);
     return new Promise((resolve, reject) => {
@@ -266,7 +297,7 @@ async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[
     });
 }
 
-function getLinesTexts(startLine: number, endLine: number, document: vscode.TextDocument): string {
+export function getLinesTexts(startLine: number, endLine: number, document: vscode.TextDocument): string {
     let fullText = '';
     for (let line = startLine; line <= endLine; line++) {
         fullText += document.lineAt(line).text.trim() + '\n';  // Trim and append each line
