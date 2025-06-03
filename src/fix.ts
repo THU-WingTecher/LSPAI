@@ -66,25 +66,6 @@ export async function performFixingRound(
 		diagnosticReport,
 		focal_method
 	);
-	// } else {
-	// 	// Get diagnostic messages
-	// 	const diagnosticMessages = await DiagnosticsToString(vscode.Uri.file(curSavePoint), diagnostics, method);
-	// 	if (!diagnosticMessages.length) {
-	// 		console.error('No diagnostic messages found!');
-	// 		return null;
-	// 	}
-	// 	const diagnosticUserPrompts = constructDiagnosticPrompt(
-	// 		currentCode,
-	// 		diagnosticMessages.join('\n'),
-	// 		collectedData.functionSymbol.name,
-	// 		collectedData.mainfunctionParent,
-	// 		collectedData.SourceCode
-	// 	);
-	// 	// Prepare chat messages
-	// 	diagnosticPrompts = [
-	// 		{ role: "system", content: FixSystemPrompt(languageId) },
-	// 		{ role: "user", content: diagnosticUserPrompts }
-	// 	];
 
 	// Get AI response
 	const fixlogObj: LLMLogs = { tokenUsage: "", result: "", prompt: "", model: model };

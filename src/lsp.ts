@@ -89,7 +89,15 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 		}
 	}
 }
-
+// const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+//     'vscode.executeDocumentSymbolProvider',
+//     document.uri
+// );
+export async function getTypeInfo(uri: vscode.Uri, position: vscode.Position): Promise<any> {
+    const typeInfo = await vscode.commands.executeCommand<vscode.Definition | vscode.Location | null>(
+        'vscode.executeTypeDefinitionProvider', uri, position);
+    return typeInfo;
+}
 
 export const getDocPath = (p: string) => {
 	return path.resolve(__dirname, '../manual-testing-sandbox', p);

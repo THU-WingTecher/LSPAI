@@ -266,7 +266,7 @@ async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[
     });
 }
 
-function getLinesTexts(startLine: number, endLine: number, document: vscode.TextDocument): string {
+export function getLinesTexts(startLine: number, endLine: number, document: vscode.TextDocument): string {
     let fullText = '';
     for (let line = startLine; line <= endLine; line++) {
         fullText += document.lineAt(line).text.trim() + '\n';  // Trim and append each line

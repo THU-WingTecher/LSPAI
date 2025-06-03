@@ -178,8 +178,19 @@ class StandardRAG(Baseline):
         documents = self.create_documents(code_files)
         
         print("Computing embeddings...")
-        self.vector_store = FAISS.from_documents(documents, self.embeddings)
+        # self.vector_store = FAISS.from_documents(documents, self.embeddings)
+        first_batch = documents[:5]  # Start with a small batch
+        self.vector_store = FAISS.from_documents(first_batch, self.embeddings)
         
+        # Process the remaining documents in batches
+        batch_size = 50  # Adjust this number based on your average document size
+        for i in range(5, len(documents), batch_size):
+            batch = documents[i:i + batch_size]
+            print(f"Processing batch {i//batch_size + 1} of {len(documents)//batch_size + 1}")
+            # Add the batch to the existing index
+            if batch:  # Make sure batch is not empty
+                temp_store = FAISS.from_documents(batch, self.embeddings)
+                self.vector_store.merge_from(temp_store)
         # Save embeddings
         self.save_embeddings(documents)
         print("Embeddings setup complete!")
@@ -286,11 +297,11 @@ if __name__ == "__main__":
     ]
     # List of projects to run experiments on
     projects_to_run = [
-        "black",
-        "logrus", 
-        "commons-cli",
-        "commons-csv",
-        "cobra",
+        # "black",
+        # "logrus", 
+        # "commons-cli",
+        # "commons-csv",
+        # "cobra",
         "tornado"
     ]  # Add or remove projects as needed
 
