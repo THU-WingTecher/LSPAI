@@ -18,13 +18,6 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "extensionDependencies": [
-    "ms-python.python",
-    "ms-python.vscode-pylance",
-    "redhat.java",
-    "golang.go",
-    "ms-vscode.cpptools"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
@@ -39,6 +32,10 @@
       {
         "command": "LSPAI.showSettings",
         "title": "LSPAI: Show Current Settings"
+      },
+      {
+        "command": "LSPAI.PythonBlackExperiment",
+        "title": "LSPAI: Python Black Experiment"
       }
     ],
     "menus": {

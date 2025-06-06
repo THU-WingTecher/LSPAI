@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { OpenAI } from "openai";
 import { HttpsProxyAgent } from "https-proxy-agent/dist";
 import { Ollama } from 'ollama';
-import { getConfigInstance } from "./config";
+import { Configuration, getConfigInstance } from "./config";
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -194,7 +194,7 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 }
 
 export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
-
+	console.log('invokeLLM::callOpenAi::proxyUrl', getConfigInstance().logAllConfig());
 	const proxy = getConfigInstance().proxyUrl;
 	const apiKey = getConfigInstance().openaiApiKey;
 	// console.log('invokeLLM::callOpenAi::proxy', proxy);

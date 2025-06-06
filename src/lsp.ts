@@ -35,7 +35,26 @@ export async function setPythonInterpreterPath(pythonInterpreterPath: string) {
 
 export async function getPythonExtraPaths(): Promise<string[]> {
     const config = vscode.workspace.getConfiguration('python');
+    console.log("config.get('analysis.include'):", config.get('analysis.include'));
     return config.get('analysis.extraPaths', []);
+}
+
+export async function setPythonAnalysisInclude(includePaths: string[] = ["tests/**/*.py"]) {
+    const config = vscode.workspace.getConfiguration('python');
+    await config.update(
+        'analysis.include',
+        includePaths,
+        vscode.ConfigurationTarget.Workspace
+    );
+}
+
+export async function setPythonAnalysisExclude(excludePaths: string[] = []) {
+    const config = vscode.workspace.getConfiguration('python');
+    await config.update(
+        'analysis.exclude',
+        excludePaths,
+        vscode.ConfigurationTarget.Workspace
+    );
 }
 
 export async function setPythonExtraPaths(pythonExtraPaths: string[]) {
@@ -46,7 +65,6 @@ export async function setPythonExtraPaths(pythonExtraPaths: string[]) {
         vscode.ConfigurationTarget.Workspace
     );
 
-    console.log('Set python.extraPaths to', pythonExtraPaths);
 }
 
 export async function closeEditor(editor: vscode.TextEditor) {
@@ -116,6 +134,7 @@ export async function setTestContent(content: string): Promise<boolean> {
 
 export async function getSymbolFromDocument(document: vscode.TextDocument, symbolName: string): Promise<vscode.DocumentSymbol | null> {
     const symbols = await getAllSymbols(document.uri);
+    console.log("symbols:", symbols);
     const symbol = symbols.find(s => s.name.toLocaleLowerCase().includes(symbolName.toLowerCase()));
     return symbol || null;
 }

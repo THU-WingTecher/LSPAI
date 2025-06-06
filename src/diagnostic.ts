@@ -95,7 +95,7 @@ export function markTestCodeWithDiagnostic(document: vscode.TextDocument, groupe
             const startLine = diag.range.start.line;
             const endLine = diag.range.end.line;
             const originalText = getLinesTexts(startLine, endLine, document);
-            const errorMessage = `Error Group: "${message}" - ${diag.message}`;
+            const errorMessage = `Error Group: "${message}"`;
             const markedText = `${originalText} ${wrapWithComment(errorMessage, languageId)}`;
             
             // Replace the content of all affected lines with the marked text

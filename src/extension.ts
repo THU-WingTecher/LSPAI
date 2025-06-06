@@ -4,11 +4,13 @@ import { Configuration, getConfigInstance } from './config';
 import path from 'path';
 import { getCodeAction } from './diagnostic';
 import { generateUnitTestsForFocalMethod, init, signIn, copilotServer } from './copilot';
-import { GenerationType, PromptType, FixType } from './config';
-import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace } from './helper';
+import { GenerationType, PromptType, FixType, Provider } from './config';
+import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace, selectOneSymbolFileFromWorkspace } from './helper';
 import { experimentWithCopilot } from './copilot';
 import { generateTimestampString } from './fileHandler';
 import { invokeLLM } from './invokeLLM';
+import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from './experiment';
+import { activate as activateLSP, setPythonAnalysisExclude, setPythonAnalysisInclude, setPythonExtraPaths, setPythonInterpreterPath } from './lsp';
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -114,6 +116,86 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	
 	context.subscriptions.push(copilotExperimentDisposable);
+
+	const pythonBlackExperimentDisposable = vscode.commands.registerCommand('LSPAI.PythonBlackExperiment', async () => {
+		const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
+		const projectPath = "/LSPAI/experiments/projects/black";
+		const blackModuleImportPath = [
+			path.join(projectPath, "src/black"), 
+			path.join(projectPath, "src/blackd"), 
+			path.join(projectPath, "src/blib2to3"), 
+			path.join(projectPath, "src")
+		];
+		const languageId = "python";
+		const taskListPath = '/LSPAI/experiments/config/black-taskList.json';
+
+		try {
+			// Show progress indicator
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Running Python Black Experiment...",
+				cancellable: false
+			}, async (progress) => {
+				progress.report({ message: "Setting up Python environment..." });
+
+				// Set up Python interpreter and extra paths
+				await setPythonInterpreterPath(pythonInterpreterPath);
+				await setPythonExtraPaths(blackModuleImportPath);
+				// await setPythonAnalysisInclude(["tests/**/*.py"]);
+				// await setPythonAnalysisExclude(["**/lspai-workspace/**/*.py"]);
+
+				progress.report({ message: "Activating language server..." });
+				
+				// Activate language server if not in testing environment
+				if (process.env.NODE_DEBUG !== 'true') {
+					await activateLSP();
+				}
+
+				progress.report({ message: "Loading symbols from workspace..." });
+				
+				// Load all target symbols from workspace
+				let symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+				symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
+
+				// let symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[] = [];
+				// // Filter symbols using task list
+				// const fileName2 = "trans.py";
+				// const symbolName2 = "iter_fexpr_spans";
+				// const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
+				// console.log(`#### One file: ${symbolDocumentMap2}`);
+				// symbols.push(symbolDocumentMap2);
+				// if (symbols.length === 0) {
+				// 	throw new Error('No symbols found matching the task list');
+				// }
+
+				progress.report({ message: `Running experiment on ${symbols.length} symbols...` });
+
+				// Update config for the experiment
+				getConfigInstance().updateConfig({
+					workspace: projectPath,
+					expProb: 1
+				});
+
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.EXPERIMENTAL,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o-mini',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+
+				vscode.window.showInformationMessage(`Python Black experiment completed successfully! Processed ${symbols.length} symbols.`);
+			});
+		} catch (error) {
+			console.error('Python Black experiment failed:', error);
+			vscode.window.showErrorMessage(`Failed to run Python Black experiment: ${error}`);
+		}
+	});
+	
+	context.subscriptions.push(pythonBlackExperimentDisposable);
 
 	const testLLMDisposable = vscode.commands.registerCommand('extension.testLLM', async () => {
 		const promptObj = [

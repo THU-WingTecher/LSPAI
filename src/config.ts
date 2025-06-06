@@ -348,6 +348,8 @@ export class Configuration {
             };
         } else {
             const config = vscode.workspace.getConfiguration('LSPAI');
+            const globalConfig = vscode.workspace.getConfiguration('http');
+            const globalProxy = globalConfig.get<string>('proxy') || '';
             return {
                 workspace: config.get<string>('workspace') ?? vscode.workspace.workspaceFolders![0].uri.fsPath,
                 expProb: DEFAULT_CONFIG.expProb,
@@ -361,7 +363,8 @@ export class Configuration {
                 openaiApiKey: config.get<string>('openaiApiKey'),
                 deepseekApiKey: config.get<string>('deepseekApiKey'),
                 localLLMUrl: config.get<string>('localLLMUrl'),
-                savePath: config.get<string>('savePath') ?? DEFAULT_CONFIG.savePath
+                savePath: config.get<string>('savePath') ?? DEFAULT_CONFIG.savePath,
+                proxyUrl: globalProxy || ''
             };
         }
     }

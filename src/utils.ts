@@ -248,19 +248,23 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
 }
 
 export function removeComments(code: string): string {
-    // Regular expression to match comments in Go, Java, and Python
     const commentRegex = [
-        /\/\/[^\n]*\n/g, // Go, Java, Python single-line comments (//...)
-        /\/\*[\s\S]*?\*\//g, // Go, Java, Python multi-line comments (/*...*/)
-        /'''[\s\S]*?'''/g, // Python triple single-quoted comments
-        /"""[\s\S]*?"""/g,  // Python triple double-quoted comments
-        /#.*$/gm // Python single-line comments (#...)
+        /\/\/[^\n]*\n/g,
+        /\/\*[\s\S]*?\*\//g,
+        /'''[\s\S]*?'''/g,
+        /"""[\s\S]*?"""/g,
+        /#.*$/gm
     ];
-
-    // Remove comments by replacing them with an empty string
-    return commentRegex.reduce((codeWithoutComments, regex) => {
+    
+    const withoutComments = commentRegex.reduce((codeWithoutComments, regex) => {
         return codeWithoutComments.replace(regex, '');
     }, code);
+    
+    // Remove empty lines (including those with only whitespace)
+    return withoutComments
+        .split('\n')
+        .filter(line => line.trim().length > 0)
+        .join('\n');
 }
 
 export function commentizeCode(code: string, language: string): string {

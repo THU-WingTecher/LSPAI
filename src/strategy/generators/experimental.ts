@@ -195,7 +195,7 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
 		const retreiveTime = Date.now();
 		enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
         // get the reference of function Symbol
-        const referenceStrings = await getReferenceInfo(this.document, this.functionSymbol.range, 60, false);
+        const referenceStrings = await getReferenceInfo(this.document, this.functionSymbol.selectionRange, 60, false);
         const contextTermsForFunctionSymbol : ContextTerm = {
             name: this.functionSymbol.name,
             context: referenceStrings,

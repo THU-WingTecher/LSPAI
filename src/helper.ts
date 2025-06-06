@@ -389,6 +389,7 @@ export async function selectOneSymbolFileFromWorkspace(fileName:string, symbolNa
     const filePath = findAFileFromWorkspace(fileName, language);
     console.log("filePATH :: ", filePath);
     const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+    await activate(document.uri);
     const symbol = await getSymbolFromDocument(document, symbolName);
     if (!symbol) {
         throw new Error(`Symbol ${symbolName} not found in file ${filePath}`);
