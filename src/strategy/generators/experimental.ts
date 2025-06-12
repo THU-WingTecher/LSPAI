@@ -15,59 +15,8 @@ import { getPackageStatement, getImportStatement, getOuterSymbols } from '../../
 import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
 import { readTxtFile, saveContextTerms } from '../../fileHandler';
 import { getReferenceInfo } from '../../reference';
-import path from 'path';
-import fs from 'fs';
-import { getAllSymbols } from '../../lsp';
 import { DecodedToken } from '../../token';
-
-async function constructSourceCodeWithRelatedInfo(
-    document: vscode.TextDocument, 
-    functionSymbol: vscode.DocumentSymbol
-): Promise<string> {
-    // Get the source code of the function
-    const sourceCode = document.getText(functionSymbol.range);
-    
-    // Get the file name and relative path
-    const absolutePath = document.uri.fsPath;
-    const workspaceRoot = getConfigInstance().workspace || '';
-    const relativePath = path.relative(workspaceRoot, absolutePath);
-    const fileName = path.basename(absolutePath);
-    
-    // Get class name if the function is a method
-    let className = '';
-    if (functionSymbol.kind === vscode.SymbolKind.Method) {
-        // Find the parent class symbol
-        const parentClass = await findParentClass(document, functionSymbol);
-        if (parentClass) {
-            className = parentClass.name;
-        }
-    }
-    
-    // Add the information to functionInfo map
-    let result = "";
-    result += `File: ${fileName}\n`;
-    result += `Relative Path: ${relativePath}\n`;
-    if (className) {
-        result += `Class Name: ${className}\n`;
-    }
-    result += `\n${sourceCode}`;
-    return result;
-}
-
-// Helper function to find parent class of a method
-async function findParentClass(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): Promise<vscode.DocumentSymbol | undefined> {
-    // Get all symbols in the document
-    const symbols = await getOuterSymbols(document.uri);
-    
-    // Find the parent class by checking if the method's range is within the class's range
-    for (const sym of symbols) {
-        if (sym.kind === vscode.SymbolKind.Class && 
-            sym.range.contains(symbol.range)) {
-            return sym;
-        }
-    }
-    return undefined;
-}
+import { constructSourceCodeWithRelatedInfo } from '../../utils';
 
 export async function generateTestWithContextWithCFG(
     document: vscode.TextDocument,
@@ -82,7 +31,7 @@ export async function generateTestWithContextWithCFG(
     const context_info_str = contextToString(context_info);
     const packageStatement = getPackageStatement(document, document.languageId);
     const importString = getImportStatement(document, document.languageId, functionSymbol);
-    let systemPrompt = await readTxtFile(findTemplateFile("lspaiSystem.txt"));
+    let systemPrompt = await readTxtFile(findTemplateFile("lspaiSystem_wo_ex.txt"));
     let userPrompt = await readTxtFile(findTemplateFile("lspaiUser_v2.txt"));
     let example = await readTxtFile(findTemplateFile("example1.txt"));
     const source_code_str = await constructSourceCodeWithRelatedInfo(document, functionSymbol);
@@ -92,18 +41,20 @@ export async function generateTestWithContextWithCFG(
 
     // const systemPrompt = prompts.system_prompt;
     // let userPrompt = prompts.user_prompt;
-    const conditionsWithIndex = conditionAnalyses.map((p, index) => `${index+1}. ${p.condition}`).join('\n')
+    // const conditionsWithIndex = conditionAnalyses.map((p, index) => `${index+1}. ${p.condition}`).join('\n')
+    const conditionsWithIndex = [""];
     // Replace variables in the user prompt
     userPrompt = userPrompt
         .replace('{focal_method}', source_code_str)
-        .replace('{conditions}', conditionsWithIndex)
+        // .replace('{conditions}', conditionsWithIndex)
         .replace('{context}', context_info_str)
         .replace('{test_format}', LanguageTemplateManager.getUnitTestTemplate(
             document.languageId,
             fileName,
             packageStatement ? packageStatement[0] : "",
             importString,
-            conditionAnalyses.map(c=>conditionToPrompt(c))
+            // conditionAnalyses.map(c=>conditionToPrompt(c))
+            [""]
         ));
 
     systemPrompt = systemPrompt
@@ -244,6 +195,6 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
         const testCode = await invokeLLM(promptObj, logObj);
         this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");
         return parseCode(testCode);
-        return "testing";
+        // return "testing";
     }
 }

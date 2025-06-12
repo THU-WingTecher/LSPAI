@@ -30,28 +30,34 @@ export function contextToString(contextTerms: ContextTerm[]): string {
     for (const item of contextTerms) {
         if (item.hint && item.hint.includes("focal method") && stripLineNumbers(item.context!)) {
             // Keep focal method separate as it's special
-            const content = `\n# FOCAL METHOD CONTEXT:\n${stripLineNumbers(item.context!)}`;
+            const content = `\n# FOCAL METHOD USE CASES:\n${stripLineNumbers(item.context!)}`;
             pathGroups.set('focal', pathGroups.get('focal') || []);
             pathGroups.get('focal')!.push(content);
             continue;
         }
 
-        if (item.token) {
-            const relativePath = path.relative(getConfigInstance().workspace, item.token.definition[0].uri.path);
-            pathGroups.set(relativePath, pathGroups.get(relativePath) || []);
-            
-            if (item.need_definition && item.context && item.context !== item.name) {
-                const firstLineNum = extractFirstLineNumber(item.context);
-                const lastLineNum = extractLastLineNumber(item.context);
-                const content = `${firstLineNum}|||${lastLineNum}|||${item.name}\n${stripLineNumbers(item.context)}`;
-                pathGroups.get(relativePath)!.push(content);
-            }
-            
-            if (item.need_example && item.example && item.example !== item.name) {
-                const firstLineNum = extractFirstLineNumber(item.example);
-                const lastLineNum = extractLastLineNumber(item.example);
-                const content = `${firstLineNum}|||${lastLineNum}|||${item.name}\n${stripLineNumbers(item.example)}`;
-                pathGroups.get(relativePath)!.push(content);
+        if (item.token && item.token.definition && item.token.definition[0] && item.token.definition[0].uri) {
+            try {
+                const relativePath = path.relative(getConfigInstance().workspace, item.token.definition[0].uri.path);
+                pathGroups.set(relativePath, pathGroups.get(relativePath) || []);
+                
+                if (item.need_definition && item.context && item.context !== item.name) {
+                    const firstLineNum = extractFirstLineNumber(item.context);
+                    const lastLineNum = extractLastLineNumber(item.context);
+                    const content = `${firstLineNum}|||${lastLineNum}|||${item.name}\n${stripLineNumbers(item.context)}`;
+                    pathGroups.get(relativePath)!.push(content);
+                }
+                
+                if (item.need_example && item.example && item.example !== item.name) {
+                    const firstLineNum = extractFirstLineNumber(item.example);
+                    const lastLineNum = extractLastLineNumber(item.example);
+                    const content = `${firstLineNum}|||${lastLineNum}|||${item.name}\n${stripLineNumbers(item.example)}`;
+                    pathGroups.get(relativePath)!.push(content);
+                }
+            } catch (error) {
+                console.log(`[contextToString] Error processing term ${item.name}: ${error}`);
+                // Skip this term and continue with others
+                continue;
             }
         }
     }
@@ -104,6 +110,88 @@ export function contextToString(contextTerms: ContextTerm[]): string {
 
     return result.join('\n');
 }
+
+// export function contextToString(contextTerms: ContextTerm[]): string {
+//     // Create a map to group items by relativePath
+//     const pathGroups = new Map<string, string[]>();
+    
+//     for (const item of contextTerms) {
+//         if (item.hint && item.hint.includes("focal method") && stripLineNumbers(item.context!)) {
+//             // Keep focal method separate as it's special
+//             const content = `\n# FOCAL METHOD USE CASES:\n${stripLineNumbers(item.context!)}`;
+//             pathGroups.set('focal', pathGroups.get('focal') || []);
+//             pathGroups.get('focal')!.push(content);
+//             continue;
+//         }
+
+//         if (item.token) {
+//             const relativePath = path.relative(getConfigInstance().workspace, item.token.definition[0].uri.path);
+//             pathGroups.set(relativePath, pathGroups.get(relativePath) || []);
+            
+//             if (item.need_definition && item.context && item.context !== item.name) {
+//                 const firstLineNum = extractFirstLineNumber(item.context);
+//                 const lastLineNum = extractLastLineNumber(item.context);
+//                 const content = `${firstLineNum}|||${lastLineNum}|||${item.name}\n${stripLineNumbers(item.context)}`;
+//                 pathGroups.get(relativePath)!.push(content);
+//             }
+            
+//             if (item.need_example && item.example && item.example !== item.name) {
+//                 const firstLineNum = extractFirstLineNumber(item.example);
+//                 const lastLineNum = extractLastLineNumber(item.example);
+//                 const content = `${firstLineNum}|||${lastLineNum}|||${item.name}\n${stripLineNumbers(item.example)}`;
+//                 pathGroups.get(relativePath)!.push(content);
+//             }
+//         }
+//     }
+
+//     // Build final string with deduplicated content
+//     const result: string[] = [];
+    
+//     // Add focal method first if it exists
+//     if (pathGroups.has('focal')) {
+//         result.push(...pathGroups.get('focal')!);
+//     }
+
+//     // Add other groups
+//     for (const [path, contents] of pathGroups.entries()) {
+//         if (path === 'focal') continue;
+        
+//         // First, remove redundant contexts by checking line number overlaps
+//         const uniqueRanges = removeRedundantContexts(contents);
+
+//         // Sort contents by line number
+//         const sortedContents = uniqueRanges.sort((a, b) => {
+//             const lineA = parseInt(a.split('|||')[0]) || 0;
+//             const lineB = parseInt(b.split('|||')[0]) || 0;
+//             return lineA - lineB;
+//         });
+
+//         if (sortedContents.length > 0) {
+//             result.push(`\n# ${path}`);
+            
+//             // Add contents with "... existing code ..." between non-continuous sections
+//             let lastEndLine = 0;
+//             const processedContents = sortedContents.map(content => {
+//                 const [startLine, endLine, ...rest] = content.split('|||');
+//                 const start = parseInt(startLine);
+//                 const end = parseInt(endLine);
+//                 const actualContent = rest.join('|||');
+
+//                 let resultContent = '';
+//                 if (lastEndLine > 0 && start > lastEndLine + 1) {
+//                     resultContent += '... existing code ...\n';
+//                 }
+//                 resultContent += actualContent;
+//                 lastEndLine = end;
+//                 return resultContent;
+//             });
+
+//             result.push(processedContents.join('\n'));
+//         }
+//     }
+
+//     return result.join('\n');
+// }
 
 // Helper function to remove redundant contexts based on line number overlaps
 function removeRedundantContexts(contents: string[]): string[] {

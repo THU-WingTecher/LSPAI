@@ -322,19 +322,19 @@ class DiagnosticContextCollector {
 							// context.push(processedTokens.get(`refs_${tokenKey}`)!);
 						}
 					} else {
-						if (!processedTokens.has(`type_${tokenKey}`)) {
-							const typeInfo = await this.getTypeAndImplementationInfo(tokens);
-							if (typeInfo) {
-								context.push("\n" + this.getGoalofContext(category) + "\n");
-								context.push("\n=== Type Information ===");
-								context.push(typeInfo);
-								processedTokens.set(`type_${tokenKey}`, typeInfo);
-								contextAdded = true;
-							}
-						} else {
-							// context.push("\n=== Type Information ===");
-							// context.push(processedTokens.get(`type_${tokenKey}`)!);
-						}
+						// if (!processedTokens.has(`type_${tokenKey}`)) {
+						// 	const typeInfo = await this.getTypeAndImplementationInfo(tokens);
+						// 	if (typeInfo) {
+						// 		context.push("\n" + this.getGoalofContext(category) + "\n");
+						// 		context.push("\n=== Type Information ===");
+						// 		context.push(typeInfo);
+						// 		processedTokens.set(`type_${tokenKey}`, typeInfo);
+						// 		contextAdded = true;
+						// 	}
+						// } else {
+						// 	// context.push("\n=== Type Information ===");
+						// 	// context.push(processedTokens.get(`type_${tokenKey}`)!);
+						// }
 					}
 					break;
 	
@@ -600,7 +600,9 @@ class DiagnosticContextCollector {
 			'**/__pycache__/**',
 			'**/build/**',
 			'**/dist/**',
-			'**/.git/**'
+			'**/.git/**',
+			'**/tests/**',
+			'**/test/**',
 		];
 	
 		// Add language-specific excludes

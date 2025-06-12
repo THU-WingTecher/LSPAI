@@ -13,7 +13,7 @@ import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
 import pLimit from 'p-limit';
 import { genPythonicSrcImportStatement } from './helper';
-const limit = pLimit(1);
+const limit = pLimit(32);
 interface TaskProgress {
     symbolName: string;
     relativeDocumentPath: string;
@@ -79,6 +79,7 @@ export class ExperimentContinuityManager {
 
     private async writeProgress(progress: ExperimentProgress): Promise<void> {
         progress.lastUpdated = new Date().toISOString();
+        console.log(`#### writeProgress: ${progress.tasks.length}`);
         await fs.promises.writeFile(this.progressFilePath, JSON.stringify(progress, null, 2));
     }
 
@@ -107,7 +108,7 @@ export class ExperimentContinuityManager {
         console.log(`Task list has been saved to ${this.taskListPath}`);
 
         // Initialize progress tracking with the new task list
-        // await this.initializeFromTaskList(data);
+        await this.initializeFromTaskList(data);
     }
 
     public async initializeFromTaskList(taskList: any[]): Promise<void> {
@@ -139,9 +140,10 @@ export class ExperimentContinuityManager {
 
     public async markTaskComplete(symbolName: string, relativeDocumentPath: string, error?: string): Promise<void> {
         // Acquire lock for atomic operation
+        console.log(`#### markTaskComplete: ${symbolName} ${relativeDocumentPath}`);
         await this.acquireLock(async () => {
             const progress = await this.readProgress();
-            
+            console.log(`#### progress: ${progress.tasks.length}`);
             const task = progress.tasks.find(t => 
                 t.symbolName === symbolName && 
                 t.relativeDocumentPath === relativeDocumentPath
@@ -324,12 +326,16 @@ export async function runGenerateTestCodeSuite(
         
         // Get uncompleted tasks and filter symbols
         const uncompletedTasks = await continuityManager.getUncompletedTasks();
-        symbolPairsToProcess = symbolFilePairsToTest.filter(({ symbol, document }) => {
+        symbolPairsToProcess = symbolFilePairsToTest.filter(({ symbol, document, fileName }) => {
             const relativePath = path.relative(workspace, document.uri.fsPath);
-            return uncompletedTasks.some(task => 
-                task.symbolName === symbol.name && 
-                task.relativeDocumentPath === relativePath
-            );
+            const basename = path.basename(fileName);
+            const finalSavePath = path.join(getConfigInstance().savePath, "final");
+            
+            // Check if file exists in final directory
+            const fileExistsInFinal = fs.existsSync(path.join(finalSavePath, basename));
+            
+            // Only include tasks that are uncompleted AND don't have corresponding file in final directory
+            return !fileExistsInFinal;
         });
         
         console.log(`#### Continuing experiment with ${symbolPairsToProcess.length} remaining tasks`);
@@ -354,17 +360,17 @@ export async function runGenerateTestCodeSuite(
                 );
                 
                 if (result) {
-                // Track progress for all experiments
-                await continuityManager.markTaskComplete(
-                    symbol.name,
-                    path.relative(workspace, document.uri.fsPath)
-                );
-                console.log(`#### Test Code: ${result}`);
-                return result;
-            } else {
-                console.log(`#### Test Code: ${result}`);
-                return result;
-            }
+                    // Track progress for all experiments
+                    await continuityManager.markTaskComplete(
+                        symbol.name,
+                        path.relative(workspace, document.uri.fsPath)
+                    );
+                    console.log(`#### Test Code: ${result}`);
+                    return result;
+                } else {
+                    console.log(`#### Test Code: ${result}`);
+                    return result;
+                }
             } catch (error) {
                 // Track failed tasks for all experiments
                 await continuityManager.markTaskComplete(

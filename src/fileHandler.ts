@@ -210,6 +210,9 @@ export function generateFileNameForDiffLanguage(document: vscode.TextDocument, s
     let fileName;
     let baseName;
     let disposableSuffix;
+    // generate a random number between 0 and 1000
+    const randomNameNumber = Math.floor(Math.random() * 1000);
+    const randomName = `_${randomNameNumber}`;
     switch (language) {
         case "go":
             const testFileFormatForGo = "_test";
@@ -282,27 +285,17 @@ export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol
     }
 }
 
-
 export function getUniqueFileName(folderPath: string, baseName: string, suffix: string, filePaths: string[], round: number): string {
-    let counter = 1;
-
-    // Initial new file name with counter right before Test.${suffix}
-    let newFileName;
-    if (round === -1) {
-        newFileName = `${baseName}_${counter}${suffix}`;
-    } else {
-        newFileName = `${baseName}_${round}_${counter}${suffix}`;
-    }
+    // Generate a random number between 1000 and 9999
+    const randomNum = Math.floor(Math.random() * 9000) + 1000;
     
-    // Check if the file name is unique by checking the folder and filePaths
-    while (filePaths.map(f => f.toLowerCase()).includes(path.join(folderPath, newFileName).toLowerCase()) || fs.existsSync(path.join(folderPath, newFileName))) {
-        counter++;
-        if (round === -1) {
-            newFileName = `${baseName}_${counter}${suffix}`;
-        } else {
-            newFileName = `${baseName}_${round}_${counter}${suffix}`;
-        }
-    }
+    // Create new file name with random number
+    let newFileName;
+    // if (round === -1) {
+    newFileName = `${baseName}_${randomNum}${suffix}`;
+    // } else {
+        // newFileName = `${baseName}_${randomNum}${suffix}`;
+    // }
     
     // Prepare the full path for the unique file
     const filePath = path.join(folderPath, newFileName);
@@ -313,6 +306,37 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
     // Return the full path of the unique file name
     return filePath;
 }
+
+// export function getUniqueFileName(folderPath: string, baseName: string, suffix: string, filePaths: string[], round: number): string {
+//     let counter = 1;
+
+//     // Initial new file name with counter right before Test.${suffix}
+//     let newFileName;
+//     if (round === -1) {
+//         newFileName = `${baseName}_${counter}${suffix}`;
+//     } else {
+//         newFileName = `${baseName}_${round}_${counter}${suffix}`;
+//     }
+    
+//     // Check if the file name is unique by checking the folder and filePaths
+//     while (filePaths.map(f => f.toLowerCase()).includes(path.join(folderPath, newFileName).toLowerCase()) || fs.existsSync(path.join(folderPath, newFileName))) {
+//         counter++;
+//         if (round === -1) {
+//             newFileName = `${baseName}_${counter}${suffix}`;
+//         } else {
+//             newFileName = `${baseName}_${round}_${counter}${suffix}`;
+//         }
+//     }
+    
+//     // Prepare the full path for the unique file
+//     const filePath = path.join(folderPath, newFileName);
+    
+//     // Add the new file path to the list to prevent future name clashes
+//     filePaths.push(filePath);
+    
+//     // Return the full path of the unique file name
+//     return filePath;
+// }
 
 
 // export async function saveGeneratedCodeToSpecifiedFolder(code: string, fullfileName: string, folderName: string): Promise<string> {

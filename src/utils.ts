@@ -1,10 +1,60 @@
 import * as vscode from 'vscode';
 import { assert } from 'console';
-import { getPackageStatement } from './retrieve';
+import { getOuterSymbols, getPackageStatement } from './retrieve';
 import { getConfigInstance } from './config';
 import { activate } from './lsp';
+import path from 'path';
 
 // patterns.ts
+
+export async function constructSourceCodeWithRelatedInfo(
+    document: vscode.TextDocument, 
+    functionSymbol: vscode.DocumentSymbol
+): Promise<string> {
+    // Get the source code of the function
+    const sourceCode = document.getText(functionSymbol.range);
+    
+    // Get the file name and relative path
+    const absolutePath = document.uri.fsPath;
+    const workspaceRoot = getConfigInstance().workspace || '';
+    const relativePath = path.relative(workspaceRoot, absolutePath);
+    const fileName = path.basename(absolutePath);
+    
+    // Get class name if the function is a method
+    let className = '';
+    if (functionSymbol.kind === vscode.SymbolKind.Method) {
+        // Find the parent class symbol
+        const parentClass = await findParentClass(document, functionSymbol);
+        if (parentClass) {
+            className = parentClass.name;
+        }
+    }
+    
+    // Add the information to functionInfo map
+    let result = "";
+    result += `File: ${fileName}\n`;
+    result += `Relative Path: ${relativePath}\n`;
+    if (className) {
+        result += `Class Name: ${className}\n`;
+    }
+    result += `\n${sourceCode}`;
+    return result;
+}
+
+// Helper function to find parent class of a method
+async function findParentClass(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): Promise<vscode.DocumentSymbol | undefined> {
+    // Get all symbols in the document
+    const symbols = await getOuterSymbols(document.uri);
+    
+    // Find the parent class by checking if the method's range is within the class's range
+    for (const sym of symbols) {
+        if (sym.kind === vscode.SymbolKind.Class && 
+            sym.range.contains(symbol.range)) {
+            return sym;
+        }
+    }
+    return undefined;
+}
 
 export function testFunc() {
     console.log('checking test');

@@ -194,10 +194,10 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 }
 
 export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
-	console.log('invokeLLM::callOpenAi::proxyUrl', getConfigInstance().logAllConfig());
+	// console.log('invokeLLM::callOpenAi::proxyUrl', getConfigInstance().logAllConfig());
 	const proxy = getConfigInstance().proxyUrl;
 	const apiKey = getConfigInstance().openaiApiKey;
-	// console.log('invokeLLM::callOpenAi::proxy', proxy);
+	console.log('invokeLLM::callOpenAi::proxy', proxy);
 	// console.log('invokeLLM::callOpenAi::apiKey', apiKey);
 	if (!apiKey) {
 		throw new Error('OpenAI API key not configured. Please set it in VS Code settings.');

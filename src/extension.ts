@@ -177,16 +177,25 @@ export async function activate(context: vscode.ExtensionContext) {
 				});
 
 				// Run the main experiment
+				// await runGenerateTestCodeSuite(
+				// 	GenerationType.CFG,
+				// 	FixType.ORIGINAL,
+				// 	PromptType.WITHCONTEXT,
+				// 	'gpt-4o',
+				// 	'openai' as Provider,
+				// 	symbols.slice(0, 1),
+				// 	languageId,
+				// );
+				// Run the main experiment
 				await runGenerateTestCodeSuite(
-					GenerationType.EXPERIMENTAL,
+					GenerationType.CFG,
 					FixType.ORIGINAL,
 					PromptType.WITHCONTEXT,
-					'gpt-4o-mini',
-					'openai' as Provider,
-					symbols,
+					'deepseek-chat',
+					'deepseek' as Provider,
+					symbols.slice(0, 1),
 					languageId,
 				);
-
 				vscode.window.showInformationMessage(`Python Black experiment completed successfully! Processed ${symbols.length} symbols.`);
 			});
 		} catch (error) {

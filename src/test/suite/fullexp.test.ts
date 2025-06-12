@@ -42,6 +42,7 @@ const MODELS: ModelConfig[] = [
 const GENERATION_TYPES = [
     GenerationType.NAIVE,
     GenerationType.SymPrompt
+    // GenerationType.EXPERIMENTAL
 ];
 
 // Project configurations
@@ -105,14 +106,14 @@ const PYTHON_PROJECTS: ProjectConfig[] = [
         },
 ];
 
-const ALL_PROJECTS = [GO_PROJECTS[0], ...PYTHON_PROJECTS];
-// const ALL_PROJECTS = [...PYTHON_PROJECTS];
+// const ALL_PROJECTS = [...JAVA_PROJECTS, ...GO_PROJECTS];
+const ALL_PROJECTS = [PYTHON_PROJECTS[1]];
 // const ALL_PROJECTS = [...JAVA_PROJECTS, ...PYTHON_PROJECTS, ...GO_PROJECTS];
 
 
 // ... existing code ...
 suite('Multi-Project Test Suite', () => {
-    const sampleNumber = -1;
+    const sampleNumber = 1;
     const minLineNumber = 5;
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     console.log(`#### Sample number: ${sampleNumber}`);
@@ -167,12 +168,21 @@ suite('Multi-Project Test Suite', () => {
                         await runGenerateTestCodeSuite(
                             generationType,
                             FixType.NOFIX,
-                            PromptType.DETAILED,
+                            PromptType.WITHCONTEXT,
                             modelConfig.model,
                             modelConfig.provider,
                             symbols,
                             project.languageId
                         );
+                        // await runGenerateTestCodeSuite(
+                        //     generationType,
+                        //     FixType.NOFIX,
+                        //     PromptType.DETAILED,
+                        //     modelConfig.model,
+                        //     modelConfig.provider,
+                        //     symbols,
+                        //     project.languageId
+                        // );
                     } catch (error) {
                         console.error(`#### Error: ${error}`);
                         console.error(`#### Retrying...`);

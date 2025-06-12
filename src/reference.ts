@@ -241,6 +241,13 @@ async function processReference(
     // }
 
     const refText = removeComments(refDocument.getText(refSymbol.range)).trim();
+    
+    // Skip if the reference is only one line
+    if (!refText.includes('\n')) {
+        console.log('[processReference] Skipping single-line reference');
+        return null;
+    }
+
     console.log(`[processReference] Extracted reference code of ${refText.split('\n').length} lines`);
     return refText;
 }
