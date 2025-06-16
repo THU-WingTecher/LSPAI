@@ -94,8 +94,8 @@ export class SymPromptTestGenerator extends BaseTestGenerator {
         const promptObj = generateTestSymprompt(this.document, this.functionSymbol, functionText, enrichedTerms, minimizedPaths, this.fileName, this.functionInfo)
 
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
-        // const testCode = await invokeLLM(promptObj, logObj);
-        // return parseCode(testCode);
-        return "testing"
+        const testCode = await invokeLLM(promptObj, logObj);
+        return parseCode(testCode);
+        // return "testing"
     }
 }
