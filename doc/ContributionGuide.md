@@ -38,4 +38,14 @@ document ：指代码文件
 
 预计会遇到的问题
 - Semantic Tokenzier 不返回 token （这可能需要调整某个参数，python，java没有这个问题，但是go的话，需要在settings部分加点参数（参考readme））
-  
+
+
+When Distributing : 
+We should delete "extensionDependencies" from package.json. 
+But, when we testing our software, thiese dependencies should be set.
+    "extensionDependencies": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "redhat.java",
+        "golang.go"
+      ], 

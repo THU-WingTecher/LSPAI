@@ -295,29 +295,39 @@ The extracted dataset will have this structure:
    The java language server cannot automatically add the test file to class path, therefore you need to manually add test path in the pom.xml file. 
    For example, 
    // We should move file to the 
-    // ${project.basedir}/src/lspai/test/java --> to get the correct and fast diagnostics
-    // <plugin>
-    //     <groupId>org.codehaus.mojo</groupId>
-    //     <artifactId>build-helper-maven-plugin</artifactId>
-    //     <version>3.5.0</version>
-    //     <executions>
-    //         <execution>
-    //             <id>add-test-source</id>
-    //             <phase>generate-test-sources</phase>
-    //             <goals>
-    //                 <goal>add-test-source</goal>
-    //             </goals>
-    //             <configuration>
-    //                 <sources>
-    //                     <!-- Add your additional test source directory -->
-    //                     <source>${project.basedir}/src/test/java</source>
-    //                     <source>${project.basedir}/src/lspai/test/java</source>
-    //                 </sources>
-    //             </configuration>
-    //         </execution>
-    //     </executions>
-    // </plugin>
+   ```
+   <build>
+      <testSourceDirectory>src/test/java</testSourceDirectory>
+      <testResources>
+         <testResource>
+               <directory>src/test/resources</directory>
+         </testResource>
+      </testResources>
 
+      <plugins>
+         <!-- Add this to set multiple test source directories -->
+         <plugin>
+               <groupId>org.codehaus.mojo</groupId>
+               <artifactId>build-helper-maven-plugin</artifactId>
+               <version>3.2.0</version>
+               <executions>
+                  <execution>
+                     <id>add-test-source</id>
+                     <phase>generate-test-sources</phase>
+                     <goals>
+                           <goal>add-test-source</goal>
+                     </goals>
+                     <configuration>
+                           <sources>
+                              <source>src/lspai/test/java</source>
+                           </sources>
+                     </configuration>
+                  </execution>
+               </executions>
+         </plugin>
+      </plugins>
+   </build>
+   ```
    ##### B. Reproduce with Provided Dataset ( Table 3 )
 
    Once the environment is set up and the unit tests are prepared, you can proceed to reproduce experiments using the provided dataset.
