@@ -266,7 +266,9 @@ function isSameLocation(
 
 const noNeedLocation = [
     "lspai-workspace",
+    "lspai"
 ]
+
 function isNoNeedLocation(ref: vscode.Location): boolean {
     return noNeedLocation.includes(ref.uri.toString());
 }
