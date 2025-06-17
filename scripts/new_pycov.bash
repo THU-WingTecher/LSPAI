@@ -165,3 +165,4 @@ rm -rf "$TEMP_COVERAGE_DIR"
 } > "$REPORT_DIR/summary.txt"
 
 echo "Coverage collection completed. Summary saved to $REPORT_DIR/summary.txt"
+echo "PassRate ((passed files + failed files)/ total files): $((passed_files + failed_files))/$total_files"

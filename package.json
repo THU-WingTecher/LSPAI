@@ -36,6 +36,26 @@
       {
         "command": "LSPAI.PythonBlackExperiment",
         "title": "LSPAI: Python Black Experiment"
+      },
+      {
+        "command": "LSPAI.PythonTornadoExperiment",
+        "title": "LSPAI: Python Tornado Experiment"
+      },
+      {
+        "command": "LSPAI.javaCliExperiment",
+        "title": "LSPAI: Java Commons-cli Experiment"
+      },
+      {
+        "command": "LSPAI.javaCsvExperiment",
+        "title": "LSPAI: Java Commons-csv Experiment"
+      },
+      {
+        "command": "LSPAI.goLogrusExperiment",
+        "title": "LSPAI: Go Logrus Experiment"
+      },
+      {
+        "command": "LSPAI.goCobraExperiment",
+        "title": "LSPAI: Go Cobra Experiment"
       }
     ],
     "menus": {

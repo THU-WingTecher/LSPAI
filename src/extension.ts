@@ -177,15 +177,110 @@ export async function activate(context: vscode.ExtensionContext) {
 				});
 
 				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				// Run the main experiment
 				// await runGenerateTestCodeSuite(
 				// 	GenerationType.CFG,
 				// 	FixType.ORIGINAL,
 				// 	PromptType.WITHCONTEXT,
-				// 	'gpt-4o',
-				// 	'openai' as Provider,
-				// 	symbols.slice(0, 1),
+				// 	'deepseek-chat',
+				// 	'deepseek' as Provider,
+				// 	symbols,
 				// 	languageId,
 				// );
+				vscode.window.showInformationMessage(`Python Black experiment completed successfully! Processed ${symbols.length} symbols.`);
+			});
+		} catch (error) {
+			console.error('Python Black experiment failed:', error);
+			vscode.window.showErrorMessage(`Failed to run Python Black experiment: ${error}`);
+		}
+	});
+	
+	context.subscriptions.push(pythonBlackExperimentDisposable);
+
+	const pythonTornadoExperimentDisposable = vscode.commands.registerCommand('LSPAI.PythonTornadoExperiment', async () => {
+		const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
+		const projectPath = "/LSPAI/experiments/projects/tornado";
+		const tornadoModuleImportPath = [
+			path.join(projectPath, "tornado"), 
+		];
+		const languageId = "python";
+		const taskListPath = '/LSPAI/experiments/config/tornado-taskList.json';
+
+		try {
+			// Show progress indicator
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Running Python Tornado Experiment...",
+				cancellable: false
+			}, async (progress) => {
+				progress.report({ message: "Setting up Python environment..." });
+
+				// Set up Python interpreter and extra paths
+				await setPythonInterpreterPath(pythonInterpreterPath);
+				await setPythonExtraPaths(tornadoModuleImportPath);
+				// await setPythonAnalysisInclude(["tests/**/*.py"]);
+				// await setPythonAnalysisExclude(["**/lspai-workspace/**/*.py"]);
+
+				progress.report({ message: "Activating language server..." });
+				
+				// Activate language server if not in testing environment
+				if (process.env.NODE_DEBUG !== 'true') {
+					await activateLSP();
+				}
+
+				progress.report({ message: "Loading symbols from workspace..." });
+				
+				// Load all target symbols from workspace
+				let symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+				symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
+
+				// let symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[] = [];
+				// // Filter symbols using task list
+				// const fileName2 = "trans.py";
+				// const symbolName2 = "iter_fexpr_spans";
+				// const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
+				// console.log(`#### One file: ${symbolDocumentMap2}`);
+				// symbols.push(symbolDocumentMap2);
+				// if (symbols.length === 0) {
+				// 	throw new Error('No symbols found matching the task list');
+				// }
+
+				progress.report({ message: `Running experiment on ${symbols.length} symbols...` });
+
+				// Update config for the experiment
+				getConfigInstance().updateConfig({
+					workspace: projectPath,
+					expProb: 1
+				});
+
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o-mini',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
 				// Run the main experiment
 				await runGenerateTestCodeSuite(
 					GenerationType.CFG,
@@ -193,7 +288,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					PromptType.WITHCONTEXT,
 					'deepseek-chat',
 					'deepseek' as Provider,
-					symbols.slice(0, 1),
+					symbols,
 					languageId,
 				);
 				vscode.window.showInformationMessage(`Python Black experiment completed successfully! Processed ${symbols.length} symbols.`);
@@ -205,6 +300,294 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	
 	context.subscriptions.push(pythonBlackExperimentDisposable);
+
+	const javaCliExperimentDisposable = vscode.commands.registerCommand('LSPAI.javaCliExperiment', async () => {
+		const projectPath = "/LSPAI/experiments/projects/commons-cli";
+		const languageId = "java";
+		const taskListPath = '/LSPAI/experiments/config/commons-cli-taskList.json';
+
+		try {
+			// Show progress indicator
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Running Java Commons-cli Experiment...",
+				cancellable: false
+			}, async (progress) => {
+				progress.report({ message: "Activating language server..." });
+				
+				// Activate language server if not in testing environment
+				if (process.env.NODE_DEBUG !== 'true') {
+					await activateLSP();
+				}
+
+				progress.report({ message: "Loading symbols from workspace..." });
+				
+				// Load all target symbols from workspace
+				let symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+				symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
+
+				progress.report({ message: `Running experiment on ${symbols.length} symbols...` });
+
+				// Update config for the experiment
+				getConfigInstance().updateConfig({
+					workspace: projectPath,
+					expProb: 1
+				});
+
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o-mini',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				// await runGenerateTestCodeSuite(
+				// 	GenerationType.CFG,
+				// 	FixType.ORIGINAL,
+				// 	PromptType.WITHCONTEXT,
+				// 	'gpt-4o',
+				// 	'openai' as Provider,
+				// 	symbols,
+				// 	languageId,
+				// );
+				// // Run the main experiment
+				// await runGenerateTestCodeSuite(
+				// 	GenerationType.CFG,
+				// 	FixType.ORIGINAL,
+				// 	PromptType.WITHCONTEXT,
+				// 	'deepseek-chat',
+				// 	'deepseek' as Provider,
+				// 	symbols,
+				// 	languageId,
+				// );
+				vscode.window.showInformationMessage(`Java Commons-cli experiment completed successfully! Processed ${symbols.length} symbols.`);
+			});
+		} catch (error) {
+			console.error('Java Commons-cli experiment failed:', error);
+			vscode.window.showErrorMessage(`Failed to run Java Commons-cli experiment: ${error}`);
+		}
+	});
+	
+	context.subscriptions.push(javaCliExperimentDisposable);
+
+	const javaCsvExperimentDisposable = vscode.commands.registerCommand('LSPAI.javaCsvExperiment', async () => {
+		const projectPath = "/LSPAI/experiments/projects/commons-csv";
+		const languageId = "java";
+		const taskListPath = '/LSPAI/experiments/config/commons-csv-taskList.json';
+
+		try {
+			// Show progress indicator
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Running Java Commons-csv Experiment...",
+				cancellable: false
+			}, async (progress) => {
+				progress.report({ message: "Activating language server..." });
+				
+				// Activate language server if not in testing environment
+				if (process.env.NODE_DEBUG !== 'true') {
+					await activateLSP();
+				}
+
+				progress.report({ message: "Loading symbols from workspace..." });
+				
+				// Load all target symbols from workspace
+				let symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+				symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
+
+				progress.report({ message: `Running experiment on ${symbols.length} symbols...` });
+
+				// Update config for the experiment
+				getConfigInstance().updateConfig({
+					workspace: projectPath,
+					expProb: 1
+				});
+
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o-mini',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'deepseek-chat',
+					'deepseek' as Provider,
+					symbols,
+					languageId,
+				);
+				vscode.window.showInformationMessage(`Java Commons-csv experiment completed successfully! Processed ${symbols.length} symbols.`);
+			});
+		} catch (error) {
+			console.error('Java Commons-csv experiment failed:', error);
+			vscode.window.showErrorMessage(`Failed to run Java Commons-csv experiment: ${error}`);
+		}
+	});
+	
+	context.subscriptions.push(javaCsvExperimentDisposable);
+
+	const goLogrusExperimentDisposable = vscode.commands.registerCommand('LSPAI.goLogrusExperiment', async () => {
+		const projectPath = "/LSPAI/experiments/projects/logrus";
+		const languageId = "go";
+		const taskListPath = '/LSPAI/experiments/config/logrus-taskList.json';
+
+		try {
+			// Show progress indicator
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Running Go Logrus Experiment...",
+				cancellable: false
+			}, async (progress) => {
+				progress.report({ message: "Activating language server..." });
+				
+				// Activate language server if not in testing environment
+				if (process.env.NODE_DEBUG !== 'true') {
+					await activateLSP();
+				}
+
+				progress.report({ message: "Loading symbols from workspace..." });
+				
+				// Load all target symbols from workspace
+				let symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+				symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
+
+				progress.report({ message: `Running experiment on ${symbols.length} symbols...` });
+
+				// Update config for the experiment
+				getConfigInstance().updateConfig({
+					workspace: projectPath,
+					expProb: 1
+				});
+
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o-mini',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'deepseek-chat',
+					'deepseek' as Provider,
+					symbols,
+					languageId,
+				);
+				vscode.window.showInformationMessage(`Go Logrus experiment completed successfully! Processed ${symbols.length} symbols.`);
+			});
+		} catch (error) {
+			console.error('Go Logrus experiment failed:', error);
+			vscode.window.showErrorMessage(`Failed to run Go Logrus experiment: ${error}`);
+		}
+	});
+	
+	context.subscriptions.push(goLogrusExperimentDisposable);
+
+	const goCobraExperimentDisposable = vscode.commands.registerCommand('LSPAI.goCobraExperiment', async () => {
+		const projectPath = "/LSPAI/experiments/projects/cobra";
+		const languageId = "go";
+		const taskListPath = '/LSPAI/experiments/config/cobra-taskList.json';
+
+		try {
+			// Show progress indicator
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: "Running Go Cobra Experiment...",
+				cancellable: false
+			}, async (progress) => {
+				progress.report({ message: "Activating language server..." });
+				
+				// Activate language server if not in testing environment
+				if (process.env.NODE_DEBUG !== 'true') {
+					await activateLSP();
+				}
+
+				progress.report({ message: "Loading symbols from workspace..." });
+				
+				// Load all target symbols from workspace
+				let symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+				symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
+
+				progress.report({ message: `Running experiment on ${symbols.length} symbols...` });
+
+				// Update config for the experiment
+				getConfigInstance().updateConfig({
+					workspace: projectPath,
+					expProb: 1
+				});
+
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o-mini',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'deepseek-chat',
+					'deepseek' as Provider,
+					symbols,
+					languageId,
+				);
+				vscode.window.showInformationMessage(`Go Cobra experiment completed successfully! Processed ${symbols.length} symbols.`);
+			});
+		} catch (error) {
+			console.error('Go Cobra experiment failed:', error);
+			vscode.window.showErrorMessage(`Failed to run Go Cobra experiment: ${error}`);
+		}
+	});
+	
+	context.subscriptions.push(goCobraExperimentDisposable);
 
 	const testLLMDisposable = vscode.commands.registerCommand('extension.testLLM', async () => {
 		const promptObj = [
