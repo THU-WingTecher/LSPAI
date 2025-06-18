@@ -21,6 +21,22 @@ import { getAllSymbols } from '../../lsp';
 import { DecodedToken } from '../../token';
 import { constructSourceCodeWithRelatedInfo } from '../../utils';
 
+/**
+ * Truncate context string to fit within token limit
+ */
+function truncateContextString(context: string, maxTokens: number): string {
+    if (maxTokens <= 0) return "";
+    
+    const words = context.split(/\s+/);
+    if (words.length <= maxTokens) {
+        return context;
+    }
+    
+    // Take the first maxTokens words
+    const truncatedWords = words.slice(0, maxTokens);
+    return truncatedWords.join(' ') + '...';
+}
+
 export async function generateTestWithContextWithCFG(
     document: vscode.TextDocument,
     functionSymbol: vscode.DocumentSymbol,
@@ -31,97 +47,62 @@ export async function generateTestWithContextWithCFG(
     template?: { system_prompt: string, user_prompt: string }
 ): Promise<ChatMessage[]> {
     const result = [];
-    const context_info_str = contextToString(context_info);
     const packageStatement = getPackageStatement(document, document.languageId);
     const importString = getImportStatement(document, document.languageId, functionSymbol);
     let systemPrompt = await readTxtFile(findTemplateFile("lspaiSystem.txt"));
     let userPrompt = await readTxtFile(findTemplateFile("lspaiUser_v2.txt"));
     let example = await readTxtFile(findTemplateFile("example1.txt"));
     const source_code_str = await constructSourceCodeWithRelatedInfo(document, functionSymbol);
-    // const prompts = template || loadPathTestTemplate();
     
-    // if filname contains /, remove it
-
-    // const systemPrompt = prompts.system_prompt;
-    // let userPrompt = prompts.user_prompt;
-    // const conditionsWithIndex = conditionAnalyses.map((p, index) => `${index+1}. ${p.condition}`).join('\n')
-    const conditionsWithIndex = [""];
+    // Get max token limitation
+    const maxTokens = getConfigInstance().maxTokens;
+    
+    // Calculate tokens for non-context parts
+    const testFormat = LanguageTemplateManager.getUnitTestTemplate(
+        document.languageId,
+        fileName,
+        packageStatement ? packageStatement[0] : "",
+        importString,
+        conditionAnalyses.map(c=>conditionToPrompt(c))
+    );
+    
+    // Create a temporary user prompt to estimate tokens
+    const tempUserPrompt = userPrompt
+        .replace('{focal_method}', source_code_str)
+        .replace('{context}', '') // Empty context for estimation
+        .replace('{test_format}', testFormat);
+    
+    const nonContextTokens = tempUserPrompt.split(/\s+/).length;
+    const systemTokens = systemPrompt.split(/\s+/).length;
+    
+    // Calculate available tokens for context
+    const availableTokensForContext = maxTokens - nonContextTokens - systemTokens;
+    
+    // Convert context_info to string and check if it needs pruning
+    let context_info_str = contextToString(context_info);
+    const contextTokens = context_info_str.split(/\s+/).length;
+    
+    // If context exceeds available tokens, prune it
+    if (contextTokens > availableTokensForContext) {
+        console.log(`Context tokens (${contextTokens}) exceed available tokens (${availableTokensForContext}). Pruning context...`);
+        context_info_str = truncateContextString(context_info_str, availableTokensForContext);
+        console.log(`Pruned context tokens: ${context_info_str.split(/\s+/).length}`);
+    }
+    
     // Replace variables in the user prompt
     userPrompt = userPrompt
         .replace('{focal_method}', source_code_str)
-        // .replace('{conditions}', conditionsWithIndex)
         .replace('{context}', context_info_str)
-        .replace('{test_format}', LanguageTemplateManager.getUnitTestTemplate(
-            document.languageId,
-            fileName,
-            packageStatement ? packageStatement[0] : "",
-            importString,
-            conditionAnalyses.map(c=>conditionToPrompt(c))
-            // [""]
-        ));
+        .replace('{test_format}', testFormat);
 
     systemPrompt = systemPrompt
         .replace('{example}', example);
+        
     return [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
     ];
 }
-// export function constructConditionPrompt(pathCollector: PathCollector, context_info: ContextTerm[]): string {
-//     // Get conditions and their analyses
-//     const conditionAnalyses = pathCollector.getUniqueConditions();
-    
-//     const result: string[] = [];
-    
-//     // Group context terms by their line number
-//     const termsByLine = new Map<number, ContextTerm[]>();
-//     for (const term of context_info) {
-//         const line = term.token?.line ?? 0;
-//         if (!termsByLine.has(line)) {
-//             termsByLine.set(line, []);
-//         }
-//         termsByLine.get(line)!.push(term);
-//     }
-    
-//     // Process each condition in order of depth
-//     for (const analysis of conditionAnalyses) {
-//         const { condition, dependencies } = analysis;
-        
-//         // Add the condition
-//         result.push(`\n### Condition: ${condition}`);
-        
-//         // Add related symbols and their contexts
-//         result.push("#### Related symbols:");
-        
-//         // Find context terms for dependencies, maintaining line order
-//         const relatedTerms: ContextTerm[] = [];
-//         for (const dep of dependencies) {
-//             // Find all terms with matching name
-//             for (const [line, terms] of termsByLine) {
-//                 for (const term of terms) {
-//                     if (term.name === dep) {
-//                         relatedTerms.push(term);
-//                     }
-//                 }
-//             }
-//         }
-        
-//         // Sort by line number to maintain original code order
-//         relatedTerms.sort((a, b) => (a.token?.line ?? 0) - (b.token?.line ?? 0));
-        
-//         // Add each term's definition and example
-//         for (const term of relatedTerms) {
-//             if (term.need_definition && term.context && term.context !== term.name) {
-//                 result.push(`\n#### Definition of ${term.name}\n${term.context}`);
-//             }
-//             if (term.need_example && term.example && term.example !== term.name) {
-//                 result.push(`\n#### Example of ${term.name}\n${term.example}`);
-//             }
-//         }
-//     }
-    
-//     return result.join('\n');
-// }
 
 export class CFGTestGenerator extends BaseTestGenerator {
 
@@ -148,6 +129,8 @@ export class CFGTestGenerator extends BaseTestGenerator {
 		}
 		const retreiveTime = Date.now();
 		enrichedTerms = await contextSelector.gatherContext(identifiedTerms, this.functionSymbol);
+        this.logger.log("gatherContext-1", (Date.now() - retreiveTime).toString(), null, "");
+        const retreiveTime2 = Date.now();
         // get the reference of function Symbol
         const referenceStrings = await getReferenceInfo(this.document, this.functionSymbol.selectionRange, 60, false);
         const contextTermsForFunctionSymbol : ContextTerm = {
@@ -157,6 +140,7 @@ export class CFGTestGenerator extends BaseTestGenerator {
             hint: ["focal method"]
         }
         enrichedTerms.unshift(contextTermsForFunctionSymbol);
+        this.logger.log("gatherContext-2", (Date.now() - retreiveTime2).toString(), null, "");
         this.logger.log("gatherContext", (Date.now() - retreiveTime).toString(), null, "");
         saveContextTerms(this.sourceCode, enrichedTerms, getConfigInstance().logSavePath!, this.fileName);
 		return enrichedTerms;

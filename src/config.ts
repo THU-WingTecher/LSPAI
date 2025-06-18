@@ -50,6 +50,15 @@ export const PromptTypeMapping = {
     [PromptType.BEST]: PromptType.DETAILED    // Currently maps to DETAILED
 } as const;
 
+const MODEL_TOKEN_LIMITS: Record<string, number> = {
+    'gpt-4o-mini': 16384,
+    'gpt-4o': 128000,
+    'deepseek-chat': 32768,
+    // Add more models as needed
+    'default': 8192 // fallback for unknown models
+};
+
+
 // Helper function to resolve the actual type from a tag
 export function resolveGenerationType(type: GenerationType | keyof typeof GenerationTypeMapping): GenerationType {
     if (type in GenerationTypeMapping) {
@@ -467,7 +476,23 @@ export class Configuration {
     public get expProb(): number {
         return this.config.expProb;
     }
+    /**
+     * Get the maximum token limit for the current model
+     * @returns Maximum token limit for the current model
+     */
+    public get maxTokens(): number {
+        const currentModel = this.model;
+        return MODEL_TOKEN_LIMITS[currentModel] || MODEL_TOKEN_LIMITS['default'];
+    }
 
+    /**
+     * Get the maximum token limit for a specific model
+     * @param modelName - The name of the model
+     * @returns Maximum token limit for the specified model
+     */
+    public getMaxTokensForModel(modelName: string): number {
+        return MODEL_TOKEN_LIMITS[modelName] || MODEL_TOKEN_LIMITS['default'];
+    }
     public get model(): string {
         return this.config.model;
     }
