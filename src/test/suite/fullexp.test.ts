@@ -40,8 +40,9 @@ const MODELS: ModelConfig[] = [
 
 // Prompt Types to test
 const GENERATION_TYPES = [
-    GenerationType.NAIVE,
-    GenerationType.SymPrompt
+    // GenerationType.NAIVE,
+    // GenerationType.SymPrompt
+    GenerationType.CFG,
     // GenerationType.EXPERIMENTAL
 ];
 
@@ -106,14 +107,14 @@ const PYTHON_PROJECTS: ProjectConfig[] = [
         },
 ];
 
-// const ALL_PROJECTS = [...JAVA_PROJECTS, ...GO_PROJECTS];
-const ALL_PROJECTS = [PYTHON_PROJECTS[1]];
+const ALL_PROJECTS = [...JAVA_PROJECTS, ...GO_PROJECTS];
+// const ALL_PROJECTS = [PYTHON_PROJECTS[1]];
 // const ALL_PROJECTS = [...JAVA_PROJECTS, ...PYTHON_PROJECTS, ...GO_PROJECTS];
 
 
 // ... existing code ...
 suite('Multi-Project Test Suite', () => {
-    const sampleNumber = 1;
+    const sampleNumber = -1;
     const minLineNumber = 5;
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     console.log(`#### Sample number: ${sampleNumber}`);
@@ -162,12 +163,18 @@ suite('Multi-Project Test Suite', () => {
                 getConfigInstance().updateConfig(currentConfig);
 
                 // Process each generation type sequentially
+                let fixtype = FixType.NOFIX;
                 for (const generationType of GENERATION_TYPES) {
+                    if (generationType === GenerationType.CFG) {
+                        fixtype = FixType.ORIGINAL;
+                    } else {
+                        fixtype = FixType.NOFIX;
+                    }
                     console.log(`#### Testing generation type: ${generationType} ####`);
                     try { 
                         await runGenerateTestCodeSuite(
                             generationType,
-                            FixType.NOFIX,
+                            fixtype,
                             PromptType.WITHCONTEXT,
                             modelConfig.model,
                             modelConfig.provider,
@@ -188,7 +195,7 @@ suite('Multi-Project Test Suite', () => {
                         console.error(`#### Retrying...`);
                         await runGenerateTestCodeSuite(
                             generationType,
-                            FixType.NOFIX,
+                            fixtype,
                             PromptType.DETAILED,
                             modelConfig.model,
                             modelConfig.provider,

@@ -145,18 +145,23 @@ async function processReferences(
     references: vscode.Location[],
     options: ReferenceProcessingOptions
 ): Promise<string[]> {
+    const retreiveTime = Date.now();
+    
+    // Filter out unwanted references by URI before processing
+    const filteredReferences = references.filter(ref => !isNoNeedLocation(ref));
+    console.log(`[processReferences] Filtered ${references.length} references to ${filteredReferences.length} valid references`);
     
     const referenceCodes: string[] = [];
     let totalLines = 0;
-    // Pre-process documents to determine which are test files
+    
     const testFileMap = new Map<string, boolean>();
-    for (const ref of references) {
+    for (const ref of filteredReferences) {
         const refDocument = await vscode.workspace.openTextDocument(ref.uri);
         testFileMap.set(ref.uri.toString(), isTestFile(ref.uri, refDocument));
     }
 
     // Sort references by test files first, then by range size
-    references.sort((a, b) => {
+    filteredReferences.sort((a, b) => {
         const aIsTest = testFileMap.get(a.uri.toString()) || false;
         const bIsTest = testFileMap.get(b.uri.toString()) || false;
         
@@ -169,9 +174,10 @@ async function processReferences(
         const rangeB = b.range.end.line - b.range.start.line;
         return rangeA - rangeB;
     });
-
+    console.log("sort references time:", (Date.now() - retreiveTime).toString());
+    const processTime = Date.now();
     // Process references in order
-    for (const ref of references) {
+    for (const ref of filteredReferences) {
         // Early exit if we've hit the window limit
         if (options.refWindow !== -1 && totalLines >= options.refWindow) {
             break;
@@ -183,8 +189,9 @@ async function processReferences(
         if (options.skipTestCode && isTestFile(ref.uri, refDocument)) {
             continue;
         }
-
+        const processTime2 = Date.now();
         const processedCode = await processReference(document, refDocument, ref, options);
+        console.log("process reference time:", (Date.now() - processTime2).toString());
         if (!processedCode) {
             continue;
         }
@@ -198,7 +205,7 @@ async function processReferences(
         totalLines += newLines;
         console.log(`[processReferences] Added reference code (${newLines} lines). Total lines: ${totalLines}`);
     }
-
+    console.log("process references time:", (Date.now() - processTime).toString());
     return referenceCodes;
 }
 
@@ -217,7 +224,7 @@ async function processReference(
     }
 
     // Check if this is the original reference location
-    if (isSameLocation(ref, originalDocument, options.start, options.end, refSymbol) || isNoNeedLocation(ref)) {
+    if (isSameLocation(ref, originalDocument, options.start, options.end, refSymbol)) {
         console.log('[processReference] Skipping original reference location');
         return null;
     }
@@ -264,13 +271,10 @@ function isSameLocation(
            !(refSymbol.range.end.isBefore(start) || refSymbol.range.start.isAfter(end));
 }
 
-const noNeedLocation = [
-    "lspai-workspace",
-    "lspai"
-]
+const noNeedLocation = "/lspai"; // "lspai-workspace", "lspai"
 
 function isNoNeedLocation(ref: vscode.Location): boolean {
-    return noNeedLocation.includes(ref.uri.toString());
+    return ref.uri.toString().includes(noNeedLocation)
 }
 
 // export async function getReferenceInfo(document: vscode.TextDocument, range: vscode.Range, refWindow: number = 60, skipTestCode: boolean = true): Promise<string> {

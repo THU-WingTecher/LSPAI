@@ -344,25 +344,25 @@ export async function activate(context: vscode.ExtensionContext) {
 					symbols,
 					languageId,
 				);
-				// await runGenerateTestCodeSuite(
-				// 	GenerationType.CFG,
-				// 	FixType.ORIGINAL,
-				// 	PromptType.WITHCONTEXT,
-				// 	'gpt-4o',
-				// 	'openai' as Provider,
-				// 	symbols,
-				// 	languageId,
-				// );
-				// // Run the main experiment
-				// await runGenerateTestCodeSuite(
-				// 	GenerationType.CFG,
-				// 	FixType.ORIGINAL,
-				// 	PromptType.WITHCONTEXT,
-				// 	'deepseek-chat',
-				// 	'deepseek' as Provider,
-				// 	symbols,
-				// 	languageId,
-				// );
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'gpt-4o',
+					'openai' as Provider,
+					symbols,
+					languageId,
+				);
+				// Run the main experiment
+				await runGenerateTestCodeSuite(
+					GenerationType.CFG,
+					FixType.ORIGINAL,
+					PromptType.WITHCONTEXT,
+					'deepseek-chat',
+					'deepseek' as Provider,
+					symbols,
+					languageId,
+				);
 				vscode.window.showInformationMessage(`Java Commons-cli experiment completed successfully! Processed ${symbols.length} symbols.`);
 			});
 		} catch (error) {

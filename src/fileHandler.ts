@@ -164,10 +164,10 @@ export async function saveToIntermediate(
         }
         fs.writeFileSync(curSavePoint, testCode, DEFAULT_FILE_ENCODING);
         console.log(`Generated code saved to ${curSavePoint}`);
-    // } else if (language === "java") {
-    //     await saveCode(testCode, folderName, fullFileName); // for history keeping
-    //     const javaTestPath = path.join(getConfigInstance().workspace, javaLspaiTestPath);
-    //     curSavePoint = await saveCode(testCode, javaTestPath, fullFileName);
+    } else if (language === "java") {
+        await saveCode(testCode, folderName, fullFileName); // for history keeping
+        const javaTestPath = path.join(getConfigInstance().workspace, javaLspaiTestPath);
+        curSavePoint = await saveCode(testCode, javaTestPath, fullFileName);
     } else {
         curSavePoint = await saveCode(testCode, folderName, fullFileName);
     }
