@@ -75,8 +75,8 @@ echo "Generating coverage report..."
 
 # Add debug information
 echo "Coverage file size: $(ls -lh "$COVERAGE_FILE" | awk '{print $5}')"
-echo "Number of class files in target: $(find "$COMPILED_SOURCE" -name "*.class" | wc -l)"
-echo "Number of test files: $(find "$OUTPUT_DIR" -name "*.class" | wc -l)"
+echo "Number of valid class files in target: $(find "$COMPILED_SOURCE" -name "*.class" | wc -l)"
+# echo "Number of test files: $(find "$OUTPUT_DIR" -name "*.class" | wc -l)"
 
 # Use the JaCoCo CLI tool to generate the report
 java -jar $JACOCO_CLI_PATH report $COVERAGE_FILE --classfiles $COMPILED_SOURCE --html $REPORT_DIR
