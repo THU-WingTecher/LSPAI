@@ -75,8 +75,13 @@ ${testFunctions}
      * Get Go unit test template
      */
     private static getGoTemplate(fileName: string, packageString: string, paths: string[], signature: string): string {
+        // the first letter of the function name should be capitalized
+        let testFileName = fileName;
+        if (testFileName.charAt(0) === testFileName.charAt(0).toLowerCase()) {
+            testFileName = testFileName.charAt(0).toUpperCase() + testFileName.slice(1);
+        }
         const testFunctions = paths.map((p, idx) => `
-    func Test${fileName}_${idx}(t *testing.T) {
+    func Test${testFileName}_${idx}(t *testing.T) {
     /*
     ${signature}
         ${p}
@@ -95,7 +100,7 @@ import (
 )
 ${testFunctions}
 
-func Test${fileName}(t *testing.T) {
+func Test${testFileName}(t *testing.T) {
     {Replace with needed setup}
     {Write your test function here}
 }

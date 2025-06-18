@@ -56,6 +56,9 @@ public class {file_name} {{
     def get_go_template(file_name: str, package_string: str, paths: list = None) -> str:
         """Get Go unit test template"""
         # Capitalize first letter for Go convention
+        test_file_name = file_name
+        if test_file_name.charAt(0) == test_file_name.charAt(0).lower():
+            test_file_name = test_file_name.charAt(0).upper() + test_file_name.slice(1);
         return f"""
 Based on the provided information, you need to generate a unit test using Go's testing package.
 The generated test code will be located at the same directory with target code. Therefore, you don't have to import target project.
@@ -67,7 +70,7 @@ import (
     {{Replace with needed imports}}
 )
 
-func Test{file_name}(t *testing.T) {{
+func Test{test_file_name}(t *testing.T) {{
     {{Replace with needed setup}}
     {{Write your test function here}}
 }}
