@@ -383,16 +383,18 @@ class DiagnosticContextCollector {
 	async getDefsOfDiagnostic(decodedTokens: DecodedToken[]): Promise<string> {
 		let relatedInfo = '';
 		for (const token of decodedTokens) {
-			const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
-			if (!token.defSymbol) {
-				if (token.defSymbol === null) {
-					token.defSymbol = await getSymbolByLocation(defSymbolDoc, token.definition[0].range!.start);
+			if (token.definition[0] && token.definition[0].uri) {
+				const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
+				if (!token.defSymbol) {
+					if (token.defSymbol === null) {
+						token.defSymbol = await getSymbolByLocation(defSymbolDoc, token.definition[0].range!.start);
+					}
 				}
-			}
-			if (token.defSymbol) {
-				if (!isInWorkspace(token.definition[0].uri)) {
-					relatedInfo += `${token.defSymbol.name} from ${fpath.basename(token.definition[0].uri.fsPath)}\n`;
-					relatedInfo += `${defSymbolDoc.getText(token.defSymbol.range)}\n`;
+				if (token.defSymbol) {
+					if (!isInWorkspace(token.definition[0].uri)) {
+						relatedInfo += `${token.defSymbol.name} from ${fpath.basename(token.definition[0].uri.fsPath)}\n`;
+						relatedInfo += `${defSymbolDoc.getText(token.defSymbol.range)}\n`;
+					}
 				}
 			}
 		}
@@ -402,7 +404,7 @@ class DiagnosticContextCollector {
 	async getRefsOfDiagnostic(decodedTokens: DecodedToken[]): Promise<string> {
 		let relatedInfo = '';
 		for (const token of decodedTokens) {
-			if (token.definition[0].range) {
+			if (token.definition[0] && token.definition[0].range) {
 				const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
 				const referenceInfo = await getReferenceInfo(defSymbolDoc, token.definition[0].range, 40, false);
 				if (referenceInfo) {

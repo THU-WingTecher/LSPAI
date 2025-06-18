@@ -99,7 +99,7 @@ export function isReturnTypeVoid(symbol: vscode.DocumentSymbol): boolean {
 
 async function loadDefAndSaveToDefSymbol(token: DecodedToken) {
     await retrieveDef(token.document, token);
-    if (token.definition && token.definition[0].range && token.definition.length > 0) {
+    if (token.definition && token.definition[0] && token.definition[0].range && token.definition.length > 0) {
         const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
         token.defSymbol = await getSymbolByLocation(defSymbolDoc, token.definition[0].range.start);
     }
