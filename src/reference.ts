@@ -69,13 +69,11 @@ export async function getReferenceInfo(
     console.log(`[getReferenceInfo] Starting reference search for token "${targetToken}" at position ${start.line}:${start.character}`);
     
     const references = await findReferences(document, start);
-    console.log("references uri:", references.map(ref => ref.uri.fsPath));
     if (!references || references.length === 0) {
         console.log('[getReferenceInfo] No references found');
         return '';
     }
     
-    console.log(`[getReferenceInfo] Found ${references.length} references to analyze`);
     const referenceCodes = await processReferences(document, references, {
         targetToken,
         start,
