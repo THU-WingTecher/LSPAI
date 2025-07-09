@@ -491,36 +491,33 @@ export async function activate(context: vscode.ExtensionContext) {
 					workspace: projectPath,
 					expProb: 1
 				});
+				const repeatCount = 3 ; 
+				const configurations = [
+					{
+						generationType: GenerationType.CFG,
+						fixType: FixType.ORIGINAL,
+						promptType: PromptType.WITHCONTEXT,
+						model: 'gpt-4o-mini',
+						provider: 'openai' as Provider,
+					},
+					{
+						generationType: GenerationType.CFG,
+						fixType: FixType.ORIGINAL,
+						promptType: PromptType.WITHCONTEXT,
+						model: 'gpt-4o',
+						provider: 'openai' as Provider,
+					},
+					{
+						generationType: GenerationType.CFG,
+						fixType: FixType.ORIGINAL,
+						promptType: PromptType.WITHCONTEXT,
+						model: 'deepseek-chat',
+						provider: 'deepseek' as Provider,
+					},
+				]
 
-				// Run the main experiment
-				await runGenerateTestCodeSuite(
-					GenerationType.CFG,
-					FixType.ORIGINAL,
-					PromptType.WITHCONTEXT,
-					'gpt-4o-mini',
-					'openai' as Provider,
-					symbols,
-					languageId,
-				);
-				await runGenerateTestCodeSuite(
-					GenerationType.CFG,
-					FixType.ORIGINAL,
-					PromptType.WITHCONTEXT,
-					'gpt-4o',
-					'openai' as Provider,
-					symbols,
-					languageId,
-				);
-				// Run the main experiment
-				await runGenerateTestCodeSuite(
-					GenerationType.CFG,
-					FixType.ORIGINAL,
-					PromptType.WITHCONTEXT,
-					'deepseek-chat',
-					'deepseek' as Provider,
-					symbols,
-					languageId,
-				);
+				await runExperiment(configurations, symbols, languageId, projectPath, repeatCount);
+
 				vscode.window.showInformationMessage(`Go Logrus experiment completed successfully! Processed ${symbols.length} symbols.`);
 			});
 		} catch (error) {
@@ -563,36 +560,32 @@ export async function activate(context: vscode.ExtensionContext) {
 					workspace: projectPath,
 					expProb: 1
 				});
+				const repeatCount = 3 ; 
+				const configurations = [
+					{
+						generationType: GenerationType.CFG,
+						fixType: FixType.ORIGINAL,
+						promptType: PromptType.WITHCONTEXT,
+						model: 'gpt-4o-mini',
+						provider: 'openai' as Provider,
+					},
+					{
+						generationType: GenerationType.CFG,
+						fixType: FixType.ORIGINAL,
+						promptType: PromptType.WITHCONTEXT,
+						model: 'gpt-4o',
+						provider: 'openai' as Provider,
+					},
+					{
+						generationType: GenerationType.CFG,
+						fixType: FixType.ORIGINAL,
+						promptType: PromptType.WITHCONTEXT,
+						model: 'deepseek-chat',
+						provider: 'deepseek' as Provider,
+					},
+				]
 
-				// Run the main experiment
-				await runGenerateTestCodeSuite(
-					GenerationType.CFG,
-					FixType.ORIGINAL,
-					PromptType.WITHCONTEXT,
-					'gpt-4o-mini',
-					'openai' as Provider,
-					symbols,
-					languageId,
-				);
-				await runGenerateTestCodeSuite(
-					GenerationType.CFG,
-					FixType.ORIGINAL,
-					PromptType.WITHCONTEXT,
-					'gpt-4o',
-					'openai' as Provider,
-					symbols,
-					languageId,
-				);
-				// Run the main experiment
-				await runGenerateTestCodeSuite(
-					GenerationType.CFG,
-					FixType.ORIGINAL,
-					PromptType.WITHCONTEXT,
-					'deepseek-chat',
-					'deepseek' as Provider,
-					symbols,
-					languageId,
-				);
+				await runExperiment(configurations, symbols, languageId, projectPath, repeatCount);
 				vscode.window.showInformationMessage(`Go Cobra experiment completed successfully! Processed ${symbols.length} symbols.`);
 			});
 		} catch (error) {
