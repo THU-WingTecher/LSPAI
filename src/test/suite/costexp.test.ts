@@ -107,10 +107,104 @@ const PYTHON_PROJECTS: ProjectConfig[] = [
 ];
 
 // const ALL_PROJECTS = [...GO_PROJECTS];
-const ALL_PROJECTS = [PYTHON_PROJECTS[1]];
-// const ALL_PROJECTS = [JAVA_PROJECTS[1]];
+// const ALL_PROJECTS = [PYTHON_PROJECTS[1]];
+const ALL_PROJECTS = [...PYTHON_PROJECTS, ...JAVA_PROJECTS, ...GO_PROJECTS];
 
+// ... existing code ...
 
+/**
+ * Randomly sample symbols with uniformly distributed line counts
+ * @param symbols Array of symbol-document pairs
+ * @param sampleSize Number of symbols to sample (default: 50)
+ * @returns Array of sampled symbols with uniform line count distribution
+ */
+function sampleSymbolsWithUniformLineDistribution(
+    symbols: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[],
+    sampleSize: number = 50
+): { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[] {
+    if (symbols.length <= sampleSize) {
+        return symbols;
+    }
+
+    // Calculate line counts for all symbols
+    const symbolsWithLineCounts = symbols.map(({ symbol, document }) => ({
+        symbol,
+        document,
+        lineCount: symbol.range.end.line - symbol.range.start.line
+    }));
+
+    // Find min and max line counts
+    const lineCounts = symbolsWithLineCounts.map(s => s.lineCount);
+    const minLines = Math.min(...lineCounts);
+    const maxLines = Math.max(...lineCounts);
+
+    // Create line count buckets for uniform distribution
+    const numBuckets = Math.min(10, maxLines - minLines + 1); // Use 10 buckets or fewer if range is small
+    const bucketSize = Math.ceil((maxLines - minLines + 1) / numBuckets);
+    
+    // Group symbols into buckets based on line count
+    const buckets: typeof symbolsWithLineCounts[] = Array.from({ length: numBuckets }, () => []);
+    
+    symbolsWithLineCounts.forEach(symbolData => {
+        const bucketIndex = Math.min(
+            Math.floor((symbolData.lineCount - minLines) / bucketSize),
+            numBuckets - 1
+        );
+        buckets[bucketIndex].push(symbolData);
+    });
+
+    // Sample uniformly from each bucket
+    const symbolsPerBucket = Math.ceil(sampleSize / numBuckets);
+    const sampledSymbols: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[] = [];
+
+    for (const bucket of buckets) {
+        if (bucket.length === 0) continue;
+        
+        // Shuffle bucket and take up to symbolsPerBucket items
+        const shuffled = bucket.sort(() => Math.random() - 0.5);
+        const toTake = Math.min(symbolsPerBucket, bucket.length);
+        
+        for (let i = 0; i < toTake; i++) {
+            sampledSymbols.push({
+                symbol: shuffled[i].symbol,
+                document: shuffled[i].document
+            });
+        }
+    }
+
+    // If we have more than sampleSize, randomly remove excess
+    if (sampledSymbols.length > sampleSize) {
+        const shuffled = sampledSymbols.sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, sampleSize);
+    }
+
+    // If we have fewer than sampleSize, randomly add more from remaining symbols
+    if (sampledSymbols.length < sampleSize) {
+        const remainingSymbols = symbols.filter(symbolData => 
+            !sampledSymbols.some(sampled => 
+                sampled.symbol === symbolData.symbol && 
+                sampled.document === symbolData.document
+            )
+        );
+        
+        const shuffled = remainingSymbols.sort(() => Math.random() - 0.5);
+        const needed = sampleSize - sampledSymbols.length;
+        
+        for (let i = 0; i < Math.min(needed, shuffled.length); i++) {
+            sampledSymbols.push(shuffled[i]);
+        }
+    }
+
+    console.log(`#### Sampled ${sampledSymbols.length} symbols with uniform line distribution`);
+    console.log(`#### Line count range: ${minLines} - ${maxLines} lines`);
+    
+    // Log distribution statistics
+    const sampledLineCounts = sampledSymbols.map(s => s.symbol.range.end.line - s.symbol.range.start.line);
+    const avgLines = sampledLineCounts.reduce((sum, count) => sum + count, 0) / sampledLineCounts.length;
+    console.log(`#### Average line count: ${avgLines.toFixed(2)} lines`);
+
+    return sampledSymbols;
+}
 // ... existing code ...
 suite('Multi-Project Test Suite', () => {
     const sampleNumber = -1;
@@ -139,7 +233,9 @@ suite('Multi-Project Test Suite', () => {
             // Load symbols
             let symbols = await loadAllTargetSymbolsFromWorkspace(project.languageId, 0);
             assert.ok(symbols.length > 0, `${project.name} should have symbols`);
-            symbols = await extractSymbolDocumentMapFromTaskList(project.path, symbols, project.tasklist!);
+            symbols = sampleSymbolsWithUniformLineDistribution(symbols, 50);
+            assert.ok(symbols.length === 50, `${project.name} should have 50 symbols`);
+            // symbols = await extractSymbolDocumentMapFromTaskList(project.path, symbols, project.tasklist!);
             
             // Sample symbols if needed
             if (sampleNumber > 0) {

@@ -148,7 +148,7 @@ if [ -d "$CLEAN_DIR" ] && [ "$(ls -A "$CLEAN_DIR")" ]; then
 fi
 
 # Navigate to target project path
-export GOPROXY=direct,https://proxy.golang.org
+# export GOPROXY=direct,https://proxy.golang.org
 # Optional: disable Go modules checksum database
 # export GOSUMDB=off
 cp -r $TEST_DIR/* "$CLEAN_DIR/"
@@ -177,6 +177,7 @@ go mod tidy
 
 
 while true; do
+    go test ./... -v
     error_log=$(go test ./... -v 2>&1)
     python3 "$SCRIPT_PATH" "$error_log"
     if [ $? -eq 0 ]; then

@@ -119,10 +119,10 @@ def save_code_to_from_log(file_path, folder_path, suffix_for_folder="NOFIX"):
                 original_folder_path, f"{suffix_for_folder}_{original_folder_path}"
             )
             naive_dir = Path(naive_directory).parent
-            print(f"Code saved to: {naive_directory}")
-            os.makedirs(naive_dir, exist_ok=True)
-            with open(naive_directory, 'w') as file:
-                file.write(code)
+            # print(f"Code saved to: {naive_directory}")
+            # os.makedirs(naive_dir, exist_ok=True)
+            # with open(naive_directory, 'w') as file:
+            #     file.write(code)
     elif suffix_for_folder == "Final":
         last_llm_data = None
         for entry in data:
@@ -135,11 +135,11 @@ def save_code_to_from_log(file_path, folder_path, suffix_for_folder="NOFIX"):
             final_directory = Path(code_path).as_posix().replace(
                 original_folder_path, f"{suffix_for_folder}_{original_folder_path}"
             )
-            final_dir = Path(final_directory).parent
-            print(f"Code saved to: {final_directory}")
-            os.makedirs(final_dir, exist_ok=True)
-            with open(final_directory, 'w') as file:
-                file.write(code)
+            # final_dir = Path(final_directory).parent
+            # print(f"Code saved to: {final_directory}")
+            # os.makedirs(final_dir, exist_ok=True)
+            # with open(final_directory, 'w') as file:
+            #     file.write(code)
 
 # def save_final_code_to_directory(file_path, folder_path, suffix_for_folder="NOFIX"):
 #     original_folder_path = folder_path.name
