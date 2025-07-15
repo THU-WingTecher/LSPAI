@@ -292,16 +292,28 @@ if __name__ == "__main__":
 
     MODELS = [
         "deepseek-chat",
+        "gpt-4o-mini",
         "gpt-4o",
-        "gpt-4o-mini"
     ]
     # List of projects to run experiments on
     projects_to_run = [
-        # "black",
-        # "logrus", 
-        # "commons-cli",
-        # "commons-csv",
-        # "cobra",
+        "black",
+        "logrus", 
+        "commons-cli",
+        "commons-csv",
+        "cobra",
+        "tornado",
+        "black",
+        "logrus", 
+        "commons-cli",
+        "commons-csv",
+        "cobra",
+        "tornado",
+        "black",
+        "logrus", 
+        "commons-cli",
+        "commons-csv",
+        "cobra",
         "tornado"
     ]  # Add or remove projects as needed
 

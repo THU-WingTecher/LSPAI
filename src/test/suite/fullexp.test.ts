@@ -33,9 +33,15 @@ interface ModelConfig {
 }
 
 const MODELS: ModelConfig[] = [
+<<<<<<< HEAD
     { model: 'gpt-4o-mini', provider: 'openai' },
     // { model: 'gpt-4o', provider: 'openai' },
     // { model: 'deepseek-chat', provider: 'deepseek' },
+=======
+    // { model: 'gpt-4o-mini', provider: 'openai' },
+    { model: 'deepseek-chat', provider: 'deepseek' },
+    // { model: 'gpt-4o', provider: 'openai' },
+>>>>>>> 2fad785d7b3541e68571890c9558ad32c240398b
 ];
 
 // Prompt Types to test
