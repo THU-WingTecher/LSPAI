@@ -352,7 +352,36 @@ The extracted dataset will have this structure:
    Run the following commands one at a time, and checkout results. 
    You have to run six different commands for each baseline (NAIVE, LSPAI) and each model (DeepSeek, GPT4o, etc.):
    For easier reproduction, we provide the expected results corresponding to each command.
+CODES (5/5 results):
+  codes: Coverage=0.2081  ValidRate=0.1818 
+  codes: Coverage=0.2331  ValidRate=0.1818 
+  codes: Coverage=0.2107  ValidRate=0.1591 
+  codes: Coverage=0.1796  ValidRate=0.1364 
+  codes: Coverage=0.0524  ValidRate=0.0682 
+  Average Coverage: 0.1768 (5/5 data points)
+  Average Valid Rate: 0.1455 (5/5 data points)
 
+====================================================================================================
+COVERAGE RESULTS SUMMARY (CSV FORMAT)
+====================================================================================================
+project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+cli-4o-mini     0.106259542     0.050178117     0.045903308     0.027582697     0.332926209     None    0.271043257
+cli-4o  0.095979644     0.032061069     0.127124682     0.030025445     0.346870229     None    0.231552163
+cli-deepseek    0.207226463     0.176793893     0.064631043     0.056183206     0.377201018     None    0.287735369
+
+====================================================================================================
+VALID RATE RESULTS SUMMARY (CSV FORMAT)
+====================================================================================================
+project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+cli-4o-mini     0.124025974     0.081818182     0.134003771     0.070521684     0.450775194     None    0.234935401
+cli-4o  0.082251082     0.072727273     0.326084224     0.072030170     0.481183932     None    0.285891473
+cli-deepseek    0.132900433     0.145454545     0.171967316     0.092131783     0.605170798     None    0.313178295
+Warning: openpyxl not installed. Excel files will not be generated.
+Install with: pip install openpyxl
+
+Files saved:
+  Coverage results: coverage_results_20250719_052404.csv
+  Valid rate results: validrate_results_20250719_052404.csv
    **CLI - LSPAI - GPT4o**
    ```bash
    # CLI - LSPAI - GPT4o
@@ -525,163 +554,43 @@ The extracted dataset will have this structure:
    Run the following commands one at a time, and checkout results. 
    You have to run six different commands for each baseline (NAIVE, LSPAI) and each model (DeepSeek, GPT4o, etc.):
    For easier reproduction, we provide the expected results corresponding to each command.
+```
+python scripts/result_verifier.py /LSPAI/experiments/data/main_result/commons-csv
+```
+```
+ommons-csv + gpt-4o-mini + standard
+--------------------------------------------------------------------------------
 
-   **CSV - LSPAI - GPT4o**
-   ```bash
-   # CSV - LSPAI - GPT4o
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_gpt-4o/gpt-4o
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1257
-   # Missed Lines 606
-   # Line Coverages are 51.79%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o/gpt-4o
-   # ============================
-   # Total .java files: 74
-   # Files with corresponding .class files: 47
-   # Pass rate: 63.51%
-   # ============================
-   ```
+CODES (5/5 results):
+  codes: Coverage=0.2538  ValidRate=0.1156 
+  codes: Coverage=0.2530  ValidRate=0.1361 
+  codes: Coverage=0.2474  ValidRate=0.1429 
+  codes: Coverage=0.2450  ValidRate=0.1224 
+  codes: Coverage=0.2474  ValidRate=0.1429 
+  Average Coverage: 0.2493 (5/5 data points)
+  Average Valid Rate: 0.1320 (5/5 data points)
 
-   **CSV - NAIVE - GPT4o**
-   ```bash
-   # CSV - NAIVE - GPT4o
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_gpt-4o/naive_gpt-4o
-   # Expected Result 
-   # Printing final result
-   # =============================
-   # Total lines 1257
-   # Missed Lines 981
-   # Line Coverages are 21.96%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o/naive_gpt-4o
-   # ============================
-   # Total .java files: 74
-   # Files with corresponding .class files: 19
-   # Pass rate: 25.68%
-   # ============================
-   ```
+====================================================================================================
+COVERAGE RESULTS SUMMARY (CSV FORMAT)
+====================================================================================================
+project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+csv-4o-mini     0.409705648     0.249323787     0.266984885     0.185043755     0.805091488     None    0.697692920
+csv-4o  0.448528242     0.448369133     0.391567224     0.252824185     0.783293556     None    0.760540971
+csv-deepseek    0.651073986     0.446778043     0.326650756     0.350676213     0.831980907     None    0.752903739
 
-   **CSV - Copilot - GPT4o**
-   ```bash
-   # CSV - Copilot - GPT4o
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_copilot/copilot
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1257
-   # Missed Lines 956
-   # Line Coverages are 23.95%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_copilot/copilot
-   # ============================
-   # Total .java files: 74
-   # Files with corresponding .class files: 11
-   # Pass rate: 14.86%
-   # ============================
-   ```
+====================================================================================================
+VALID RATE RESULTS SUMMARY (CSV FORMAT)
+====================================================================================================
+project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+csv-4o-mini     0.236394558     0.131972789     0.157402076     0.062799189     0.828468893     None    0.374321570
+csv-4o  0.206802721     0.265306122     0.356853030     0.144110886     0.908976571     None    0.544464519
+csv-deepseek    0.432653061     0.322448980     0.367579511     0.298242055     0.909500010     None    0.492918639
 
-   **CSV - LSPAI - GPT4o-mini**
-   ```bash
-   # CSV - LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/gpt-4o-mini
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1257
-   # Missed Lines 555
-   # Line Coverages are 55.85%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/gpt-4o-mini
-   # ============================
-   # Total .java files: 74
-   # Files with corresponding .class files: 25
-   # Pass rate: 33.78%
-   # ============================
-   ```
-
-   **CSV - NAIVE - GPT4o-mini**
-   ```bash
-   # CSV - NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/naive_gpt-4o-mini
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1257
-   # Missed Lines 1048
-   # Line Coverages are 16.63%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_gpt-4o-mini/naive_gpt-4o-mini
-   # ============================
-   # Total .java files: 74
-   # Files with corresponding .class files: 9
-   # Pass rate: 12.16%
-   # ============================
-   ```
-
-   If measuring process hainging too long, press CTRL+C one time
-   **CSV - LSPAI - DeepSeek-V3**
-   ```bash
-   # CSV - LSPAI - DeepSeek-V3
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_deepseek/deepseek-chat
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1257
-   # Missed Lines 495
-   # Line Coverages are 60.62%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_deepseek/deepseek-chat
-   # ============================
-   # Total .java files: 74
-   # Files with corresponding .class files: 60
-   # Pass rate: 81.08%
-   # ============================
-
-   ```
-
-   If measuring process hainging too long, press CTRL+C one time
-   **CSV - NAIVE - DeepSeek-V3**
-   ```bash
-   # CSV - NAIVE - DeepSeek-V3
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-csv \
-      /LSPAI/experiments/data/commons-csv/results_deepseek/NOFIX_deepseek-chat
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1257
-   # Missed Lines 762
-   # Line Coverages are 39.38%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-csv/results_deepseek/naive_deepseek-chat
-   # ============================
-   # Total .java files: 74
-   # Files with corresponding .class files: 15
-   # Pass rate: 20.27%
-   # ============================
-   ```
+Files saved:
+  Coverage results: coverage_results_20250719_055246.csv
+  Valid rate results: validrate_results_20250719_055246.csv
+  Excel results: test_results_20250719_055246.xlsx
+```
 
 ### Go Projects [LOGRUS, COBRA]
 
@@ -716,159 +625,38 @@ The extracted dataset will have this structure:
 
    Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
 
-   **LOG - LSPAI - GPT4o**
+   **COB - ALL**
    ```bash
-   # LOG - LSPAI - GPT4o
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/logrus/results_gpt-4o/gpt-4o-report/coverage.out
-   # Total Statements: 431
-   # Covered Statements: 142
-   # Coverage Percentage: 32.95%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 69
-   # Valid Files: 15
-   # Pass rate: 21.74
-   # =====================
+   python scripts/result_verifier.py /LSPAI/experiments/data/main_result/logrus
    ```
 
-   **LOG - NAIVE - GPT4o**
+   **EXPECTED RESULT**
    ```bash
-   # LOG - NAIVE - GPT4o
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/logrus/results_gpt-4o/naive_gpt-4o-report/coverage.out
-   # Total Statements: 431
-   # Covered Statements: 5
-   # Coverage Percentage: 1.16%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 70
-   # Valid Files: 3
-   # Pass rate: 4.29
-   # =====================
-   ```
+#   Average Coverage: 0.1100 (5/5 data points)
+#   Average Valid Rate: 0.1583 (5/5 data points)
 
-   **LOG - Copilot - GPT4o**
-   ```bash
-   # LOG - Copilot - GPT4o
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_copilot/copilot
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/logrus/results_copilot/copilot-report/coverage.out
-   # Total Statements: 431
-   # Covered Statements: 8
-   # Coverage Percentage: 1.86%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 70
-   # Valid Files: 2
-   # Pass rate: 2.86
-   # =====================
-   ```
+# ====================================================================================================
+# COVERAGE RESULTS SUMMARY (CSV FORMAT)
+# ====================================================================================================
+# project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+# logrus-4o-mini  0.055220418     0.111368910     0.023201856     0.002320186     0.237122970     None    0.115545244
+# logrus-4o       0.056148492     0.130858469     0.006496520     0.002320186     0.277494200     None    0.105800464
+# logrus-deepseek 0.113369024     0.109976798     0.106728538     0.054292343     0.218097448     None    0.135498840
 
-   **LOG - LSPAI - GPT4o-mini**
-   ```bash
-   # LOG - LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/logrus/results_gpt-4o-mini/gpt-4o-mini-report/coverage.out
-   # Total Statements: 431
-   # Covered Statements: 131
-   # Coverage Percentage: 30.39%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 69
-   # Valid Files: 10
-   # Pass rate: 14.49
-   # =====================
-   ```
+# ====================================================================================================
+# VALID RATE RESULTS SUMMARY (CSV FORMAT)
+# ====================================================================================================
+# project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+# logrus-4o-mini  0.143181818     0.208333333     0.033333333     0.008333333     0.340151515     None    0.188636364
+# logrus-4o       0.141666667     0.265217391     0.008333333     0.008333333     0.320238095     None    0.150000000
+# logrus-deepseek 0.133333333     0.158333333     0.225000000     0.075000000     0.331060606     None    0.170454545
 
-   **LOG - NAIVE - GPT4o-mini**
-   ```bash
-   # LOG - NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/logrus/results_gpt-4o-mini/naive_gpt-4o-mini-report/coverage.out
-   # Total Statements: 431
-   # Covered Statements: 12
-   # Coverage Percentage: 2.78%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 70
-   # Valid Files: 3
-   # Pass rate: 4.29
-   # =====================
-   ```
+# Files saved:
+#   Coverage results: coverage_results_20250719_061138.csv
+#   Valid rate results: validrate_results_20250719_061138.csv
+#   Excel results: test_results_20250719_061138.xlsx
+#    ```
 
-   **LOG - LSPAI - DeepSeek-V3**
-   ```bash
-   # LOG - LSPAI - DeepSeek-V3
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/logrus/results_deepseek/deepseek-chat-report/coverage.out
-   # Total Statements: 431
-   # Covered Statements: 236
-   # Coverage Percentage: 54.76%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 69
-   # Valid Files: 28
-   # Pass rate: 40.58
-   # =====================
-   ```
-
-   **LOG - NAIVE - DeepSeek-V3**
-   ```bash
-   # LOG - NAIVE - DeepSeek-V3
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/logrus \
-      /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/logrus/results_deepseek/naive_deepseek-chat-report/coverage.out
-   # Total Statements: 431
-   # Covered Statements: 147
-   # Coverage Percentage: 34.11%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 70
-   # Valid Files: 15
-   # Pass rate: 21.43
-   # =====================
-   ```
 
    #### Cobra Project Setup
 
@@ -891,159 +679,38 @@ The extracted dataset will have this structure:
 
    Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
 
-   **COB - LSPAI - GPT4o**
+   **COB - ALL**
    ```bash
-   # COB - LSPAI - GPT4o
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt4o/gpt-4o
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/cobra/results_gpt4o/gpt-4o-report/coverage.out
-   # Total Statements: 984
-   # Covered Statements: 155
-   # Coverage Percentage: 15.75%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 154
-   # Valid Files: 27
-   # Pass rate: 17.53
-   # =====================
+   python scripts/result_verifier.py /LSPAI/experiments/data/main_result/cobra
    ```
 
-   **COB - NAIVE - GPT4o**
+   **EXPECTED RESULT**
    ```bash
-   # COB - NAIVE - GPT4o
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt4o/naive_gpt-4o
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/cobra/results_gpt4o/naive_gpt-4o-report/coverage.out
-   # Total Statements: 984
-   # Covered Statements: 2
-   # Coverage Percentage: 0.20%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 155
-   # Valid Files: 16
-   # Pass rate: 10.32
-   # =====================
+#   codes: Coverage=0.0635  ValidRate=0.0891 
+#   Average Coverage: 0.0757 (5/5 data points)
+#   Average Valid Rate: 0.0812 (5/5 data points)
+
+# ====================================================================================================
+# COVERAGE RESULTS SUMMARY (CSV FORMAT)
+# ====================================================================================================
+# project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+# cobra-4o-mini   0.071143376     0.120326679     0.013611615     0.033938294     0.230308530     None    0.099092559
+# cobra-4o        0.100544465     0.075680581     0.027223230     0.002177858     0.276043557     None    0.125589837
+# cobra-deepseek  0.154990926     0.130127042     0.115789474     0.085662432     0.372232305     None    0.256079855
+
+# ====================================================================================================
+# VALID RATE RESULTS SUMMARY (CSV FORMAT)
+# ====================================================================================================
+# project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+# cobra-4o-mini   0.060080808     0.095049505     0.011940594     0.012293729     0.238822303     None    0.071261073
+# cobra-4o        0.097029703     0.081188119     0.017861386     0.008127063     0.332673267     None    0.089108911
+# cobra-deepseek  0.102970297     0.106930693     0.091267327     0.027847837     0.346534653     None    0.217821782
+
+# Files saved:
+#   Coverage results: coverage_results_20250719_060223.csv
+#   Valid rate results: validrate_results_20250719_060223.csv
    ```
 
-   **COB - Copilot - GPT4o**
-   ```bash
-   # COB - Copilot - GPT4o
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_copilot/copilot
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/cobra/results_copilot/copilot-report/coverage.out
-   # Total Statements: 984
-   # Covered Statements: 53
-   # Coverage Percentage: 5.39%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 155
-   # Valid Files: 11
-   # Pass rate: 7.10
-   # =====================
-   ```
-
-   **COB - LSPAI - GPT4o-mini**
-   ```bash
-   # COB - LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/cobra/results_gpt-4o-mini/gpt-4o-mini-report/coverage.out
-   # Total Statements: 984
-   # Covered Statements: 74
-   # Coverage Percentage: 7.52%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 154
-   # Valid Files: 17
-   # Pass rate: 11.04
-   # =====================
-   ```
-
-   **COB - NAIVE - GPT4o-mini**
-   ```bash
-   # COB - NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/cobra/results_gpt-4o-mini/naive_gpt-4o-mini-report/coverage.out
-   # Total Statements: 984
-   # Covered Statements: 23
-   # Coverage Percentage: 2.34%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 155
-   # Valid Files: 13
-   # Pass rate: 8.39
-   # =====================
-   ```
-
-   **COB - LSPAI - DeepSeek-V3**
-   ```bash
-   # COB - LSPAI - DeepSeek-V3
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/cobra/results_deepseek/deepseek-chat-report/coverage.out
-   # Total Statements: 984
-   # Covered Statements: 529
-   # Coverage Percentage: 53.76%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 112
-   # Valid Files: 51
-   # Pass rate: 45.54
-   # =====================
-   ```
-
-   **COB - NAIVE - DeepSeek-V3**
-   ```bash
-   # COB - NAIVE - DeepSeek-V3
-   bash /LSPAI/scripts/go_anal.bash \
-      /LSPAI/experiments/projects/cobra \
-      /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat
-   
-   # Expected Result
-   # =====================
-   # Coverage Report: /LSPAI/experiments/data/cobra/results_deepseek/naive_deepseek-chat-report/coverage.out
-   # Total Statements: 984
-   # Covered Statements: 161
-   # Coverage Percentage: 16.36%
-   # =====================
-   # Printing valid rate:
-   # =====================
-   # Total Files: 147
-   # Valid Files: 23
-   # Pass rate: 15.65
-   # =====================
-   ```
 
 ### Python Projects [ BLACK, CRAWL4AI]
 

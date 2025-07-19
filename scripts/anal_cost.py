@@ -41,6 +41,8 @@ def print_time_used(data: List[Dict[str, Any]], file_name: str) -> int:
     for entry in data:
         process = entry.get('process', 'Unknown Process')
         time_str = entry.get('time', '0')
+        if process in ["fixDiagnostics","gatherContext"] :  ## redundant
+            continue 
         try:
             time_ms = int(time_str)
         except ValueError:
@@ -245,6 +247,16 @@ def main():
     Modified main to allow analyzing multiple directories and compute
     average fix time/tokens per file.
     """
+    final_values = {
+        "fix" : 0,
+        "gen" : 0,
+        "cfg" : 0,
+        "def" : 0,
+        "ref" : 0,
+        "filter": 0,
+        "diag": 0,
+        "save": 0
+    }
     parser = argparse.ArgumentParser(description="Analyze LLM Experiment JSON Files in Directories.")
     parser.add_argument('folders', nargs='+', help="One or more paths to folders containing JSON files.")
     args = parser.parse_args()
@@ -281,8 +293,8 @@ def main():
             result = analyze_json_file(str(json_file))
 
             # Optionally save extracted code
-            save_code_to_from_log(str(json_file), folder_path, suffix_for_folder="Final")
-            save_code_to_from_log(str(json_file), folder_path, suffix_for_folder="NOFIX")
+            # save_code_to_from_log(str(json_file), folder_path, suffix_for_folder="Final")
+            # save_code_to_from_log(str(json_file), folder_path, suffix_for_folder="NOFIX")
             # save_final_code_to_directory(str(json_file), folder_path, suffix_for_folder="Final")
 
             overall_time += result["time"]
@@ -330,12 +342,21 @@ def main():
     # Print new averaged fix time/tokens per file
     print(f"Average FixWithLLM Time per Function (ms): {average_fixwithllm_time_per_file:.2f}  -> FIX Time")
     print(f"Average FixWithLLM Tokens per Function: {average_fixwithllm_tokens_per_file:.2f}   -> FIX Token")
-
+    final_values["fix"] = average_fixwithllm_time_per_file
     # ======== Average Time/Token Usage per Process ========
     print("\n=== Average Time and Token Usage per Process ===\n")
     print(f"{'Process':<30} {'Avg Time (ms)':>15} {'Avg Tokens':>15}")
     print("-" * 65)
-
+    # final_values = {
+    #     "fix" : 0,
+    #     "gen" : 0,
+    #     "cfg" : 0,
+    #     "def" : 0,
+    #     "ref" : 0,
+    #     "filter": 0,
+    #     "diag": 0,
+    #     "save": 0
+    # }
     all_processes = sorted(set(list(process_times.keys()) + list(process_tokens.keys())))
     for proc_name in all_processes:
         additional = ""
@@ -343,12 +364,24 @@ def main():
         token_info = process_tokens[proc_name]
         avg_time = (time_info['time'] / time_info['count']) if time_info['count'] else 0
         avg_tokens = (token_info['tokens'] / token_info['count']) if token_info['count'] else 0
-        if proc_name == "collectInfo" :
-            additional = "  ->  Retrieval" 
+        if proc_name == "gatherContext-1" :
+            additional = "  ->  Retrieval(def)"
+            final_values['def'] += avg_time 
+        elif proc_name == "gatherContext-2" :
+            additional = "  ->  Retrieval(ref)"
+            final_values['ref'] += avg_time 
         elif proc_name == "getDiagnosticsForFilePath" :
             additional = "  ->  getDiagnostic" 
-        elif proc_name == "invokeLLM" :
+            final_values['diag'] = avg_time
+        elif proc_name == "generateTest" :
             additional = "  ->  Gen" 
+            final_values['gen'] += avg_time
+        elif proc_name in ["buildCFG", "collectCFGPaths"] :
+            final_values['cfg'] += avg_time
+        elif proc_name == "getContextTermsFromTokens" :
+            final_values['filter'] += avg_time
+        elif proc_name == "saveGeneratedCodeToFolder" :
+            final_values['save'] += avg_time
         else :
             additional = ""
         print(f"{proc_name:<30} {avg_time:>15.2f} {avg_tokens:>15.2f} {additional}")
@@ -356,6 +389,7 @@ def main():
     print(f"Average Total Time Used (ms): {overall_time / file_count}")
     print(f"Average Total Tokens Used: {overall_tokens / file_count}")
     print("\nDone.\n")
-
+    print("PASTE BELOW DICTIONARY TO scripts/plot_cost.py")
+    print(final_values)
 if __name__ == "__main__":
     main()

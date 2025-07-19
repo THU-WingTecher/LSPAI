@@ -33,15 +33,9 @@ interface ModelConfig {
 }
 
 const MODELS: ModelConfig[] = [
-<<<<<<< HEAD
-    { model: 'gpt-4o-mini', provider: 'openai' },
-    // { model: 'gpt-4o', provider: 'openai' },
-    // { model: 'deepseek-chat', provider: 'deepseek' },
-=======
     // { model: 'gpt-4o-mini', provider: 'openai' },
+    { model: 'gpt-4o', provider: 'openai' },
     { model: 'deepseek-chat', provider: 'deepseek' },
-    // { model: 'gpt-4o', provider: 'openai' },
->>>>>>> 2fad785d7b3541e68571890c9558ad32c240398b
 ];
 
 // Prompt Types to test
@@ -113,7 +107,7 @@ const PYTHON_PROJECTS: ProjectConfig[] = [
 ];
 
 // const ALL_PROJECTS = [...GO_PROJECTS];
-const ALL_PROJECTS = [PYTHON_PROJECTS[1]];
+const ALL_PROJECTS = [GO_PROJECTS[0]];
 // const ALL_PROJECTS = [JAVA_PROJECTS[1]];
 
 

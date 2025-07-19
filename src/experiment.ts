@@ -13,7 +13,7 @@ import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
 import pLimit from 'p-limit';
 import { genPythonicSrcImportStatement } from './helper';
-const limit = pLimit(1);
+const limit = pLimit(4);
 interface TaskProgress {
     symbolName: string;
     relativeDocumentPath: string;
