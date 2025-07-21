@@ -597,8 +597,8 @@ class DiagnosticContextCollector {
 	private getExcludePattern(): string {
 		const commonExcludes = [
 			'**/node_modules/**',
-			'**/lspai-workspace/**',
-			'**/lspai-tests/**',
+			'**/lsprag-workspace/**',
+			'**/lsprag-tests/**',
 			'**/__pycache__/**',
 			'**/build/**',
 			'**/dist/**',

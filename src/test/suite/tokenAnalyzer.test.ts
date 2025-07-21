@@ -10,7 +10,7 @@ import { activate, getSymbolByLocation } from '../../lsp';
 suite('tokenAnalyzer Helpfulness Algorithm', () => {
     setHelpfulnessAlgorithm('cfg');
     test('isMethodOrFunctionReturnBoolean correctly identifies boolean-returning functions', async () => {
-        const projectPath = "/LSPAI/experiments/projects/commons-cli";
+        const projectPath = "/LSPRAG/experiments/projects/commons-cli";
         const workspaceFolders = setWorkspaceFolders(projectPath);
         const fileName = "Options.java";
         const symbolName = "hasShortOption";
@@ -19,7 +19,7 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
     });
 
     test('void returning functions correctly identified', async () => {
-        const projectPath = "/LSPAI/experiments/projects/commons-cli";
+        const projectPath = "/LSPRAG/experiments/projects/commons-cli";
         const workspaceFolders = setWorkspaceFolders(projectPath);
         const fileName = "Option.java";
         const symbolName = "add";
@@ -28,7 +28,7 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
     });
 
     // test('checkout identifying terms for given symbol : handleShortAndLongOption', async () => {
-    //     const projectPath = "/LSPAI/experiments/projects/commons-cli";
+    //     const projectPath = "/LSPRAG/experiments/projects/commons-cli";
     //     const workspaceFolders = setWorkspaceFolders(projectPath);
     //     const fileName = "DefaultParser.java";
     //     const symbolName = "handleShortAndLongOption";
@@ -82,7 +82,7 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
             console.log('activate');
             await activate();
         }
-        const projectPath = "/LSPAI/experiments/projects/commons-cli";
+        const projectPath = "/LSPRAG/experiments/projects/commons-cli";
         const workspaceFolders = setWorkspaceFolders(projectPath);
         const fileName = "DefaultParser.java";
         const symbolName = "handleConcatenatedOptions";
@@ -121,7 +121,7 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
             console.log('activate');
             await activate();
         }
-        const projectPath = "/LSPAI/experiments/projects/commons-cli";
+        const projectPath = "/LSPRAG/experiments/projects/commons-cli";
         const workspaceFolders = setWorkspaceFolders(projectPath);
         const fileName = "DefaultParser.java";
         const symbolName = "handleOption";

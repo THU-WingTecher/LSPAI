@@ -116,7 +116,7 @@ class StandardRAG(Baseline):
         self.ignore_dirs = {
             'node_modules', '.git', '__pycache__', 'target', 'build',
             'dist', '.idea', '.vscode', 'venv', 'env', '.gradle',
-            'lspai-workspace', 'lspai-tests', 'lspai'
+            'LSPRAG-workspace', 'LSPRAG-tests', 'LSPRAG'
         }
 
     def find_code_files(self, project_path: str) -> List[Dict]:
@@ -335,8 +335,8 @@ if __name__ == "__main__":
         # Iterate through each model
         for MODEL in MODELS:
             print(f"\n=== Testing {project_name} with model: {MODEL} ===\n")
-            embedding_dir = os.path.join("/LSPAI/experiments/baselines/rag/embeddings", MODEL, project_name)
-            output_dir = os.path.join("/LSPAI/experiments/baselines/rag/output", MODEL, project_name)
+            embedding_dir = os.path.join("/LSPRAG/experiments/baselines/rag/embeddings", MODEL, project_name)
+            output_dir = os.path.join("/LSPRAG/experiments/baselines/rag/output", MODEL, project_name)
             pipeline = ExperimentPipeline(
                 language=language,
                 task_list_path=task_list_path,
@@ -388,15 +388,15 @@ if __name__ == "__main__":
 #     MODEL = "gpt-4o-mini"
 #     # ==== black ====
 #     language = "python"
-#     task_list_path = "/LSPAI/experiments/lsprag_data/black/taskList.json"
-#     project_path = "/LSPAI/experiments/projects/black"
+#     task_list_path = "/LSPRAG/experiments/lsprag_data/black/taskList.json"
+#     project_path = "/LSPRAG/experiments/projects/black"
 #     generationType = "standardRag"
 #     # ==== black ====
 
 #     # ==== commons-cli ====
 #     # language = "java"
-#     # task_list_path = "/LSPAI/experiments/lsprag_data/commons-cli/taskList.json"
-#     # project_path = "/LSPAI/experiments/projects/commons-cli"
+#     # task_list_path = "/LSPRAG/experiments/lsprag_data/commons-cli/taskList.json"
+#     # project_path = "/LSPRAG/experiments/projects/commons-cli"
 #     # generationType = "codeQA"
 #     # ==== commons-cli ====
 

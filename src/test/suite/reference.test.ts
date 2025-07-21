@@ -19,13 +19,13 @@ suite('Context Selector Agent Tests', () => {
     let languageId = "python";
     let symbolDocumentMap : {document: vscode.TextDocument, symbol: vscode.DocumentSymbol} | null = null;
     let contextSelector;
-    let projectPath = "/LSPAI/experiments/projects/black";
+    let projectPath = "/LSPRAG/experiments/projects/black";
     const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src")];
     
     test('Setting', async () => {
         await setPythonExtraPaths([]);
         const fileName = "__init__.py";
-        const pyProjectPath = "/LSPAI/experiments/projects/black";
+        const pyProjectPath = "/LSPRAG/experiments/projects/black";
         const workspaceFolders = setWorkspaceFolders(pyProjectPath);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
         const symbolName = "spellcheck_pyproject_toml_keys";
@@ -75,7 +75,7 @@ suite('Context Selector Agent Tests', () => {
     });
 
     test('Debug Project Files Indexing', async () => {
-        const pyProjectPath = "/LSPAI/experiments/projects/black";
+        const pyProjectPath = "/LSPRAG/experiments/projects/black";
         
         // First, let's list all Python files in the project
         let allPythonFiles: string[] = [];
@@ -184,7 +184,7 @@ suite('Context Selector Agent Tests', () => {
         }
 
         const fileName = "concurrency.py";
-        const pyProjectPath = "/LSPAI/experiments/projects/black";
+        const pyProjectPath = "/LSPRAG/experiments/projects/black";
         const workspaceFolders = setWorkspaceFolders(pyProjectPath);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
         const symbolName = "reformat_many";

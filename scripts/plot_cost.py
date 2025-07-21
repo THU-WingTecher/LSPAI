@@ -5,11 +5,11 @@ import seaborn as sns
 # --- Real Data Preparation ---
 # run below command and paste it to value of each key!
 # Python Projects
-# python scripts/anal_cost.py /LSPAI/experiments/data/cost-data/black/logs/gpt-4o /LSPAI/experiments/data/cost-data/tornado/logs/gpt-4o
+# python scripts/anal_cost.py /LSPRAG/experiments/data/cost-data/black/logs/gpt-4o /LSPRAG/experiments/data/cost-data/tornado/logs/gpt-4o
 # Go Projects
-#python scripts/anal_cost.py /LSPAI/experiments/data/cost-data/logrus/logs/gpt-4o /LSPAI/experiments/data/cost-data/cobra/logs/gpt-4o
+#python scripts/anal_cost.py /LSPRAG/experiments/data/cost-data/logrus/logs/gpt-4o /LSPRAG/experiments/data/cost-data/cobra/logs/gpt-4o
 # Java Projects
-# python scripts/anal_cost.py /LSPAI/experiments/data/cost-data/commons-cli/logs/gpt-4o /LSPAI/experiments/data/cost-data/commons-csv/logs/gpt-4o
+# python scripts/anal_cost.py /LSPRAG/experiments/data/cost-data/commons-cli/logs/gpt-4o /LSPRAG/experiments/data/cost-data/commons-csv/logs/gpt-4o
 data = {
     'Python': 
     {'fix': 5591.812195121951, 'gen': 15597.84268292683, 'cfg': 217.6182926829268, 'def': 2555.5329268292685, 'ref': 295.1353658536585, 'filter': 2291.1621951219513, 'diag': 2492.423076923077, 'save': 0.28846153846153844},

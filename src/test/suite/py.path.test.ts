@@ -624,7 +624,7 @@ test('Run all functions under a repository : black', async function() {
         console.log('activate');
         await activate();
     }
-    const projectPath = "/LSPAI/experiments/projects/black"
+    const projectPath = "/LSPRAG/experiments/projects/black"
     const workspaceFolders = setWorkspaceFolders(projectPath);
     // await updateWorkspaceFolders(workspaceFolders);
     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);

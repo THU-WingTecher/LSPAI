@@ -76,14 +76,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log(`EXP_PROB_TO_TEST: ${getConfigInstance().expProb}`);
 	console.log(`PARALLEL: ${getConfigInstance().parallelCount}`);
 
-	const copilotExperimentDisposable = vscode.commands.registerCommand('LSPAI.CopilotExperiment', async () => {
+	const copilotExperimentDisposable = vscode.commands.registerCommand('LSPRAG.CopilotExperiment', async () => {
 		const language = "go";
 		let taskListPath = "";
 
 		// if (language === "java") {
 		//  Since Java project's symbol providers are not consistent.
 		// 	const projectName = getConfigInstance().workspace.split("/").pop();
-		// 	taskListPath = `/LSPAI/experiments/data/${projectName}/taskList.json`;
+		// 	taskListPath = `/LSPRAG/experiments/data/${projectName}/taskList.json`;
 		// 	console.log(`taskListPath: ${taskListPath}`);
 		// }
 
@@ -139,9 +139,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	context.subscriptions.push(copilotExperimentDisposable);
 
-	const pythonBlackExperimentDisposable = vscode.commands.registerCommand('LSPAI.PythonBlackExperiment', async () => {
-		const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
-		const projectPath = "/LSPAI/experiments/projects/black";
+	const pythonBlackExperimentDisposable = vscode.commands.registerCommand('LSPRAG.PythonBlackExperiment', async () => {
+		const pythonInterpreterPath = "/root/miniconda3/envs/lsprag/bin/python";
+		const projectPath = "/LSPRAG/experiments/projects/black";
 		const blackModuleImportPath = [
 			path.join(projectPath, "src/black"), 
 			path.join(projectPath, "src/blackd"), 
@@ -149,7 +149,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			path.join(projectPath, "src")
 		];
 		const languageId = "python";
-		const taskListPath = '/LSPAI/experiments/config/black-taskList.json';
+		const taskListPath = '/LSPRAG/experiments/config/black-taskList.json';
 
 		try {
 			// Show progress indicator
@@ -164,7 +164,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				await setPythonInterpreterPath(pythonInterpreterPath);
 				await setPythonExtraPaths(blackModuleImportPath);
 				// await setPythonAnalysisInclude(["tests/**/*.py"]);
-				// await setPythonAnalysisExclude(["**/lspai-workspace/**/*.py"]);
+				// await setPythonAnalysisExclude(["**/lsprag-workspace/**/*.py"]);
 
 				progress.report({ message: "Activating language server..." });
 				
@@ -229,14 +229,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	context.subscriptions.push(pythonBlackExperimentDisposable);
 
-	const pythonTornadoExperimentDisposable = vscode.commands.registerCommand('LSPAI.PythonTornadoExperiment', async () => {
-		const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
-		const projectPath = "/LSPAI/experiments/projects/tornado";
+	const pythonTornadoExperimentDisposable = vscode.commands.registerCommand('LSPRAG.PythonTornadoExperiment', async () => {
+		const pythonInterpreterPath = "/root/miniconda3/envs/lsprag/bin/python";
+		const projectPath = "/LSPRAG/experiments/projects/tornado";
 		const tornadoModuleImportPath = [
 			path.join(projectPath, "tornado"), 
 		];
 		const languageId = "python";
-		const taskListPath = '/LSPAI/experiments/config/tornado-taskList.json';
+		const taskListPath = '/LSPRAG/experiments/config/tornado-taskList.json';
 
 		try {
 			// Show progress indicator
@@ -251,7 +251,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				await setPythonInterpreterPath(pythonInterpreterPath);
 				await setPythonExtraPaths(tornadoModuleImportPath);
 				// await setPythonAnalysisInclude(["tests/**/*.py"]);
-				// await setPythonAnalysisExclude(["**/lspai-workspace/**/*.py"]);
+				// await setPythonAnalysisExclude(["**/lsprag-workspace/**/*.py"]);
 
 				progress.report({ message: "Activating language server..." });
 				
@@ -324,10 +324,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	context.subscriptions.push(pythonBlackExperimentDisposable);
 
-	const javaCliExperimentDisposable = vscode.commands.registerCommand('LSPAI.javaCliExperiment', async () => {
-		const projectPath = "/LSPAI/experiments/projects/commons-cli";
+	const javaCliExperimentDisposable = vscode.commands.registerCommand('LSPRAG.javaCliExperiment', async () => {
+		const projectPath = "/LSPRAG/experiments/projects/commons-cli";
 		const languageId = "java";
-		const taskListPath = '/LSPAI/experiments/config/commons-cli-taskList.json';
+		const taskListPath = '/LSPRAG/experiments/config/commons-cli-taskList.json';
 
 		try {
 			// Show progress indicator
@@ -396,10 +396,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	context.subscriptions.push(javaCliExperimentDisposable);
 
-	const javaCsvExperimentDisposable = vscode.commands.registerCommand('LSPAI.javaCsvExperiment', async () => {
-		const projectPath = "/LSPAI/experiments/projects/commons-csv";
+	const javaCsvExperimentDisposable = vscode.commands.registerCommand('LSPRAG.javaCsvExperiment', async () => {
+		const projectPath = "/LSPRAG/experiments/projects/commons-csv";
 		const languageId = "java";
-		const taskListPath = '/LSPAI/experiments/config/commons-csv-taskList.json';
+		const taskListPath = '/LSPRAG/experiments/config/commons-csv-taskList.json';
 
 		try {
 			// Show progress indicator
@@ -459,10 +459,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	context.subscriptions.push(javaCsvExperimentDisposable);
 
-	const goLogrusExperimentDisposable = vscode.commands.registerCommand('LSPAI.goLogrusExperiment', async () => {
-		const projectPath = "/LSPAI/experiments/projects/logrus";
+	const goLogrusExperimentDisposable = vscode.commands.registerCommand('LSPRAG.goLogrusExperiment', async () => {
+		const projectPath = "/LSPRAG/experiments/projects/logrus";
 		const languageId = "go";
-		const taskListPath = '/LSPAI/experiments/config/logrus-taskList.json';
+		const taskListPath = '/LSPRAG/experiments/config/logrus-taskList.json';
 
 		try {
 			// Show progress indicator
@@ -528,10 +528,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	context.subscriptions.push(goLogrusExperimentDisposable);
 
-	const goCobraExperimentDisposable = vscode.commands.registerCommand('LSPAI.goCobraExperiment', async () => {
-		const projectPath = "/LSPAI/experiments/projects/cobra";
+	const goCobraExperimentDisposable = vscode.commands.registerCommand('LSPRAG.goCobraExperiment', async () => {
+		const projectPath = "/LSPRAG/experiments/projects/cobra";
 		const languageId = "go";
-		const taskListPath = '/LSPAI/experiments/config/cobra-taskList.json';
+		const taskListPath = '/LSPRAG/experiments/config/cobra-taskList.json';
 
 		try {
 			// Show progress indicator
@@ -635,7 +635,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	
 	context.subscriptions.push(disposable);
 	
-	const showSettingsDisposable = vscode.commands.registerCommand('LSPAI.showSettings', () => {
+	const showSettingsDisposable = vscode.commands.registerCommand('LSPRAG.showSettings', () => {
 		const settings = [
 			`Model: ${getConfigInstance().model}`,
 			`Methods: ${getConfigInstance().methodsForExperiment}`,
@@ -720,7 +720,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 		
-		// const filepath = "/LSPAI/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/CSVFormat_getIgnoreEmptyLines1Test.java";
+		// const filepath = "/LSPRAG/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/CSVFormat_getIgnoreEmptyLines1Test.java";
 		// const uri = vscode.Uri.file(filepath);
 		const document = editor.document;
 		const diagnostics = await vscode.languages.getDiagnostics(document.uri);
@@ -750,15 +750,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	// const disposable_exp = await vscode.commands.registerCommand('LSPAI.JavaExperiment', async () => {
-	// 	vscode.window.showInformationMessage('LSPAI:JavaExperiment!');
+	// const disposable_exp = await vscode.commands.registerCommand('LSPRAG.JavaExperiment', async () => {
+	// 	vscode.window.showInformationMessage('LSPRAG:JavaExperiment!');
 	// 	const language = "java";
 	// 	await experiment(language, getConfigInstance().methodsForExperiment);
 	// 	// Handle results...
 	// });
 	// context.subscriptions.push(disposable_exp);
 
-	// const disposable2 = await vscode.commands.registerCommand('LSPAI.GoExperiment', async () => {
+	// const disposable2 = await vscode.commands.registerCommand('LSPRAG.GoExperiment', async () => {
 	// 	// The code you place here will be executed every time your command is executed
 	// 	// Display a message box to the user
 	// 	const language = "go";
@@ -766,19 +766,19 @@ export async function activate(context: vscode.ExtensionContext) {
 	// });
 	// context.subscriptions.push(disposable2);
 
-	// const Pydisposable2 = await vscode.commands.registerCommand('LSPAI.PythonExperiment', async () => {
+	// const Pydisposable2 = await vscode.commands.registerCommand('LSPRAG.PythonExperiment', async () => {
 	// 	const language = "python";
 	// 	await experiment(language, getConfigInstance().methodsForExperiment);
 	// });
 
 	// context.subscriptions.push(Pydisposable2);
 
-	// const disposable4 = await vscode.commands.registerCommand('LSPAI.ReExperiment', async () => {
+	// const disposable4 = await vscode.commands.registerCommand('LSPRAG.ReExperiment', async () => {
 	// 	// The code you place here will be executed every time your command is executed
 	// 	// Display a message box to the user
 	// 	const language = "java";
 	// 	const currentGenMethods = ["deepseek-reasoner"];
-	// 	const currentTestPath = `/LSPAI/experiments/projects/commons-cli/results_2_26_2025__11_45_35`;
+	// 	const currentTestPath = `/LSPRAG/experiments/projects/commons-cli/results_2_26_2025__11_45_35`;
 	// 	// inspect whether the currentTestPath is endswith any of currentGenMethod
 	// 	const isModelSynced = currentGenMethods.some(method => method.endsWith(getConfigInstance().model));
 	// 	if (!isModelSynced) {

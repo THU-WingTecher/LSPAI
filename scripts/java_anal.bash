@@ -23,9 +23,9 @@ REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
 cd "$TARGET_PROJECT_PATH" || exit 1
 
 TARGET_DIR_DEPENDENCIES=$(find target/dependency/ -name "*.jar" | tr '\n' ':')
-LIB_DIR="/LSPAI/experiments/lib"
-LSPAI_DEPENDENCY_LIBS=$(find $LIB_DIR -name "*.jar" | tr '\n' ':')
-DEPENDENCY_LIBS=$LSPAI_DEPENDENCY_LIBS:$TARGET_DIR_DEPENDENCIES
+LIB_DIR="/LSPRAG/experiments/lib"
+LSPRAG_DEPENDENCY_LIBS=$(find $LIB_DIR -name "*.jar" | tr '\n' ':')
+DEPENDENCY_LIBS=$LSPRAG_DEPENDENCY_LIBS:$TARGET_DIR_DEPENDENCIES
 COMPILED_SOURCE="target/classes"
 CLASSPATH=$COMPILED_SOURCE:$TEST_DIR:$DEPENDENCY_LIBS
 TEST_FILES=$(find $TEST_DIR -name "*.java" | tr '\n' ' ')
@@ -34,8 +34,8 @@ JACOCO_AGENT_PATH="$LIB_DIR/jacocoagent.jar"  # Path to jacocoagent.jar
 JACOCO_CLI_PATH="$LIB_DIR/jacococli.jar"  # Path to jacocoagent.jar
 JUNIT_CONSOLE_PATH="$LIB_DIR/junit-platform-console-standalone-1.8.2.jar"  # Path to jacocoagent.jar
 
-# JACOCO_AGENT_PATH="/LSPAI/experiments/scripts/lib/org.jacoco.agent-0.8.11-runtime.jar"  # Path to jacocoagent.jar
-# JACOCO_CLI_PATH="/LSPAI/experiments/scripts/lib/org.jacoco.cli-0.8.11.jar"  # Path to jacocoagent.jar
+# JACOCO_AGENT_PATH="/LSPRAG/experiments/scripts/lib/org.jacoco.agent-0.8.11-runtime.jar"  # Path to jacocoagent.jar
+# JACOCO_CLI_PATH="/LSPRAG/experiments/scripts/lib/org.jacoco.cli-0.8.11.jar"  # Path to jacocoagent.jar
 COVERAGE_FILE="${REPORT_DIR}/coverage.exec"  # Name of the coverage file to store results
 # > "$COVERAGE_FILE"
 
@@ -80,8 +80,8 @@ echo "Number of test files: $(find "$OUTPUT_DIR" -name "*.class" | wc -l)"
 # Use the JaCoCo CLI tool to generate the report
 java -jar $JACOCO_CLI_PATH report $COVERAGE_FILE --classfiles $COMPILED_SOURCE --html $REPORT_DIR
 
-JacocoInterpretScript="/LSPAI/scripts/interpret_jacoco.py"
-PassRateScript="/LSPAI/scripts/java_passrate.bash "
+JacocoInterpretScript="/LSPRAG/scripts/interpret_jacoco.py"
+PassRateScript="/LSPRAG/scripts/java_passrate.bash "
 echo "Printing final result" 
 python3 $JacocoInterpretScript "${REPORT_DIR}/index.html"
 

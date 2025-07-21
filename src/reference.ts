@@ -269,7 +269,7 @@ function isSameLocation(
            !(refSymbol.range.end.isBefore(start) || refSymbol.range.start.isAfter(end));
 }
 
-const noNeedLocation = "/lspai"; // "lspai-workspace", "lspai"
+    const noNeedLocation = "/lsprag"; // "lsprag-workspace", "lsprag"
 
 function isNoNeedLocation(ref: vscode.Location): boolean {
     return ref.uri.toString().includes(noNeedLocation)

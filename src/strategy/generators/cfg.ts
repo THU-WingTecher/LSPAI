@@ -49,8 +49,8 @@ export async function generateTestWithContextWithCFG(
     const result = [];
     const packageStatement = getPackageStatement(document, document.languageId);
     const importString = getImportStatement(document, document.languageId, functionSymbol);
-    let systemPrompt = await readTxtFile(findTemplateFile("lspaiSystem.txt"));
-    let userPrompt = await readTxtFile(findTemplateFile("lspaiUser_v2.txt"));
+    let systemPrompt = await readTxtFile(findTemplateFile("lspragSystem.txt"));
+    let userPrompt = await readTxtFile(findTemplateFile("lspragUser_v2.txt"));
     let example = await readTxtFile(findTemplateFile("example1.txt"));
     const source_code_str = await constructSourceCodeWithRelatedInfo(document, functionSymbol);
     

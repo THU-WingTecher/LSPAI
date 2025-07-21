@@ -6,9 +6,9 @@ import { loadPrivateConfig } from '../../config';
 import { getConfigInstance } from '../../config';
 import path from 'path';
 suite('Utils Test Suite', () => {
-    const projectPath = "/LSPAI/experiments/projects/commons-cli";
+    const projectPath = "/LSPRAG/experiments/projects/commons-cli";
     const workspaceFolders = setWorkspaceFolders(projectPath);
-    let testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
+    let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     getConfigInstance().updateConfig({
         ...privateConfig

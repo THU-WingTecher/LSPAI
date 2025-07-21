@@ -1,4 +1,4 @@
-LSPAI is designed by a goal "Minimum effort for supporting other language."
+LSPRAG is designed by a goal "Minimum effort for supporting other language."
 Therefore, it is quite easy to support other programming language. 
 The specific step follows below :
 1. [Optional, but Recommended] Unit Test Template

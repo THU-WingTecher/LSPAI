@@ -1,13 +1,13 @@
 {
-  "name": "LSPAI",
-  "displayName": "LSPAI",
+  "name": "LSPRAG",
+  "displayName": "LSPRAG",
   "publisher": "GwihwanGo",
-  "description": "LSPAI is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP) integration. Generate high-quality unit tests automatically and in real-time for multiple programming languages.",
+  "description": "LSPRAG is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP)",
   "version": "0.1.0",
-  "icon": "doc/assets/lspai_image_v2.jpg",
+  "icon": "doc/assets/lsprag_image_v2.jpg",
   "repository": {
     "type": "git",
-    "url": "https://github.com/GwihwanGo/LSPAI.git"
+    "url": "https://github.com/GwihwanGo/LSPRAG.git"
   },
   "engines": {
     "vscode": "^1.95.0"
@@ -27,35 +27,35 @@
       },
       {
         "command": "extension.generateUnitTest",
-        "title": "LSPAI: Generate Unit Test"
+        "title": "LSPRAG: Generate Unit Test"
       },
       {
-        "command": "LSPAI.showSettings",
-        "title": "LSPAI: Show Current Settings"
+        "command": "LSPRAG.showSettings",
+        "title": "LSPRAG: Show Current Settings"
       },
       {
-        "command": "LSPAI.PythonBlackExperiment",
-        "title": "LSPAI: Python Black Experiment"
+        "command": "LSPRAG.PythonBlackExperiment",
+        "title": "LSPRAG: Python Black Experiment"
       },
       {
-        "command": "LSPAI.PythonTornadoExperiment",
-        "title": "LSPAI: Python Tornado Experiment"
+        "command": "LSPRAG.PythonTornadoExperiment",
+        "title": "LSPRAG: Python Tornado Experiment"
       },
       {
-        "command": "LSPAI.javaCliExperiment",
-        "title": "LSPAI: Java Commons-cli Experiment"
+        "command": "LSPRAG.javaCliExperiment",
+        "title": "LSPRAG: Java Commons-cli Experiment"
       },
       {
-        "command": "LSPAI.javaCsvExperiment",
-        "title": "LSPAI: Java Commons-csv Experiment"
+        "command": "LSPRAG.javaCsvExperiment",
+        "title": "LSPRAG: Java Commons-csv Experiment"
       },
       {
-        "command": "LSPAI.goLogrusExperiment",
-        "title": "LSPAI: Go Logrus Experiment"
+        "command": "LSPRAG.goLogrusExperiment",
+        "title": "LSPRAG: Go Logrus Experiment"
       },
       {
-        "command": "LSPAI.goCobraExperiment",
-        "title": "LSPAI: Go Cobra Experiment"
+        "command": "LSPRAG.goCobraExperiment",
+        "title": "LSPRAG: Go Cobra Experiment"
       }
     ],
     "menus": {
@@ -68,29 +68,29 @@
       ]
     },
     "configuration": {
-      "title": "LSPAI",
+      "title": "LSPRAG",
       "properties": {
-        "LSPAI.savePath": {
+        "LSPRAG.savePath": {
           "type": "string",
-          "default": "lspai-tests",
+          "default": "lsprag-tests",
           "description": "Folder name to save the generated code in the current workspace"
         },
-        "LSPAI.openaiApiKey": {
+        "LSPRAG.openaiApiKey": {
           "type": "string",
           "default": "",
           "description": "API key for OpenAI"
         },
-        "LSPAI.deepseekApiKey": {
+        "LSPRAG.deepseekApiKey": {
           "type": "string",
           "default": "",
           "description": "API key for Deepseek"
         },
-        "LSPAI.localLLMUrl": {
+        "LSPRAG.localLLMUrl": {
           "type": "string",
           "default": "",
           "description": "Local LLM URL for API calls"
         },
-        "LSPAI.provider": {
+        "LSPRAG.provider": {
           "type": "string",
           "default": "deepseek",
           "description": "Provider of LLM",
@@ -100,12 +100,12 @@
             "ollama"
           ]
         },
-        "LSPAI.model": {
+        "LSPRAG.model": {
           "type": "string",
           "default": "deepseek-chat",
           "description": "Model to use for code generation"
         },
-        "LSPAI.promptType": {
+        "LSPRAG.promptType": {
           "type": "string",
           "default": "basic",
           "description": "Prompt type to use for code generation",
@@ -117,7 +117,7 @@
             "best"
           ]
         },
-        "LSPAI.generationType": {
+        "LSPRAG.generationType": {
           "type": "string",
           "default": "original",
           "description": "Generation type to use for code generation",
@@ -131,7 +131,7 @@
             "best"
           ]
         },
-        "LSPAI.maxRound": {
+        "LSPRAG.maxRound": {
           "type": "number",
           "default": 3,
           "description": "Maximum number of rounds for code generation"

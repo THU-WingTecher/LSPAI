@@ -61,7 +61,7 @@ async function setupJavaTestEnvironment(projectPath: string) {
     const javaConfig = vscode.workspace.getConfiguration('java');
     await javaConfig.update('project.sourcePaths', [
         "src/main/java",
-        "src/lspai/test/java"  // Add your test directory
+        "src/lsprag/test/java"  // Add your test directory
     ], vscode.ConfigurationTarget.Workspace);
 
     // 4. Wait for the language server to initialize
@@ -94,11 +94,11 @@ async function setupJavaTestEnvironment(projectPath: string) {
 }
 
 suite('Experiment Test Suite - JAVA', () => {
-    const projectPath = "/LSPAI/experiments/projects/commons-cli";
+    const projectPath = "/LSPRAG/experiments/projects/commons-cli";
     const sampleNumber = 20;
     const languageId = 'java';
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
-    const testjavaPath = "/LSPAI/experiments/projects/commons-cli/src/lspai/test/java/org/apache/commons/cli/CommandLine_getOptionObject_0_1Test.java";
+    const testjavaPath = "/LSPRAG/experiments/projects/commons-cli/src/lsprag/test/java/org/apache/commons/cli/CommandLine_getOptionObject_0_1Test.java";
     const currentConfig = {
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
@@ -107,7 +107,7 @@ suite('Experiment Test Suite - JAVA', () => {
         workspace: projectPath,
         ...privateConfig
     }
-    // let testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
+    // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
         ...currentConfig
     });

@@ -198,7 +198,7 @@ export async function collectPathforSymbols(
         await activate();
     }
 
-    const savePath = path.join("lspai-workspace", "cfg-path-results", getConfigInstance().timeStamp);
+    const savePath = path.join("lsprag-workspace", "cfg-path-results", getConfigInstance().timeStamp);
     getConfigInstance().updateConfig({
         savePath: savePath
     });

@@ -220,7 +220,7 @@ def print_category_statistics(parsed_data, categories):
 
 if __name__ == "__main__":
     # Read and parse the data
-    with open("/LSPAI/diagnostic_analysis_report.txt", "r") as file:
+    with open("/LSPRAG/diagnostic_analysis_report.txt", "r") as file:
         raw_data = file.read()
     parsed_data = parse_error_data(raw_data)
     

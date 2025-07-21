@@ -5,7 +5,7 @@ xvfb-run -a npm run test --testFile=llm  # check whether we can invoke LLM succe
 # Full usage with all options
 xvfb-run -a npm run test --testFile=exp.python
 
-# xvfb-run -a npm run experiment /LSPAI/experiments/projects/commons-cli \
+# xvfb-run -a npm run experiment /LSPRAG/experiments/projects/commons-cli \
 #     --model deepseek-reasoner \
 #     --provider deepseek \
 #     --exp-prob 0.2 \

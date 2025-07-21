@@ -217,7 +217,7 @@ export async function DiagnosticsToString(uri: vscode.Uri, vscodeDiagnostics: vs
 
 export async function getDiagnosticsForFilePath(filePath: string): Promise<vscode.Diagnostic[]> {
     // We should move file to the 
-    // ${project.basedir}/src/lspai/test/java --> to get the correct and fast diagnostics
+    // ${project.basedir}/src/lsprag/test/java --> to get the correct and fast diagnostics
 
 
     const uri = vscode.Uri.file(filePath);

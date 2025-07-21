@@ -15,7 +15,7 @@ suite('copilot Test Suite', () => {
     const sampleNumber = 2;
     const languageId = "python";
     let symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[];
-    const projectPath = "/LSPAI/experiments/projects/black";
+    const projectPath = "/LSPRAG/experiments/projects/black";
     const workspaceFolders = setWorkspaceFolders(projectPath);
     // vscode.workspace.updateWorkspaceFolders(0, 1, {
     //     uri: vscode.Uri.file(projectPath),

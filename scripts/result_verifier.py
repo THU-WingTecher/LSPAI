@@ -590,7 +590,7 @@ class Parser:
         Functions: 18/18 passed (100.00%)
         -------------------
         -------------------
-        Coverage Report: /LSPAI/experiments/projects/logrus/lspai-workspace/7_9_2025__08_44_27/logrus/cfg_withcontext_original/gpt-4o/results/initial-report/coverage.out
+        Coverage Report: /LSPRAG/experiments/projects/logrus/LSPRAG-workspace/7_9_2025__08_44_27/logrus/cfg_withcontext_original/gpt-4o/results/initial-report/coverage.out
         Total Statements: 431
         Covered Statements: 94
         Coverage Percentage: 21.81%
@@ -633,7 +633,7 @@ Missed Lines 1252
 Line Coverages are 36.28%
 ============================
 Printing valid rate
-Pass rate for /LSPAI/experiments/data/commons-cli/lsprag/1/gpt-4o/results/final
+Pass rate for /LSPRAG/experiments/data/commons-cli/lsprag/1/gpt-4o/results/final
 ============================
 Total .java files: 44
 Files with corresponding .class files: 24
@@ -672,7 +672,7 @@ Pass rate: 54.55%
         """
 ------------------------------------------------------
 TOTAL                               7405   3413    54%
-Coverage collection completed. Summary saved to /LSPAI/experiments/data/main_result/black/code_qa/codeQA_deepseek-chat_20250531_112041/codes-report/summary.txt
+Coverage collection completed. Summary saved to /LSPRAG/experiments/data/main_result/black/code_qa/codeQA_deepseek-chat_20250531_112041/codes-report/summary.txt
 PassRate ((passed files + failed files)/ total files): 201/293
         """
         result = {}
@@ -717,28 +717,28 @@ class Runner:
     """ 
     Run the test and get the result
     run command : 
-    projects: commons-cli, commons-csv ==> bash /LSPAI/experiments/scripts/java_coverage.bash <project_path> <experiment_save_folder_path> 
-    projects: black, tornado ==> bash /LSPAI/experiments/scripts/go_coverage.bash <project_path> <experiment_save_folder_path> 
-    projects: cobra, logrus ==> bash /LSPAI/experiments/scripts/python_coverage.bash <project_path> <experiment_save_folder_path> 
+    projects: commons-cli, commons-csv ==> bash /LSPRAG/experiments/scripts/java_coverage.bash <project_path> <experiment_save_folder_path> 
+    projects: black, tornado ==> bash /LSPRAG/experiments/scripts/go_coverage.bash <project_path> <experiment_save_folder_path> 
+    projects: cobra, logrus ==> bash /LSPRAG/experiments/scripts/python_coverage.bash <project_path> <experiment_save_folder_path> 
     """
     projectpath = {
-        "commons-cli": "/LSPAI/experiments/projects/commons-cli",
-        "commons-csv": "/LSPAI/experiments/projects/commons-csv",
-        "black": "/LSPAI/experiments/projects/black",
-        "tornado": "/LSPAI/experiments/projects/tornado",
-        "cobra": "/LSPAI/experiments/projects/cobra",
-        "logrus": "/LSPAI/experiments/projects/logrus",
+        "commons-cli": "/LSPRAG/experiments/projects/commons-cli",
+        "commons-csv": "/LSPRAG/experiments/projects/commons-csv",
+        "black": "/LSPRAG/experiments/projects/black",
+        "tornado": "/LSPRAG/experiments/projects/tornado",
+        "cobra": "/LSPRAG/experiments/projects/cobra",
+        "logrus": "/LSPRAG/experiments/projects/logrus",
     }
     
     def __init__(self):
         # Define which script to use for each project
         self.project_scripts = {
-            "commons-cli": "/LSPAI/scripts/java_coverage.bash",
-            "commons-csv": "/LSPAI/scripts/java_coverage.bash",
-            "black": "/LSPAI/scripts/python_coverage.bash",
-            "tornado": "/LSPAI/scripts/python_coverage.bash",
-            "cobra": "/LSPAI/scripts/go_coverage.bash",
-            "logrus": "/LSPAI/scripts/go_coverage.bash",
+            "commons-cli": "/LSPRAG/scripts/java_coverage.bash",
+            "commons-csv": "/LSPRAG/scripts/java_coverage.bash",
+            "black": "/LSPRAG/scripts/python_coverage.bash",
+            "tornado": "/LSPRAG/scripts/python_coverage.bash",
+            "cobra": "/LSPRAG/scripts/go_coverage.bash",
+            "logrus": "/LSPRAG/scripts/go_coverage.bash",
         }
         
         # Define which parser to use for each project
@@ -1065,10 +1065,10 @@ class FileFounder:
         print("=" * 80)
 
 if __name__ == "__main__":
-    # data_root_path = "/LSPAI/experiments/data/main_result/commons-cli"
+    # data_root_path = "/LSPRAG/experiments/data/main_result/commons-cli"
     import sys 
     data_root_path = sys.argv[1]
-    # data_root_path = "/LSPAI/experiments/data/main_result/commons-cli"
+    # data_root_path = "/LSPRAG/experiments/data/main_result/commons-cli"
     file_founder = FileFounder(data_root_path)
     max_workers = 30
     # Print all found folders first

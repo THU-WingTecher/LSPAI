@@ -388,9 +388,9 @@ ${LanguageTemplateManager.getUnitTestTemplate(languageId, fileName, packageStrin
 }
 
 /**
- * Creates a user prompt for LSPAI
+ * Creates a user prompt for LSPRAG
  */
-export function LSPAIUserPrompt(
+export function LSPRAGUserPrompt(
     code: string, 
     languageId: string, 
     functionContext: string, 
@@ -479,7 +479,7 @@ export async function genPrompt(data: ContextInfo, method: GenerationType): Prom
         dependentContext = data.dependentContext;
         mainFunctionDependencies = data.mainFunctionDependencies;
         mainfunctionParent = data.mainfunctionParent;
-        prompt = LSPAIUserPrompt(
+        prompt = LSPRAGUserPrompt(
             textCode, 
             data.languageId, 
             dependentContext, 

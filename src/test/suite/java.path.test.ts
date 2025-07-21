@@ -559,7 +559,7 @@ test('Run all functions under a repository : commons-cli', async function() {
         console.log('activate');
         await activate();
     }
-    const projectPath = "/LSPAI/experiments/projects/commons-cli"
+    const projectPath = "/LSPRAG/experiments/projects/commons-cli"
     const workspaceFolders = setWorkspaceFolders(projectPath);
     // await updateWorkspaceFolders(workspaceFolders);
     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);

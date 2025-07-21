@@ -1,17 +1,17 @@
-# LSPAI Experiment Reproduction Guide
+# LSPRAG Experiment Reproduction Guide
 <!-- <p align="center">
     <!-- <a href="https://arxiv.org/abs/2302.02261"><img src="https://img.shields.io/badge/arXiv-2302.02261-b31b1b.svg?style=for-the-badge"> -->
     <!-- <a href="https://doi.org/10.5281/zenodo.12669927"><img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.8319975-8A2BE2?style=for-the-badge"> -->
     <a href="https://github.com/THU-WingTecher/DeepConstr/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge"></a>
-    <a href="https://hub.docker.com/repository/docker/gwihwan/lspai/general"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white"></a>
+    <a href="https://hub.docker.com/repository/docker/gwihwan/lsprag/general"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white"></a>
 </p> -->
 
 ## Table of Contents
-- [LSPAI Experiment Reproduction Guide](#lspai-experiment-reproduction-guide)
+- [LSPRAG Experiment Reproduction Guide](#lsprag-experiment-reproduction-guide)
   - [Table of Contents](#table-of-contents)
   - [🛠️ Setup Guide](#️-setup-guide)
-    - [1. Install LSPAI from Source](#1-install-lspai-from-source)
-  - [Generate Unit Test Codes by LSPAI](#generate-unit-test-codes-by-lspai)
+    - [1. Install LSPRAG from Source](#1-install-lsprag-from-source)
+- [Generate Unit Test Codes by LSPRAG](#generate-unit-test-codes-by-lsprag)
     - [Language Server Installation](#language-server-installation)
     - [Option B: Build from Source](#option-b-build-from-source)
   - [Reproduce Experiment Results (Table 3)](#reproduce-experiment-results-table-3)
@@ -46,20 +46,20 @@
 
 ## 🛠️ Setup Guide
 
-### 1. Install LSPAI from Source
+### 1. Install LSPRAG from Source
 
 1. Pull the image and run
    ```bash
-   docker pull gwihwan/lspai:latest
-   docker run -it --name lspai gwihwan/lspai:latest /bin/bash
+   docker pull gwihwan/lsprag:latest
+docker run -it --name lsprag gwihwan/lsprag:latest /bin/bash
    ```
 
 2. Clone and Build
    ```bash
    # Clone the repository
    cd ..
-   git clone https://github.com/Gwihwan-Go/LSPAI.git
-   cd LSPAI
+   git clone https://github.com/Gwihwan-Go/LSPRAG.git
+cd LSPRAG
    # Install dependencies
    npm install
 
@@ -78,7 +78,7 @@ You can try to downgrade the version of lru-cache to 10.1.0 by running the follo
 npm install lru-cache@10.1.0
 ```
 
-## Generate Unit Test Codes by LSPAI
+## Generate Unit Test Codes by LSPRAG
 
 ### Language Server Installation
 
@@ -125,14 +125,14 @@ npm install lru-cache@10.1.0
 
 ### Option A: Download IDE Plugin 
 
-1. Download the IDE plugin from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=LSPAI.lspai)
+1. Download the IDE plugin from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=LSPRAG.lsprag)
 2. Install the plugin
 3. SetUp LLM Configuration
    - Open the settings.json file
    - Add the following configuration:
    ```json
    {
-     "LSPAI": {
+     "LSPRAG": {
        "provider": "deepseek",    // Choose: // openai // deepseek // ollama
        "model": "deepseek-chat",  // Choose: // gpt-4o-mini // llama3-70b // deepseek-chat
        "openaiApiKey": "your-api-key",    // Required for OpenAI
@@ -146,7 +146,7 @@ npm install lru-cache@10.1.0
 5. [Optional] Project Compilation
    - While not required, compiling your project can improve error diagnosis and auto-fixing capabilities
 5. Move cursor to the function you want to generate unit test codes
-6. Press right-click and select `LSPAI: Generate Unit Test Codes`
+6. Press right-click and select `LSPRAG: Generate Unit Test Codes`
 7. Wait for the unit test codes to be generated
 
 ### Option B: Build from Source
@@ -155,9 +155,9 @@ Overall, you can follow these steps:
 
 If you followed the **Setup Guide :: Option A**, you can directly proceed with step 4.
 
-1. Complete the LSPAI Extension installation (see Setup Guide above)
-2. Launch LSPAI in Development Mode:
-   - Open `/LSPAI/src/extension.ts`
+1. Complete the LSPRAG Extension installation (see Setup Guide above)
+2. Launch LSPRAG in Development Mode:
+- Open `/LSPRAG/src/extension.ts`
    - Press `F5` to launch Extension Development Host
    - Select "VS Code Extension Development" from the dropdown
    - A new VS Code window should open
@@ -177,7 +177,7 @@ Please install the language server and try again.
 
 ## Reproduce Experiment Results (Table 3)
 
-Table 3 claims that LSPAI outperforms other baselines in terms of coverage, and part of valid rate compared to baselines.
+Table 3 claims that LSPRAG outperforms other baselines in terms of coverage, and part of valid rate compared to baselines.
 There are two ways to proceed with the experiments:
 
 ### Prepare Unit Test Codes 
@@ -192,12 +192,12 @@ There are two ways to proceed with the experiments:
    ```
 2. Recompile the project
    ```bash
-   cd /LSPAI
+   cd /LSPRAG
    npm install 
    npm run compile
    ```
-3. Launch LSPAI in Development Mode:
-   - Open `/LSPAI/src/extension.ts`
+3. Launch LSPRAG in Development Mode:
+   - Open `/LSPRAG/src/extension.ts`
    - Press `F5` to launch Extension Development Host
    - Select "VS Code Extension Development" from the dropdown
    - A new VS Code window should open
@@ -205,50 +205,32 @@ There are two ways to proceed with the experiments:
 4. Run the experiment:
    - Press `CTRL+SHIFT+P`
    - For Python, you should first generate venv-python version, and install necessary libraries, and select python interpreter at righ-bottom section of vscode.
-   - Run one of folloing commands: `LSPAI::Python-Experiment`; `LSPAI::Java-Experiment`; `LSPAI::Go-Experiment`;  
+   - Run one of folloing commands: `LSPRAG::Python-Experiment`; `LSPRAG::Java-Experiment`; `LSPRAG::Go-Experiment`;  
    - Monitor progress in the debug console
    - After the experiment ended, you can find out the result_${current_time} folder at your workspace.
    ![Final Result](assets/python-experiment-result.png)
 
 #### Option B: Use Pre-generated Dataset (Recommended)
 
-Download and extract the experiment dataset:
-```bash
-cd /LSPAI
+Download tar.gz file from 
+```bash 
+https://drive.google.com/file/d/1labc05nmta4fhW05RoGuypk4NsoYjHf2/view
+```
+
+{TODO} --- need verification
+<!-- ```bash
+cd /LSPRAG
 mkdir -p experiments 
 cd experiments
 wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/c51bd7b4bb894033ac82/?dl=1" -O experimentData.tar.gz
 tar xvfz experimentData.tar.gz
 wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/f22b98398e7c46d7b4cf/?dl=1" -O logData.tar.gz
 tar xvfz logData.tar.gz
-```
+``` -->
 
 The extracted dataset will have this structure:
 ```
-/LSPAI/experiments
-├── experimentData.tar.gz
-├── logData.tar.gz
-├── data
-│   ├── black
-│   ├── cobra
-│   ├── commons-cli
-│   ├── commons-csv
-│   ├── crawl4ai
-│   └── logrus
-├── log-data
-│   ├── black
-│   ├── cobra
-│   ├── commons-cli
-│   ├── commons-csv
-│   ├── crawl4ai
-│   └── logrus
-└── projects
-    ├── black
-    ├── cobra
-    ├── commons-cli
-    ├── commons-csv
-    ├── crawl4ai
-    └── logrus
+{TODO}
 ```
 
 ### Java Projects [Commons-Cli, Commons-Csv]
@@ -258,12 +240,12 @@ The extracted dataset will have this structure:
    Ensure that you download the necessary libraries from the provided link:
    ```bash
    # Download required libraries
-   cd /LSPAI/scripts
+   cd /LSPRAG/scripts
    wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/efade5fc56a54ee59ed1/?dl=1" -O ../javaLib.tar.gz
    tar xvf ../javaLib.tar.gz
    ```
 
-   After running above commands, you can observe that jar files are located at `/LSPAI/experiments/lib/`.
+   After running above commands, you can observe that jar files are located at `/LSPRAG/experiments/lib/`.
    ```bash
    |-- lib`
    |   |-- jacocoagent.jar
@@ -288,7 +270,7 @@ The extracted dataset will have this structure:
    Ensure correct model selection in the configuration file (settings.json)
 
    # Trigger Java Experiment Mode
-   Ctrl + Shift + P -> LSPAI::Java-Experiment
+   Ctrl + Shift + P -> LSPRAG::Java-Experiment
    ```
 
    If you are reproducing the experiment, by commandline interface, not debuggin mode. 
@@ -319,7 +301,7 @@ The extracted dataset will have this structure:
                      </goals>
                      <configuration>
                            <sources>
-                              <source>src/lspai/test/java</source>
+                              <source>src/lsprag/test/java</source>
                            </sources>
                      </configuration>
                   </execution>
@@ -328,7 +310,7 @@ The extracted dataset will have this structure:
       </plugins>
    </build>
    ```
-   ##### B. Reproduce with Provided Dataset ( Table 3 )
+   ##### B. Reproduce with Provided Dataset ( Section 7.2 )
 
    Once the environment is set up and the unit tests are prepared, you can proceed to reproduce experiments using the provided dataset.
 
@@ -337,8 +319,8 @@ The extracted dataset will have this structure:
    To set up the CLI project, follow these steps:
    ```bash
    # Clone and checkout a specific version
-   mkdir -p /LSPAI/experiments/projects
-   cd /LSPAI/experiments/projects
+   mkdir -p /LSPRAG/experiments/projects
+   cd /LSPRAG/experiments/projects
    git clone https://github.com/apache/commons-cli.git
    cd commons-cli
 
@@ -349,189 +331,43 @@ The extracted dataset will have this structure:
 
    ##### Reproduce Experiment Results
 
-   Run the following commands one at a time, and checkout results. 
-   You have to run six different commands for each baseline (NAIVE, LSPAI) and each model (DeepSeek, GPT4o, etc.):
-   For easier reproduction, we provide the expected results corresponding to each command.
-CODES (5/5 results):
-  codes: Coverage=0.2081  ValidRate=0.1818 
-  codes: Coverage=0.2331  ValidRate=0.1818 
-  codes: Coverage=0.2107  ValidRate=0.1591 
-  codes: Coverage=0.1796  ValidRate=0.1364 
-  codes: Coverage=0.0524  ValidRate=0.0682 
-  Average Coverage: 0.1768 (5/5 data points)
-  Average Valid Rate: 0.1455 (5/5 data points)
+   To reproduce the experiment results, execute the following commands one by one and check the output. This script loads the generated unit tests from all baselines stored under `experiments/data` and prints the results in CSV format.
 
-====================================================================================================
-COVERAGE RESULTS SUMMARY (CSV FORMAT)
-====================================================================================================
-project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
-cli-4o-mini     0.106259542     0.050178117     0.045903308     0.027582697     0.332926209     None    0.271043257
-cli-4o  0.095979644     0.032061069     0.127124682     0.030025445     0.346870229     None    0.231552163
-cli-deepseek    0.207226463     0.176793893     0.064631043     0.056183206     0.377201018     None    0.287735369
+   Run the following command:
+   Run 
+   ```python
+   python scripts/result_verifier.py /LSPRAG/experiments/data/main_result/commons-cli
+      Expected Result :
+   # CODES (5/5 results):
+   # codes: Coverage=0.2081  ValidRate=0.1818 
+   # codes: Coverage=0.2331  ValidRate=0.1818 
+   # codes: Coverage=0.2107  ValidRate=0.1591 
+   # codes: Coverage=0.1796  ValidRate=0.1364 
+   # codes: Coverage=0.0524  ValidRate=0.0682 
+   # Average Coverage: 0.1768 (5/5 data points)
+   # Average Valid Rate: 0.1455 (5/5 data points)
 
-====================================================================================================
-VALID RATE RESULTS SUMMARY (CSV FORMAT)
-====================================================================================================
-project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
-cli-4o-mini     0.124025974     0.081818182     0.134003771     0.070521684     0.450775194     None    0.234935401
-cli-4o  0.082251082     0.072727273     0.326084224     0.072030170     0.481183932     None    0.285891473
-cli-deepseek    0.132900433     0.145454545     0.171967316     0.092131783     0.605170798     None    0.313178295
-Warning: openpyxl not installed. Excel files will not be generated.
-Install with: pip install openpyxl
+   # ====================================================================================================
+   # COVERAGE RESULTS SUMMARY (CSV FORMAT)
+   # ====================================================================================================
+   # project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+   # cli-4o-mini     0.106259542     0.050178117     0.045903308     0.027582697     0.332926209     None    0.271043257
+   # cli-4o  0.095979644     0.032061069     0.127124682     0.030025445     0.346870229     None    0.231552163
+   # cli-deepseek    0.207226463     0.176793893     0.064631043     0.056183206     0.377201018     None    0.287735369
 
-Files saved:
-  Coverage results: coverage_results_20250719_052404.csv
-  Valid rate results: validrate_results_20250719_052404.csv
-   **CLI - LSPAI - GPT4o**
-   ```bash
-   # CLI - LSPAI - GPT4o
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/data/commons-cli/results_gpt-4o/gpt-4o
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1965
-   # Missed Lines 653
-   # Line Coverages are 66.77%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-cli/results_gpt-4o/gpt-4o
-   # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 116
-   # Pass rate: 77.33%
-   # ============================
-   ```
+   # ====================================================================================================
+   # VALID RATE RESULTS SUMMARY (CSV FORMAT)
+   # ====================================================================================================
+   # project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+   # cli-4o-mini     0.124025974     0.081818182     0.134003771     0.070521684     0.450775194     None    0.234935401
+   # cli-4o  0.082251082     0.072727273     0.326084224     0.072030170     0.481183932     None    0.285891473
+   # cli-deepseek    0.132900433     0.145454545     0.171967316     0.092131783     0.605170798     None    0.313178295
+   # Warning: openpyxl not installed. Excel files will not be generated.
+   # Install with: pip install openpyxl
 
-   **CLI - NAIVE - GPT4o**
-   ```bash
-   # CLI - NAIVE - GPT4o
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/data/commons-cli/results_gpt-4o/NOFIX_naive_gpt-4o
-   # Expected Result 
-   # ============================
-   # Total lines 1965
-   # Missed Lines 1174
-   # Line Coverages are 40.25%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-cli/results_gpt-4o/NOFIX_naive_gpt-4o
-   # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 82
-   # Pass rate: 54.67%
-   # ============================
-   ```
-
-   **CLI - Copilot - GPT4o**
-   ```bash
-   # CLI - Copilot - GPT4o
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/data/commons-cli/results_copilot/copilot
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1954
-   # Missed Lines 1476
-   # Line Coverages are 24.46%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-cli/results_copilot/copilot
-   # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 39
-   # Pass rate: 26.00%
-   # ============================
-   ```
-
-   **CLI - LSPAI - GPT4o-mini**
-   ```bash
-   # CLI - LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/data/commons-cli/results_gpt-4o-mini/gpt-4o-mini
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1965
-   # Missed Lines 817
-   # Line Coverages are 58.42%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-cli/results_gpt-4o-mini/gpt-4o-mini
-   # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 89
-   # Pass rate: 59.33%
-   # ============================
-   ```
-
-   **CLI - NAIVE - GPT4o-mini**
-   ```bash
-   # CLI - NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/data/commons-cli/results_gpt-4o-mini/NOFIX_naive_gpt-4o-mini
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1954
-   # Missed Lines 1587
-   # Line Coverages are 18.78%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-cli/results_gpt-4o-mini/NOFIX_naive_gpt-4o-mini
-   # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 36
-   # Pass rate: 24.00%
-   # ============================
-   ```
-
-   **CLI - LSPAI - DeepSeek-V3**
-   ```bash
-   # CLI - LSPAI - DeepSeek-V3
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/data/commons-cli/results_deepseek/deepseek-chat
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1954
-   # Missed Lines 744
-   # Line Coverages are 61.92%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-cli/results_deepseek/deepseek-chat
-   # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 119
-   # Pass rate: 79.33%
-   # ============================
-   ```
-
-   **CLI - NAIVE - DeepSeek-V3**
-   ```bash
-   # CLI - NAIVE - DeepSeek-V3
-   bash /LSPAI/scripts/java_anal.bash \
-      /LSPAI/experiments/projects/commons-cli \
-      /LSPAI/experiments/data/commons-cli/results_deepseek/NOFIX_deepseek-chat
-   # Expected Result 
-   # Printing final result
-   # ============================
-   # Total lines 1954
-   # Missed Lines 1023
-   # Line Coverages are 47.65%
-   # ============================
-   # Printing valid rate
-   # Pass rate for /LSPAI/experiments/data/commons-cli/results_deepseek/NOFIX_deepseek-chat
-   # ============================
-   # Total .java files: 150
-   # Files with corresponding .class files: 65
-   # Pass rate: 43.33%
+   # Files saved:
+   # Coverage results: coverage_results_20250719_052404.csv
+   # Valid rate results: validrate_results_20250719_052404.csv
    ```
 
    #### Commons-Csv Project Setup
@@ -539,8 +375,8 @@ Files saved:
    To set up the CSV project, follow these steps:
    ```bash
    # Clone and checkout a specific version
-   mkdir -p /LSPAI/experiments/projects
-   cd /LSPAI/experiments/projects
+   mkdir -p /LSPRAG/experiments/projects
+   cd /LSPRAG/experiments/projects
    git clone https://github.com/apache/commons-csv.git
    cd commons-csv
 
@@ -551,46 +387,45 @@ Files saved:
 
    ##### Reproduce Experiment Results
 
-   Run the following commands one at a time, and checkout results. 
-   You have to run six different commands for each baseline (NAIVE, LSPAI) and each model (DeepSeek, GPT4o, etc.):
-   For easier reproduction, we provide the expected results corresponding to each command.
-```
-python scripts/result_verifier.py /LSPAI/experiments/data/main_result/commons-csv
-```
-```
-ommons-csv + gpt-4o-mini + standard
---------------------------------------------------------------------------------
+   To reproduce the experiment results, execute the following commands one by one and check the output. This script loads the generated unit tests from all baselines stored under `experiments/data` and prints the results in CSV format.
 
-CODES (5/5 results):
-  codes: Coverage=0.2538  ValidRate=0.1156 
-  codes: Coverage=0.2530  ValidRate=0.1361 
-  codes: Coverage=0.2474  ValidRate=0.1429 
-  codes: Coverage=0.2450  ValidRate=0.1224 
-  codes: Coverage=0.2474  ValidRate=0.1429 
-  Average Coverage: 0.2493 (5/5 data points)
-  Average Valid Rate: 0.1320 (5/5 data points)
+   Run the following command:
+   Run 
+   ```python
+   python scripts/result_verifier.py /LSPRAG/experiments/data/main_result/commons-csv
+   # ommons-csv + gpt-4o-mini + standard
+   # --------------------------------------------------------------------------------
 
-====================================================================================================
-COVERAGE RESULTS SUMMARY (CSV FORMAT)
-====================================================================================================
-project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
-csv-4o-mini     0.409705648     0.249323787     0.266984885     0.185043755     0.805091488     None    0.697692920
-csv-4o  0.448528242     0.448369133     0.391567224     0.252824185     0.783293556     None    0.760540971
-csv-deepseek    0.651073986     0.446778043     0.326650756     0.350676213     0.831980907     None    0.752903739
+   # CODES (5/5 results):
+   #   codes: Coverage=0.2538  ValidRate=0.1156 
+   #   codes: Coverage=0.2530  ValidRate=0.1361 
+   #   codes: Coverage=0.2474  ValidRate=0.1429 
+   #   codes: Coverage=0.2450  ValidRate=0.1224 
+   #   codes: Coverage=0.2474  ValidRate=0.1429 
+   #   Average Coverage: 0.2493 (5/5 data points)
+   #   Average Valid Rate: 0.1320 (5/5 data points)
 
-====================================================================================================
-VALID RATE RESULTS SUMMARY (CSV FORMAT)
-====================================================================================================
-project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
-csv-4o-mini     0.236394558     0.131972789     0.157402076     0.062799189     0.828468893     None    0.374321570
-csv-4o  0.206802721     0.265306122     0.356853030     0.144110886     0.908976571     None    0.544464519
-csv-deepseek    0.432653061     0.322448980     0.367579511     0.298242055     0.909500010     None    0.492918639
+   # ====================================================================================================
+   # COVERAGE RESULTS SUMMARY (CSV FORMAT)
+   # ====================================================================================================
+   # project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+   # csv-4o-mini     0.409705648     0.249323787     0.266984885     0.185043755     0.805091488     None    0.697692920
+   # csv-4o  0.448528242     0.448369133     0.391567224     0.252824185     0.783293556     None    0.760540971
+   # csv-deepseek    0.651073986     0.446778043     0.326650756     0.350676213     0.831980907     None    0.752903739
 
-Files saved:
-  Coverage results: coverage_results_20250719_055246.csv
-  Valid rate results: validrate_results_20250719_055246.csv
-  Excel results: test_results_20250719_055246.xlsx
-```
+   # ====================================================================================================
+   # VALID RATE RESULTS SUMMARY (CSV FORMAT)
+   # ====================================================================================================
+   # project codeQA  StandardRAG     Naive   SymPrompt       LSPRAG  DraCo   LSPRAG-nofix
+   # csv-4o-mini     0.236394558     0.131972789     0.157402076     0.062799189     0.828468893     None    0.374321570
+   # csv-4o  0.206802721     0.265306122     0.356853030     0.144110886     0.908976571     None    0.544464519
+   # csv-deepseek    0.432653061     0.322448980     0.367579511     0.298242055     0.909500010     None    0.492918639
+
+   # Files saved:
+   #   Coverage results: coverage_results_20250719_055246.csv
+   #   Valid rate results: validrate_results_20250719_055246.csv
+   #   Excel results: test_results_20250719_055246.xlsx
+   ```
 
 ### Go Projects [LOGRUS, COBRA]
 
@@ -609,8 +444,8 @@ Files saved:
    To set up the Logrus project, follow these steps:
    ```bash
    # Clone and checkout a specific version
-   mkdir -p /LSPAI/experiments/projects
-   cd /LSPAI/experiments/projects
+   mkdir -p /LSPRAG/experiments/projects
+   cd /LSPRAG/experiments/projects
    git clone https://github.com/sirupsen/logrus.git
    cd logrus
    # Optional: Checkout specific commit (if applicable)
@@ -623,15 +458,11 @@ Files saved:
 
    ##### Reproduce Experiment Results
 
-   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
+   To reproduce the experiment results, execute the following commands one by one and check the output. This script loads the generated unit tests from all baselines stored under `experiments/data` and prints the results in CSV format.
 
-   **COB - ALL**
-   ```bash
-   python scripts/result_verifier.py /LSPAI/experiments/data/main_result/logrus
-   ```
-
-   **EXPECTED RESULT**
-   ```bash
+   Run the following command:
+   ```python
+   python scripts/result_verifier.py /LSPRAG/experiments/data/main_result/logrus
 #   Average Coverage: 0.1100 (5/5 data points)
 #   Average Valid Rate: 0.1583 (5/5 data points)
 
@@ -656,15 +487,15 @@ Files saved:
 #   Valid rate results: validrate_results_20250719_061138.csv
 #   Excel results: test_results_20250719_061138.xlsx
 #    ```
-
+```
 
    #### Cobra Project Setup
 
    To set up the Cobra project, follow these steps:
    ```bash
    # Clone and checkout a specific version
-   mkdir -p /LSPAI/experiments/projects
-   cd /LSPAI/experiments/projects
+   mkdir -p /LSPRAG/experiments/projects
+   cd /LSPRAG/experiments/projects
    git clone https://github.com/spf13/cobra.git
    cd cobra
    # Optional: Checkout specific commit (if applicable)
@@ -677,15 +508,12 @@ Files saved:
 
    ##### Reproduce Experiment Results
 
-   Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
+   To reproduce the experiment results, execute the following commands one by one and check the output. This script loads the generated unit tests from all baselines stored under `experiments/data` and prints the results in CSV format.
 
-   **COB - ALL**
+   Run the following command:
    ```bash
-   python scripts/result_verifier.py /LSPAI/experiments/data/main_result/cobra
-   ```
-
-   **EXPECTED RESULT**
-   ```bash
+   python scripts/result_verifier.py /LSPRAG/experiments/data/main_result/cobra
+   # <!-- **EXPECTED RESULT** -->
 #   codes: Coverage=0.0635  ValidRate=0.0891 
 #   Average Coverage: 0.0757 (5/5 data points)
 #   Average Valid Rate: 0.0812 (5/5 data points)
@@ -726,9 +554,9 @@ Files saved:
 
    Run below command to move dataset to target project
    ```bash
-   mkdir -p /LSPAI/experiments/projects
-   cd /LSPAI/experiments/projects/black # black should be substitue to crawl4ai if you proceed with crawl4ai projects
-   cp -r /LSPAI/experiments/data/black/* .
+   mkdir -p /LSPRAG/experiments/projects
+   cd /LSPRAG/experiments/projects/black # black should be substitue to crawl4ai if you proceed with crawl4ai projects
+   cp -r /LSPRAG/experiments/data/black/* .
    ```
 
 
@@ -737,8 +565,8 @@ Files saved:
       To set up the Black project, follow these steps:
       ```bash
       # Clone and checkout specific version
-      mkdir -p /LSPAI/experiments/projects
-      cd /LSPAI/experiments/projects
+      mkdir -p /LSPRAG/experiments/projects
+      cd /LSPRAG/experiments/projects
       git clone https://github.com/psf/black.git
       cd black
       git checkout 8dc912774e322a2cd46f691f19fb91d2237d06e2
@@ -758,20 +586,20 @@ Files saved:
       rm pyproject.toml
 
       # Copy dataset 
-      cp -r /LSPAI/experiments/data/black/* .
+      cp -r /LSPRAG/experiments/data/black/* .
       ```
 
    ##### Reproduce Experiment Results
 
    Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
 
-   **BAK - LSPAI - GPT4o**
+   **BAK - LSPRAG - GPT4o**
    
    ```bash
-   # BAK - LSPAI - GPT4o
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/black \
-      /LSPAI/experiments/projects/black/results_gpt4o/gpt-4o
+   # BAK - LSPRAG - GPT4o
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/black \
+      /LSPRAG/experiments/projects/black/results_gpt4o/gpt-4o
    
    # Expected Result
    # ...
@@ -790,9 +618,9 @@ Files saved:
 
    ```bash
    # BAK - NAIVE - GPT4o
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/black \
-      /LSPAI/experiments/projects/black/results_gpt4o/naive_gpt-4o
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/black \
+      /LSPRAG/experiments/projects/black/results_gpt4o/naive_gpt-4o
    
    # Expected Result
    # ...
@@ -812,9 +640,9 @@ Files saved:
 
    ```bash
    # BAK - COPILOT - GPT4o
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/black \
-      /LSPAI/experiments/projects/black/results_copilot/copilot
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/black \
+      /LSPRAG/experiments/projects/black/results_copilot/copilot
    
    # Expected Result
    # ...
@@ -830,12 +658,12 @@ Files saved:
    # -------------------
    ```
 
-   **BAK - LSPAI - GPT4o-mini**
+   **BAK - LSPRAG - GPT4o-mini**
    ```bash
-   # BAK - LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/black \
-      /LSPAI/experiments/projects/black/results_gpt4o-mini/gpt-4o-mini
+   # BAK - LSPRAG - GPT4o-mini
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/black \
+      /LSPRAG/experiments/projects/black/results_gpt4o-mini/gpt-4o-mini
    
    # Expected Result
    # ...
@@ -854,9 +682,9 @@ Files saved:
 
    ```bash
    # BAK - NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/black \
-      /LSPAI/experiments/projects/black/results_gpt4o-mini/naive_gpt-4o-mini
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/black \
+      /LSPRAG/experiments/projects/black/results_gpt4o-mini/naive_gpt-4o-mini
    
    # Expected Result
    # src/blib2to3/pgen2/token.py           77      3    96%
@@ -871,12 +699,12 @@ Files saved:
    # -------------------
    ```
 
-   **BAK - LSPAI - DeepSeek-V3**
+   **BAK - LSPRAG - DeepSeek-V3**
    ```bash
-   # BAK - LSPAI - DeepSeek-V3
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/black \
-      /LSPAI/experiments/projects/black/results_deepseek/deepseek-chat
+   # BAK - LSPRAG - DeepSeek-V3
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/black \
+      /LSPRAG/experiments/projects/black/results_deepseek/deepseek-chat
    
    # Expected Result
    # src/blib2to3/pgen2/token.py           77      3    96%
@@ -895,9 +723,9 @@ Files saved:
 
    ```bash
    # BAK - NAIVE - DeepSeek-V3
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/black \
-      /LSPAI/experiments/projects/black/results_deepseek/naive_deepseek-chat
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/black \
+      /LSPRAG/experiments/projects/black/results_deepseek/naive_deepseek-chat
    
    # Expected Result
    # src/blib2to3/pgen2/tokenize.py       610    328    46%
@@ -914,8 +742,8 @@ Files saved:
    #### Crawl4ai Project Setup
 
       ```bash
-      mkdir -p /LSPAI/experiments/projects
-      cd /LSPAI/experiments/projects
+      mkdir -p /LSPRAG/experiments/projects
+      cd /LSPRAG/experiments/projects
       git clone https://github.com/unclecode/crawl4ai.git
       cd crawl4ai
       git checkout 8878b3d032fb21ce3567b34db128bfa64687198a
@@ -929,20 +757,20 @@ Files saved:
       # Don\'nt forget to activate venv environment
       pip install -r requirements.txt
 
-      cp -r /LSPAI/experiments/data/crawl4ai/* .
+      cp -r /LSPRAG/experiments/data/crawl4ai/* .
       ```
 
    ##### Reproduce Experiment Results
 
    Once the environment is set up, you can reproduce the experiments using the provided dataset. For Logrus, the following command can be used to perform coverage analysis:
 
-   **C4AI - LSPAI - GPT4o**
+   **C4AI - LSPRAG - GPT4o**
    
    ```bash
-   # C4AI - LSPAI - GPT4o
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/crawl4ai \
-      /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/gpt-4o
+   # C4AI - LSPRAG - GPT4o
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/crawl4ai \
+      /LSPRAG/experiments/projects/crawl4ai/results_gpt-4o/gpt-4o
    
    # Expected Result
    # crawl4ai/utils.py                            689    359    48%
@@ -960,9 +788,9 @@ Files saved:
 
    ```bash
    # C4AI - NAIVE - GPT4o
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/crawl4ai \
-      /LSPAI/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/crawl4ai \
+      /LSPRAG/experiments/projects/crawl4ai/results_gpt-4o/naive_gpt-4o
    # Expected Result
    # crawl4ai/utils.py                            689    484    30%
    # crawl4ai/version_manager.py                   21      7    67%
@@ -980,9 +808,9 @@ Files saved:
 
    ```bash
    # C4AI - COPILOT - GPT4o
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/crawl4ai \
-      /LSPAI/experiments/projects/crawl4ai/results_copilot/copilot
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/crawl4ai \
+      /LSPRAG/experiments/projects/crawl4ai/results_copilot/copilot
    
    # Expected Result
    # crawl4ai/utils.py                            689    533    23%
@@ -996,13 +824,13 @@ Files saved:
    # -------------------
    ```
 
-   **C4AI - LSPAI - GPT4o-mini**
+   **C4AI - LSPRAG - GPT4o-mini**
    
    ```bash
-   # C4AI - LSPAI - GPT4o-mini
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/crawl4ai \
-      /LSPAI/experiments/projects/crawl4ai/results_gpt-4o-mini/gpt-4o-mini
+   # C4AI - LSPRAG - GPT4o-mini
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/crawl4ai \
+      /LSPRAG/experiments/projects/crawl4ai/results_gpt-4o-mini/gpt-4o-mini
    
    # Expected Result
    # crawl4ai/user_agent_generator.py              94     14    85%
@@ -1021,9 +849,9 @@ Files saved:
 
    ```bash
    # C4AI - NAIVE - GPT4o-mini
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/crawl4ai \
-      /LSPAI/experiments/projects/crawl4ai/results_deepseek/deepseek-chat
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/crawl4ai \
+      /LSPRAG/experiments/projects/crawl4ai/results_deepseek/deepseek-chat
    # Expected Result
    # crawl4ai/user_agent_generator.py              94     18    81%
    # crawl4ai/utils.py                            689    466    32%
@@ -1038,13 +866,13 @@ Files saved:
 
    ```
 
-   **C4AI - LSPAI - DeepSeek-V3**
+   **C4AI - LSPRAG - DeepSeek-V3**
    
    ```bash
-   # C4AI - LSPAI - DeepSeek-V3
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/crawl4ai \
-      /LSPAI/experiments/projects/crawl4ai/results_deepseek/deepseek-chat
+   # C4AI - LSPRAG - DeepSeek-V3
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/crawl4ai \
+      /LSPRAG/experiments/projects/crawl4ai/results_deepseek/deepseek-chat
    
    # Expected Result
    # crawl4ai/ssl_certificate.py                   80     31    61%
@@ -1064,9 +892,9 @@ Files saved:
 
    ```bash
    # C4AI - NAIVE - DeepSeek-V3
-   bash /LSPAI/scripts/python_anal.bash \
-      /LSPAI/experiments/projects/crawl4ai \
-      /LSPAI/experiments/projects/crawl4ai/results_deepseek/naive_deepseek-chat
+   bash /LSPRAG/scripts/python_anal.bash \
+      /LSPRAG/experiments/projects/crawl4ai \
+      /LSPRAG/experiments/projects/crawl4ai/results_deepseek/naive_deepseek-chat
    # Expected Result
    # crawl4ai/user_agent_generator.py              94     14    85%
    # crawl4ai/utils.py                            689    349    49%
@@ -1083,7 +911,7 @@ Files saved:
 
 ## Reproduce Experiment Results (Table 4)
 
-In this section, we reproduce the experiment results of Table 4, focusing on the tokens used and the time taken. LSPAI generates log files when generating test files, and based on these log files, we summarize and analyze the costs associated with LSPAI's operations.
+In this section, we reproduce the experiment results of Table 4, focusing on the tokens used and the time taken. LSPRAG generates log files when generating test files, and based on these log files, we summarize and analyze the costs associated with LSPRAG's operations.
 
 Before proceeding, make sure you have already downloaded the provided dataset as described in this section(#option-b-use-pre-generated-dataset-recommended).
 To reproduce Table 4(CLI project with gpt-4o-mini), you should run below command :
@@ -1197,61 +1025,168 @@ python3 scripts/anal_cost.py experiments/log-data/crawl4ai/results_gpt-4o/logs/g
 For each dataset folder (e.g., `results_deepseek`, `results_gpt-4o`, and `results_gpt-4o-mini`), you will find corresponding logs folders. The structure should look like this:
 
 ```bash
-│   │   ├── results_deepseek-chat
-│   │   │   ├── history
-│   │   │   ├── logs
-│   │   │   │   ├── deepseek-chat <-- COPY the PATH of this folder!
-│   │   │   │   │   └── ... json files
+├── cost-data
+│   ├── black
+│   │   ├── history
+│   │   ├── logs
+│   │   |   ├── gpt-4o <-- COPY the PATH of this folder!
+│   │   └── results
+│   ├── cobra
+│   │   ├── history
+│   │   ├── logs
+│   │   |   ├── gpt-4o <-- COPY the PATH of this folder!
+│   │   └── results
+│   ├── commons-cli
+│   │   ├── history
+│   │   ├── logs
+│   │   |   ├── gpt-4o <-- COPY the PATH of this folder!
+│   │   └── results
+│   ├── commons-csv
+│   │   ├── history
+│   │   ├── logs
+│   │   |   ├── gpt-4o <-- COPY the PATH of this folder!
+│   │   └── results
+│   ├── logrus
+│   │   ├── history
+│   │   ├── logs
+│   │   |   ├── gpt-4o <-- COPY the PATH of this folder!
+│   │   └── results
+│   └── tornado
+│       ├── history
+│       ├── logs
+│   │   |   ├── gpt-4o <-- COPY the PATH of this folder!
+│       └── results
 ```
 Copy the absolute path of the folder marked as `<-- COPY the PATH of this folder!`, and then run the prewritten Python scripts below.
 
-To summarize the overall cost of generating unit tests for Python projects (`crawl4ai` and `black`), use the following commands:
+To summarize the overall cost of generating unit tests for Python projects (`torando` and `black`), use the following commands:
 
 ```bash 
-# Python - DS-V3 ( Remember we moved dataset files from data/ folder to project/ folder)
-python3 scripts/anal_cost.py /LSPAI/experiments/projects/black/results_deepseek/logs/deepseek-chat /LSPAI/experiments/projects/crawl4ai/results_deepseek/logs/deepseek-chat
+# Python Projects
+python scripts/anal_cost.py /LSPRAG/experiments/data/cost-data/black/logs/gpt-4o /LSPRAG/experiments/data/cost-data/tornado/logs/gpt-4o
+# Expected Results 
+# === Average Time and Token Usage per Process ===
 
-# Go - DS-V3 
-python3 scripts/anal_cost.py /LSPAI/experiments/data/logrus/results_deepseek/logs/deepseek-chat /LSPAI/experiments/data/cobra/results_deepseek/logs/deepseek-chat
+# Process                          Avg Time (ms)      Avg Tokens
+# -----------------------------------------------------------------
+# FixWithLLM_1                          13918.80         1523.17 
+# FixWithLLM_2                          15696.09         1289.48 
+# FixWithLLM_3                          13469.41         1374.65 
+# FixWithLLM_4                          16785.50         1420.42 
+# FixWithLLM_5                          15907.36         1358.64 
+# buildCFG                                  1.51            0.00 
+# collectCFGPaths                         216.11            0.00 
+# fixDiagnostics                         8456.63            0.00 
+# gatherContext                          2850.67            0.00 
+# gatherContext-1                        2555.53            0.00   ->  Retrieval(def)
+# gatherContext-2                         295.14            0.00   ->  Retrieval(ref)
+# generateTest                          15597.84         2674.69   ->  Gen
+# getContextTermsFromTokens              2291.16            0.00 
+# getDiagnosticsForFilePath              2492.42            0.00   ->  getDiagnostic
+# saveGeneratedCodeToFolder                 0.29            0.00 
+# Average Total Time Used (ms): 27339.475609756097
+# Average Total Tokens Used: 3261.3280487804877
 
-# Java - DS-V3 
-python3 scripts/anal_cost.py /LSPAI/experiments/data/commons-cli/results_deepseek/logs/deepseek-chat /LSPAI/experiments/data/commons-csv/results_deepseek/logs/deepseek-chat
+# Done.
+
+# PASTE BELOW DICTIONARY TO scripts/plot_cost.py
+# {'fix': 5591.812195121951, 'gen': 15597.84268292683, 'cfg': 217.6182926829268, 'def': 2555.5329268292685, 'ref': 295.1353658536585, 'filter': 2291.1621951219513, 'diag': 2492.423076923077, 'save': 0.28846153846153844}
+
+
+# Go Projects
+python scripts/anal_cost.py /LSPRAG/experiments/data/cost-data/logrus/logs/gpt-4o /LSPRAG/experiments/data/cost-data/cobra/logs/gpt-4o
+# Expected Results 
+# === Overall Statistics (across ALL directories) ===
+
+# Total Files Processed: 125
+# Total Time Used (ms): 4879365
+# Total Tokens Used: 604827
+# Total FixWithLLM Tokens Used: 182358
+# Total FixWithLLM Processes Run: 119
+# Average Time per Function (ms): 39034.92
+# Average Tokens per Function: 4838.62
+# Average FixWithLLM Time per Function (ms): 13101.34  -> FIX Time
+# Average FixWithLLM Tokens per Function: 1458.86   -> FIX Token
+
+# === Average Time and Token Usage per Process ===
+
+# Process                          Avg Time (ms)      Avg Tokens
+# -----------------------------------------------------------------
+# FixWithLLM_1                          14490.76         1542.74 
+# FixWithLLM_2                          12549.68         1567.39 
+# FixWithLLM_3                          12369.42         1439.08 
+# FixWithLLM_4                          14863.00         1162.00 
+# FixWithLLM_5                          13015.00         1175.00 
+# buildCFG                                  2.98            0.00 
+# collectCFGPaths                         342.00            0.00 
+# fixDiagnostics                        18209.94            0.00 
+# gatherContext                          2496.11            0.00 
+# gatherContext-1                        2251.74            0.00   ->  Retrieval(def)
+# gatherContext-2                         244.38            0.00   ->  Retrieval(ref)
+# generateTest                          18576.68         3379.75   ->  Gen
+# getContextTermsFromTokens              2334.06            0.00 
+# getDiagnosticsForFilePath              3575.64            0.00   ->  getDiagnostic
+# saveGeneratedCodeToFolder               109.77            0.00 
+# Average Total Time Used (ms): 39034.92
+# Average Total Tokens Used: 4838.616
+
+# Done.
+
+# PASTE BELOW DICTIONARY TO scripts/plot_cost.py
+# {'fix': 13101.336, 'gen': 18576.68, 'cfg': 344.976, 'def': 2251.736, 'ref': 244.376, 'filter': 2334.056, 'diag': 3575.635135135135, 'save': 109.77027027027027}
+
+
+# JAVa Projects
+python scripts/anal_cost.py /LSPRAG/experiments/data/cost-data/commons-cli/logs/gpt-4o /LSPRAG/experiments/data/cost-data/commons-csv/logs/gpt-4o
+
+# Expected Results 
+# == Overall Statistics (across ALL directories) ===
+
+# Total Files Processed: 188
+# Total Time Used (ms): 4740861
+# Total Tokens Used: 1014672
+# Total FixWithLLM Tokens Used: 611481
+# Total FixWithLLM Processes Run: 156
+# Average Time per Function (ms): 25217.35
+# Average Tokens per Function: 5397.19
+# Average FixWithLLM Time per Function (ms): 9350.85  -> FIX Time
+# Average FixWithLLM Tokens per Function: 3252.56   -> FIX Token
+
+# === Average Time and Token Usage per Process ===
+
+# Process                          Avg Time (ms)      Avg Tokens
+# -----------------------------------------------------------------
+# FixWithLLM_1                          11315.53         4482.89 
+# FixWithLLM_2                          11278.86         2949.28 
+# FixWithLLM_3                          11122.94         3531.50 
+# FixWithLLM_4                          11839.33         4950.92 
+# FixWithLLM_5                          10413.60         1296.30 
+# buildCFG                                  0.95            0.00 
+# collectCFGPaths                           2.26            0.00 
+# fixDiagnostics                        14173.65            0.00 
+# gatherContext                           695.24            0.00 
+# gatherContext-1                         417.98            0.00   ->  Retrieval(def)
+# gatherContext-2                         277.26            0.00   ->  Retrieval(ref)
+# generateTest                          11433.18         2144.63   ->  Gen
+# getContextTermsFromTokens              2072.80            0.00 
+# getDiagnosticsForFilePath              3590.28            0.00   ->  getDiagnostic
+# saveGeneratedCodeToFolder                 1.36            0.00 
+# Average Total Time Used (ms): 25217.34574468085
+# Average Total Tokens Used: 5397.191489361702
+
+# Done.
+
+# PASTE BELOW DICTIONARY TO scripts/plot_cost.py
+# {'fix': 9350.845744680852, 'gen': 11433.18085106383, 'cfg': 3.202127659574468, 'def': 417.97872340425533, 'ref': 277.25531914893617, 'filter': 2072.7978723404253, 'diag': 3590.2758620689656, 'save': 1.3563218390804597}
 ```
+
+```
+
+and copy the last printed dictionary values and past to `scripts/plot_cost.py`'s variable `data`.
+And then, run the plot_cost.py and you can see exactly same plot graph on paper.
 
 #### Interpret Result
 
-After running the above commands, you will get summarized results in the following format:
-
-```bash
-=== Overall Statistics (across ALL directories) ===
-
-Total Files Processed: 435
-Total Time Used (ms): 50501186
-Total Tokens Used: 766972
-Total FixWithLLM Tokens Used: 79256
-Total FixWithLLM Processes Run: 54
-Average Time per File (ms): 116094.68
-Average Tokens per File: 1763.15
-Average FixWithLLM Time per File (ms): 1674.84
-Average FixWithLLM Tokens per File: 182.20
-
-=== Average Time and Token Usage per Process ===
-
-Process                          Avg Time (ms)      Avg Tokens
------------------------------------------------------------------
-End                                   59194.80            0.00
-FixWithLLM_1                          11358.20         1306.88
-FixWithLLM_2                          17819.57         1805.29
-FixWithLLM_3                          20662.75         1981.25
-FixWithLLM_4                          26029.50         2466.00
-FixWithLLM_5                          14779.00         1487.00
-collectInfo                           36167.88            0.00
-getDiagnosticsForFilePath              6681.67            0.00
-invokeLLM                             12374.62         1580.96
-saveGeneratedCodeToFolder                 0.88            0.00
-start                                     0.00            0.00
-
-```
 
 Since we perform 5 rounds for each FixWithLLM process, to get the average time and tokens used for fixing the code, refer to the values under `Average FixWithLLM Time per File` and `Average FixWithLLM Tokens per File`.
 
@@ -1263,4 +1198,4 @@ Thank you for reading this experiment reproduction document! If you encounter an
 
 We are dedicated to contributing to the open-source community and welcome any contributions or recommendations!
 
-**Happy Testing with LSPAI! 🎉**
+**Happy Testing with LSPRAG! 🎉**

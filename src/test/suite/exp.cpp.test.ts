@@ -12,7 +12,7 @@ import { ProjectName } from '../../config';
 import { runGenerateTestCodeSuite } from '../../experiment';
 
 suite('Experiment Test Suite - c', () => {
-    const projectPath = "/LSPAI/experiments/projects/gpac";
+    const projectPath = "/LSPRAG/experiments/projects/gpac";
     const sampleNumber = -1;
     const languageId = 'c';
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
@@ -24,7 +24,7 @@ suite('Experiment Test Suite - c', () => {
         workspace: projectPath,
         ...privateConfig
     }
-    // let testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
+    // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
         ...currentConfig
     });

@@ -354,7 +354,7 @@ export function goSpecificEnvGen(folderName: string, language: string, srcPath: 
 }
 
 export function setTestFilesPath(projectPath: string) {
-    let testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";
+    let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";
     const projectName = path.basename(projectPath);
     if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
         testFilesPath = path.join(projectPath, SRC_PATHS[projectName as ProjectName]);

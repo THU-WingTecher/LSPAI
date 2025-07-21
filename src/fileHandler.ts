@@ -63,13 +63,13 @@ export async function readTxtFile(filePath: string): Promise<string> {
 export function getTraditionalTestDirAtCurWorkspace(language: string): string {
     const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
     if (language === 'java') {
-        return path.join(workspace, 'src', 'lspai-tests');
+        return path.join(workspace, 'src', 'lsprag-tests');
     } else if (language === 'go') {
-        return path.join(workspace, 'src', 'lspai-tests');
+        return path.join(workspace, 'src', 'lsprag-tests');
     } else if (language === 'python') {
-        return path.join(workspace, 'src', 'lspai-tests');
+        return path.join(workspace, 'src', 'lsprag-tests');
     } else {
-        return path.join(workspace, 'lspai-tests');
+        return path.join(workspace, 'lsprag-tests');
     }
 }
 
@@ -166,7 +166,7 @@ export async function saveToIntermediate(
         console.log(`Generated code saved to ${curSavePoint}`);
     } else if (language === "java") {
         await saveCode(testCode, folderName, fullFileName); // for history keeping
-        const javaTestPath = path.join(getConfigInstance().workspace, javaLspaiTestPath);
+        const javaTestPath = path.join(getConfigInstance().workspace, javaLspragTestPath);
         curSavePoint = await saveCode(testCode, javaTestPath, fullFileName);
     } else {
         curSavePoint = await saveCode(testCode, folderName, fullFileName);
@@ -185,7 +185,7 @@ export async function saveToIntermediate(
 // }
 
 // const ignoreFileNames = ['_test.go', 'Test.java', '_test.ts'];
-const ignoreDirNamesToStartWith = ['lspai', 'test'];
+const ignoreDirNamesToStartWith = ['lsprag', 'test'];
 export function findFiles(folderPath: string, Files: string[] = [], language:string, suffix:string) {
     fs.readdirSync(folderPath).forEach(file => {
         const fullPath = path.join(folderPath, file);
@@ -341,7 +341,7 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
 
 // export async function saveGeneratedCodeToSpecifiedFolder(code: string, fullfileName: string, folderName: string): Promise<string> {
 //     // We should move file to the 
-//     // ${project.basedir}/src/lspai/test/java --> to get the correct and fast diagnostics
+//     // ${project.basedir}/src/lsprag/test/java --> to get the correct and fast diagnostics
 //     // <plugin>
 //     //     <groupId>org.codehaus.mojo</groupId>
 //     //     <artifactId>build-helper-maven-plugin</artifactId>
@@ -357,7 +357,7 @@ export function getUniqueFileName(folderPath: string, baseName: string, suffix: 
 //     //                 <sources>
 //     //                     <!-- Add your additional test source directory -->
 //     //                     <source>${project.basedir}/src/test/java</source>
-//     //                     <source>${project.basedir}/src/lspai/test/java</source>
+//     //                     <source>${project.basedir}/src/lsprag/test/java</source>
 //     //                 </sources>
 //     //             </configuration>
 //     //         </execution>
@@ -403,7 +403,7 @@ export function eraseContent(filePath: string): void {
 //             fullFileName,
 //             folderName
 //         );
-//         const javaTestPath = path.join(getConfigInstance().workspace, javaLspaiTestPath);
+//         const javaTestPath = path.join(getConfigInstance().workspace, javaLSPRAGTestPath);
 //         curSavePoint = await saveGeneratedCodeToSpecifiedFolder(
 //             testCode,
 //             fullFileName,
@@ -426,7 +426,7 @@ export function generateTimestampString(): string {
         .replace(/[/,: ]/g, '_');
 }
 
-const javaLspaiTestPath = path.join('src', 'lspai', 'test', 'java');
+const javaLspragTestPath = path.join('src', 'lsprag', 'test', 'java');
 export function getFileName(fullFileName: string) {
 	const savePath = path.join(getConfigInstance().savePath);
 	const fileName = fullFileName.split(savePath)[1];

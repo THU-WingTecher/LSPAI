@@ -19,7 +19,7 @@ export TARGET_PROJECT_PATH
 TEST_DIR=$2
 REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
 CLEAN_DIR=${4:-"${TEST_DIR}-clean"}  # Default value if not provided
-SCRIPT_PATH="/LSPAI/scripts/go_clean.py"
+SCRIPT_PATH="/LSPRAG/scripts/go_clean.py"
 # Copy go.mod and go.sum files into TEST_DIR
 if [ ! -f "$TARGET_PROJECT_PATH/go.mod" ]; then
     echo "Error: go.mod file not found in target project path."
@@ -272,7 +272,7 @@ func_success_rate=$(awk "BEGIN {printf \"%.2f\", ($passed_funcs / $total_funcs) 
 echo "====================="
 
 echo "Coverage Report: ${REPORT_DIR}/coverage.out"
-python3 /LSPAI/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
+python3 /LSPRAG/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
 echo "====================="
 
 echo "Printing valid rate:"

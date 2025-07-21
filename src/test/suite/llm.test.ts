@@ -9,7 +9,7 @@ import path from 'path';
 import { invokeLLM } from '../../invokeLLM';
 suite('LLM invoke Test Suite', () => {
 
-    const projectPath = "/LSPAI/experiments/projects/commons-csv";
+    const projectPath = "/LSPRAG/experiments/projects/commons-csv";
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
         // model: 'deepseek-coder',

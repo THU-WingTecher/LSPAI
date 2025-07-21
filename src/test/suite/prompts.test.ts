@@ -18,7 +18,7 @@ import { generateTestWithContextWithCFG } from '../../prompts/promptBuilder';
 import { ContextTerm, getContextSelectorInstance } from '../../agents/contextSelector';
 
 suite('Experiment Test Suite', () => {
-    const projectPath = "/LSPAI/experiments/projects/black";
+    const projectPath = "/LSPRAG/experiments/projects/black";
     const workspaceFolders = setWorkspaceFolders(projectPath);
     console.log('test-config path', path.join(__dirname, '../../../test-config.json'));
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
@@ -35,7 +35,7 @@ suite('Experiment Test Suite', () => {
         savePath: path.join(__dirname, '../../../test-results', projectName, 'gpt-4o-mini'),
         ...privateConfig
     }
-    // let testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
+    // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
         ...currentConfig
     });

@@ -16,7 +16,7 @@ suite('Utils Test Suite', () => {
 
     let currentSrcPath: string;
     let symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[];
-    const projectPath = "/LSPAI/experiments/projects/commons-csv";
+    const projectPath = "/LSPRAG/experiments/projects/commons-csv";
     const workspaceFolders = setWorkspaceFolders(projectPath);
     vscode.workspace.updateWorkspaceFolders(0, 1, {
         uri: vscode.Uri.file(projectPath),

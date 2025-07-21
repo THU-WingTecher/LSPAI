@@ -21,9 +21,9 @@ suite('Context Selector Agent Tests', () => {
     
     // Update config with source path
     
-    // const projectPath = "/LSPAI/experiments/projects/commons-cli";
+    // const projectPath = "/LSPRAG/experiments/projects/commons-cli";
     // const workspaceFolders = setWorkspaceFolders(projectPath);
-    // let testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli/GnuParser.java";  
+    // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli/GnuParser.java";  
     // const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     // const currentConfig = {
     //     model: 'gpt-4o-mini',
@@ -55,7 +55,7 @@ suite('Context Selector Agent Tests', () => {
             console.log('activate');
             await activate();
         }
-        const pyProjectPath = "/LSPAI/experiments/projects/black";
+        const pyProjectPath = "/LSPRAG/experiments/projects/black";
         const blackModuleImportPath = [path.join(pyProjectPath, "src/black"), path.join(pyProjectPath, "src/blackd"), path.join(pyProjectPath, "src/blib2to3"), path.join(pyProjectPath, "src")];
         // await setPythonExtraPaths(blackModuleImportPath);
 
@@ -114,7 +114,7 @@ suite('Context Selector Agent Tests', () => {
     //     languageId = "java";
     //     const fileName = "DefaultParser.java";
     //     const symbolName = "handleConcatenatedOptions";
-    //     const javaProjectPath = "/LSPAI/experiments/projects/commons-cli";
+    //     const javaProjectPath = "/LSPRAG/experiments/projects/commons-cli";
     //     const workspaceFolders = setWorkspaceFolders(javaProjectPath);
     //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
     //     symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, languageId);

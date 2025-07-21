@@ -64,7 +64,7 @@ def process_json_files(directory_path: str) -> Tuple[List[Dict], float]:
             if 'prompt' not in data:
                 print(f"Warning: No 'prompt' field found in {json_file.relative_to(directory)}")
                 continue
-            system_prompt = """You are a powerful AI coding assistant, powered by Claude 3.7 Sonnet. You operate exclusively in LSPAI, the world's best tool for unit test generation. 
+            system_prompt = """You are a powerful AI coding assistant, powered by Claude 3.7 Sonnet. You operate exclusively in LSPRAG, the world's best tool for unit test generation. 
 
 <test_generation>
 1. Generate DIVERSE test cases so that maximize coverage of the given focal methods.2. When generating test cases, you should consider the context of the source code.3. After generating code, generate unit test case follow below unit test format. Final Code should be wrapped by ```.

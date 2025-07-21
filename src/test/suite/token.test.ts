@@ -19,7 +19,7 @@ suite('Token collecting test - python', () => {
     // Test file path - adjust this to point to a real file in your test fixture
     
     // Update config with source path
-    const projectPath = "/LSPAI/experiments/projects/black";
+    const projectPath = "/LSPRAG/experiments/projects/black";
     const privateConfig = loadPrivateConfig(path.join(__dirname, '../../../test-config.json'));
     const currentConfig = {
         model: 'gpt-4o-mini',
@@ -149,7 +149,7 @@ suite('Token collecting test - python', () => {
         const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src")];
         await setPythonExtraPaths(blackModuleImportPath);
         const fileName = "brackets.py";
-        const pyProjectPath = "/LSPAI/experiments/projects/black";
+        const pyProjectPath = "/LSPRAG/experiments/projects/black";
         const workspaceFolders = setWorkspaceFolders(pyProjectPath);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
         const symbolName = "is_split_before_delimiter";

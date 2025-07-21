@@ -13,27 +13,27 @@ import { collectRelatedInfo } from '../../collectDiagnosticInfo';
 suite('Diagnostic Test Suite', () => {
     // let currentSrcPath: string;
     // let symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[];
-    // const projectPath = "/LSPAI/experiments/projects/cobra";
+    // const projectPath = "/LSPRAG/experiments/projects/cobra";
     // const workspaceFolders = setWorkspaceFolders(projectPath);
     // const currentConfig = {
     //     model: 'gpt-4o-mini',
     //     expProb: 0.2,
     //     workspace: projectPath,
     //     parallelCount: 1,
-    //     savePath: "/LSPAI/experiments/projects/commons-csv/results_experimental_detailed_3_23_2025__07_14_11",
+    //     savePath: "/LSPRAG/experiments/projects/commons-csv/results_experimental_detailed_3_23_2025__07_14_11",
     // }
     // getConfigInstance().updateConfig({
     //     ...currentConfig
     // });
     
-    // // const testPath = "/LSPAI/experiments/projects/commons-cli/compilation_analysis/deepseek_only_failures/deepseek-reasoner/OptionValidator_search1Test.java"
-    const pythonPath = "/LSPAI/experiments/projects/black/results_agent_nofix_5_3_2025__09_22_09/gpt-4o-mini/initial/parse__addtoken_0_1_test.py";
-    const importTestPath = "/LSPAI/tests/import_test.py";
-    const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
-    const blackModuleImportPath = "/LSPAI/experiments/projects/black/src/black";
-    const javaPath = "/LSPAI/experiments/projects/commons-cli/src/lspai/test/java/org/apache/commons/cli/AbstractParserTestCase.java";
-    const goPath = "/LSPAI/experiments/projects/cobra/bash_completions.go";
-    const goPath1 = "/LSPAI/experiments/projects/cobra/testCaseWithLSPAI/gpt-4o-mini/args_ExactArgs1_test.go";
+    // // const testPath = "/LSPRAG/experiments/projects/commons-cli/compilation_analysis/deepseek_only_failures/deepseek-reasoner/OptionValidator_search1Test.java"
+    const pythonPath = "/LSPRAG/experiments/projects/black/results_agent_nofix_5_3_2025__09_22_09/gpt-4o-mini/initial/parse__addtoken_0_1_test.py";
+    const importTestPath = "/LSPRAG/tests/import_test.py";
+    const pythonInterpreterPath = "/root/miniconda3/envs/lsprag/bin/python";
+    const blackModuleImportPath = "/LSPRAG/experiments/projects/black/src/black";
+    const javaPath = "/LSPRAG/experiments/projects/commons-cli/src/lsprag/test/java/org/apache/commons/cli/AbstractParserTestCase.java";
+    const goPath = "/LSPRAG/experiments/projects/cobra/bash_completions.go";
+    const goPath1 = "/LSPRAG/experiments/projects/cobra/testCaseWithLSPRAG/gpt-4o-mini/args_ExactArgs1_test.go";
 
     // test('JAVA - test language server has launched', async () => {
     //     const symbols = await getAllSymbols(vscode.Uri.file(javaPath));
@@ -63,7 +63,7 @@ suite('Diagnostic Test Suite', () => {
     });
 
     // test('GO - test language server has launched', async () => {
-    //     const projectPath = "/LSPAI/experiments/projects/cobra";
+    //     const projectPath = "/LSPRAG/experiments/projects/cobra";
     //     const workspaceFolders = await setWorkspaceFolders(projectPath);
     //     console.log('workspaceFolders', vscode.workspace.workspaceFolders);
     //     // before update we first inspect whether the workspace forders already has our new workspace Folders 
@@ -97,7 +97,7 @@ suite('Diagnostic Test Suite', () => {
     // });
 
     // test('GO - test diagnostic against go code with all diagnostics', async () => {
-    //     const dirPath = "/LSPAI/experiments/projects/cobra/lspai-workspace/standardRag_gpt-4o-mini_20250601_163458/codes";
+    //     const dirPath = "/LSPRAG/experiments/projects/cobra/lsprag-workspace/standardRag_gpt-4o-mini_20250601_163458/codes";
 
     //     const fileUri = vscode.Uri.file(goPath);
     //     const result = await getDiagnosticsForFilePath(dirPath);
@@ -121,13 +121,13 @@ suite('Diagnostic Test Suite', () => {
 
     // test('JAVA - test diagnostic against java code', async () => {
     //     const languageId = 'java';
-    //     const dirPath = "/LSPAI/experiments/projects/commons-cli/src/lspai/test/java";
-    //     const workspacePath = "/LSPAI/experiments/projects/commons-cli";
+    //     const dirPath = "/LSPRAG/experiments/projects/commons-cli/src/lsprag/test/java";
+    //     const workspacePath = "/LSPRAG/experiments/projects/commons-cli";
     //     const workspaceFolders = setWorkspaceFolders(workspacePath);
     //     await updateWorkspaceFolders(workspaceFolders);
     //     // const oldJavaConfig = await getJavaConfiguration();
     //     // console.log('oldJavaConfig', oldJavaConfig);
-    //     await addJavaSourcePath('/LSPAI/experiments/projects/commons-cli/src/lspai/test/java');
+    //     await addJavaSourcePath('/LSPRAG/experiments/projects/commons-cli/src/lsprag/test/java');
     //     // await vscode.commands.executeCommand('java.clean.workspace');
     //     // await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for clean operation
     //     // await vscode.commands.executeCommand('java.projectConfiguration.update');
@@ -153,7 +153,7 @@ suite('Diagnostic Test Suite', () => {
 
     //     // Get all code files
     //     const codeFiles = await getAllCodeFiles(dirPath);
-    //     // const codeFiles = ["/LSPAI/experiments/projects/commons-cli/src/lspai/test/java/org/apache/commons/cli/Option_getValue_0_1Test.java"];
+    //     // const codeFiles = ["/LSPRAG/experiments/projects/commons-cli/src/lsprag/test/java/org/apache/commons/cli/Option_getValue_0_1Test.java"];
     //     const allContextInfo: { [filepath: string]: string } = {};
     //     const srcPath = path.join(workspacePath, "src/main/java");
 
@@ -203,11 +203,11 @@ suite('Diagnostic Test Suite', () => {
     // });
     test('PYTHON - test diagnostic against python code', async () => {
         const languageId = 'python';
-        const focalDoc = await vscode.workspace.openTextDocument(vscode.Uri.file("/LSPAI/experiments/projects/black/src/black/cache.py"));
-        const dirPath = "/LSPAI/experiments/projects/black/lspai-workspace/standardRag_gpt-4o-mini_20250601_154022/codes";
-        const workspacePath = "/LSPAI/experiments/projects/black";
+        const focalDoc = await vscode.workspace.openTextDocument(vscode.Uri.file("/LSPRAG/experiments/projects/black/src/black/cache.py"));
+        const dirPath = "/LSPRAG/experiments/projects/black/lsprag-workspace/standardRag_gpt-4o-mini_20250601_154022/codes";
+        const workspacePath = "/LSPRAG/experiments/projects/black";
         const workspaceFolders = setWorkspaceFolders(workspacePath);
-        const focalMethodPath = "/LSPAI/experiments/projects/black/src/black/main.py";
+        const focalMethodPath = "/LSPRAG/experiments/projects/black/src/black/main.py";
         await updateWorkspaceFolders(workspaceFolders);
         // const oldJavaConfig = await getJavaConfiguration();
         async function getAllCodeFiles(dir: string): Promise<string[]> {
@@ -227,7 +227,7 @@ suite('Diagnostic Test Suite', () => {
 
         // Get all code files
         const codeFiles = await getAllCodeFiles(dirPath);
-        // const codeFiles = ["/LSPAI/experiments/projects/commons-cli/src/lspai/test/java/org/apache/commons/cli/Option_getValue_0_1Test.java"];
+        // const codeFiles = ["/LSPRAG/experiments/projects/commons-cli/src/lsprag/test/java/org/apache/commons/cli/Option_getValue_0_1Test.java"];
         const allContextInfo: { [filepath: string]: string } = {};
         const srcPath = path.join(workspacePath, "src");
 
@@ -278,8 +278,8 @@ suite('Diagnostic Test Suite', () => {
 
     // test('GO - test diagnostic against go code', async () => {
     //     const languageId = 'go';
-    //     const dirPath = "/LSPAI/experiments/projects/cobra/lspai-workspace/standardRag_gpt-4o-mini_20250601_163458/codes";
-    //     const workspacePath = "/LSPAI/experiments/projects/cobra";
+    //     const dirPath = "/LSPRAG/experiments/projects/cobra/lsprag-workspace/standardRag_gpt-4o-mini_20250601_163458/codes";
+    //     const workspacePath = "/LSPRAG/experiments/projects/cobra";
     //     // Helper function to get all code files recursively
     //     async function getAllCodeFiles(dir: string): Promise<string[]> {
     //         const files: string[] = [];
@@ -379,7 +379,7 @@ suite('Diagnostic Test Suite', () => {
     //     assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
     // });
     // test('Fix Prompt Test', async () => {
-    //     const dirPath = "/LSPAI/experiments/projects/commons-csv/src/lspai/test/java";
+    //     const dirPath = "/LSPRAG/experiments/projects/commons-csv/src/lsprag/test/java";
     //     let javaFiles: string[] = [];
     //     try {
     //         javaFiles = await getJavaFiles(dirPath);
@@ -423,7 +423,7 @@ suite('Diagnostic Test Suite', () => {
     // });
 
     // test('should group diagnostics by message', async () => {
-    //     const dirPath = "/LSPAI/experiments/projects/commons-csv/src/lspai/test/java";
+    //     const dirPath = "/LSPRAG/experiments/projects/commons-csv/src/lsprag/test/java";
     //     let javaFiles: string[] = [];
     //     try {
     //         javaFiles = await getJavaFiles(dirPath);
@@ -575,18 +575,18 @@ async function addJavaSourcePath(newPath: string): Promise<void> {
     }
 }
 
-// Usage to add 'lspai/test' to source paths
+// Usage to add 'lsprag/test' to source paths
 
 // async function updateWorkspaceForDiagnostics(testPath: string) {
 //     // 1. Create a temporary symbolic link in the project's test directory
-//     const projectTestDir = '/LSPAI/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/';
+//     const projectTestDir = '/LSPRAG/experiments/projects/commons-csv/src/test/java/org/apache/commons/csv/';
 //     const testFileName = path.basename(testPath);
 //     const linkedPath = path.join(projectTestDir, testFileName);
 
 //     // 2. Update workspace folders to include both paths
 //     const workspaceFolders: vscode.WorkspaceFolder[] = [
 //         {
-//             uri: vscode.Uri.file('/LSPAI/experiments/projects/commons-csv'),
+//             uri: vscode.Uri.file('/LSPRAG/experiments/projects/commons-csv'),
 //             name: 'commons-csv',
 //             index: 0
 //         }

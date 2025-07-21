@@ -1,7 +1,7 @@
 #!/bin/bash
 # set -x
 #!/bin/bash
-# overall statements : 588(go test -cover -coverprofile=cov.out, /LSPAI/experiments/logrus# python3 /LSPAI/interpret_go_out.py cov.out)
+# overall statements : 588(go test -cover -coverprofile=cov.out, /LSPRAG/experiments/logrus# python3 /LSPRAG/interpret_go_out.py cov.out)
 # Check if the required parameters are provided
 if [ -z "$1" ]; then
     echo "Error: Target project path is missing."

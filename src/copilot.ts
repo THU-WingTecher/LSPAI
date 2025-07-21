@@ -34,7 +34,7 @@ export async function copilotServer() : Promise<MessageConnection> {
   const copilotProcess: ChildProcess = spawn(
     'node',
     [
-      '/LSPAI/node_modules/@github/copilot-language-server/dist/language-server.js',
+      '/LSPRAG/node_modules/@github/copilot-language-server/dist/language-server.js',
       '--stdio',
     ],
     {
@@ -610,7 +610,7 @@ async function main() {
   //   console.error(`Failed to create test file "${testFileName}":`, err);
   //   return;
   // }
-  const docUri = '/LSPAI/src/copilot.ts'; // adapt to your local file
+  const docUri = '/LSPRAG/src/copilot.ts'; // adapt to your local file
   const docText = `function greet(name: string) {\n  return "Hello, " + name;\n}\n\n`;  
   openTextDocument(connection, docUri, docText);
 

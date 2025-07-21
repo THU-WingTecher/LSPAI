@@ -11,7 +11,7 @@ suite('Context and Prompt Tests', () => {
     // const testFilesPath = path.join(__dirname, '../../../testFixture');
     const workspaceFolders = [
         {
-            uri: vscode.Uri.file('/LSPAI/experiments/projects/commons-cli'),
+            uri: vscode.Uri.file('/LSPRAG/experiments/projects/commons-cli'),
             name: 'commons-cli',
             index: 0
         }
@@ -19,8 +19,8 @@ suite('Context and Prompt Tests', () => {
     
     // Update the workspace folders
 
-    const testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli"
-    getConfigInstance().updateConfig({ workspace: "/LSPAI/experiments/projects/commons-cli" });
+    const testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli"
+getConfigInstance().updateConfig({ workspace: "/LSPRAG/experiments/projects/commons-cli" });
     //set vscode.workspace.workspaceFolders to srcPath
     // Ensure the test directory exists
     if (!fs.existsSync(testFilesPath)) {

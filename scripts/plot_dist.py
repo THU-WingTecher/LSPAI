@@ -10,7 +10,7 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 # 1. Gather all JSON files
 # Adjust the pattern to match your actual file paths or naming scheme
-json_files = glob.glob("/LSPAI/experiments/data/**/taskList.json")
+json_files = glob.glob("/LSPRAG/experiments/data/**/taskList.json")
 assert len(json_files) == 6, f"Expected 6 JSON files, got {len(json_files)}"
 data = []
 

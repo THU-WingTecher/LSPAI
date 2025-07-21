@@ -124,7 +124,7 @@ export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
             throw new Error('Missing required API keys and URLs. Please set them either through environment variables or test-config.json');
         }
     }
-    const config = vscode.workspace.getConfiguration('LSPAI');
+    const config = vscode.workspace.getConfiguration('LSPRAG');
     const globalConfig = vscode.workspace.getConfiguration('http');
     const globalProxy = globalConfig.get<string>('proxy') || '';
     
@@ -157,7 +157,7 @@ const DEFAULT_CONFIG = {
     fixType: FixType.ORIGINAL,
     generationType: GenerationType.ORIGINAL,
     maxRound: 5,
-    savePath: 'lspai-tests'
+    savePath: 'lsprag-tests'
 };
  // Add private configuration interface
  export interface PrivateConfig {
@@ -227,7 +227,7 @@ export class Configuration {
     }
 
     private handleConfigurationChange(event: vscode.ConfigurationChangeEvent): void {
-        if (event.affectsConfiguration('LSPAI')) {
+        if (event.affectsConfiguration('LSPRAG')) {
             console.log('Configuration changed, reloading...');
             this.config = this.loadConfiguration();
             this.logAllConfig();
@@ -356,7 +356,7 @@ export class Configuration {
                 savePath: DEFAULT_CONFIG.savePath
             };
         } else {
-            const config = vscode.workspace.getConfiguration('LSPAI');
+            const config = vscode.workspace.getConfiguration('LSPRAG');
             const globalConfig = vscode.workspace.getConfiguration('http');
             const globalProxy = globalConfig.get<string>('proxy') || '';
             return {
@@ -386,7 +386,7 @@ export class Configuration {
     
     private constructResultPath(): string {
         return path.join(
-            "lspai-workspace",
+            "lsprag-workspace",
             this.startTimestamp,
             this.projectName,
             this.generationType + "_" + this.promptType + "_" + this.fixType,

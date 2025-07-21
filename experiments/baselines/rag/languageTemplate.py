@@ -110,7 +110,7 @@ if __name__ == '__main__':
     @staticmethod
     def generate_system_prompt():
         return f"""
-You are a powerful AI coding assistant, powered by Claude 3.7 Sonnet. You operate exclusively in LSPAI, the world's best tool for unit test generation. 
+You are a powerful AI coding assistant, powered by Claude 3.7 Sonnet. You operate exclusively in LSPRAG, the world's best tool for unit test generation. 
 
 <test_generation>
 1. Generate DIVERSE test cases so that maximize coverage of the given focal methods.

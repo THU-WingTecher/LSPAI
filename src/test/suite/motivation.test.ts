@@ -13,7 +13,7 @@ suite('Utils Test Suite', () => {
 
     let currentSrcPath: string;
     let symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[];
-    const projectPath = "/LSPAI/experiments/projects/commons-cli";
+    const projectPath = "/LSPRAG/experiments/projects/commons-cli";
     const workspaceFolders = setWorkspaceFolders(projectPath);
     vscode.workspace.updateWorkspaceFolders(0, 1, {
         uri: vscode.Uri.file(projectPath),
@@ -47,7 +47,7 @@ suite('Utils Test Suite', () => {
             expProb: 1,
         });
 
-        const tasklistPath = `/LSPAI/experiments/settings/${projectName}/tasklist.json`
+        const tasklistPath = `/LSPRAG/experiments/settings/${projectName}/tasklist.json`
 
         if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
             currentSrcPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);

@@ -1,13 +1,13 @@
-# LSPAI - Intelligent Unit Test Generation
+# LSPRAG - Intelligent Unit Test Generation
 
 <p align="center">
     <!-- <a href="https://arxiv.org/abs/2302.02261"><img src="https://img.shields.io/badge/arXiv-2302.02261-b31b1b.svg?style=for-the-badge"> -->
     <a href="https://doi.org/10.1145/3696630.3728540"><img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.8319975-8A2BE2?style=for-the-badge">
     <a href="https://github.com/THU-WingTecher/DeepConstr/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge"></a>
-    <a href="https://hub.docker.com/repository/docker/gwihwan/lspai/tags"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white"></a>
+    <a href="https://hub.docker.com/repository/docker/gwihwan/lsprag/tags"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white"></a>
 </p>
 
-LSPAI is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP) integration. Generate high-quality unit tests automatically and in real-time for multiple programming languages.
+LSPRAG is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP) integration. Generate high-quality unit tests automatically and in real-time for multiple programming languages.
 
 ## ✨ Key Features
 
@@ -54,20 +54,20 @@ Legend:
 
 ### 2. Configure LLM Settings
 
-LSPAI supports multiple LLM providers. Configure your preferred option in VS Code settings:
+LSPRAG supports multiple LLM providers. Configure your preferred option in VS Code settings:
 
 1. Open VS Code Settings (Ctrl/Cmd + ,)
 2. Configure LLM settings using one of these methods:
 
    **Option A: Through VS Code Settings UI**
-   - Search for "LSPAI" settings
+   - Search for "LSPRAG" settings
    - Configure your preferred model and API keys
 
    **Option B: Direct JSON Configuration**
    Add the following to your VS Code User Settings (settings.json):
    ```json
    {
-     "LSPAI": {
+     "LSPRAG": {
        "provider": "deepseek",
        "model": "deepseek-chat",  // Choose: // gpt-4o-mini"; // llama3-70b // deepseek-chat
        "openaiApiKey": "your-api-key",    // Required for OpenAI
@@ -83,12 +83,12 @@ LSPAI supports multiple LLM providers. Configure your preferred option in VS Cod
 
 Now you are ready!! 
 
-To generate unit tests with LSPAI:
+To generate unit tests with LSPRAG:
 
 1. Open your workspace in VS Code
 2. Navigate to the function/method you want to test
 3. Right-click within the function definition
-4. Select "LSPAI::Generate Unit Test" from the context menu
+4. Select "LSPRAG::Generate Unit Test" from the context menu
 ![Unit Test Generation Example](doc/assets/simulateExampleFig.png)
 5. Wait for the test generation to complete( it may take 30-40 seconds )
 ![Unit Test Generation Example](doc/assets/loadingFig.png)
@@ -99,7 +99,7 @@ To generate unit tests with LSPAI:
 
 
 ## 🛠️ Experiment Reproduction Guide
-LSPAI is published under FSE-Industry'25 track ( Title : LSPAI: An IDE Plugin for LLM-Powered Multi-Language Unit Test Generation with Language Server Protocol ). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).
+LSPRAG is published under FSE-Industry'25 track ( Title : LSPRAG: An IDE Plugin for LLM-Powered Multi-Language Unit Test Generation with Language Server Protocol ). For detailed instructions on reproducing our experimental results, please refer to our [Experiments Documentation](./doc/ExperimentReproduction.md).
 
 The experiments documentation includes:
 - Dataset preparation steps
@@ -110,11 +110,11 @@ The experiments documentation includes:
 
 <!-- ## ⚙️ Extension Settings
 
-Configure LSPAI through VS Code settings:
+Configure LSPRAG through VS Code settings:
 
-* `lspai.enable`: Enable/disable automatic test generation
-* `lspai.coverage.threshold`: Set minimum coverage threshold
-* `lspai.languages`: Configure supported languages -->
+* `lsprag.enable`: Enable/disable automatic test generation
+* `lsprag.coverage.threshold`: Set minimum coverage threshold
+* `lsprag.languages`: Configure supported languages -->
 
 ## 🔍 Known Issues
 
@@ -143,4 +143,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-**Happy Testing with LSPAI! 🎉**
+**Happy Testing with LSPRAG! 🎉**

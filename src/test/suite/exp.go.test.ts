@@ -12,7 +12,7 @@ import { ProjectName } from '../../config';
 import { runGenerateTestCodeSuite } from '../../experiment';
 
 suite('Experiment Test Suite - GO', async () => {
-    const projectPath = "/LSPAI/experiments/projects/cobra";
+    const projectPath = "/LSPRAG/experiments/projects/cobra";
     const workspaceFolders = await setWorkspaceFolders(projectPath);
     await updateWorkspaceFolders(workspaceFolders);
     const sampleNumber = 2;
@@ -26,7 +26,7 @@ suite('Experiment Test Suite - GO', async () => {
         workspace: projectPath,
         ...privateConfig
     }
-    // let testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
+    // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
         ...currentConfig
     });

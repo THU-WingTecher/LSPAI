@@ -19,7 +19,7 @@ export TARGET_PROJECT_PATH
 TEST_DIR=$2
 REPORT_DIR=${3:-"${TEST_DIR}-report"}  # Default value if not provided
 CLEAN_DIR=${4:-"${TEST_DIR}-clean"}  # Default value if not provided
-SCRIPT_PATH="/LSPAI/scripts/go_clean.py"
+SCRIPT_PATH="/LSPRAG/scripts/go_clean.py"
 # Copy go.mod and go.sum files into TEST_DIR
 if [ ! -f "$TARGET_PROJECT_PATH/go.mod" ]; then
     echo "Error: go.mod file not found in target project path."
@@ -34,8 +34,8 @@ fi
 cp "$TARGET_PROJECT_PATH/go.mod" "$TEST_DIR/"
 cp "$TARGET_PROJECT_PATH/go.sum" "$TEST_DIR/"
 cd "$TARGET_PROJECT_PATH"
-rsync -R $(find . -name "*.go" ! -name "*test.go" ! -path "*lspai*") "$TEST_DIR/"
-cd /LSPAI
+rsync -R $(find . -name "*.go" ! -name "*test.go" ! -path "*lsprag*") "$TEST_DIR/"
+cd /LSPRAG
 total_files=$(find "$TEST_DIR" -type f -name "*_test.go" | wc -l)
 
 if [[ "$TARGET_PROJECT_PATH" == *logrus ]]; then
@@ -281,5 +281,5 @@ echo "-------------------"
 echo "-------------------"
 
 echo "Coverage Report: ${REPORT_DIR}/coverage.out"
-python3 /LSPAI/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
+python3 /LSPRAG/scripts/interpret_go_out.py ${REPORT_DIR}/coverage.out
 echo "-------------------"

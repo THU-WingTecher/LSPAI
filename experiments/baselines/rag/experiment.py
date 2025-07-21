@@ -91,7 +91,7 @@ class ExperimentPipeline:
         self.project_path = project_path
         self.output_dir = os.path.join(
             self.project_path,
-            "lspai-workspace",
+            "LSPRAG-workspace",
             f"{generationType}_{model}_{self.generate_timestamp_string()}"
         )
         self.results = []
@@ -266,8 +266,8 @@ class ExperimentPipeline:
 if __name__ == "__main__":
     MODEL = "gpt-4o-mini"
     language = "java"
-    task_list_path = "/LSPAI/experiments/projects/commons-cli/lspai-workspace/5_12_2025__05_29_28/commons-cli/experimental_withcontext_original/gpt-4o-mini/results/taskList.json"
-    project_path = "/LSPAI/experiments/projects/commons-cli"
+    task_list_path = "/LSPRAG/experiments/projects/commons-cli/LSPRAG-workspace/5_12_2025__05_29_28/commons-cli/experimental_withcontext_original/gpt-4o-mini/results/taskList.json"
+    project_path = "/LSPRAG/experiments/projects/commons-cli"
     generationType = "Baseline"
 
     if project_path.endswith("commons-cli"):

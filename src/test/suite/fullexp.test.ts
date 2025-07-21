@@ -48,61 +48,61 @@ const GENERATION_TYPES = [
 // Project configurations
 const GO_PROJECTS: ProjectConfig[] = [
     {
-        path: "/LSPAI/experiments/projects/logrus",
+        path: "/LSPRAG/experiments/projects/logrus",
         languageId: 'go',
         name: 'logrus',
-        tasklist: '/LSPAI/experiments/config/logrus-taskList.json',
+        tasklist: '/LSPRAG/experiments/config/logrus-taskList.json',
     },
     {
-        path: "/LSPAI/experiments/projects/cobra",
+        path: "/LSPRAG/experiments/projects/cobra",
         languageId: 'go',
         name: 'cobra',
-        tasklist: '/LSPAI/experiments/config/cobra-taskList.json',
+        tasklist: '/LSPRAG/experiments/config/cobra-taskList.json',
     }
 ];
 
 const JAVA_PROJECTS: ProjectConfig[] = [
     {
-        path: "/LSPAI/experiments/projects/commons-cli",
+        path: "/LSPRAG/experiments/projects/commons-cli",
         languageId: 'java',
         name: 'commons-cli',
-        tasklist: '/LSPAI/experiments/config/commons-cli-taskList.json',
+        tasklist: '/LSPRAG/experiments/config/commons-cli-taskList.json',
     },
     {
-        path: "/LSPAI/experiments/projects/commons-csv",
+        path: "/LSPRAG/experiments/projects/commons-csv",
         languageId: 'java',
         name: 'commons-csv',
-        tasklist: '/LSPAI/experiments/config/commons-csv-taskList.json',
+        tasklist: '/LSPRAG/experiments/config/commons-csv-taskList.json',
     }
 ];
 
 const PYTHON_PROJECTS: ProjectConfig[] = [
     {
-        path: "/LSPAI/experiments/projects/black",
+        path: "/LSPRAG/experiments/projects/black",
         languageId: 'python',
         name: 'black',
         settings: {
-            pythonPath: "/root/miniconda3/envs/lspai/bin/python",
+            pythonPath: "/root/miniconda3/envs/lsprag/bin/python",
             extraPaths: [
-                path.join("/LSPAI/experiments/projects/black", "src/black"), 
-                path.join("/LSPAI/experiments/projects/black", "src/blackd"), 
-                path.join("/LSPAI/experiments/projects/black", "src/blib2to3"), 
-                path.join("/LSPAI/experiments/projects/black", "src")  
+                path.join("/LSPRAG/experiments/projects/black", "src/black"), 
+                path.join("/LSPRAG/experiments/projects/black", "src/blackd"), 
+                path.join("/LSPRAG/experiments/projects/black", "src/blib2to3"), 
+                path.join("/LSPRAG/experiments/projects/black", "src")  
             ]
         },
-        tasklist: '/LSPAI/experiments/config/black-taskList.json',
+        tasklist: '/LSPRAG/experiments/config/black-taskList.json',
     },
     {
-        path: "/LSPAI/experiments/projects/tornado",
+        path: "/LSPRAG/experiments/projects/tornado",
         languageId: 'python',
         name: 'tornado',
         settings: {
-                pythonPath: "/root/miniconda3/envs/lspai/bin/python",
+                pythonPath: "/root/miniconda3/envs/lsprag/bin/python",
                 extraPaths: [
-                    path.join("/LSPAI/experiments/projects/tornado", "tornado"),    
+                    path.join("/LSPRAG/experiments/projects/tornado", "tornado"),    
                 ]
             },
-        tasklist: '/LSPAI/experiments/config/tornado-taskList.json',
+        tasklist: '/LSPRAG/experiments/config/tornado-taskList.json',
         },
 ];
 

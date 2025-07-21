@@ -18,9 +18,9 @@ import { getContextTermsFromTokens } from '../../tokenAnalyzer';
 import { getContextSelectorInstance, ContextTerm } from '../../agents/contextSelector';
 
 suite('Experiment Test Suite', () => {
-    const pythonInterpreterPath = "/root/miniconda3/envs/lspai/bin/python";
-    const projectPath = "/LSPAI/experiments/projects/tornado";
-    const taskListPath = '/LSPAI/experiments/config/tornado-taskList.json'
+    const pythonInterpreterPath = "/root/miniconda3/envs/lsprag/bin/python";
+    const projectPath = "/LSPRAG/experiments/projects/tornado";
+    const taskListPath = '/LSPRAG/experiments/config/tornado-taskList.json'
     const pyExtraPath = [path.join(projectPath, "tornado"), projectPath];
     const sampleNumber = -1;
     const languageId = "python";
@@ -33,7 +33,7 @@ suite('Experiment Test Suite', () => {
         workspace: projectPath,
         ...privateConfig
     }
-    // let testFilesPath = "/LSPAI/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
+    // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
         ...currentConfig
     });
