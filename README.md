@@ -10,7 +10,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3.3+-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
-[![Docker](https://img.shields.io/badge/Docker-0db7ed-blue.svg?logo=docker&logoColor=white)](https://hub.docker.com/repository/docker/gwihwan/lsprag/tags)
 
 </div>
 
