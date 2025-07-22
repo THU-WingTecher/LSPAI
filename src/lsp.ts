@@ -91,7 +91,7 @@ export async function getSymbolByLocation(document: vscode.TextDocument, locatio
  */
 export async function activate(docUri: vscode.Uri | undefined = undefined) {
 	// The extensionId is `publisher.name` from package.json
-	const ext = vscode.extensions.getExtension('GwihwanGo.LSPRAG');
+	const ext = vscode.extensions.getExtension('ANONYMOUS.LSPRAG');
 	if (!ext) {
 		throw new Error('Extension not found');
 	}	
