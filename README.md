@@ -194,14 +194,6 @@ LSPRAG supports various generation approaches:
 }
 ```
 
-## 🧪 Experiment Reproduction
-
-LSPRAG is published in FSE-Industry'25. For detailed experiment reproduction:
-
-- **📋 [Experiment Reproduction Guide](./doc/ExperimentReproduction.md)**
-- **🔬 [Contribution Guide](./doc/ContributionGuide.md)**
-- **🌐 [Language Support Guide](./doc/HowToSupportOtherLanguage.md)**
-
 ### Hardware Requirements
 
 - **Minimum**: 8GB RAM, 4 CPU cores
