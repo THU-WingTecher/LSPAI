@@ -13,7 +13,7 @@
 
 </div>
 
-##  Overview
+## Overview
 
 LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code extension that leverages Language Server Protocol (LSP) integration and Large Language Models (LLMs) to automatically generate high-quality unit tests in real-time. By combining semantic code analysis with AI-powered generation, LSPRAG delivers contextually accurate and comprehensive test suites across multiple programming languages.
 
@@ -28,8 +28,6 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 - **Java**: Full support with JUnit framework
 - **Python**: Comprehensive pytest integration
 - **Go**: Native Go testing framework support
-- **C++**: Google Test framework compatibility
-- **TypeScript**: Jest and Mocha framework support
 - **Extensible**: Easy to add support for additional languages
 
 ### 🎯 **Advanced Capabilities**
@@ -46,9 +44,6 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 | **Java** | ✅ Production Ready | JUnit 4/5 | Full semantic analysis, mock generation |
 | **Python** | ✅ Production Ready | pytest | Type hints, async support, fixtures |
 | **Go** | ✅ Production Ready | Go testing | Package management, benchmarks |
-| **C++** | ✅ Production Ready | Google Test | Header analysis, template support |
-| **TypeScript** | ✅ Production Ready | Jest/Mocha | Type safety, decorators |
-| **JavaScript** | ✅ Production Ready | Jest/Mocha | ES6+ features, async/await |
 
 ## 🛠️ Installation & Setup
 
@@ -56,19 +51,27 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 
 - **VS Code**: Version 1.95.0 or higher
 - **Node.js**: Version 20 or higher
-- **Language Servers**: Appropriate language extensions for your target languages
 
-### Quick Start
+### Installation Steps
+**Note**: Currently, LSPRAG is available only as source code. While we plan to publish it as a one-click extension in the future, we're maintaining source-only distribution to preserve anonymity. Please follow the steps below to set up the application.
 
-1. **Install LSPRAG Extension**
 
-2. **Install Language Server Extensions**
-   
-   **For Java:**
-   - Install "Oracle Java Extension Pack" from VS Code Marketplace
+1. **Download Source Code**
+   - Use `git clone` or download the ZIP file directly
+
+2. **Setup Project**
+   - Navigate to the project's root directory `LSPRAG`
+   - Install dependencies: `npm install --force`
+   - Compile the project: `npm run compile`
+
+3. **Install Language Server Extensions**
    
    **For Python:**
    - Install "Pylance" and "Python" extensions
+   ![Language Server Integration](doc/assets/language_server.png)
+   
+   **For Java:**
+   - Install "Oracle Java Extension Pack" from VS Code Marketplace
    
    **For Go:**
    - Install "Go" extension
@@ -81,15 +84,28 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
    }
    ```
 
-3. **Configure LLM Provider**
-   
-   Open VS Code Settings (`Ctrl/Cmd + ,`) and configure your preferred LLM:
+4. **Download Baseline Python Project**
+   - Navigate to experiments directory: `cd experiments`
+   - Create projects folder: `mkdir projects`
+   - Clone a sample project: `git clone https://github.com/psf/black.git`
 
+5. **Activate Extension**
+   - Navigate to `src/extension.ts`
+   - Click "Run and Debug" and select "VS Code Extension Development"
+   ![Method to activate the app](doc/assets/vscodeExtensionDevlopment.png)
+   - A new VS Code editor will open - use this for subsequent actions
+6. **⚠️ IMPORTANT: Configure LLM Settings in the NEW Editor**
+   
+   **Critical**: You must configure your LLM settings in the newly opened VS Code editor (not the original one) for LSPRAG to work properly.
+   
+   
    **Option A: VS Code Settings UI**
+   - Open VS Code Settings (`Ctrl/Cmd + ,`)
    - Search for "LSPRAG" settings
    - Configure provider, model, and API keys
-
+   
    **Option B: Direct JSON Configuration**
+   Add to your `settings.json`:
    ```json
    {
      "LSPRAG": {
@@ -106,45 +122,28 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
    }
    ```
 
+   Test your configuration with `Ctrl+Shift+P` → `LSPRAG: Show Current Settings`
+
 ## 🚀 Usage
 
 ### Basic Workflow
 
 1. **Open Your Project**
-   - Open your workspace in VS Code
+   - Open your workspace in the new VS Code editor
+   - Navigate to the black project: `LSPRAG/experiments/projects/black`
    - Ensure language servers are active for your target language
 
 2. **Generate Tests**
    - Navigate to any function or method
    - Right-click within the function definition
    - Select **"LSPRAG: Generate Unit Test"** from the context menu
+   ![Generate Unit test](doc/assets/CommandFig.png)
+   - Wait for generation to complete
+   ![Waiting](doc/assets/loading.png)
 
 3. **Review & Deploy**
-   - Generated tests appear in the specified output directory
-   - Review and customize as needed
-   - Run tests to verify functionality
-
-### Advanced Features
-
-#### Multiple Generation Strategies
-
-LSPRAG supports various generation approaches:
-
-- **`naive`**: Basic test generation without semantic analysis
-- **`original`**: Standard LSP-aware generation (recommended)
-- **`agent`**: Multi-step reasoning with iterative refinement
-- **`cfg`**: Control flow graph-based generation
-- **`experimental`**: Latest experimental features
-- **`fastest`**: Optimized for speed
-- **`best`**: Highest quality generation
-
-#### Prompt Types
-
-- **`basic`**: Minimal context, fast generation
-- **`detailed`**: Comprehensive context analysis
-- **`concise`**: Balanced approach
-- **`fastest`**: Speed-optimized prompts
-- **`best`**: Quality-optimized prompts
+   - Generated tests will appear with accept/reject options
+   ![Final Result](doc/assets/UnitGenResult.png)
 
 ### Command Palette Commands
 
@@ -152,7 +151,7 @@ LSPRAG supports various generation approaches:
 - `LSPRAG: Show Current Settings` - Display current configuration
 - `LSPRAG: Test LLM` - Test LLM connectivity and configuration
 
-## 🛠️ Configuration
+## ⚙️ Configuration
 
 ### Core Settings
 
@@ -194,8 +193,34 @@ LSPRAG supports various generation approaches:
 }
 ```
 
+### Advanced Features
+
+#### Generation Strategies
+
+- **`naive`**: Basic test generation without semantic analysis
+- **`original`**: Standard LSP-aware generation (recommended)
+- **`agent`**: Multi-step reasoning with iterative refinement
+- **`cfg`**: Control flow graph-based generation
+- **`experimental`**: Latest experimental features
+- **`fastest`**: Optimized for speed
+- **`best`**: Highest quality generation
+
+#### Prompt Types
+
+- **`basic`**: Minimal context, fast generation
+- **`detailed`**: Comprehensive context analysis
+- **`concise`**: Balanced approach
+- **`fastest`**: Speed-optimized prompts
+- **`best`**: Quality-optimized prompts
+
+## 💻 System Requirements
+
 ### Hardware Requirements
 
 - **Minimum**: 8GB RAM, 4 CPU cores
 - **Recommended**: 16GB RAM, 8 CPU cores
 - **GPU**: Optional but recommended for local LLM inference
+
+---
+
+**Ready to generate unit tests with LSPRAG!** 🎉
