@@ -1,9 +1,6 @@
 # LSPRAG Experiment Reproduction Guide
 <!-- <p align="center">
     <!-- <a href="https://arxiv.org/abs/2302.02261"><img src="https://img.shields.io/badge/arXiv-2302.02261-b31b1b.svg?style=for-the-badge"> -->
-    <!-- <a href="https://doi.org/10.5281/zenodo.12669927"><img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.8319975-8A2BE2?style=for-the-badge"> -->
-    <a href="https://github.com/THU-WingTecher/DeepConstr/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge"></a>
-    <a href="https://hub.docker.com/repository/docker/gwihwan/lsprag/general"><img src="https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white"></a>
 </p> -->
 
 ## Table of Contents
@@ -48,17 +45,15 @@
 
 ### 1. Install LSPRAG from Source
 
-1. Pull the image and run
-   ```bash
-   docker pull gwihwan/lsprag:latest
-docker run -it --name lsprag gwihwan/lsprag:latest /bin/bash
+1. Pull the image and run 
+   ```
+   Hold for anonymous
    ```
 
 2. Clone and Build
-   ```bash
-   # Clone the repository
-   cd ..
-   git clone https://github.com/Gwihwan-Go/LSPRAG.git
+   ```
+   Hold for anonymous
+   ```
 cd LSPRAG
    # Install dependencies
    npm install
@@ -186,10 +181,6 @@ There are two ways to proceed with the experiments:
 
 > Note: Generating unit tests for every function in real-world projects is time-consuming. We provide pre-generated experiment data as an alternative (see Option B).
 
-1. Checkout the branch
-   ```bash
-   git checkout fse-industry
-   ```
 2. Recompile the project
    ```bash
    cd /LSPRAG
