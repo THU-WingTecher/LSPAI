@@ -1,5 +1,6 @@
 {
   "name": "LSPRAG",
+  "publisher": "LSPRAG",
   "displayName": "LSPRAG",
   "description": "LSPRAG is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP)",
   "version": "0.1.0",

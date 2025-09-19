@@ -181,10 +181,6 @@ There are two ways to proceed with the experiments:
 
 > Note: Generating unit tests for every function in real-world projects is time-consuming. We provide pre-generated experiment data as an alternative (see Option B).
 
-1. Checkout the branch
-   ```bash
-   git checkout fse-industry
-   ```
 2. Recompile the project
    ```bash
    cd /LSPRAG
