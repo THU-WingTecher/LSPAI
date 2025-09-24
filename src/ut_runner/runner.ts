@@ -143,47 +143,37 @@ export function computeJobs(jobsOpt?: number | null): number {
 
 export function validatePythonExecutable(pythonExe: string): string {
   console.log(`[RUNNER] Validating Python executable: ${pythonExe}`);
-
-  const resolveViaPath = (cmd: string): string => {
-    if (cmd.includes('/') || cmd.includes('\\')) return cmd;
-    try {
-      return execSync(`command -v ${cmd}`, { encoding: 'utf8', timeout: 3000 }).trim();
-    } catch {
-      return cmd;
-    }
-  };
-
-  let candidate = resolveViaPath(pythonExe);
-
+  
   try {
-    const stats = fs.statSync(candidate);
+    const stats = fs.statSync(pythonExe);
     if (stats.isFile()) {
-      console.log(`[RUNNER] Python executable validated successfully: ${candidate}`);
-      return candidate;
+      console.log(`[RUNNER] Python executable validated successfully: ${pythonExe}`);
+      return pythonExe;
     } else {
-      console.error(`[RUNNER] Path exists but is not a file: ${candidate}`);
+      console.error(`[RUNNER] Path exists but is not a file: ${pythonExe}`);
     }
   } catch (error) {
     console.error(`[RUNNER] Python executable validation failed:`, error);
     console.log(`[RUNNER] Searching for alternative Python executables...`);
-
+    
+    // Try common Python executable names
     const alternatives = ['python3', 'python', 'py'];
+    
     for (const alt of alternatives) {
-      const resolved = resolveViaPath(alt);
       try {
-        const version = execSync(`"${resolved}" --version`, { encoding: 'utf8', timeout: 5000 });
-        console.log(`[RUNNER] Found working alternative: ${resolved} -> ${version.trim()}`);
-        return resolved;
-      } catch {
+        const version = execSync(`${alt} --version`, { encoding: 'utf8', timeout: 5000 });
+        console.log(`[RUNNER] Found working alternative: ${alt} -> ${version.trim()}`);
+        return alt;
+      } catch (altError) {
         console.log(`[RUNNER] Alternative ${alt} not available`);
       }
     }
-
+    
     console.error(`[RUNNER] No working Python executable found!`);
     throw new Error(`Python executable not found: ${pythonExe}`);
   }
-
-  return candidate;
+  
+  return pythonExe;
 }
 
 export function buildEnv(pythonpathList: string[]): NodeJS.ProcessEnv {
