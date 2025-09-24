@@ -90,6 +90,7 @@ def run_mutpy_for_test(
         "--target", target_module,
         "--unit-test", test_module,
         "--report", report_path,
+        "--mutation-number", "10"
     ]
     
     # Add the deepest parent directory of the test file as import root (after main roots)
@@ -100,7 +101,6 @@ def run_mutpy_for_test(
         if os.path.isdir(parent_path):
             cmd += ["--path", parent_path]
     
-    print(cmd)
     # Helpful extra import roots
     if project_root != module_root:
         cmd += ["--path", project_root]
@@ -125,6 +125,8 @@ def run_mutpy_for_test(
         )
 
         out = proc.stdout or ""
+        print(cmd)
+        print(out)
         stats = parse_mutpy_stats(out)
 
         report = None
@@ -525,6 +527,12 @@ def main() -> None:
         help="Timeout (seconds) for each MutPy per-test run.",
     )
     ap.add_argument(
+        "--union-mutation-number",
+        type=int,
+        default=100,
+        help="When running the final union step, generate this many mutants per target.",
+    )
+    ap.add_argument(
         "--test-mapping",
         required=True,
         help="Path to JSON mapping test files -> source file paths.",
@@ -652,12 +660,12 @@ def main() -> None:
             tm, tgt = t["test_module"], t["target_module"]
             if not result["success"]:
                 print(f"[fail] {tm} -> {tgt} (exit={result['exit_code']})")
-                per_test_results.append({"test_module": tm, "target_module": tgt, "success": False, "stats": result["stats"]})
+                per_test_results.append({"test_module": tm, "target_module": tgt, "test_file": t["test_file"], "success": False, "stats": result["stats"]})
                 continue
 
             stats = result["stats"]
             print(f"[ok] {tm} -> {tgt} | score={stats['score']}% total={stats['total']} killed={stats['killed']}")
-            per_test_results.append({"test_module": tm, "target_module": tgt, "success": True, "stats": stats})
+            per_test_results.append({"test_module": tm, "target_module": tgt, "test_file": t["test_file"], "success": True, "stats": stats})
 
             rep = result.get("report")
             if rep and rep.get("mutants"):
@@ -675,23 +683,135 @@ def main() -> None:
                         if status == "killed":
                             kill.add(sid)
 
-    total_sum = sum(len(s) for s in eligible_union.values())
-    killed_sum = sum(len(s) for s in killed_union.values())
-    overall = (killed_sum / total_sum * 100.0) if total_sum > 0 else 0.0
+    # Move successful tests into a single folder
+    succ_tests_dir = os.path.join(log_dir, "successful_tests")
+    os.makedirs(succ_tests_dir, exist_ok=True)
+    moved = []
+    taken = set()
+    for r in per_test_results:
+        if not r.get("success"):
+            continue
+        rel = r["test_file"]
+        src = os.path.join(tests_dir, rel)
+        if not os.path.isfile(src):
+            continue
+        base = os.path.basename(src)
+        name = base
+        if name in taken:
+            stem, ext = os.path.splitext(base)
+            k = 1
+            name = f"{stem}_{k}{ext}"
+            while name in taken:
+                k += 1
+                name = f"{stem}_{k}{ext}"
+        dst = os.path.join(succ_tests_dir, name)
+        shutil.copy2(src, dst)
+        taken.add(name)
+        moved.append(dst)
+    print(f"Copied {len(moved)} successful test files into: {succ_tests_dir}")
 
-    summary_path = os.path.join(log_dir, "summary.txt")
-    with open(summary_path, "w") as f:
-        f.write(f"Per-test results ({len(per_test_results)} runs):\n")
-        for r in per_test_results:
-            s = r["stats"]
-            f.write(
-                f"{'[ok]' if r['success'] else '[fail]'} {r['test_module']} -> {r['target_module']} "
-                f"score={s['score']} total={s['total']} killed={s['killed']}\n"
-            )
-        f.write(f"\nOverall score: {overall:.2f}% (killed={killed_sum} / total={total_sum})\n")
+    # Union all targets from all tasks (including failures)
+    all_targets = sorted({t["target_module"] for t in tasks})
 
-    print(f"Overall score: {overall:.2f}% (killed={killed_sum} / total={total_sum})")
-    print(f"Summary written to: {summary_path}")
+    unit_tests = sorted({
+        os.path.splitext(os.path.basename(r["test_file"]))[0]
+        for r in per_test_results if r.get("success")
+    })
+    unit_parent_paths = sorted({
+        os.path.dirname(os.path.join(tests_dir, r["test_file"]))
+        for r in per_test_results if r.get("success")
+    } - {""})
+
+    if unit_tests and all_targets:
+        module_root_src = os.path.join(module_root, "src")
+
+        # Warn if duplicate base module names exist (only one may be imported)
+        if len(unit_tests) < sum(1 for r in per_test_results if r.get("success")):
+            print("[warn] Detected duplicate test module base names; only one per name will be imported in union run.")
+
+        def run_one_target(tgt: str) -> None:
+            per_cmd = list(mutpy_cmd)
+            if args.runner:
+                per_cmd += ["--runner", args.runner]
+
+            # Build PYTHONPATH with all needed roots
+            py_paths: List[str] = []
+            if os.path.isdir(module_root_src):
+                py_paths.append(module_root_src)
+            py_paths.append(module_root)
+            if project_root != module_root:
+                py_paths.append(project_root)
+            py_paths.append(tests_dir)
+            for p in unit_parent_paths:
+                if os.path.isdir(p):
+                    py_paths.append(p)
+            seen = set()
+            py_paths = [p for p in py_paths if (p not in seen and not seen.add(p))]
+
+            per_cmd += ["--target", tgt]
+            per_cmd += ["--unit-test"] + unit_tests
+
+            per_report = os.path.join(log_dir, f"union_{tgt.replace('.', '_')}.report.txt")
+            per_cmd += ["--report", per_report]
+            print(per_cmd)
+            try:
+                env = os.environ.copy()
+                existing = env.get("PYTHONPATH", "")
+                env["PYTHONPATH"] = os.pathsep.join(py_paths + ([existing] if existing else []))
+                per_proc = subprocess.run(
+                    per_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    env=env,
+                    check=False,
+                    cwd=tests_dir,
+                )
+                per_out = per_proc.stdout or ""
+                with open(os.path.join(log_dir, f"union_{tgt.replace('.', '_')}.stdout.log"), "w") as f:
+                    f.write(per_out)
+                print(f"Union per-target mut.py finished: target={tgt} exit={per_proc.returncode}")
+            except Exception as e:
+                print(f"[warn] Failed union per-target for {tgt}: {e}")
+
+        with ThreadPoolExecutor(max_workers=args.jobs) as ex:
+            futures = [ex.submit(run_one_target, tgt) for tgt in all_targets]
+            for _ in as_completed(futures):
+                pass
+
+        # Parse per-target reports and compute averages
+        union_entries = []
+        for tgt in all_targets:
+            rpt = os.path.join(log_dir, f"union_{tgt.replace('.', '_')}.report.txt")
+            rep = parse_mutpy_report(rpt)
+            union_entries.append({
+                "target": tgt,
+                "score": rep.get("score"),
+                "killed": rep.get("killed", 0) or 0,
+                "total": rep.get("total", 0) or 0,
+            })
+        print(union_entries)
+
+        print("##### FINAL UNION RESULTS ##### with args.test_dir: ", args.test_dir)
+        # Aggregate totals across targets
+        agg_total = sum(e.get("total", 0) or 0 for e in union_entries)
+        agg_killed = sum(e.get("killed", 0) or 0 for e in union_entries)
+        agg_score = (agg_killed / agg_total * 100.0) if agg_total > 0 else None
+
+        # Append to summary
+        summary_path = os.path.join(log_dir, "summary.txt")
+        with open(summary_path, "a") as f:
+            f.write("\nUnion aggregate across targets:\n")
+            if agg_score is not None:
+                f.write(f"killed={agg_killed} total={agg_total} score={agg_score:.2f}%\n")
+            else:
+                f.write(f"killed={agg_killed} total={agg_total} score=None\n")
+
+        # Also print to stdout for visibility
+        if agg_score is not None:
+            print(f"Union aggregate across targets: killed={agg_killed} total={agg_total} score={agg_score:.2f}%")
+        else:
+            print(f"Union aggregate across targets: killed={agg_killed} total={agg_total} score=None")
 
 
 if __name__ == "__main__":
