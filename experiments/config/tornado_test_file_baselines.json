@@ -1,0 +1,2607 @@
+{
+    "authenticate_redirect_9776_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "authenticate_redirect"
+    },
+    "get_authenticated_user_2751_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "get_authenticated_user"
+    },
+    "openid_args_9850_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_openid_args"
+    },
+    "on_authentication_verified_6694_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_on_authentication_verified"
+    },
+    "get_ax_arg_5871_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "get_ax_arg"
+    },
+    "authorize_redirect_2680_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "authorize_redirect"
+    },
+    "get_authenticated_user_6810_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "get_authenticated_user"
+    },
+    "oauth_request_token_url_8644_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_oauth_request_token_url"
+    },
+    "on_request_token_2328_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_on_request_token"
+    },
+    "oauth_access_token_url_1132_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_oauth_access_token_url"
+    },
+    "oauth_get_user_future_5224_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_oauth_get_user_future"
+    },
+    "oauth_request_parameters_3553_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_oauth_request_parameters"
+    },
+    "authorize_redirect_9069_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "authorize_redirect"
+    },
+    "oauth_request_token_url_3564_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_oauth_request_token_url"
+    },
+    "oauth2_request_8370_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "oauth2_request"
+    },
+    "authenticate_redirect_4740_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "authenticate_redirect"
+    },
+    "twitter_request_3769_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "twitter_request"
+    },
+    "get_google_oauth_settings_2519_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "get_google_oauth_settings"
+    },
+    "get_authenticated_user_8249_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "get_authenticated_user"
+    },
+    "get_authenticated_user_1892_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "get_authenticated_user"
+    },
+    "facebook_request_2028_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "facebook_request"
+    },
+    "oauth_signature_1046_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_oauth_signature"
+    },
+    "oauth10a_signature_1510_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_oauth10a_signature"
+    },
+    "oauth_parse_response_6657_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/auth.py",
+      "symbol_name": "_oauth_parse_response"
+    },
+    "start_4241_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/autoreload.py",
+      "symbol_name": "start"
+    },
+    "reload_on_update_9087_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/autoreload.py",
+      "symbol_name": "_reload_on_update"
+    },
+    "check_file_9078_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/autoreload.py",
+      "symbol_name": "_check_file"
+    },
+    "reload_6351_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/autoreload.py",
+      "symbol_name": "_reload"
+    },
+    "main_3256_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/autoreload.py",
+      "symbol_name": "main"
+    },
+    "run_on_executor_4820_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/concurrent.py",
+      "symbol_name": "run_on_executor"
+    },
+    "run_on_executor_decorator_9907_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/concurrent.py",
+      "symbol_name": "run_on_executor_decorator"
+    },
+    "chain_future_2731_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/concurrent.py",
+      "symbol_name": "chain_future"
+    },
+    "copy_3860_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/concurrent.py",
+      "symbol_name": "copy"
+    },
+    "future_set_result_unless_cancelled_7159_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/concurrent.py",
+      "symbol_name": "future_set_result_unless_cancelled"
+    },
+    "future_set_exception_unless_cancelled_7879_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/concurrent.py",
+      "symbol_name": "future_set_exception_unless_cancelled"
+    },
+    "future_set_exc_info_1750_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/concurrent.py",
+      "symbol_name": "future_set_exc_info"
+    },
+    "future_add_done_callback_5986_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/concurrent.py",
+      "symbol_name": "future_add_done_callback"
+    },
+    "initialize_3273_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "initialize"
+    },
+    "close_6095_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "close"
+    },
+    "handle_socket_9111_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_handle_socket"
+    },
+    "handle_events_6370_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_handle_events"
+    },
+    "handle_timeout_1524_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_handle_timeout"
+    },
+    "handle_force_timeout_2273_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_handle_force_timeout"
+    },
+    "finish_pending_requests_6196_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_finish_pending_requests"
+    },
+    "process_queue_3095_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_process_queue"
+    },
+    "finish_7870_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_finish"
+    },
+    "curl_create_7526_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_curl_create"
+    },
+    "curl_header_callback_7457_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_curl_header_callback"
+    },
+    "curl_debug_5447_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/curl_httpclient.py",
+      "symbol_name": "_curl_debug"
+    },
+    "xhtml_escape_8903_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "xhtml_escape"
+    },
+    "xhtml_unescape_8005_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "xhtml_unescape"
+    },
+    "json_encode_7688_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "json_encode"
+    },
+    "url_escape_6738_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "url_escape"
+    },
+    "url_unescape_6189_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "url_unescape"
+    },
+    "parse_qs_bytes_9652_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "parse_qs_bytes"
+    },
+    "utf8_7106_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "utf8"
+    },
+    "to_unicode_3328_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "to_unicode"
+    },
+    "recursive_unicode_2030_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "recursive_unicode"
+    },
+    "linkify_3979_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "linkify"
+    },
+    "make_link_5197_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/escape.py",
+      "symbol_name": "make_link"
+    },
+    "value_from_stopiteration_3439_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "_value_from_stopiteration"
+    },
+    "create_future_9407_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "_create_future"
+    },
+    "coroutine_9941_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "coroutine"
+    },
+    "wrapper_1030_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "wrapper"
+    },
+    "init___8279_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "__init__"
+    },
+    "next_2748_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "next"
+    },
+    "return_result_1202_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "_return_result"
+    },
+    "multi_5819_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "multi"
+    },
+    "multi_future_7893_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "multi_future"
+    },
+    "callback_8355_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "callback"
+    },
+    "maybe_future_4133_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "maybe_future"
+    },
+    "with_timeout_6718_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "with_timeout"
+    },
+    "sleep_3901_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "sleep"
+    },
+    "init___8096_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "__init__"
+    },
+    "run_4240_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "run"
+    },
+    "handle_yield_7212_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "handle_yield"
+    },
+    "wrap_awaitable_8553_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "_wrap_awaitable"
+    },
+    "convert_yielded_4473_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/gen.py",
+      "symbol_name": "convert_yielded"
+    },
+    "init___9777_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "__init__"
+    },
+    "init___6680_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "__init__"
+    },
+    "read_response_5869_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "read_response"
+    },
+    "read_message_4546_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_read_message"
+    },
+    "clear_callbacks_7278_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_clear_callbacks"
+    },
+    "set_close_callback_5223_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "set_close_callback"
+    },
+    "on_connection_close_5595_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_on_connection_close"
+    },
+    "detach_8442_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "detach"
+    },
+    "write_headers_3463_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "write_headers"
+    },
+    "format_chunk_7067_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_format_chunk"
+    },
+    "write_1802_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "write"
+    },
+    "finish_4470_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "finish"
+    },
+    "on_write_complete_3733_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_on_write_complete"
+    },
+    "can_keep_alive_3516_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_can_keep_alive"
+    },
+    "parse_headers_6718_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_parse_headers"
+    },
+    "read_body_5959_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_read_body"
+    },
+    "read_fixed_body_9602_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_read_fixed_body"
+    },
+    "read_chunked_body_3378_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_read_chunked_body"
+    },
+    "headers_received_4000_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "headers_received"
+    },
+    "data_received_6186_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "data_received"
+    },
+    "finish_2065_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "finish"
+    },
+    "init___3141_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "__init__"
+    },
+    "close_8933_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "close"
+    },
+    "server_request_loop_2057_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "_server_request_loop"
+    },
+    "is_transfer_encoding_chunked_1155_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/http1connection.py",
+      "symbol_name": "is_transfer_encoding_chunked"
+    },
+    "init___9415_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "__init__"
+    },
+    "fetch_3472_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "fetch"
+    },
+    "new___2160_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "__new__"
+    },
+    "close_7542_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "close"
+    },
+    "fetch_3394_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "fetch"
+    },
+    "configure_6725_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "configure"
+    },
+    "init___2568_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "__init__"
+    },
+    "init___6085_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "__init__"
+    },
+    "main_6621_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpclient.py",
+      "symbol_name": "main"
+    },
+    "initialize_2366_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpserver.py",
+      "symbol_name": "initialize"
+    },
+    "close_all_connections_6695_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpserver.py",
+      "symbol_name": "close_all_connections"
+    },
+    "start_request_9251_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpserver.py",
+      "symbol_name": "start_request"
+    },
+    "headers_received_2198_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpserver.py",
+      "symbol_name": "headers_received"
+    },
+    "init___3652_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpserver.py",
+      "symbol_name": "__init__"
+    },
+    "apply_xheaders_6633_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httpserver.py",
+      "symbol_name": "_apply_xheaders"
+    },
+    "init___9758_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "__init__"
+    },
+    "add_8469_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "add"
+    },
+    "parse_line_6788_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "parse_line"
+    },
+    "parse_2426_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "parse"
+    },
+    "init___5205_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "__init__"
+    },
+    "cookies_9085_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "cookies"
+    },
+    "get_ssl_certificate_5254_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "get_ssl_certificate"
+    },
+    "parse_body_1225_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "_parse_body"
+    },
+    "start_request_7227_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "start_request"
+    },
+    "headers_received_8217_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "headers_received"
+    },
+    "write_headers_7598_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "write_headers"
+    },
+    "url_concat_6488_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "url_concat"
+    },
+    "parse_request_range_5275_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "_parse_request_range"
+    },
+    "get_content_range_5277_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "_get_content_range"
+    },
+    "parse_body_arguments_6916_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "parse_body_arguments"
+    },
+    "parse_multipart_form_data_4427_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "parse_multipart_form_data"
+    },
+    "format_timestamp_5201_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "format_timestamp"
+    },
+    "parse_request_start_line_2526_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "parse_request_start_line"
+    },
+    "parse_response_start_line_6639_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "parse_response_start_line"
+    },
+    "parseparam_7779_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "_parseparam"
+    },
+    "parse_header_3900_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "_parse_header"
+    },
+    "encode_header_4054_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "_encode_header"
+    },
+    "encode_username_password_1426_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "encode_username_password"
+    },
+    "split_host_and_port_6964_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "split_host_and_port"
+    },
+    "unquote_cookie_6795_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "_unquote_cookie"
+    },
+    "parse_cookie_5054_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/httputil.py",
+      "symbol_name": "parse_cookie"
+    },
+    "configure_2154_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "configure"
+    },
+    "instance_5504_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "instance"
+    },
+    "install_2569_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "install"
+    },
+    "clear_instance_1912_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "clear_instance"
+    },
+    "current_3531_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "current"
+    },
+    "make_current_9287_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "make_current"
+    },
+    "clear_current_9101_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "clear_current"
+    },
+    "close_6087_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "close"
+    },
+    "add_handler_5159_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "add_handler"
+    },
+    "stop_1222_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "stop"
+    },
+    "run_sync_9436_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "run_sync"
+    },
+    "run_9124_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "run"
+    },
+    "time_9126_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "time"
+    },
+    "add_timeout_4027_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "add_timeout"
+    },
+    "call_later_9693_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "call_later"
+    },
+    "call_at_1149_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "call_at"
+    },
+    "add_callback_3480_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "add_callback"
+    },
+    "add_callback_from_signal_4588_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "add_callback_from_signal"
+    },
+    "add_future_5162_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "add_future"
+    },
+    "run_in_executor_4566_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "run_in_executor"
+    },
+    "run_callback_2520_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "_run_callback"
+    },
+    "split_fd_6053_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "split_fd"
+    },
+    "close_fd_4181_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "close_fd"
+    },
+    "init___4243_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "__init__"
+    },
+    "init___7399_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "__init__"
+    },
+    "run_8620_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "_run"
+    },
+    "update_next_9122_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/ioloop.py",
+      "symbol_name": "_update_next"
+    },
+    "append_9065_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "append"
+    },
+    "peek_3754_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "peek"
+    },
+    "advance_8166_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "advance"
+    },
+    "init___3508_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "__init__"
+    },
+    "read_from_fd_1039_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "read_from_fd"
+    },
+    "read_until_regex_8048_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "read_until_regex"
+    },
+    "read_until_8879_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "read_until"
+    },
+    "read_bytes_6177_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "read_bytes"
+    },
+    "read_into_3202_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "read_into"
+    },
+    "read_until_close_3753_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "read_until_close"
+    },
+    "write_1081_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "write"
+    },
+    "set_close_callback_2095_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "set_close_callback"
+    },
+    "close_2748_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "close"
+    },
+    "signal_closed_8305_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_signal_closed"
+    },
+    "set_nodelay_9836_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "set_nodelay"
+    },
+    "handle_events_4631_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_handle_events"
+    },
+    "read_to_buffer_loop_8242_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_read_to_buffer_loop"
+    },
+    "handle_read_2887_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_handle_read"
+    },
+    "start_read_6195_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_start_read"
+    },
+    "finish_read_5047_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_finish_read"
+    },
+    "try_inline_read_1713_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_try_inline_read"
+    },
+    "read_to_buffer_3339_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_read_to_buffer"
+    },
+    "find_read_pos_3540_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_find_read_pos"
+    },
+    "handle_write_8201_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_handle_write"
+    },
+    "maybe_add_error_listener_8081_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_maybe_add_error_listener"
+    },
+    "add_io_state_2668_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_add_io_state"
+    },
+    "connect_3887_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "connect"
+    },
+    "start_tls_8882_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "start_tls"
+    },
+    "handle_connect_8159_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_handle_connect"
+    },
+    "set_nodelay_7352_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "set_nodelay"
+    },
+    "init___7094_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "__init__"
+    },
+    "do_ssl_handshake_8629_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_do_ssl_handshake"
+    },
+    "connect_7682_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "connect"
+    },
+    "handle_connect_4985_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "_handle_connect"
+    },
+    "wait_for_handshake_9783_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "wait_for_handshake"
+    },
+    "write_to_fd_2843_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "write_to_fd"
+    },
+    "read_from_fd_1092_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "read_from_fd"
+    },
+    "init___9582_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "__init__"
+    },
+    "read_from_fd_6065_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/iostream.py",
+      "symbol_name": "read_from_fd"
+    },
+    "get_5898_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "get"
+    },
+    "set_default_locale_7568_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "set_default_locale"
+    },
+    "load_translations_8487_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "load_translations"
+    },
+    "load_gettext_translations_5086_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "load_gettext_translations"
+    },
+    "get_closest_1200_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "get_closest"
+    },
+    "get_7498_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "get"
+    },
+    "init___6004_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "__init__"
+    },
+    "translate_1643_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "translate"
+    },
+    "format_date_5802_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "format_date"
+    },
+    "format_day_1351_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "format_day"
+    },
+    "list_6103_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "list"
+    },
+    "translate_7941_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "translate"
+    },
+    "translate_2305_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "translate"
+    },
+    "pgettext_6855_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locale.py",
+      "symbol_name": "pgettext"
+    },
+    "wait_4966_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locks.py",
+      "symbol_name": "wait"
+    },
+    "notify_1898_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locks.py",
+      "symbol_name": "notify"
+    },
+    "set_7112_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locks.py",
+      "symbol_name": "set"
+    },
+    "wait_1284_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locks.py",
+      "symbol_name": "wait"
+    },
+    "release_2664_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locks.py",
+      "symbol_name": "release"
+    },
+    "acquire_1817_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locks.py",
+      "symbol_name": "acquire"
+    },
+    "release_2452_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/locks.py",
+      "symbol_name": "release"
+    },
+    "stderr_supports_color_4300_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/log.py",
+      "symbol_name": "_stderr_supports_color"
+    },
+    "init___2234_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/log.py",
+      "symbol_name": "__init__"
+    },
+    "format_2577_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/log.py",
+      "symbol_name": "format"
+    },
+    "enable_pretty_logging_5297_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/log.py",
+      "symbol_name": "enable_pretty_logging"
+    },
+    "define_logging_options_4486_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/log.py",
+      "symbol_name": "define_logging_options"
+    },
+    "bind_sockets_6399_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "bind_sockets"
+    },
+    "bind_unix_socket_1033_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "bind_unix_socket"
+    },
+    "add_accept_handler_8881_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "add_accept_handler"
+    },
+    "accept_handler_4098_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "accept_handler"
+    },
+    "is_valid_ip_1954_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "is_valid_ip"
+    },
+    "resolve_2920_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "resolve"
+    },
+    "resolve_addr_3299_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "_resolve_addr"
+    },
+    "resolve_2952_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "resolve"
+    },
+    "initialize_1261_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "initialize"
+    },
+    "create_threadpool_9640_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "_create_threadpool"
+    },
+    "ssl_options_to_context_5144_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "ssl_options_to_context"
+    },
+    "ssl_wrap_socket_9554_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/netutil.py",
+      "symbol_name": "ssl_wrap_socket"
+    },
+    "group_dict_4827_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "group_dict"
+    },
+    "define_8699_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "define"
+    },
+    "parse_command_line_7016_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "parse_command_line"
+    },
+    "parse_config_file_9184_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "parse_config_file"
+    },
+    "print_help_7651_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "print_help"
+    },
+    "mockable_2955_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "mockable"
+    },
+    "init___3537_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "__init__"
+    },
+    "parse_5495_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "parse"
+    },
+    "set_6883_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "set"
+    },
+    "parse_timedelta_3635_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "_parse_timedelta"
+    },
+    "define_3874_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/options.py",
+      "symbol_name": "define"
+    },
+    "atexit_callback_5685_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "_atexit_callback"
+    },
+    "initialize_9998_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "initialize"
+    },
+    "close_9523_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "close"
+    },
+    "add_handler_9326_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "add_handler"
+    },
+    "update_handler_6134_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "update_handler"
+    },
+    "remove_handler_5724_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "remove_handler"
+    },
+    "call_at_9336_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "call_at"
+    },
+    "add_callback_7866_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "add_callback"
+    },
+    "initialize_3715_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "initialize"
+    },
+    "to_asyncio_future_4647_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "to_asyncio_future"
+    },
+    "getattr___8543_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "__getattr__"
+    },
+    "init___9394_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "__init__"
+    },
+    "close_1629_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "close"
+    },
+    "thread_manager_9819_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "_thread_manager"
+    },
+    "run_select_9989_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/asyncio.py",
+      "symbol_name": "_run_select"
+    },
+    "sock_state_cb_2921_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/caresresolver.py",
+      "symbol_name": "_sock_state_cb"
+    },
+    "resolve_4171_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/caresresolver.py",
+      "symbol_name": "resolve"
+    },
+    "install_9064_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/twisted.py",
+      "symbol_name": "install"
+    },
+    "_9637_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/platform/twisted.py",
+      "symbol_name": "_"
+    },
+    "cpu_count_2460_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "cpu_count"
+    },
+    "reseed_random_2935_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "_reseed_random"
+    },
+    "fork_processes_8389_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "fork_processes"
+    },
+    "start_child_4281_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "start_child"
+    },
+    "init___2909_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "__init__"
+    },
+    "set_exit_callback_4292_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "set_exit_callback"
+    },
+    "wait_for_exit_1457_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "wait_for_exit"
+    },
+    "initialize_6465_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "initialize"
+    },
+    "try_cleanup_process_1950_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "_try_cleanup_process"
+    },
+    "set_returncode_3001_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/process.py",
+      "symbol_name": "_set_returncode"
+    },
+    "set_timeout_6261_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/queues.py",
+      "symbol_name": "_set_timeout"
+    },
+    "init___6655_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/queues.py",
+      "symbol_name": "__init__"
+    },
+    "put_9892_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/queues.py",
+      "symbol_name": "put"
+    },
+    "put_nowait_5654_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/queues.py",
+      "symbol_name": "put_nowait"
+    },
+    "get_4220_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/queues.py",
+      "symbol_name": "get"
+    },
+    "get_nowait_1611_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/queues.py",
+      "symbol_name": "get_nowait"
+    },
+    "task_done_4501_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/queues.py",
+      "symbol_name": "task_done"
+    },
+    "format_7902_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/queues.py",
+      "symbol_name": "_format"
+    },
+    "find_handler_6444_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "find_handler"
+    },
+    "headers_received_1229_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "headers_received"
+    },
+    "init___6485_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "__init__"
+    },
+    "add_rules_9350_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "add_rules"
+    },
+    "find_handler_7569_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "find_handler"
+    },
+    "get_target_delegate_6158_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "get_target_delegate"
+    },
+    "process_rule_2543_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "process_rule"
+    },
+    "reverse_url_3665_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "reverse_url"
+    },
+    "init___7445_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "__init__"
+    },
+    "match_5515_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "match"
+    },
+    "init___1926_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "__init__"
+    },
+    "match_2547_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "match"
+    },
+    "reverse_4929_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "reverse"
+    },
+    "find_groups_3771_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "_find_groups"
+    },
+    "init___9386_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/routing.py",
+      "symbol_name": "__init__"
+    },
+    "initialize_7204_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "initialize"
+    },
+    "fetch_impl_7777_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "fetch_impl"
+    },
+    "handle_request_2044_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "_handle_request"
+    },
+    "on_timeout_7042_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "_on_timeout"
+    },
+    "init___5372_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "__init__"
+    },
+    "get_ssl_options_8853_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "_get_ssl_options"
+    },
+    "on_timeout_7219_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "_on_timeout"
+    },
+    "create_connection_1484_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "_create_connection"
+    },
+    "write_body_1869_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "_write_body"
+    },
+    "handle_exception_4896_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "_handle_exception"
+    },
+    "headers_received_4885_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "headers_received"
+    },
+    "finish_5432_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/simple_httpclient.py",
+      "symbol_name": "finish"
+    },
+    "init___6703_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpclient.py",
+      "symbol_name": "__init__"
+    },
+    "split_9911_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpclient.py",
+      "symbol_name": "split"
+    },
+    "try_connect_4011_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpclient.py",
+      "symbol_name": "try_connect"
+    },
+    "on_connect_done_1600_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpclient.py",
+      "symbol_name": "on_connect_done"
+    },
+    "connect_4084_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpclient.py",
+      "symbol_name": "connect"
+    },
+    "create_stream_6309_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpclient.py",
+      "symbol_name": "_create_stream"
+    },
+    "init___1326_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpserver.py",
+      "symbol_name": "__init__"
+    },
+    "listen_4967_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpserver.py",
+      "symbol_name": "listen"
+    },
+    "add_sockets_1780_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpserver.py",
+      "symbol_name": "add_sockets"
+    },
+    "bind_5723_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpserver.py",
+      "symbol_name": "bind"
+    },
+    "start_4354_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpserver.py",
+      "symbol_name": "start"
+    },
+    "stop_4855_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpserver.py",
+      "symbol_name": "stop"
+    },
+    "handle_stream_5491_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpserver.py",
+      "symbol_name": "handle_stream"
+    },
+    "handle_connection_2405_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/tcpserver.py",
+      "symbol_name": "_handle_connection"
+    },
+    "filter_whitespace_6238_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "filter_whitespace"
+    },
+    "init___4009_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "__init__"
+    },
+    "generate_7626_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "generate"
+    },
+    "generate_python_1324_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "_generate_python"
+    },
+    "get_ancestors_2606_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "_get_ancestors"
+    },
+    "init___8975_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "__init__"
+    },
+    "resolve_path_6947_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "resolve_path"
+    },
+    "generate_7821_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "generate"
+    },
+    "generate_4173_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "generate"
+    },
+    "init___6625_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "__init__"
+    },
+    "indent_4580_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "indent"
+    },
+    "include_5399_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "include"
+    },
+    "write_line_1680_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "write_line"
+    },
+    "find_9417_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "find"
+    },
+    "getitem___9230_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "__getitem__"
+    },
+    "parse_4216_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/template.py",
+      "symbol_name": "_parse"
+    },
+    "bind_unused_port_9185_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "bind_unused_port"
+    },
+    "get_async_test_timeout_6973_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "get_async_test_timeout"
+    },
+    "setUp_3540_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "setUp"
+    },
+    "tearDown_8726_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "tearDown"
+    },
+    "get_new_ioloop_9130_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "get_new_ioloop"
+    },
+    "handle_exception_4269_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "_handle_exception"
+    },
+    "callTestMethod_3972_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "_callTestMethod"
+    },
+    "stop_3324_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "stop"
+    },
+    "wait_2222_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "wait"
+    },
+    "fetch_7755_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "fetch"
+    },
+    "default_ssl_options_8667_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "default_ssl_options"
+    },
+    "gen_test_6500_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "gen_test"
+    },
+    "wrap_2647_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "wrap"
+    },
+    "post_coroutine_6362_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "post_coroutine"
+    },
+    "init___9733_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "__init__"
+    },
+    "filter_8981_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "filter"
+    },
+    "exit___9142_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "__exit__"
+    },
+    "setup_with_context_manager_3963_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "setup_with_context_manager"
+    },
+    "main_7087_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/testing.py",
+      "symbol_name": "main"
+    },
+    "decompress_7658_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "decompress"
+    },
+    "import_object_6188_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "import_object"
+    },
+    "raise_exc_info_5113_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "raise_exc_info"
+    },
+    "errno_from_exception_8855_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "errno_from_exception"
+    },
+    "new___9024_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "__new__"
+    },
+    "configurable_base_2942_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "configurable_base"
+    },
+    "configure_7199_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "configure"
+    },
+    "configured_class_6022_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "configured_class"
+    },
+    "getargnames_8585_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "_getargnames"
+    },
+    "get_old_value_8126_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "get_old_value"
+    },
+    "replace_3202_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "replace"
+    },
+    "websocket_mask_python_1432_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/util.py",
+      "symbol_name": "_websocket_mask_python"
+    },
+    "init___6813_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "__init__"
+    },
+    "prepare_5997_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "prepare"
+    },
+    "on_finish_6339_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "on_finish"
+    },
+    "on_connection_close_3373_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "on_connection_close"
+    },
+    "clear_9966_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "clear"
+    },
+    "set_status_4743_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "set_status"
+    },
+    "convert_header_value_9520_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_convert_header_value"
+    },
+    "get_argument_4717_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_argument"
+    },
+    "get_arguments_9123_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_arguments"
+    },
+    "get_body_argument_5124_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_body_argument"
+    },
+    "get_query_argument_1294_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_query_argument"
+    },
+    "get_argument_8659_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_get_argument"
+    },
+    "get_arguments_9497_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_get_arguments"
+    },
+    "decode_argument_5283_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "decode_argument"
+    },
+    "get_cookie_4408_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_cookie"
+    },
+    "set_cookie_9685_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "set_cookie"
+    },
+    "clear_cookie_9860_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "clear_cookie"
+    },
+    "clear_all_cookies_5490_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "clear_all_cookies"
+    },
+    "set_signed_cookie_6167_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "set_signed_cookie"
+    },
+    "create_signed_value_8214_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "create_signed_value"
+    },
+    "get_signed_cookie_4543_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_signed_cookie"
+    },
+    "get_signed_cookie_key_version_2472_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_signed_cookie_key_version"
+    },
+    "redirect_1486_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "redirect"
+    },
+    "write_3028_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "write"
+    },
+    "render_8582_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "render"
+    },
+    "render_linked_js_8131_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "render_linked_js"
+    },
+    "render_embed_js_9486_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "render_embed_js"
+    },
+    "render_linked_css_4504_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "render_linked_css"
+    },
+    "render_string_1474_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "render_string"
+    },
+    "get_template_namespace_9941_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_template_namespace"
+    },
+    "create_template_loader_5765_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "create_template_loader"
+    },
+    "flush_4529_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "flush"
+    },
+    "finish_5701_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "finish"
+    },
+    "detach_7217_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "detach"
+    },
+    "send_error_4742_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "send_error"
+    },
+    "write_error_1737_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "write_error"
+    },
+    "get_browser_locale_2124_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_browser_locale"
+    },
+    "xsrf_token_1856_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "xsrf_token"
+    },
+    "get_raw_xsrf_token_7322_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_get_raw_xsrf_token"
+    },
+    "decode_xsrf_token_4449_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_decode_xsrf_token"
+    },
+    "check_xsrf_cookie_5497_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "check_xsrf_cookie"
+    },
+    "xsrf_form_html_3174_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "xsrf_form_html"
+    },
+    "static_url_4741_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "static_url"
+    },
+    "compute_etag_4125_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "compute_etag"
+    },
+    "check_etag_header_5827_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "check_etag_header"
+    },
+    "execute_3557_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_execute"
+    },
+    "handle_request_exception_3799_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_handle_request_exception"
+    },
+    "log_exception_8518_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "log_exception"
+    },
+    "stream_request_body_7674_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "stream_request_body"
+    },
+    "removeslash_9119_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "removeslash"
+    },
+    "wrapper_8588_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "wrapper"
+    },
+    "addslash_2659_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "addslash"
+    },
+    "wrapper_6228_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "wrapper"
+    },
+    "init___3314_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "__init__"
+    },
+    "listen_2249_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "listen"
+    },
+    "add_handlers_2472_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "add_handlers"
+    },
+    "load_ui_methods_8803_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_load_ui_methods"
+    },
+    "load_ui_modules_1829_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_load_ui_modules"
+    },
+    "find_handler_4778_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "find_handler"
+    },
+    "get_handler_delegate_4873_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_handler_delegate"
+    },
+    "reverse_url_6531_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "reverse_url"
+    },
+    "log_request_7664_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "log_request"
+    },
+    "init___1753_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "__init__"
+    },
+    "execute_8921_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "execute"
+    },
+    "init___2238_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "__init__"
+    },
+    "get_4420_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get"
+    },
+    "compute_etag_5882_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "compute_etag"
+    },
+    "set_headers_4350_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "set_headers"
+    },
+    "should_return_304_5131_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "should_return_304"
+    },
+    "get_absolute_path_5034_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_absolute_path"
+    },
+    "validate_absolute_path_3377_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "validate_absolute_path"
+    },
+    "get_content_1139_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_content"
+    },
+    "get_content_version_4613_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_content_version"
+    },
+    "get_content_size_9191_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_content_size"
+    },
+    "get_modified_time_2523_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_modified_time"
+    },
+    "get_content_type_7340_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_content_type"
+    },
+    "get_cache_time_6188_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_cache_time"
+    },
+    "make_static_url_9949_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "make_static_url"
+    },
+    "parse_url_path_4619_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "parse_url_path"
+    },
+    "get_version_4899_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_version"
+    },
+    "get_cached_version_4966_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_get_cached_version"
+    },
+    "transform_first_chunk_1570_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "transform_first_chunk"
+    },
+    "transform_chunk_3498_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "transform_chunk"
+    },
+    "authenticated_9214_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "authenticated"
+    },
+    "wrapper_7698_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "wrapper"
+    },
+    "render_9267_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "render"
+    },
+    "set_resources_9956_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "set_resources"
+    },
+    "create_signed_value_1342_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "create_signed_value"
+    },
+    "get_version_2014_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_get_version"
+    },
+    "decode_signed_value_1000_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "decode_signed_value"
+    },
+    "decode_signed_value_v1_2542_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_decode_signed_value_v1"
+    },
+    "decode_fields_v2_3399_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_decode_fields_v2"
+    },
+    "decode_signed_value_v2_2478_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "_decode_signed_value_v2"
+    },
+    "get_signature_key_version_4716_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/web.py",
+      "symbol_name": "get_signature_key_version"
+    },
+    "init___4089_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "__init__"
+    },
+    "init___9109_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "__init__"
+    },
+    "get_4470_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "get"
+    },
+    "ping_interval_7693_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "ping_interval"
+    },
+    "ping_timeout_8981_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "ping_timeout"
+    },
+    "max_message_size_6182_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "max_message_size"
+    },
+    "write_message_2302_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "write_message"
+    },
+    "select_subprotocol_3827_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "select_subprotocol"
+    },
+    "get_compression_options_8628_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "get_compression_options"
+    },
+    "ping_6975_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "ping"
+    },
+    "on_close_9081_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "on_close"
+    },
+    "close_4583_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "close"
+    },
+    "check_origin_9835_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "check_origin"
+    },
+    "set_nodelay_4953_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "set_nodelay"
+    },
+    "get_websocket_protocol_6195_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "get_websocket_protocol"
+    },
+    "detach_stream_6541_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_detach_stream"
+    },
+    "run_callback_9548_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_run_callback"
+    },
+    "init___9910_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "__init__"
+    },
+    "init___4172_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "__init__"
+    },
+    "init___4024_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "__init__"
+    },
+    "accept_connection_8152_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "accept_connection"
+    },
+    "accept_connection_7994_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_accept_connection"
+    },
+    "process_server_headers_6044_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_process_server_headers"
+    },
+    "get_compressor_options_1564_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_get_compressor_options"
+    },
+    "create_compressors_9874_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_create_compressors"
+    },
+    "write_frame_1900_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_write_frame"
+    },
+    "write_message_6334_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "write_message"
+    },
+    "receive_frame_2645_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_receive_frame"
+    },
+    "handle_message_2491_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "_handle_message"
+    },
+    "close_5483_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "close"
+    },
+    "ping_timeout_5632_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "ping_timeout"
+    },
+    "periodic_ping_4953_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "periodic_ping"
+    },
+    "init___7329_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "__init__"
+    },
+    "close_4593_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "close"
+    },
+    "headers_received_2630_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "headers_received"
+    },
+    "write_message_5342_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "write_message"
+    },
+    "read_message_9859_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "read_message"
+    },
+    "ping_9352_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "ping"
+    },
+    "websocket_connect_9761_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/websocket.py",
+      "symbol_name": "websocket_connect"
+    },
+    "handle_request_9243_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/wsgi.py",
+      "symbol_name": "handle_request"
+    },
+    "start_response_8961_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/wsgi.py",
+      "symbol_name": "start_response"
+    },
+    "environ_9324_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/wsgi.py",
+      "symbol_name": "environ"
+    },
+    "log_5277_test.py": {
+      "project_name": "tornado",
+      "file_name": "tornado/wsgi.py",
+      "symbol_name": "_log"
+    }
+  }

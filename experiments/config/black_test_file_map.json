@@ -1,0 +1,1497 @@
+{
+  "brackets_mark_4449_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/brackets.py",
+    "symbol_name": "mark"
+  },
+  "brackets_maybe_increment_for_loop_variable_9485_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/brackets.py",
+    "symbol_name": "maybe_increment_for_loop_variable"
+  },
+  "brackets_maybe_decrement_after_for_loop_variable_6645_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/brackets.py",
+    "symbol_name": "maybe_decrement_after_for_loop_variable"
+  },
+  "brackets_maybe_increment_lambda_arguments_2653_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/brackets.py",
+    "symbol_name": "maybe_increment_lambda_arguments"
+  },
+  "brackets_maybe_decrement_after_lambda_arguments_6520_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/brackets.py",
+    "symbol_name": "maybe_decrement_after_lambda_arguments"
+  },
+  "brackets_is_split_before_delimiter_4328_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/brackets.py",
+    "symbol_name": "is_split_before_delimiter"
+  },
+  "brackets_max_delimiter_priority_in_atom_4510_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/brackets.py",
+    "symbol_name": "max_delimiter_priority_in_atom"
+  },
+  "brackets_get_leaves_inside_matching_brackets_1557_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/brackets.py",
+    "symbol_name": "get_leaves_inside_matching_brackets"
+  },
+  "cache_get_cache_dir_2428_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/cache.py",
+    "symbol_name": "get_cache_dir"
+  },
+  "cache_read_2956_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/cache.py",
+    "symbol_name": "read"
+  },
+  "cache_is_changed_5126_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/cache.py",
+    "symbol_name": "is_changed"
+  },
+  "cache_filtered_cached_2977_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/cache.py",
+    "symbol_name": "filtered_cached"
+  },
+  "cache_write_4839_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/cache.py",
+    "symbol_name": "write"
+  },
+  "comments_generate_comments_8152_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "generate_comments"
+  },
+  "comments_list_comments_6664_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "list_comments"
+  },
+  "comments_normalize_trailing_prefix_3697_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "normalize_trailing_prefix"
+  },
+  "comments_make_comment_8833_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "make_comment"
+  },
+  "comments_convert_one_fmt_off_pair_6481_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "convert_one_fmt_off_pair"
+  },
+  "comments_generate_ignored_nodes_1903_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "generate_ignored_nodes"
+  },
+  "comments__generate_ignored_nodes_from_fmt_skip_8136_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "_generate_ignored_nodes_from_fmt_skip"
+  },
+  "comments_is_fmt_on_8927_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "is_fmt_on"
+  },
+  "comments_contains_pragma_comment_2258_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "contains_pragma_comment"
+  },
+  "comments__contains_fmt_skip_comment_8186_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/comments.py",
+    "symbol_name": "_contains_fmt_skip_comment"
+  },
+  "concurrency_maybe_install_uvloop_1915_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/concurrency.py",
+    "symbol_name": "maybe_install_uvloop"
+  },
+  "concurrency_shutdown_6974_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/concurrency.py",
+    "symbol_name": "shutdown"
+  },
+  "concurrency_reformat_many_1660_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/concurrency.py",
+    "symbol_name": "reformat_many"
+  },
+  "concurrency_schedule_formatting_3044_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/concurrency.py",
+    "symbol_name": "schedule_formatting"
+  },
+  "debug_visit_default_9706_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/debug.py",
+    "symbol_name": "visit_default"
+  },
+  "files_find_project_root_6588_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "find_project_root"
+  },
+  "files_find_pyproject_toml_6206_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "find_pyproject_toml"
+  },
+  "files_parse_pyproject_toml_1455_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "parse_pyproject_toml"
+  },
+  "files_infer_target_version_6379_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "infer_target_version"
+  },
+  "files_parse_req_python_version_8991_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "parse_req_python_version"
+  },
+  "files_parse_req_python_specifier_2982_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "parse_req_python_specifier"
+  },
+  "files_strip_specifier_set_7202_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "strip_specifier_set"
+  },
+  "files_find_user_pyproject_toml_3064_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "find_user_pyproject_toml"
+  },
+  "files_get_gitignore_4164_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "get_gitignore"
+  },
+  "files_resolves_outside_root_or_cannot_stat_2288_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "resolves_outside_root_or_cannot_stat"
+  },
+  "files_best_effort_relative_path_5053_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "best_effort_relative_path"
+  },
+  "files__path_is_ignored_5366_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "_path_is_ignored"
+  },
+  "files_gen_python_files_8767_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "gen_python_files"
+  },
+  "files_wrap_stream_for_windows_8730_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/files.py",
+    "symbol_name": "wrap_stream_for_windows"
+  },
+  "handle_ipynb_magics_jupyter_dependencies_are_installed_9131_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "jupyter_dependencies_are_installed"
+  },
+  "handle_ipynb_magics_validate_cell_7767_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "validate_cell"
+  },
+  "handle_ipynb_magics_remove_trailing_semicolon_7669_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "remove_trailing_semicolon"
+  },
+  "handle_ipynb_magics_put_trailing_semicolon_back_6154_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "put_trailing_semicolon_back"
+  },
+  "handle_ipynb_magics_mask_cell_1768_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "mask_cell"
+  },
+  "handle_ipynb_magics_get_token_9450_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "get_token"
+  },
+  "handle_ipynb_magics_replace_cell_magics_8730_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "replace_cell_magics"
+  },
+  "handle_ipynb_magics_replace_magics_7739_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "replace_magics"
+  },
+  "handle_ipynb_magics_unmask_cell_2717_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "unmask_cell"
+  },
+  "handle_ipynb_magics__get_code_start_7466_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "_get_code_start"
+  },
+  "handle_ipynb_magics__is_ipython_magic_1581_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "_is_ipython_magic"
+  },
+  "handle_ipynb_magics_visit_Assign_5649_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "visit_Assign"
+  },
+  "handle_ipynb_magics_visit_Expr_3594_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/handle_ipynb_magics.py",
+    "symbol_name": "visit_Expr"
+  },
+  "linegen_line_7955_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "line"
+  },
+  "linegen_visit_default_4431_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_default"
+  },
+  "linegen_visit_test_5528_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_test"
+  },
+  "linegen_visit_DEDENT_3184_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_DEDENT"
+  },
+  "linegen_visit_stmt_7519_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_stmt"
+  },
+  "linegen_visit_dictsetmaker_7696_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_dictsetmaker"
+  },
+  "linegen_visit_funcdef_8356_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_funcdef"
+  },
+  "linegen_visit_simple_stmt_8070_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_simple_stmt"
+  },
+  "linegen_visit_async_stmt_1118_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_async_stmt"
+  },
+  "linegen_visit_power_4257_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_power"
+  },
+  "linegen_visit_factor_3991_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_factor"
+  },
+  "linegen_visit_tname_1447_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_tname"
+  },
+  "linegen_visit_STRING_6245_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_STRING"
+  },
+  "linegen_visit_atom_6787_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_atom"
+  },
+  "linegen_visit_fstring_9040_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "visit_fstring"
+  },
+  "linegen___post_init___4147_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "__post_init__"
+  },
+  "linegen_transform_line_1169_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "transform_line"
+  },
+  "linegen__rhs_7530_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "_rhs"
+  },
+  "linegen_should_split_funcdef_with_rhs_2022_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "should_split_funcdef_with_rhs"
+  },
+  "linegen_left_hand_split_4847_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "left_hand_split"
+  },
+  "linegen_right_hand_split_4973_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "right_hand_split"
+  },
+  "linegen__first_right_hand_split_8348_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "_first_right_hand_split"
+  },
+  "linegen__maybe_split_omitting_optional_parens_3548_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "_maybe_split_omitting_optional_parens"
+  },
+  "linegen__prefer_split_rhs_oop_over_rhs_9595_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "_prefer_split_rhs_oop_over_rhs"
+  },
+  "linegen_bracket_split_succeeded_or_raise_7053_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "bracket_split_succeeded_or_raise"
+  },
+  "linegen__ensure_trailing_comma_7753_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "_ensure_trailing_comma"
+  },
+  "linegen_bracket_split_build_line_8126_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "bracket_split_build_line"
+  },
+  "linegen_dont_increase_indentation_3385_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "dont_increase_indentation"
+  },
+  "linegen_delimiter_split_1086_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "delimiter_split"
+  },
+  "linegen_append_to_line_4457_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "append_to_line"
+  },
+  "linegen_standalone_comment_split_1365_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "standalone_comment_split"
+  },
+  "linegen_append_to_line_1227_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "append_to_line"
+  },
+  "linegen_normalize_invisible_parens_4912_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "normalize_invisible_parens"
+  },
+  "linegen__normalize_import_from_7887_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "_normalize_import_from"
+  },
+  "linegen_remove_await_parens_4204_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "remove_await_parens"
+  },
+  "linegen__maybe_wrap_cms_in_parens_7915_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "_maybe_wrap_cms_in_parens"
+  },
+  "linegen_remove_with_parens_2390_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "remove_with_parens"
+  },
+  "linegen_maybe_make_parens_invisible_in_atom_1578_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "maybe_make_parens_invisible_in_atom"
+  },
+  "linegen_should_split_line_2426_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "should_split_line"
+  },
+  "linegen_generate_trailers_to_omit_7640_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "generate_trailers_to_omit"
+  },
+  "linegen_run_transformer_4227_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/linegen.py",
+    "symbol_name": "run_transformer"
+  },
+  "lines_append_9841_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "append"
+  },
+  "lines_append_safe_7310_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "append_safe"
+  },
+  "lines_is_def_9717_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "is_def"
+  },
+  "lines_is_class_paren_empty_5101_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "is_class_paren_empty"
+  },
+  "lines__is_triple_quoted_string_6680_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "_is_triple_quoted_string"
+  },
+  "lines_is_fmt_pass_converted_2248_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "is_fmt_pass_converted"
+  },
+  "lines_contains_implicit_multiline_string_with_comments_8383_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "contains_implicit_multiline_string_with_comments"
+  },
+  "lines_contains_uncollapsable_type_comments_4633_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "contains_uncollapsable_type_comments"
+  },
+  "lines_contains_unsplittable_type_ignore_8997_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "contains_unsplittable_type_ignore"
+  },
+  "lines_has_magic_trailing_comma_2222_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "has_magic_trailing_comma"
+  },
+  "lines_append_comment_8705_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "append_comment"
+  },
+  "lines_is_complex_subscript_7043_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "is_complex_subscript"
+  },
+  "lines_enumerate_with_length_1250_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "enumerate_with_length"
+  },
+  "lines___str___6295_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "__str__"
+  },
+  "lines_maybe_empty_lines_9651_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "maybe_empty_lines"
+  },
+  "lines__maybe_empty_lines_5788_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "_maybe_empty_lines"
+  },
+  "lines__maybe_empty_lines_for_class_or_def_8655_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "_maybe_empty_lines_for_class_or_def"
+  },
+  "lines_append_leaves_7045_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "append_leaves"
+  },
+  "lines_is_line_short_enough_4905_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "is_line_short_enough"
+  },
+  "lines_can_be_split_9991_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "can_be_split"
+  },
+  "lines_can_omit_invisible_parens_4418_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "can_omit_invisible_parens"
+  },
+  "lines__can_omit_opening_paren_9794_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "_can_omit_opening_paren"
+  },
+  "lines__can_omit_closing_paren_9364_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/lines.py",
+    "symbol_name": "_can_omit_closing_paren"
+  },
+  "mode___contains___5953_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/mode.py",
+    "symbol_name": "__contains__"
+  },
+  "mode_get_cache_key_6170_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/mode.py",
+    "symbol_name": "get_cache_key"
+  },
+  "nodes_visit_5754_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "visit"
+  },
+  "nodes_whitespace_6556_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "whitespace"
+  },
+  "nodes_preceding_leaf_3291_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "preceding_leaf"
+  },
+  "nodes_prev_siblings_are_9601_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "prev_siblings_are"
+  },
+  "nodes_parent_type_9228_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "parent_type"
+  },
+  "nodes_replace_child_2668_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "replace_child"
+  },
+  "nodes_container_of_3888_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "container_of"
+  },
+  "nodes_is_docstring_7796_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_docstring"
+  },
+  "nodes_is_one_tuple_9127_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_one_tuple"
+  },
+  "nodes_is_one_sequence_between_7868_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_one_sequence_between"
+  },
+  "nodes_is_simple_decorator_trailer_2084_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_simple_decorator_trailer"
+  },
+  "nodes_is_simple_decorator_expression_9462_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_simple_decorator_expression"
+  },
+  "nodes_is_yield_5002_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_yield"
+  },
+  "nodes_is_vararg_1280_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_vararg"
+  },
+  "nodes_is_stub_suite_3465_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_stub_suite"
+  },
+  "nodes_is_stub_body_3512_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_stub_body"
+  },
+  "nodes_is_atom_with_invisible_parens_1784_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_atom_with_invisible_parens"
+  },
+  "nodes_is_import_5463_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_import"
+  },
+  "nodes_is_with_or_async_with_stmt_3884_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_with_or_async_with_stmt"
+  },
+  "nodes_is_async_stmt_or_funcdef_3175_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "is_async_stmt_or_funcdef"
+  },
+  "nodes_wrap_in_parentheses_2076_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "wrap_in_parentheses"
+  },
+  "nodes_unwrap_singleton_parenthesis_6876_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/nodes.py",
+    "symbol_name": "unwrap_singleton_parenthesis"
+  },
+  "numerics_format_scientific_notation_2451_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/numerics.py",
+    "symbol_name": "format_scientific_notation"
+  },
+  "numerics_normalize_numeric_literal_9741_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/numerics.py",
+    "symbol_name": "normalize_numeric_literal"
+  },
+  "output_ipynb_diff_7838_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/output.py",
+    "symbol_name": "ipynb_diff"
+  },
+  "output__splitlines_no_ff_1443_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/output.py",
+    "symbol_name": "_splitlines_no_ff"
+  },
+  "output_diff_4765_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/output.py",
+    "symbol_name": "diff"
+  },
+  "output_color_diff_5532_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/output.py",
+    "symbol_name": "color_diff"
+  },
+  "output_dump_to_file_4512_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/output.py",
+    "symbol_name": "dump_to_file"
+  },
+  "parsing_get_grammars_7970_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/parsing.py",
+    "symbol_name": "get_grammars"
+  },
+  "parsing_lib2to3_parse_9851_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/parsing.py",
+    "symbol_name": "lib2to3_parse"
+  },
+  "parsing_parse_ast_6784_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/parsing.py",
+    "symbol_name": "parse_ast"
+  },
+  "parsing__stringify_ast_5956_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/parsing.py",
+    "symbol_name": "_stringify_ast"
+  },
+  "ranges_parse_line_ranges_4054_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "parse_line_ranges"
+  },
+  "ranges_sanitized_lines_9302_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "sanitized_lines"
+  },
+  "ranges_adjusted_lines_9621_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "adjusted_lines"
+  },
+  "ranges_convert_unchanged_lines_8893_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "convert_unchanged_lines"
+  },
+  "ranges_visit_simple_stmt_1228_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "visit_simple_stmt"
+  },
+  "ranges_visit_suite_3630_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "visit_suite"
+  },
+  "ranges__convert_unchanged_line_by_line_9014_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "_convert_unchanged_line_by_line"
+  },
+  "ranges__convert_node_to_standalone_comment_9765_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "_convert_node_to_standalone_comment"
+  },
+  "ranges__convert_nodes_to_standalone_comment_8316_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "_convert_nodes_to_standalone_comment"
+  },
+  "ranges__get_line_range_7007_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "_get_line_range"
+  },
+  "ranges__calculate_lines_mappings_6453_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "_calculate_lines_mappings"
+  },
+  "ranges__find_lines_mapping_index_1285_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/ranges.py",
+    "symbol_name": "_find_lines_mapping_index"
+  },
+  "report_done_5889_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/report.py",
+    "symbol_name": "done"
+  },
+  "report_return_code_1546_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/report.py",
+    "symbol_name": "return_code"
+  },
+  "report___str___3480_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/report.py",
+    "symbol_name": "__str__"
+  },
+  "strings_lines_with_leading_tabs_expanded_9625_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "lines_with_leading_tabs_expanded"
+  },
+  "strings_fix_multiline_docstring_1441_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "fix_multiline_docstring"
+  },
+  "strings_get_string_prefix_3317_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "get_string_prefix"
+  },
+  "strings_assert_is_leaf_string_7061_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "assert_is_leaf_string"
+  },
+  "strings_normalize_string_prefix_6293_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "normalize_string_prefix"
+  },
+  "strings_normalize_string_quotes_4432_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "normalize_string_quotes"
+  },
+  "strings_normalize_fstring_quotes_6701_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "normalize_fstring_quotes"
+  },
+  "strings_normalize_unicode_escape_sequences_3903_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "normalize_unicode_escape_sequences"
+  },
+  "strings_replace_4843_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "replace"
+  },
+  "strings_char_width_8991_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "char_width"
+  },
+  "strings_str_width_6484_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "str_width"
+  },
+  "strings_count_chars_in_width_9210_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/strings.py",
+    "symbol_name": "count_chars_in_width"
+  },
+  "trans_hug_power_op_3057_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "hug_power_op"
+  },
+  "trans_is_simple_lookup_8580_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "is_simple_lookup"
+  },
+  "trans_is_simple_operand_9207_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "is_simple_operand"
+  },
+  "trans_original_is_simple_lookup_func_3046_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "original_is_simple_lookup_func"
+  },
+  "trans_handle_is_simple_look_up_prev_2558_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "handle_is_simple_look_up_prev"
+  },
+  "trans_handle_is_simple_lookup_forward_8407_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "handle_is_simple_lookup_forward"
+  },
+  "trans_is_expression_chained_2701_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "is_expression_chained"
+  },
+  "trans_do_match_8629_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_match"
+  },
+  "trans_do_transform_2944_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_transform"
+  },
+  "trans___call___6844_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "__call__"
+  },
+  "trans_pop_custom_splits_6787_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "pop_custom_splits"
+  },
+  "trans_do_match_8332_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_match"
+  },
+  "trans_do_transform_2468_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_transform"
+  },
+  "trans__remove_backslash_line_continuation_chars_3693_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_remove_backslash_line_continuation_chars"
+  },
+  "trans__merge_string_group_2571_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_merge_string_group"
+  },
+  "trans__merge_one_string_group_3631_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_merge_one_string_group"
+  },
+  "trans_make_naked_9148_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "make_naked"
+  },
+  "trans__validate_msg_2913_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_validate_msg"
+  },
+  "trans_do_match_1338_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_match"
+  },
+  "trans_do_transform_6574_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_transform"
+  },
+  "trans__transform_to_new_line_1593_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_transform_to_new_line"
+  },
+  "trans_do_match_8278_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_match"
+  },
+  "trans__validate_8638_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_validate"
+  },
+  "trans__get_max_string_length_7691_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_get_max_string_length"
+  },
+  "trans__prefer_paren_wrap_match_4658_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_prefer_paren_wrap_match"
+  },
+  "trans_iter_fexpr_spans_1026_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "iter_fexpr_spans"
+  },
+  "trans__toggle_fexpr_quotes_5078_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_toggle_fexpr_quotes"
+  },
+  "trans_do_splitter_match_3768_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_splitter_match"
+  },
+  "trans_do_transform_8518_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_transform"
+  },
+  "trans_maybe_append_string_operators_7981_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "maybe_append_string_operators"
+  },
+  "trans_max_last_string_column_3274_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "max_last_string_column"
+  },
+  "trans__iter_nameescape_slices_8988_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_iter_nameescape_slices"
+  },
+  "trans__get_break_idx_8208_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_get_break_idx"
+  },
+  "trans_passes_all_checks_6308_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "passes_all_checks"
+  },
+  "trans__normalize_f_string_1671_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_normalize_f_string"
+  },
+  "trans_do_splitter_match_5961_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_splitter_match"
+  },
+  "trans__return_match_8577_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_return_match"
+  },
+  "trans__else_match_7012_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_else_match"
+  },
+  "trans__assert_match_1300_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_assert_match"
+  },
+  "trans__assign_match_2727_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_assign_match"
+  },
+  "trans__dict_or_lambda_match_4237_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_dict_or_lambda_match"
+  },
+  "trans_do_transform_6553_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "do_transform"
+  },
+  "trans_parse_8408_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "parse"
+  },
+  "trans__next_state_6696_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "_next_state"
+  },
+  "trans_insert_str_child_factory_2741_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "insert_str_child_factory"
+  },
+  "trans_is_valid_index_factory_3332_test.py": {
+    "project_name": "black",
+    "file_name": "src/black/trans.py",
+    "symbol_name": "is_valid_index_factory"
+  },
+  "__init___main_8133_test.py": {
+    "project_name": "black",
+    "file_name": "src/blackd/__init__.py",
+    "symbol_name": "main"
+  },
+  "__init___handle_4856_test.py": {
+    "project_name": "black",
+    "file_name": "src/blackd/__init__.py",
+    "symbol_name": "handle"
+  },
+  "__init___parse_mode_2223_test.py": {
+    "project_name": "black",
+    "file_name": "src/blackd/__init__.py",
+    "symbol_name": "parse_mode"
+  },
+  "__init___parse_python_variant_header_1764_test.py": {
+    "project_name": "black",
+    "file_name": "src/blackd/__init__.py",
+    "symbol_name": "parse_python_variant_header"
+  },
+  "middlewares_cors_1841_test.py": {
+    "project_name": "black",
+    "file_name": "src/blackd/middlewares.py",
+    "symbol_name": "cors"
+  },
+  "middlewares_impl_4126_test.py": {
+    "project_name": "black",
+    "file_name": "src/blackd/middlewares.py",
+    "symbol_name": "impl"
+  },
+  "conv_parse_graminit_h_2421_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/conv.py",
+    "symbol_name": "parse_graminit_h"
+  },
+  "conv_parse_graminit_c_3174_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/conv.py",
+    "symbol_name": "parse_graminit_c"
+  },
+  "driver___next___7031_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/driver.py",
+    "symbol_name": "__next__"
+  },
+  "driver_parse_tokens_4272_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/driver.py",
+    "symbol_name": "parse_tokens"
+  },
+  "driver__partially_consume_prefix_1845_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/driver.py",
+    "symbol_name": "_partially_consume_prefix"
+  },
+  "driver_load_grammar_6229_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/driver.py",
+    "symbol_name": "load_grammar"
+  },
+  "driver_load_packaged_grammar_9352_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/driver.py",
+    "symbol_name": "load_packaged_grammar"
+  },
+  "driver_main_7028_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/driver.py",
+    "symbol_name": "main"
+  },
+  "grammar___init___9571_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/grammar.py",
+    "symbol_name": "__init__"
+  },
+  "grammar_dump_8389_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/grammar.py",
+    "symbol_name": "dump"
+  },
+  "grammar_copy_1827_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/grammar.py",
+    "symbol_name": "copy"
+  },
+  "grammar_report_5832_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/grammar.py",
+    "symbol_name": "report"
+  },
+  "literals_escape_4580_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/literals.py",
+    "symbol_name": "escape"
+  },
+  "parse_backtrack_9212_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "backtrack"
+  },
+  "parse_add_token_1070_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "add_token"
+  },
+  "parse_determine_route_2121_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "determine_route"
+  },
+  "parse___init___6645_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "__init__"
+  },
+  "parse_setup_5217_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "setup"
+  },
+  "parse_addtoken_8093_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "addtoken"
+  },
+  "parse__addtoken_9953_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "_addtoken"
+  },
+  "parse_classify_4458_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "classify"
+  },
+  "parse_shift_4017_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "shift"
+  },
+  "parse_push_2301_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "push"
+  },
+  "parse_pop_2883_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/parse.py",
+    "symbol_name": "pop"
+  },
+  "pgen___init___6499_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "__init__"
+  },
+  "pgen_make_grammar_2987_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "make_grammar"
+  },
+  "pgen_make_label_9293_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "make_label"
+  },
+  "pgen_calcfirst_5373_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "calcfirst"
+  },
+  "pgen_parse_7489_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "parse"
+  },
+  "pgen_make_dfa_7099_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "make_dfa"
+  },
+  "pgen_dump_nfa_3487_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "dump_nfa"
+  },
+  "pgen_simplify_dfa_4446_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "simplify_dfa"
+  },
+  "pgen_parse_rhs_8466_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "parse_rhs"
+  },
+  "pgen_parse_item_6187_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "parse_item"
+  },
+  "pgen_parse_atom_3002_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "parse_atom"
+  },
+  "pgen___eq___7869_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/pgen.py",
+    "symbol_name": "__eq__"
+  },
+  "tokenize_tokenize_5815_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/tokenize.py",
+    "symbol_name": "tokenize"
+  },
+  "tokenize_untokenize_6746_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/tokenize.py",
+    "symbol_name": "untokenize"
+  },
+  "tokenize_compat_2907_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/tokenize.py",
+    "symbol_name": "compat"
+  },
+  "tokenize__get_normal_name_8627_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/tokenize.py",
+    "symbol_name": "_get_normal_name"
+  },
+  "tokenize_detect_encoding_8057_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/tokenize.py",
+    "symbol_name": "detect_encoding"
+  },
+  "tokenize_find_cookie_7932_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/tokenize.py",
+    "symbol_name": "find_cookie"
+  },
+  "tokenize_untokenize_2707_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pgen2/tokenize.py",
+    "symbol_name": "untokenize"
+  },
+  "pygram_initialize_4943_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pygram.py",
+    "symbol_name": "initialize"
+  },
+  "pytree_type_repr_7458_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "type_repr"
+  },
+  "pytree_replace_5321_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "replace"
+  },
+  "pytree_remove_3409_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "remove"
+  },
+  "pytree_next_sibling_4367_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "next_sibling"
+  },
+  "pytree_prev_sibling_7269_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "prev_sibling"
+  },
+  "pytree___init___2222_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "__init__"
+  },
+  "pytree_update_sibling_maps_3311_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "update_sibling_maps"
+  },
+  "pytree___init___2669_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "__init__"
+  },
+  "pytree_convert_8200_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "convert"
+  },
+  "pytree_match_7416_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "match"
+  },
+  "pytree___init___1285_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "__init__"
+  },
+  "pytree__submatch_3770_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "_submatch"
+  },
+  "pytree___init___5837_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "__init__"
+  },
+  "pytree__submatch_1673_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "_submatch"
+  },
+  "pytree___init___5579_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "__init__"
+  },
+  "pytree_optimize_5675_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "optimize"
+  },
+  "pytree_generate_matches_4010_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "generate_matches"
+  },
+  "pytree__iterative_matches_8422_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "_iterative_matches"
+  },
+  "pytree__bare_name_matches_2180_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "_bare_name_matches"
+  },
+  "pytree__recursive_matches_9682_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "_recursive_matches"
+  },
+  "pytree___init___6325_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "__init__"
+  },
+  "pytree_generate_matches_8910_test.py": {
+    "project_name": "black",
+    "file_name": "src/blib2to3/pytree.py",
+    "symbol_name": "generate_matches"
+  }
+}
