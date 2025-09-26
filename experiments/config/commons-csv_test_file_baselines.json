@@ -1,0 +1,727 @@
+{
+    "create___7057_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "create()"
+    },
+    "setAllowDuplicateHeaderNames_boolean__8124_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setAllowDuplicateHeaderNames(boolean)"
+    },
+    "setAllowMissingColumnNames_boolean__7269_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setAllowMissingColumnNames(boolean)"
+    },
+    "setCommentMarker_char__3820_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setCommentMarker(char)"
+    },
+    "setCommentMarker_Character__7242_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setCommentMarker(Character)"
+    },
+    "setDelimiter_String__5386_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setDelimiter(String)"
+    },
+    "setDuplicateHeaderMode_DuplicateHeaderMode__7592_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setDuplicateHeaderMode(DuplicateHeaderMode)"
+    },
+    "setEscape_char__7750_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setEscape(char)"
+    },
+    "setEscape_Character__8162_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setEscape(Character)"
+    },
+    "setHeader_Class>__9668_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setHeader(Class<? extends Enum<?>>)"
+    },
+    "setHeader_ResultSet__2133_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setHeader(ResultSet)"
+    },
+    "setHeader_ResultSetMetaData__1868_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setHeader(ResultSetMetaData)"
+    },
+    "setHeader_String...__1931_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setHeader(String...)"
+    },
+    "setHeaderComments_Object...__4751_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setHeaderComments(Object...)"
+    },
+    "setHeaderComments_String...__6991_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setHeaderComments(String...)"
+    },
+    "setIgnoreEmptyLines_boolean__8850_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setIgnoreEmptyLines(boolean)"
+    },
+    "setLenientEof_boolean__9404_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setLenientEof(boolean)"
+    },
+    "setMaxRows_long__6159_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setMaxRows(long)"
+    },
+    "setNullString_String__5183_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setNullString(String)"
+    },
+    "setQuote_Character__1540_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setQuote(Character)"
+    },
+    "setRecordSeparator_char__1753_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setRecordSeparator(char)"
+    },
+    "setRecordSeparator_String__9524_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setRecordSeparator(String)"
+    },
+    "setTrailingData_boolean__2564_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "setTrailingData(boolean)"
+    },
+    "clone_T..._ _5815_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "clone(T...) <T>"
+    },
+    "newFormat_char__3323_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "newFormat(char)"
+    },
+    "trim_CharSequence__5557_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "trim(CharSequence)"
+    },
+    "equals_Object__1265_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "equals(Object)"
+    },
+    "getAllowDuplicateHeaderNames___6077_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "getAllowDuplicateHeaderNames()"
+    },
+    "getCommentMarker___4182_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "getCommentMarker()"
+    },
+    "getHeaderComments___4243_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "getHeaderComments()"
+    },
+    "getMaxRows___7578_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "getMaxRows()"
+    },
+    "getNullString___7577_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "getNullString()"
+    },
+    "isDelimiter_char_6861_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "isDelimiter(char, CharSequence, int, char[], int)"
+    },
+    "parse_Reader__5222_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "parse(Reader)"
+    },
+    "print_Appendable__1909_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "print(Appendable)"
+    },
+    "print_File_2940_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "print(File, Charset)"
+    },
+    "print_InputStream_9525_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "print(InputStream, Appendable, boolean)"
+    },
+    "print_Object_3326_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "print(Object, Appendable, boolean)"
+    },
+    "print_Object_9497_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "print(Object, CharSequence, Appendable, boolean)"
+    },
+    "print_Path_8568_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "print(Path, Charset)"
+    },
+    "print_Reader_1301_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "print(Reader, Appendable, boolean)"
+    },
+    "printer___8065_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "printer()"
+    },
+    "println_Appendable__1716_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "println(Appendable)"
+    },
+    "printRecord_Appendable_1295_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "printRecord(Appendable, Object...)"
+    },
+    "printWithEscapes_CharSequence_5163_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "printWithEscapes(CharSequence, Appendable)"
+    },
+    "printWithEscapes_Reader_9815_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "printWithEscapes(Reader, Appendable)"
+    },
+    "printWithQuotes_Object_6891_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "printWithQuotes(Object, CharSequence, Appendable, boolean)"
+    },
+    "printWithQuotes_Reader_9816_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "printWithQuotes(Reader, Appendable)"
+    },
+    "toString___5661_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "toString()"
+    },
+    "validate___2034_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "validate()"
+    },
+    "withAllowDuplicateHeaderNames___9594_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withAllowDuplicateHeaderNames()"
+    },
+    "withAllowDuplicateHeaderNames_boolean__9728_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withAllowDuplicateHeaderNames(boolean)"
+    },
+    "withAllowMissingColumnNames___8685_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withAllowMissingColumnNames()"
+    },
+    "withAllowMissingColumnNames_boolean__4929_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withAllowMissingColumnNames(boolean)"
+    },
+    "withAutoFlush_boolean__6434_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withAutoFlush(boolean)"
+    },
+    "withCommentMarker_char__7969_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withCommentMarker(char)"
+    },
+    "withCommentMarker_Character__4422_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withCommentMarker(Character)"
+    },
+    "withDelimiter_char__6328_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withDelimiter(char)"
+    },
+    "withEscape_char__6070_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withEscape(char)"
+    },
+    "withEscape_Character__2328_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withEscape(Character)"
+    },
+    "withFirstRecordAsHeader___4123_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withFirstRecordAsHeader()"
+    },
+    "withHeader_Class>__5030_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withHeader(Class<? extends Enum<?>>)"
+    },
+    "withHeader_ResultSet__7563_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withHeader(ResultSet)"
+    },
+    "withHeader_ResultSetMetaData__1388_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withHeader(ResultSetMetaData)"
+    },
+    "withHeader_String...__7212_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withHeader(String...)"
+    },
+    "withHeaderComments_Object...__1579_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withHeaderComments(Object...)"
+    },
+    "withIgnoreEmptyLines___9705_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withIgnoreEmptyLines()"
+    },
+    "withIgnoreEmptyLines_boolean__9205_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withIgnoreEmptyLines(boolean)"
+    },
+    "withIgnoreHeaderCase___9844_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withIgnoreHeaderCase()"
+    },
+    "withIgnoreHeaderCase_boolean__7343_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withIgnoreHeaderCase(boolean)"
+    },
+    "withIgnoreSurroundingSpaces___2256_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withIgnoreSurroundingSpaces()"
+    },
+    "withIgnoreSurroundingSpaces_boolean__1101_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withIgnoreSurroundingSpaces(boolean)"
+    },
+    "withNullString_String__3149_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withNullString(String)"
+    },
+    "withQuote_char__5371_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withQuote(char)"
+    },
+    "withQuote_Character__3818_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withQuote(Character)"
+    },
+    "withQuoteMode_QuoteMode__1350_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withQuoteMode(QuoteMode)"
+    },
+    "withRecordSeparator_char__8768_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withRecordSeparator(char)"
+    },
+    "withRecordSeparator_String__7570_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withRecordSeparator(String)"
+    },
+    "withSkipHeaderRecord___6497_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withSkipHeaderRecord()"
+    },
+    "withSkipHeaderRecord_boolean__9771_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withSkipHeaderRecord(boolean)"
+    },
+    "withSystemRecordSeparator___9002_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withSystemRecordSeparator()"
+    },
+    "withTrailingDelimiter___8495_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withTrailingDelimiter()"
+    },
+    "withTrailingDelimiter_boolean__7884_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withTrailingDelimiter(boolean)"
+    },
+    "withTrim___3455_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withTrim()"
+    },
+    "withTrim_boolean__6878_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVFormat.java",
+      "symbol_name": "withTrim(boolean)"
+    },
+    "setTrackBytes_boolean__7507_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "setTrackBytes(boolean)"
+    },
+    "getNextRecord___7166_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "getNextRecord()"
+    },
+    "next___5073_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "next()"
+    },
+    "parse_File_4724_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "parse(File, Charset, CSVFormat)"
+    },
+    "parse_InputStream_9292_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "parse(InputStream, Charset, CSVFormat)"
+    },
+    "parse_Path_7297_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "parse(Path, Charset, CSVFormat)"
+    },
+    "parse_Reader_4532_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "parse(Reader, CSVFormat)"
+    },
+    "parse_String_9963_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "parse(String, CSVFormat)"
+    },
+    "parse_URL_9982_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "parse(URL, Charset, CSVFormat)"
+    },
+    "createHeaders___2773_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "createHeaders()"
+    },
+    "getCurrentLineNumber___6492_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "getCurrentLineNumber()"
+    },
+    "getHeaderMap___2225_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "getHeaderMap()"
+    },
+    "getHeaderNames___6371_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "getHeaderNames()"
+    },
+    "getRecordNumber___1651_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "getRecordNumber()"
+    },
+    "getRecords___9258_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "getRecords()"
+    },
+    "handleNull_String__7471_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "handleNull(String)"
+    },
+    "hasHeaderComment___5488_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "hasHeaderComment()"
+    },
+    "hasTrailerComment___8367_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "hasTrailerComment()"
+    },
+    "iterator___2880_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "iterator()"
+    },
+    "nextRecord___4938_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "nextRecord()"
+    },
+    "stream___1135_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVParser.java",
+      "symbol_name": "stream()"
+    },
+    "close_boolean__1489_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "close(boolean)"
+    },
+    "flush___8710_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "flush()"
+    },
+    "print_Object__5614_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "print(Object)"
+    },
+    "printComment_String__1311_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printComment(String)"
+    },
+    "printHeaders_ResultSet__4926_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printHeaders(ResultSet)"
+    },
+    "printRecord_Iterable__3193_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printRecord(Iterable<?>)"
+    },
+    "printRecord_Object...__7261_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printRecord(Object...)"
+    },
+    "printRecord_Stream__3419_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printRecord(Stream<?>)"
+    },
+    "printRecords_Iterable__4983_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printRecords(Iterable<?>)"
+    },
+    "printRecords_Object...__3928_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printRecords(Object...)"
+    },
+    "printRecords_ResultSet__8447_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printRecords(ResultSet)"
+    },
+    "printRecords_ResultSet_2191_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printRecords(ResultSet, boolean)"
+    },
+    "printRecords_Stream__3874_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVPrinter.java",
+      "symbol_name": "printRecords(Stream<?>)"
+    },
+    "get_String__3403_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "get(String)"
+    },
+    "getComment___6632_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "getComment()"
+    },
+    "getParser___6441_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "getParser()"
+    },
+    "getRecordNumber___7400_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "getRecordNumber()"
+    },
+    "hasComment___9559_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "hasComment()"
+    },
+    "isConsistent___2074_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "isConsistent()"
+    },
+    "isMapped_String__3063_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "isMapped(String)"
+    },
+    "putIn_M_ >_8401_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "putIn(M) <M extends Map<String, String>>"
+    },
+    "toList___2486_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "toList()"
+    },
+    "toMap___6370_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "toMap()"
+    },
+    "toString___4178_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/CSVRecord.java",
+      "symbol_name": "toString()"
+    },
+    "close___4976_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/ExtendedBufferedReader.java",
+      "symbol_name": "close()"
+    },
+    "getEncodedCharLength_int__4257_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/ExtendedBufferedReader.java",
+      "symbol_name": "getEncodedCharLength(int)"
+    },
+    "getLastChar___9807_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/ExtendedBufferedReader.java",
+      "symbol_name": "getLastChar()"
+    },
+    "getLineNumber___2790_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/ExtendedBufferedReader.java",
+      "symbol_name": "getLineNumber()"
+    },
+    "read___1132_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/ExtendedBufferedReader.java",
+      "symbol_name": "read()"
+    },
+    "read_char[]_9125_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/ExtendedBufferedReader.java",
+      "symbol_name": "read(char[], int, int)"
+    },
+    "readLine___2037_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/ExtendedBufferedReader.java",
+      "symbol_name": "readLine()"
+    },
+    "appendNextEscapedCharacterToToken_Token__6971_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/Lexer.java",
+      "symbol_name": "appendNextEscapedCharacterToToken(Token)"
+    },
+    "isDelimiter_int__6028_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/Lexer.java",
+      "symbol_name": "isDelimiter(int)"
+    },
+    "isEscapeDelimiter___7873_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/Lexer.java",
+      "symbol_name": "isEscapeDelimiter()"
+    },
+    "nextToken_Token__2313_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/Lexer.java",
+      "symbol_name": "nextToken(Token)"
+    },
+    "parseEncapsulatedToken_Token__1070_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/Lexer.java",
+      "symbol_name": "parseEncapsulatedToken(Token)"
+    },
+    "parseSimpleToken_Token_3769_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/Lexer.java",
+      "symbol_name": "parseSimpleToken(Token, int)"
+    },
+    "readEndOfLine_int__7121_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/Lexer.java",
+      "symbol_name": "readEndOfLine(int)"
+    },
+    "readEscape___7214_test.py": {
+      "project_name": "commons-csv",
+      "file_name": "src/main/java/org/apache/commons/csv/Lexer.java",
+      "symbol_name": "readEscape()"
+    }
+  }

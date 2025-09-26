@@ -1,0 +1,122 @@
+{
+    "intersect_5603_test.py": {
+      "project_name": "logrus",
+      "file_name": "ci/magefile.go",
+      "symbol_name": "intersect"
+    },
+    "getFullBuildMatrix_3348_test.py": {
+      "project_name": "logrus",
+      "file_name": "ci/magefile.go",
+      "symbol_name": "getFullBuildMatrix"
+    },
+    "getBuildMatrix_6879_test.py": {
+      "project_name": "logrus",
+      "file_name": "ci/magefile.go",
+      "symbol_name": "getBuildMatrix"
+    },
+    "CrossBuild_9735_test.py": {
+      "project_name": "logrus",
+      "file_name": "ci/magefile.go",
+      "symbol_name": "CrossBuild"
+    },
+    "Entry_.WithFields_7310_test.py": {
+      "project_name": "logrus",
+      "file_name": "entry.go",
+      "symbol_name": "(*Entry).WithFields"
+    },
+    "getPackageName_3602_test.py": {
+      "project_name": "logrus",
+      "file_name": "entry.go",
+      "symbol_name": "getPackageName"
+    },
+    "getCaller_5798_test.py": {
+      "project_name": "logrus",
+      "file_name": "entry.go",
+      "symbol_name": "getCaller"
+    },
+    "Entry_.log_3101_test.py": {
+      "project_name": "logrus",
+      "file_name": "entry.go",
+      "symbol_name": "(*Entry).log"
+    },
+    "Entry_.fireHooks_6986_test.py": {
+      "project_name": "logrus",
+      "file_name": "entry.go",
+      "symbol_name": "(*Entry).fireHooks"
+    },
+    "Entry_.write_1681_test.py": {
+      "project_name": "logrus",
+      "file_name": "entry.go",
+      "symbol_name": "(*Entry).write"
+    },
+    "prefixFieldClashes_5001_test.py": {
+      "project_name": "logrus",
+      "file_name": "formatter.go",
+      "symbol_name": "prefixFieldClashes"
+    },
+    "SyslogHook_.Fire_2161_test.py": {
+      "project_name": "logrus",
+      "file_name": "hooks/syslog/syslog.go",
+      "symbol_name": "(*SyslogHook).Fire"
+    },
+    "JSONFormatter_.Format_2208_test.py": {
+      "project_name": "logrus",
+      "file_name": "json_formatter.go",
+      "symbol_name": "(*JSONFormatter).Format"
+    },
+    "ParseLevel_3712_test.py": {
+      "project_name": "logrus",
+      "file_name": "logrus.go",
+      "symbol_name": "ParseLevel"
+    },
+    "Level_.MarshalText_8806_test.py": {
+      "project_name": "logrus",
+      "file_name": "logrus.go",
+      "symbol_name": "(Level).MarshalText"
+    },
+    "checkIfTerminal_3173_test.py": {
+      "project_name": "logrus",
+      "file_name": "terminal_check_windows.go",
+      "symbol_name": "checkIfTerminal"
+    },
+    "TextFormatter_.init_1928_test.py": {
+      "project_name": "logrus",
+      "file_name": "text_formatter.go",
+      "symbol_name": "(*TextFormatter).init"
+    },
+    "TextFormatter_.isColored_6335_test.py": {
+      "project_name": "logrus",
+      "file_name": "text_formatter.go",
+      "symbol_name": "(*TextFormatter).isColored"
+    },
+    "TextFormatter_.Format_6159_test.py": {
+      "project_name": "logrus",
+      "file_name": "text_formatter.go",
+      "symbol_name": "(*TextFormatter).Format"
+    },
+    "TextFormatter_.printColored_7035_test.py": {
+      "project_name": "logrus",
+      "file_name": "text_formatter.go",
+      "symbol_name": "(*TextFormatter).printColored"
+    },
+    "TextFormatter_.needsQuoting_3403_test.py": {
+      "project_name": "logrus",
+      "file_name": "text_formatter.go",
+      "symbol_name": "(*TextFormatter).needsQuoting"
+    },
+    "TextFormatter_.appendValue_2198_test.py": {
+      "project_name": "logrus",
+      "file_name": "text_formatter.go",
+      "symbol_name": "(*TextFormatter).appendValue"
+    },
+    "Entry_.WriterLevel_8262_test.py": {
+      "project_name": "logrus",
+      "file_name": "writer.go",
+      "symbol_name": "(*Entry).WriterLevel"
+    },
+    "Entry_.writerScanner_1318_test.py": {
+      "project_name": "logrus",
+      "file_name": "writer.go",
+      "symbol_name": "(*Entry).writerScanner"
+    }
+  }

@@ -1,0 +1,218 @@
+
+{
+    "flatten_Options_3324_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/BasicParser.java",
+      "symbol_name": "flatten(Options, String[], boolean)"
+    },
+    "setDeprecatedHandler_Consumer__4209_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "setDeprecatedHandler(Consumer<Option>)"
+    },
+    "getOptionObject_char__3050_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getOptionObject(char)"
+    },
+    "getOptionObject_String__7951_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getOptionObject(String)"
+    },
+    "getOptionValue_Option_1355_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getOptionValue(Option, Supplier<String>)"
+    },
+    "getOptionValue_String_8501_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getOptionValue(String, Supplier<String>)"
+    },
+    "getOptionValues_OptionGroup__5535_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getOptionValues(OptionGroup)"
+    },
+    "getParsedOptionValue_char_7365_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getParsedOptionValue(char, Supplier<T>) <T>"
+    },
+    "getParsedOptionValue_String_3368_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getParsedOptionValue(String, T) <T>"
+    },
+    "getParsedOptionValues_Option_2194_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getParsedOptionValues(Option, T[]) <T>"
+    },
+    "getParsedOptionValues_String_ _2141_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "getParsedOptionValues(String) <T>"
+    },
+    "hasOption_Option__2324_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/CommandLine.java",
+      "symbol_name": "hasOption(Option)"
+    },
+    "getLongPrefix_String__9406_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/DefaultParser.java",
+      "symbol_name": "getLongPrefix(String)"
+    },
+    "handleConcatenatedOptions_String__1963_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/DefaultParser.java",
+      "symbol_name": "handleConcatenatedOptions(String)"
+    },
+    "handleLongOptionWithEqual_String__9222_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/DefaultParser.java",
+      "symbol_name": "handleLongOptionWithEqual(String)"
+    },
+    "isLongOption_String__7765_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/DefaultParser.java",
+      "symbol_name": "isLongOption(String)"
+    },
+    "isNegativeNumber_String__6651_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/DefaultParser.java",
+      "symbol_name": "isNegativeNumber(String)"
+    },
+    "parse_Options_7928_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/DefaultParser.java",
+      "symbol_name": "parse(Options, String[], Properties)"
+    },
+    "parse_Options_1518_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/DefaultParser.java",
+      "symbol_name": "parse(Options, String[], Properties, boolean)"
+    },
+    "toString___8491_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/DeprecatedAttributes.java",
+      "symbol_name": "toString()"
+    },
+    "appendOptions_A_5138_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/HelpFormatter.java",
+      "symbol_name": "appendOptions(A, int, Options, int, int) <A extends Appendable>"
+    },
+    "renderWrappedTextBlock_A_7533_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/HelpFormatter.java",
+      "symbol_name": "renderWrappedTextBlock(A, int, int, String) <A extends Appendable>"
+    },
+    "build___4028_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/Option.java",
+      "symbol_name": "build()"
+    },
+    "converter_Converter__4818_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/Option.java",
+      "symbol_name": "converter(Converter<?, ?>)"
+    },
+    "valueSeparator_char__3720_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/Option.java",
+      "symbol_name": "valueSeparator(char)"
+    },
+    "add_String__2178_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/Option.java",
+      "symbol_name": "add(String)"
+    },
+    "processValue_String__9653_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/Option.java",
+      "symbol_name": "processValue(String)"
+    },
+    "create___8276_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/OptionBuilder.java",
+      "symbol_name": "create()"
+    },
+    "create_String__4495_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/OptionBuilder.java",
+      "symbol_name": "create(String)"
+    },
+    "withType_Class__5905_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/OptionBuilder.java",
+      "symbol_name": "withType(Class<?>)"
+    },
+    "toString___4382_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/OptionGroup.java",
+      "symbol_name": "toString()"
+    },
+    "isValidChar_char__4189_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/OptionValidator.java",
+      "symbol_name": "isValidChar(char)"
+    },
+    "processProperties_Properties__5880_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/Parser.java",
+      "symbol_name": "processProperties(Properties)"
+    },
+    "updateRequiredOptions_Option__5069_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/Parser.java",
+      "symbol_name": "updateRequiredOptions(Option)"
+    },
+    "burstToken_String_8062_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/PosixParser.java",
+      "symbol_name": "burstToken(String, boolean)"
+    },
+    "processOptionToken_String_6085_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/PosixParser.java",
+      "symbol_name": "processOptionToken(String, boolean)"
+    },
+    "createDate_String__6172_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/TypeHandler.java",
+      "symbol_name": "createDate(String)"
+    },
+    "createNumber_String__6145_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/TypeHandler.java",
+      "symbol_name": "createNumber(String)"
+    },
+    "createObject_String__2364_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/TypeHandler.java",
+      "symbol_name": "createObject(String)"
+    },
+    "printHelp_String_4666_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/help/AbstractHelpFormatter.java",
+      "symbol_name": "printHelp(String, String, Iterable<Option>, String, boolean)"
+    },
+    "toSyntaxOptions_Iterable_8090_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/help/AbstractHelpFormatter.java",
+      "symbol_name": "toSyntaxOptions(Iterable<Option>, Function<Option, OptionGroup>)"
+    },
+    "indexOfWrap_CharSequence_5058_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/help/TextHelpAppendable.java",
+      "symbol_name": "indexOfWrap(CharSequence, int, int)"
+    },
+    "makeColumnQueues_List_7761_test.py": {
+      "project_name": "commons-cli",
+      "file_name": "src/main/java/org/apache/commons/cli/help/TextHelpAppendable.java",
+      "symbol_name": "makeColumnQueues(List<String>, List<TextStyle>)"
+    }
+  }

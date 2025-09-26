@@ -1,0 +1,508 @@
+
+{
+    "legacyArgs_5683_test.py": {
+      "project_name": "cobra",
+      "file_name": "args.go",
+      "symbol_name": "legacyArgs"
+    },
+    "OnlyValidArgs_5379_test.py": {
+      "project_name": "cobra",
+      "file_name": "args.go",
+      "symbol_name": "OnlyValidArgs"
+    },
+    "writePreamble_4253_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writePreamble"
+    },
+    "writePostscript_2078_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writePostscript"
+    },
+    "writeCommands_4379_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writeCommands"
+    },
+    "writeFlagHandler_6375_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writeFlagHandler"
+    },
+    "writeFlag_2078_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writeFlag"
+    },
+    "writeLocalNonPersistentFlag_1394_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writeLocalNonPersistentFlag"
+    },
+    "prepareCustomAnnotationsForFlags_5909_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "prepareCustomAnnotationsForFlags"
+    },
+    "writeFlags_4880_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writeFlags"
+    },
+    "writeRequiredFlag_6365_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writeRequiredFlag"
+    },
+    "writeRequiredNouns_9689_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writeRequiredNouns"
+    },
+    "writeCmdAliases_6710_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "writeCmdAliases"
+    },
+    "gen_3052_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "gen"
+    },
+    "Command_.GenBashCompletion_6675_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completions.go",
+      "symbol_name": "(*Command).GenBashCompletion"
+    },
+    "genBashComp_2808_test.py": {
+      "project_name": "cobra",
+      "file_name": "bash_completionsV2.go",
+      "symbol_name": "genBashComp"
+    },
+    "Gt_5684_test.py": {
+      "project_name": "cobra",
+      "file_name": "cobra.go",
+      "symbol_name": "Gt"
+    },
+    "Eq_6501_test.py": {
+      "project_name": "cobra",
+      "file_name": "cobra.go",
+      "symbol_name": "Eq"
+    },
+    "tmpl_7832_test.py": {
+      "project_name": "cobra",
+      "file_name": "cobra.go",
+      "symbol_name": "tmpl"
+    },
+    "ld_4839_test.py": {
+      "project_name": "cobra",
+      "file_name": "cobra.go",
+      "symbol_name": "ld"
+    },
+    "Command_.UsageFunc_6786_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).UsageFunc"
+    },
+    "Command_.HelpFunc_3486_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).HelpFunc"
+    },
+    "Command_.getHelpTemplateFunc_5619_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).getHelpTemplateFunc"
+    },
+    "Command_.UsageString_7849_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).UsageString"
+    },
+    "Command_.FlagErrorFunc_4604_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).FlagErrorFunc"
+    },
+    "shortHasNoOptDefVal_3087_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "shortHasNoOptDefVal"
+    },
+    "stripFlags_7924_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "stripFlags"
+    },
+    "Command_.argsMinusFirstX_8363_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).argsMinusFirstX"
+    },
+    "Command_.Find_3438_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).Find"
+    },
+    "Command_.findSuggestions_6273_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).findSuggestions"
+    },
+    "Command_.findNext_7081_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).findNext"
+    },
+    "Command_.Traverse_8039_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).Traverse"
+    },
+    "Command_.SuggestionsFor_5089_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).SuggestionsFor"
+    },
+    "Command_.execute_9039_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).execute"
+    },
+    "Command_.ExecuteC_2837_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).ExecuteC"
+    },
+    "Command_.ValidateRequiredFlags_2250_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).ValidateRequiredFlags"
+    },
+    "Command_.InitDefaultHelpFlag_2787_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).InitDefaultHelpFlag"
+    },
+    "Command_.InitDefaultVersionFlag_9976_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).InitDefaultVersionFlag"
+    },
+    "Command_.InitDefaultHelpCmd_7298_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).InitDefaultHelpCmd"
+    },
+    "Command_.AddCommand_3714_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).AddCommand"
+    },
+    "Command_.RemoveCommand_8291_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).RemoveCommand"
+    },
+    "Command_.UseLine_9494_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).UseLine"
+    },
+    "Command_.DebugFlags_8381_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).DebugFlags"
+    },
+    "Command_.hasNameOrAliasPrefix_7495_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).hasNameOrAliasPrefix"
+    },
+    "Command_.IsAvailableCommand_3289_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).IsAvailableCommand"
+    },
+    "Command_.IsAdditionalHelpTopicCommand_7475_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).IsAdditionalHelpTopicCommand"
+    },
+    "Command_.HasHelpSubCommands_4716_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).HasHelpSubCommands"
+    },
+    "Command_.HasAvailableSubCommands_3484_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).HasAvailableSubCommands"
+    },
+    "Command_.Flags_7676_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).Flags"
+    },
+    "Command_.LocalNonPersistentFlags_5370_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).LocalNonPersistentFlags"
+    },
+    "Command_.LocalFlags_3170_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).LocalFlags"
+    },
+    "Command_.InheritedFlags_9363_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).InheritedFlags"
+    },
+    "Command_.ResetFlags_5808_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).ResetFlags"
+    },
+    "Command_.persistentFlag_5013_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).persistentFlag"
+    },
+    "Command_.ParseFlags_6175_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).ParseFlags"
+    },
+    "Command_.updateParentsPflags_3241_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "(*Command).updateParentsPflags"
+    },
+    "defaultUsageFunc_2463_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "defaultUsageFunc"
+    },
+    "defaultHelpFunc_8260_test.py": {
+      "project_name": "cobra",
+      "file_name": "command.go",
+      "symbol_name": "defaultHelpFunc"
+    },
+    "preExecHook_2305_test.py": {
+      "project_name": "cobra",
+      "file_name": "command_win.go",
+      "symbol_name": "preExecHook"
+    },
+    "Command_.RegisterFlagCompletionFunc_8763_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "(*Command).RegisterFlagCompletionFunc"
+    },
+    "Command_.GetFlagCompletionFunc_9062_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "(*Command).GetFlagCompletionFunc"
+    },
+    "ShellCompDirective_.string_6665_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "(ShellCompDirective).string"
+    },
+    "Command_.initCompleteCmd_8127_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "(*Command).initCompleteCmd"
+    },
+    "Command_.getCompletions_2351_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "(*Command).getCompletions"
+    },
+    "helpOrVersionFlagPresent_8435_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "helpOrVersionFlagPresent"
+    },
+    "getFlagNameCompletions_4901_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "getFlagNameCompletions"
+    },
+    "completeRequireFlags_7365_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "completeRequireFlags"
+    },
+    "checkIfFlagCompletion_9665_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "checkIfFlagCompletion"
+    },
+    "Command_.InitDefaultCompletionCmd_4112_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "(*Command).InitDefaultCompletionCmd"
+    },
+    "findFlag_5624_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "findFlag"
+    },
+    "CompDebug_4505_test.py": {
+      "project_name": "cobra",
+      "file_name": "completions.go",
+      "symbol_name": "CompDebug"
+    },
+    "GenManTreeFromOpts_1980_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/man_docs.go",
+      "symbol_name": "GenManTreeFromOpts"
+    },
+    "GenMan_8456_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/man_docs.go",
+      "symbol_name": "GenMan"
+    },
+    "fillHeader_1614_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/man_docs.go",
+      "symbol_name": "fillHeader"
+    },
+    "manPreamble_2648_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/man_docs.go",
+      "symbol_name": "manPreamble"
+    },
+    "manPrintFlags_7092_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/man_docs.go",
+      "symbol_name": "manPrintFlags"
+    },
+    "manPrintOptions_3163_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/man_docs.go",
+      "symbol_name": "manPrintOptions"
+    },
+    "genMan_1863_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/man_docs.go",
+      "symbol_name": "genMan"
+    },
+    "printOptions_3281_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/md_docs.go",
+      "symbol_name": "printOptions"
+    },
+    "GenMarkdownCustom_8824_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/md_docs.go",
+      "symbol_name": "GenMarkdownCustom"
+    },
+    "GenMarkdownTreeCustom_3768_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/md_docs.go",
+      "symbol_name": "GenMarkdownTreeCustom"
+    },
+    "printOptionsReST_1614_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/rest_docs.go",
+      "symbol_name": "printOptionsReST"
+    },
+    "GenReSTCustom_4568_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/rest_docs.go",
+      "symbol_name": "GenReSTCustom"
+    },
+    "GenReSTTreeCustom_6948_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/rest_docs.go",
+      "symbol_name": "GenReSTTreeCustom"
+    },
+    "indentString_9498_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/rest_docs.go",
+      "symbol_name": "indentString"
+    },
+    "hasSeeAlso_5455_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/util.go",
+      "symbol_name": "hasSeeAlso"
+    },
+    "GenYamlTreeCustom_8007_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/yaml_docs.go",
+      "symbol_name": "GenYamlTreeCustom"
+    },
+    "GenYamlCustom_6759_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/yaml_docs.go",
+      "symbol_name": "GenYamlCustom"
+    },
+    "genFlagResult_2164_test.py": {
+      "project_name": "cobra",
+      "file_name": "doc/yaml_docs.go",
+      "symbol_name": "genFlagResult"
+    },
+    "genFishComp_4893_test.py": {
+      "project_name": "cobra",
+      "file_name": "fish_completions.go",
+      "symbol_name": "genFishComp"
+    },
+    "Command_.MarkFlagsRequiredTogether_4088_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "(*Command).MarkFlagsRequiredTogether"
+    },
+    "Command_.MarkFlagsOneRequired_6505_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "(*Command).MarkFlagsOneRequired"
+    },
+    "Command_.MarkFlagsMutuallyExclusive_2434_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "(*Command).MarkFlagsMutuallyExclusive"
+    },
+    "Command_.ValidateFlagGroups_4603_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "(*Command).ValidateFlagGroups"
+    },
+    "processFlagForGroupAnnotation_2200_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "processFlagForGroupAnnotation"
+    },
+    "validateRequiredFlagGroups_9789_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "validateRequiredFlagGroups"
+    },
+    "validateOneRequiredFlagGroups_9430_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "validateOneRequiredFlagGroups"
+    },
+    "validateExclusiveFlagGroups_6996_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "validateExclusiveFlagGroups"
+    },
+    "Command_.enforceFlagGroupsForCompletion_3562_test.py": {
+      "project_name": "cobra",
+      "file_name": "flag_groups.go",
+      "symbol_name": "(*Command).enforceFlagGroupsForCompletion"
+    },
+    "genPowerShellComp_2551_test.py": {
+      "project_name": "cobra",
+      "file_name": "powershell_completions.go",
+      "symbol_name": "genPowerShellComp"
+    },
+    "genZshComp_5834_test.py": {
+      "project_name": "cobra",
+      "file_name": "zsh_completions.go",
+      "symbol_name": "genZshComp"
+    }
+  }
