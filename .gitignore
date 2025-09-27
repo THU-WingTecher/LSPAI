@@ -1,4 +1,4 @@
-experiments/copilot
+.env.sh
 new_data
 core
 experiments/baselines/rag/embeddings/

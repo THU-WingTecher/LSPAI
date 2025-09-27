@@ -34,7 +34,7 @@ fi
 cp "$TARGET_PROJECT_PATH/go.mod" "$TEST_DIR/"
 cp "$TARGET_PROJECT_PATH/go.sum" "$TEST_DIR/"
 cd "$TARGET_PROJECT_PATH"
-rsync -R $(find . -name "*.go" ! -name "*test.go" ! -path "*lsprag*") "$TEST_DIR/"
+rsync -R $(find . -name "*.go" ! -name "*test.go" ! -path "*LSPRAG*") "$TEST_DIR/"
 cd /LSPRAG
 total_files=$(find "$TEST_DIR" -type f -name "*_test.go" | wc -l)
 

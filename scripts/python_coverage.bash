@@ -24,6 +24,12 @@ TIMEOUT_SECONDS=${4:-3}  # Default timeout of 3 seconds if not provided
 rm -rf "$REPORT_DIR"
 mkdir -p "$REPORT_DIR"
 
+# Per-file logs and assertion summary
+LOGS_DIR="$REPORT_DIR/logs"
+mkdir -p "$LOGS_DIR"
+ASSERTION_ERRORS_LOG="$REPORT_DIR/assertion_errors.log"
+: > "$ASSERTION_ERRORS_LOG"
+
 # Create a file to store hanging test files
 HANGING_TESTS_FILE="$REPORT_DIR/hanging_tests.txt"
 touch "$HANGING_TESTS_FILE"
@@ -44,24 +50,25 @@ run_test_file() {
     local test_file=$1
     local test_name=$(basename "$test_file")
     local temp_coverage_file="$TEMP_COVERAGE_DIR/${test_name}.coverage"
-    
-    echo "Running test file: $test_name (timeout: ${TIMEOUT_SECONDS}s)"
-    
-    # Run the test with timeout and coverage
-    timeout "$TIMEOUT_SECONDS" python3 -m coverage run --data-file="$temp_coverage_file" -m pytest -v "$test_file" >> "$REPORT_DIR/pytest_output.log" 2>&1
+    local per_file_log="$LOGS_DIR/${test_name%.py}.log"
+
+    : > "$per_file_log"
+    echo "Running test file: $test_name (timeout: ${TIMEOUT_SECONDS}s)" >> "$per_file_log"
+
+    # Run the test with timeout and coverage (send all output to per-file log)
+    timeout "$TIMEOUT_SECONDS" python3 -m coverage run --data-file="$temp_coverage_file" -m pytest -vv --tb=long "$test_file" >> "$per_file_log" 2>&1
     local exit_code=$?
-    
+
     # Handle timeout
     if [ $exit_code -eq 124 ]; then
-        echo "⚠ Hanging: $test_name (timed out after ${TIMEOUT_SECONDS}s)"
+        echo "⚠ Hanging: $test_name (timed out after ${TIMEOUT_SECONDS}s)" >> "$per_file_log"
         echo "$test_file" >> "$HANGING_TESTS_FILE"
-        # Remove coverage file for hanging tests
         rm -f "$temp_coverage_file"
-        echo "124:$temp_coverage_file"  # Use 124 as special code for hanging tests
+        echo "124:$temp_coverage_file"
         return
     fi
-    
-    # Return the exit code and coverage file path
+
+    # Return the exit code and coverage file path (only line printed to stdout)
     echo "$exit_code:$temp_coverage_file"
 }
 
@@ -98,6 +105,21 @@ for result in $(printf '%s\n' "${test_files[@]}" | parallel -j "$parallel_jobs" 
             echo "✗ Failed (Assertion): $test_file"
             ((failed_files++))
             echo "$test_file (Assertion Error)" >> "$REPORT_DIR/failed_tests.log"
+
+            # Extract assertion details into a single summary file
+            log_path="$LOGS_DIR/${test_file%.py}.log"
+            if [ -f "$log_path" ]; then
+                fail_section=$(awk 'BEGIN{flag=0} /=+ FAILURES =+/{flag=1; next} /=+ short test summary info =+/{flag=0} flag' "$log_path")
+                {
+                    echo "===== $test_file ====="
+                    if [ -n "$fail_section" ]; then
+                        echo "$fail_section"
+                    else
+                        grep -n -E "AssertionError| assert " -C 3 "$log_path" || echo "(no AssertionError context found; see full log)"
+                    fi
+                    echo
+                } >> "$ASSERTION_ERRORS_LOG"
+            fi
             ;;
         124)
             echo "⚠ Hanging: $test_file (timed out)"
@@ -119,6 +141,18 @@ for result in $(printf '%s\n' "${test_files[@]}" | parallel -j "$parallel_jobs" 
             rm -f "$coverage_file"
             ;;
     esac
+done
+
+# Build unified pytest output from per-file logs (stable order)
+: > "$REPORT_DIR/pytest_output.log"
+for tf in "${test_files[@]}"; do
+    tn=$(basename "$tf")
+    lp="$LOGS_DIR/${tn%.py}.log"
+    if [ -f "$lp" ]; then
+        echo "===== $tn =====" >> "$REPORT_DIR/pytest_output.log"
+        cat "$lp" >> "$REPORT_DIR/pytest_output.log"
+        echo >> "$REPORT_DIR/pytest_output.log"
+    fi
 done
 
 echo "Test execution completed"
@@ -150,6 +184,11 @@ rm -rf "$TEMP_COVERAGE_DIR"
 
 # Save a summary of the results
 {
+    echo "Failed tests (assertions) logged in: $REPORT_DIR/failed_tests.log"
+    echo "Skipped tests (errors) logged in: $REPORT_DIR/skipped_tests.log"
+    echo "Hanging tests logged in: $HANGING_TESTS_FILE"
+    echo "Full test output in: $REPORT_DIR/pytest_output.log"
+    echo "Assertion errors (with tracebacks) in: $ASSERTION_ERRORS_LOG"
     echo "Coverage Collection Summary"
     echo "========================="
     echo "Total test files: $total_files"

@@ -28,6 +28,7 @@ LSPRAG_DEPENDENCY_LIBS=$(find $LIB_DIR -name "*.jar" | tr '\n' ':')
 DEPENDENCY_LIBS=$LSPRAG_DEPENDENCY_LIBS:$TARGET_DIR_DEPENDENCIES
 COMPILED_SOURCE="target/classes"
 CLASSPATH=$COMPILED_SOURCE:$TEST_DIR:$DEPENDENCY_LIBS
+echo "DEPENDENCY_LIBS: $DEPENDENCY_LIBS"
 TEST_FILES=$(find $TEST_DIR -name "*.java" | tr '\n' ' ')
 OUTPUT_DIR="${TEST_DIR}-compiled"  # Default value if not provided
 JACOCO_AGENT_PATH="$LIB_DIR/jacocoagent.jar"  # Path to jacocoagent.jar

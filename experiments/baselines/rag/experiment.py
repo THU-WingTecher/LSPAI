@@ -263,11 +263,55 @@ class ExperimentPipeline:
             f"{base_name}_{timestamp}"
         )
 
+    def generate_test_file_map(self, save_path: str = None) -> Dict[str, Dict[str, str]]:
+        """
+        Generate a mapping of test code file names to their source file and symbol.
+
+        The output format matches experiments/config/black_test_file_map.json:
+        {
+          "<generated_test_file_name>": {
+            "project_name": "<project_folder_name>",
+            "file_name": "<relative source file path within project>",
+            "symbol_name": "<symbol in that file>"
+          },
+          ...
+        }
+
+        If save_path is not provided, writes to experiments/config/<project>_test_file_map.json.
+        """
+        tasks = self.load_tasks()
+        project_name = os.path.basename(os.path.normpath(self.project_path))
+
+        mapping: Dict[str, Dict[str, str]] = {}
+        for task in tasks:
+            # Use the same naming logic as used during generation
+            test_path = self.generate_file_name(task['symbolName'], self.language)
+            test_file_name = os.path.basename(test_path)
+            mapping[test_file_name] = {
+                "project_name": project_name,
+                "file_name": task['relativeDocumentPath'],
+                "symbol_name": task['symbolName'],
+            }
+
+        # Default save location: experiments/config/<project>_test_file_map.json
+        if save_path is None:
+            base_dir = pathlib.Path(__file__).resolve().parents[2] / "config"
+            base_dir.mkdir(parents=True, exist_ok=True)
+            save_path = str(base_dir / f"{project_name}_test_file_map.json")
+        else:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+        with open(save_path, "w", encoding="utf-8") as f:
+            json.dump(mapping, f, indent=2)
+
+        print(f"Wrote test file map to: {save_path}")
+        return mapping
+
 if __name__ == "__main__":
     MODEL = "gpt-4o-mini"
-    language = "java"
-    task_list_path = "/LSPRAG/experiments/projects/commons-cli/LSPRAG-workspace/5_12_2025__05_29_28/commons-cli/experimental_withcontext_original/gpt-4o-mini/results/taskList.json"
-    project_path = "/LSPRAG/experiments/projects/commons-cli"
+    language = "python"
+    task_list_path = "/LSPRAG/experiments/config/black-taskList.json"
+    project_path = "/LSPRAG/experiments/projects/black"
     generationType = "Baseline"
 
     if project_path.endswith("commons-cli"):
@@ -276,6 +320,7 @@ if __name__ == "__main__":
         source_code_path = project_path
 
     pipeline = ExperimentPipeline(
+        language=language,
         task_list_path=task_list_path,
         project_path=project_path,
         generationType=generationType,
@@ -283,6 +328,8 @@ if __name__ == "__main__":
     )
     task_list = pipeline.load_tasks()
 
+    # Create mapping file like experiments/config/black_test_file_map.json
+    pipeline.generate_test_file_map()
     generator = None 
     if generationType == "Baseline":
         generator = Baseline(

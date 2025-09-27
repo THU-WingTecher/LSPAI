@@ -342,6 +342,11 @@ def main():
     # Print new averaged fix time/tokens per file
     print(f"Average FixWithLLM Time per Function (ms): {average_fixwithllm_time_per_file:.2f}  -> FIX Time")
     print(f"Average FixWithLLM Tokens per Function: {average_fixwithllm_tokens_per_file:.2f}   -> FIX Token")
+    
+    # NEW: Calculate average number of fix processes per function
+    average_fix_processes_per_function = overall_fixwithllm_count / file_count if file_count else 0
+    print(f"Average Fix Processes per Function: {average_fix_processes_per_function:.2f}  -> FIX Processes")
+    
     final_values["fix"] = average_fixwithllm_time_per_file
     # ======== Average Time/Token Usage per Process ========
     print("\n=== Average Time and Token Usage per Process ===\n")

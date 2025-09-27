@@ -699,22 +699,22 @@ if __name__ == "__main__":
 
 
 # python scripts/compute_mutation_score.py \
-#   --project-root /LSPAI/experiments/projects/black \
-#   --test-mapping /LSPAI/experiments/config/black_test_file_map.json \
-#   --test-dir /LSPAI/experiments/data/main_result/black/lsprag/1/deepseek-chat/results/final
+#   --project-root /LSPRAG/experiments/projects/black \
+#   --test-mapping /LSPRAG/experiments/config/black_test_file_map.json \
+#   --test-dir /LSPRAG/experiments/data/main_result/black/lsprag/1/deepseek-chat/results/final
 
 
-# python /LSPAI/scripts/compute_mutation_score.py \
-#   --project-root /LSPAI/experiments/projects/black \
-#   --module-root /LSPAI/experiments/projects/black \
-#   --test-mapping /LSPAI/experiments/config/black_test_file_map.json \
-#   --test-dir /LSPAI/experiments/data/main_result/black/lsprag/1/deepseek-chat/results/final \
+# python /LSPRAG/scripts/compute_mutation_score.py \
+#   --project-root /LSPRAG/experiments/projects/black \
+#   --module-root /LSPRAG/experiments/projects/black \
+#   --test-mapping /LSPRAG/experiments/config/black_test_file_map.json \
+#   --test-dir /LSPRAG/experiments/data/main_result/black/lsprag/1/deepseek-chat/results/final \
 #   --runner pytest
 
-# python /LSPAI/scripts/compute_mutation_score.py \
-#     --project-root /LSPAI/experiments/projects/black \
-#     --module-root /LSPAI/experiments/projects/black \
-#     --test-mapping /LSPAI/experiments/config/black_test_file_baselines.json \
-#     --test-dir /LSPAI/experiments/data/main_result/black/draco/DraCo_deepseek-chat_20250613_061851/codes \
+# python /LSPRAG/scripts/compute_mutation_score.py \
+#     --project-root /LSPRAG/experiments/projects/black \
+#     --module-root /LSPRAG/experiments/projects/black \
+#     --test-mapping /LSPRAG/experiments/config/black_test_file_baselines.json \
+#     --test-dir /LSPRAG/experiments/data/main_result/black/draco/DraCo_deepseek-chat_20250613_061851/codes \
 #     --runner pytest
-# python /LSPAI/scripts/compute_mutation_score.py \
+# python /LSPRAG/scripts/compute_mutation_score.py \
