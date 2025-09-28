@@ -3,7 +3,7 @@ export PYTHONPATH=/LSPRAG/experiments/projects/tornado:/LSPRAG/experiments/proje
 echo "&&&& LSPRAG &&&&"
 
 echo "### LSPRAG - tornado - deepseek-chat - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -11,7 +11,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
   --runner pytest
 
 echo "### LSPRAG - tornado - gpt-4o - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -19,7 +19,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
   --runner pytest
 
 echo "### LSPRAG - tornado - gpt-4o-mini - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -29,7 +29,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
 echo "&&&& NAIVE &&&&"
 
 echo "### NAIVE - tornado - deepseek-chat - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -37,7 +37,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
   --runner pytest
 
 echo "### NAIVE - tornado - gpt-4o - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -45,7 +45,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
   --runner pytest
 
 echo "### NAIVE - tornado - gpt-4o-mini - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -55,7 +55,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
 echo "&&&& SYMPROMPT &&&&"
 
 echo "### SYMPROMPT - tornado - deepseek-chat - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -63,7 +63,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
   --runner pytest
 
 echo "### SYMPROMPT - tornado - gpt-4o - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -71,7 +71,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
   --runner pytest
 
 echo "### SYMPROMPT - tornado - gpt-4o-mini - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
   --project-root /LSPRAG/experiments/projects/tornado \
   --module-root /LSPRAG/experiments/projects/tornado \
   --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
@@ -81,7 +81,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
 echo "&&&& DraCo &&&&"
 
 echo "### DraCo - tornado - deepseek-chat - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
@@ -89,7 +89,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
     --runner pytest
 
 echo "### DraCo - tornado - gpt-4o - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
@@ -97,7 +97,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
     --runner pytest
 
 echo "### DraCo - tornado - gpt-4o-mini - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
@@ -107,7 +107,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
 echo "&&&& code_qa &&&&"
 
 echo "### code_qa - tornado - deepseek-chat - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
@@ -115,7 +115,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
     --runner pytest
 
 echo "### code_qa - tornado - gpt-4o - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
@@ -123,7 +123,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
     --runner pytest
 
 echo "### code_qa - tornado - gpt-4o-mini - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
@@ -133,7 +133,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
 echo "&&&& standard &&&&"
 
 echo "### standard - tornado - deepseek-chat - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
@@ -141,7 +141,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
     --runner pytest
 
 echo "### standard - tornado - gpt-4o - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
@@ -149,7 +149,7 @@ python /LSPRAG/scripts/old_compute_mutation_score.py \
     --runner pytest
 
 echo "### standard - tornado - deepseek-chat - pytest"
-python /LSPRAG/scripts/old_compute_mutation_score.py \
+python /LSPRAG/scripts/compute_mutation_score.py \
     --project-root /LSPRAG/experiments/projects/tornado \
     --module-root /LSPRAG/experiments/projects/tornado \
     --test-mapping /LSPRAG/experiments/config/tornado_test_file_baselines.json \
