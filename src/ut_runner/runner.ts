@@ -184,9 +184,9 @@ export function buildEnv(pythonpathList: string[]): NodeJS.ProcessEnv {
   
   // Default PYTHONPATH for the black project
   const defaultPythonPaths = [
-    '/LSPAI/experiments/projects/black/src/',
-    '/LSPAI/experiments/projects/black',
-    '/LSPAI/experiments/projects'
+    '/LSPRAG/experiments/projects/black/src/',
+    '/LSPRAG/experiments/projects/black',
+    '/LSPRAG/experiments/projects'
   ];
   
   const existing = env.PYTHONPATH || '';
@@ -221,7 +221,7 @@ export interface RunOptions {
   pythonpath?: string[];
 }
 
-export async function runPipeline(testsDir: string, outputDir: string, options: RunOptions = {}) {
+export async function runPipeline(testsDir: string, outputDir: string, test_file_map_path: string, options: RunOptions = {}) {
   const pipelineStartTime = new Date();
   
   console.log(`[RUNNER] Starting test pipeline execution`);
@@ -370,7 +370,7 @@ export async function runPipeline(testsDir: string, outputDir: string, options: 
   
   try {
     const analyzer = new Analyzer(language);
-    report = analyzer.analyze(execResults, path.resolve(testsDir), path.resolve(outputDir));
+    report = analyzer.analyze(execResults, path.resolve(testsDir), path.resolve(outputDir), path.resolve(test_file_map_path));
     const analysisDuration = new Date().getTime() - analysisStartTime.getTime();
     
     console.log(`[RUNNER] Analysis completed in ${analysisDuration}ms`);

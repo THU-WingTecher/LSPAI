@@ -28,6 +28,7 @@ export interface TestFile {
     implementationOrigin?: string | null;
     importLine?: string | null;
     modulePath?: string | null;
+    sourceFile?: string | null;
   
     testSource?: string | null;
     functionSource?: string | null;

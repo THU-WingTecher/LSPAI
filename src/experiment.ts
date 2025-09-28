@@ -346,6 +346,26 @@ export async function runGenerateTestCodeSuite(
         console.log(`#### Starting new experiment with ${symbolPairsToProcess.length} tasks`);
     }
 
+    // Build/merge test-file mapping for analysis
+    const testFileMapPath = path.join(getConfigInstance().savePath, 'test_file_map.json');
+    const newEntries = Object.fromEntries(
+        symbolFilePairsToTest.map(({ document, symbol, fileName }) => [
+            path.basename(fileName),
+            {
+                project_name: projectName,
+                file_name: path.relative(workspace, document.uri.fsPath),
+                symbol_name: symbol.name,
+            }
+        ])
+    );
+    let existingEntries: Record<string, any> = {};
+    try {
+        const prev = await fs.promises.readFile(testFileMapPath, 'utf8');
+        existingEntries = JSON.parse(prev);
+    } catch {}
+    await fs.promises.writeFile(testFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
+    return;
+    console.log(`#### Test file map has been saved to ${testFileMapPath}`);
     // Generate test promises with progress tracking
     const testGenerationPromises = symbolPairsToProcess.map(symbolFilePair => 
         limit(async () => {
