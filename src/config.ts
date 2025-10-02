@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { generateTimestampString } from './fileHandler';
 import os from 'os';
 import { assert } from 'console';
-
+import { loadPrivateConfig } from './test/runTest';
 
 export enum PromptType {
     BASIC = 'basic',
@@ -104,47 +104,6 @@ let seededRandom: () => number;
 export type Provider = 'openai' | 'local' | 'deepseek';
 
 // Function to load private configuration
-export function loadPrivateConfig(configPath: string = ''): PrivateConfig {
-    // First try to load from environment variables
-    if (configPath) {
-        try {
-            console.log('loading private config from', configPath);
-            // Try to load from a local config file that's git-ignored
-            const config = require(configPath);
-            console.log('config', JSON.stringify(config));
-            return {
-                openaiApiKey: config.openaiApiKey || '',
-                deepseekApiKey: config.deepseekApiKey || '',
-                localLLMUrl: config.localLLMUrl || '',
-                proxyUrl: config.proxyUrl || ''
-            };
-        } catch (error) {
-            console.log('error', error);
-            console.error('Failed to load private configuration file');
-            throw new Error('Missing required API keys and URLs. Please set them either through environment variables or test-config.json');
-        }
-    }
-    const config = vscode.workspace.getConfiguration('LSPRAG');
-    const globalConfig = vscode.workspace.getConfiguration('http');
-    const globalProxy = globalConfig.get<string>('proxy') || '';
-    
-    if (config) {
-        console.log('config::config', config);
-        return {
-            openaiApiKey: config.get<string>('openaiApiKey') || '',
-            deepseekApiKey: config.get<string>('deepseekApiKey') || '',
-            localLLMUrl: config.get<string>('localLLMUrl') || '',
-            proxyUrl: config.get<string>('proxyUrl') || globalProxy || ''
-        };
-    }
-    
-    return {
-        openaiApiKey: '',
-        deepseekApiKey: '',
-        localLLMUrl: '',
-        proxyUrl: globalProxy || ''
-    } as PrivateConfig;
-}
 
 const DEFAULT_CONFIG = {
     expProb: 1,
