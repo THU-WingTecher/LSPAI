@@ -152,7 +152,7 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
             context: referenceStrings,
             need_example: true,
             hint: ["focal method"]
-        }
+        };
         enrichedTerms.unshift(contextTermsForFunctionSymbol);
         this.logger.log("gatherContext", (Date.now() - retreiveTime).toString(), null, "");
         saveContextTerms(this.sourceCode, enrichedTerms, getConfigInstance().logSavePath!, this.fileName);
@@ -189,7 +189,7 @@ export class ExperimentalTestGenerator extends BaseTestGenerator {
 
         // Generate test
         const generationStartTime = Date.now();
-        const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms!, conditionAnalyses, this.fileName)
+        const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms!, conditionAnalyses, this.fileName);
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
         console.log("promptObj:", promptObj[1].content);
         const testCode = await invokeLLM(promptObj, logObj);

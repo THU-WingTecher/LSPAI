@@ -41,10 +41,6 @@ export function loadPrivateConfig(): PrivateConfig {
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY || process.env.TEST_DEEPSEEK_API_KEY;
   const localLLMUrl = process.env.LOCAL_LLM_URL || process.env.TEST_LOCAL_LLM_URL;
   const proxyUrl = process.env.PROXY_URL || process.env.TEST_PROXY_URL;
-  console.log("openaiApiKey", openaiApiKey);
-  console.log("deepseekApiKey", deepseekApiKey);
-  console.log("localLLMUrl", localLLMUrl);
-  console.log("proxyUrl", proxyUrl);
   if (!openaiApiKey || !deepseekApiKey || !localLLMUrl) {
     throw new Error(
       'Missing required environment variables: OPENAI_API_KEY, DEEPSEEK_API_KEY, LOCAL_LLM_URL (or their TEST_ variants). Ensure you have sourced your .env.sh.'

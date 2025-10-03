@@ -28,7 +28,9 @@ export async function generateInitialTestCode(
 export class NaiveTestGenerator extends BaseTestGenerator {
 	async generateTest(): Promise<string> {
 		const collectedData = await this.collectBasicInfo();
-		if (!collectedData) return '';
+		if (!collectedData) {
+			return '';
+		}
 
 		if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - generating initial test code`, 20)) {
 			return '';

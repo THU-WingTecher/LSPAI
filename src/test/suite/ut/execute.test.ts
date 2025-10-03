@@ -2,14 +2,22 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import { runPipeline } from '../../../ut_runner/runner';
+import { getConfigInstance } from '../../../config';
 
-suite('UT Runner - Python (black)', () => {
+suite('EXECUTE - Python (black)', () => {
   const pythonInterpreterPath = '/root/miniconda3/envs/black/bin/python';
   const testsDir = '/LSPRAG/experiments/projects/black/src/lsprag_tests/gpt-4o-1';
   const outputDir = '/LSPRAG/experiments/projects/black/src/lsprag_tests/final-report';
-  const test_file_map_path = '/LSPRAG/experiments/projects/black/src/lsprag_tests/test_file_map.json';
+  const testFileMapPath = '/LSPRAG/experiments/config/black_test_file_map.json';
+  const projectPath = "/LSPRAG/experiments/projects/black";
+  const currentConfig = {
+      workspace: projectPath,
+  };
+  getConfigInstance().updateConfig({
+    ...currentConfig
+  });
   test('execute all python files and produce reports', async () => {
-    await runPipeline(testsDir, outputDir, test_file_map_path, {
+    await runPipeline(testsDir, outputDir, testFileMapPath, {
       language: 'python',
       pythonExe: pythonInterpreterPath,
       include: ['*.py'],          // run all .py files in the tree

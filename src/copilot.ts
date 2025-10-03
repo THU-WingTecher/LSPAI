@@ -78,7 +78,7 @@ export async function copilotServer() : Promise<MessageConnection> {
   // 3. Start listening for messages
   connection.listen();
 
-  return connection
+  return connection;
 }
 
 // ----------------------
@@ -117,7 +117,7 @@ export async function experimentWithCopilot(connection: any, symbolDocumentMaps:
   const generatedResults: any[] = [];
   const num_parallel = getConfigInstance().parallelCount;
   for (const { document, symbol } of symbolDocumentMaps) {
-    const fileName = generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, document.languageId, [], -1)
+    const fileName = generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, document.languageId, [], -1);
     const response = await generateUnitTestsForFocalMethod(
       connection, // your MessageConnection
       document,
@@ -160,8 +160,8 @@ export async function init(connection: MessageConnection, workspace: string) {
           version: '1.0.0',
         },
       }
-    }
-    console.log('sending initializing package')
+    };
+    console.log('sending initializing package');
     const initResult: InitializeResult = await connection.sendRequest(
       InitializeRequest.type,
       initializeParams
@@ -169,7 +169,7 @@ export async function init(connection: MessageConnection, workspace: string) {
     console.log('InitializeResult:', initResult);
 
     // 4b) 'initialized' notification
-    console.log('sending initialized notification')
+    console.log('sending initialized notification');
     connection.sendNotification(InitializedNotification.type, {});
     
     const configurationParams = {
@@ -290,7 +290,7 @@ async function replaceImportsPlaceholder(connection: any, uriOfMethod: string, t
   const line = findFarthestEmptyLineBeforeTarget(lines, lines.length );
   
   const character = 0; // Start of the next line
-  console.log(textDocument.text.split('\n'), textDocument.text.split('\n')[line], line)
+  console.log(textDocument.text.split('\n'), textDocument.text.split('\n')[line], line);
 
   // Request completion at the imports position
   const completionParams = {
@@ -408,7 +408,7 @@ async function replaceTestPlaceholder(connection: any, focalMethod: string, text
   const textBeforePosition = textDocument.text.substring(0, position);
   const lines = textBeforePosition.split('\n');
   const line = lines.length + 1; // This will be the line of "class Test"
-  console.log(textDocument.text.split('\n'), textDocument.text.split('\n')[line], line)
+  console.log(textDocument.text.split('\n'), textDocument.text.split('\n')[line], line);
   const character = 0; // Start of the next line
   const allLines = textDocument.text.split('\n');
   const lineIndex = allLines.findIndex(line => line.includes(placeholder));
@@ -463,11 +463,11 @@ export async function generateUnitTestsForFocalMethod(
   unitTestTemplate: string,
   languageCode: string
 ): Promise<any> {
-  console.log('generateUnitTestsForFocalMethod', uriOfMethod, focalMethod, fileName, unitTestTemplate, languageCode)
+  console.log('generateUnitTestsForFocalMethod', uriOfMethod, focalMethod, fileName, unitTestTemplate, languageCode);
   try {
     // 1) Create a “prompt” that provides context about what we want Copilot to do.
-    console.log("workspace", getConfigInstance().workspace)
-    console.log("savePath", getConfigInstance().savePath)
+    console.log("workspace", getConfigInstance().workspace);
+    console.log("savePath", getConfigInstance().savePath);
     await init(connection, getConfigInstance().workspace);
     let startContent = unitTestTemplate;
     // 2) We’ll represent this prompt as if it were a file in the workspace.

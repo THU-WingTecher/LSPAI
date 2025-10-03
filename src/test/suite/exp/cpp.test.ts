@@ -21,7 +21,7 @@ suite('Experiment Test Suite - c', () => {
         expProb: 1,
         promptType: PromptType.DETAILED,
         workspace: projectPath,     
-    }
+    };
     // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
         ...currentConfig

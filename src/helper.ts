@@ -283,7 +283,7 @@ export async function experiment(symbolDocumentMaps: {document: vscode.TextDocum
         const symbolTasks = batch.map(async ({ document, symbol }) => {
             console.log(`#### Processing symbol ${symbol.name}`);
             for (let round = 0; round < getConfigInstance().testNumber; round++) {
-                const fileName = generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'java', [], round)
+                const fileName = generateFileNameForDiffLanguage(document, symbol, getConfigInstance().savePath, 'java', [], round);
                 const result = await generateUnitTestForAFunction(
                     currentSrcPath,
                     document, 

@@ -100,7 +100,7 @@ export async function generateUnitTestForSelectedRange(document: vscode.TextDocu
 
 	const currentConfig = {
         workspace: workspace,
-    }
+    };
 	getConfigInstance().updateConfig(currentConfig);
 	// const projectName = pathParts[pathParts.length - 1];
 	// const privateConfig = loadPrivateConfig('');

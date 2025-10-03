@@ -19,7 +19,7 @@ suite('Context and Prompt Tests', () => {
     
     // Update the workspace folders
 
-    const testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli"
+    const testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";
 getConfigInstance().updateConfig({ workspace: "/LSPRAG/experiments/projects/commons-cli" });
     //set vscode.workspace.workspaceFolders to srcPath
     // Ensure the test directory exists

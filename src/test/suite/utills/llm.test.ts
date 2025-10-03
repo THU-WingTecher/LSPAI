@@ -21,7 +21,7 @@ suite('LLM invoke Test Suite', () => {
         parallelCount: 1,
         maxRound: 3,
         savePath: path.join(__dirname, '../../../logs'),
-    }
+    };
     getConfigInstance().updateConfig({
         ...currentConfig
     });
@@ -41,7 +41,7 @@ suite('LLM invoke Test Suite', () => {
                 role: 'user',
                 content: 'What is the capital of the moon?'
             }
-        ]
+        ];
         const response = await invokeLLM(promptObj, []);
         console.log('response ::', response);
         assert.ok(response && response.length > 0, 'response should not be empty');

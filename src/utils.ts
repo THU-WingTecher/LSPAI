@@ -131,7 +131,7 @@ export async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Prom
 	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
         'vscode.executeDocumentSymbolProvider',
         uri
-    )
+    );
 	return symbols || [];
 }
 

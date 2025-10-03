@@ -20,7 +20,7 @@ import { getContextSelectorInstance, ContextTerm } from '../../../../agents/cont
 suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/LSPRAG/bin/python";
     const projectPath = "/LSPRAG/experiments/projects/tornado";
-    const taskListPath = '/LSPRAG/experiments/config/tornado-taskList.json'
+    const taskListPath = '/LSPRAG/experiments/config/tornado-taskList.json';
     const pyExtraPath = [path.join(projectPath, "tornado"), projectPath];
     const sampleNumber = -1;
     const languageId = "python";
@@ -30,7 +30,7 @@ suite('Experiment Test Suite', () => {
         expProb: 1,
         promptType: PromptType.DETAILED,
         workspace: projectPath,
-    }
+    };
     // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
         ...currentConfig

@@ -86,7 +86,9 @@ export class PytestExecutor implements BaseExecutor {
     // Validate Python executable
     console.log(`[EXECUTOR] Validating Python executable: ${this.pythonExe}`);
     const resolveViaPath = (cmd: string): string => {
-      if (cmd.includes('/') || cmd.includes('\\')) return cmd;
+      if (cmd.includes('/') || cmd.includes('\\')) {
+        return cmd;
+      }
       try {
         return execSync(`command -v ${cmd}`, { encoding: 'utf8', timeout: 3000 }).trim();
       } catch {
@@ -196,7 +198,9 @@ export class PytestExecutor implements BaseExecutor {
         ws.write(`Stack: ${error.stack}\n`);
         ws.write(`PID: ${processId}\n`);
         ws.write(`Timestamp: ${formatDate(new Date())}\n`);
-        if (timer) clearTimeout(timer);
+        if (timer) {
+          clearTimeout(timer);
+        }
         ws.end();
         reject(error);
       });
@@ -223,7 +227,9 @@ export class PytestExecutor implements BaseExecutor {
           ws.write(`Termination Reason: NORMAL\n`);
         }
         
-        if (timer) clearTimeout(timer);
+        if (timer) {
+          clearTimeout(timer);
+        }
         ws.end();
         resolve();
       });

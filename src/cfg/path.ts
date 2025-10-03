@@ -299,9 +299,15 @@ export class PathCollector {
     private hasBalancedParentheses(expr: string): boolean {
         let count = 0;
         for (const char of expr) {
-            if (char === '(') count++;
-            if (char === ')') count--;
-            if (count < 0) return false; // Closing parenthesis without matching opening
+            if (char === '(') {
+                count++;
+            }
+            if (char === ')') {
+                count--;
+            }
+            if (count < 0) {
+                return false; // Closing parenthesis without matching opening
+            }
         }
         return count === 0; // All parentheses are matched
     }
@@ -446,7 +452,9 @@ export class PathCollector {
     }
 
     private traverse(node: CFGNode, currentPath: Path) {
-        if (!node) return;
+        if (!node) {
+            return;
+        }
         // console.log('traverse', node.type, 'currentPath', node.astNode.text);
         // console.log("next successors", node.successors.map(s => ({ type: s.type, text: s.astNode.text })));
         // console.log("previous predecessors", node.predecessors.map(p => ({ type: p.type, text: p.astNode.text })));

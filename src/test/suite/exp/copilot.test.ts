@@ -31,7 +31,7 @@ suite('copilot Test Suite', () => {
         workspace: projectPath,
         parallelCount: 1,
         maxRound: 5,
-    }
+    };
     getConfigInstance().updateConfig({
         ...currentConfig
     });

@@ -38,7 +38,7 @@ export function generateTestSymprompt(
         fileName = fileName.split("/").pop() || fileName;
     }
     console.log(`### generateTestSymprompt::fileName: ${fileName}`);
-    const systemPrompt = prompts.system_prompt
+    const systemPrompt = prompts.system_prompt;
     let userPrompt = prompts.user_prompt;
     userPrompt = userPrompt
         .replace("Important terms' context information:\n\n{context_info}", context_info_str)
@@ -91,7 +91,7 @@ export class SymPromptTestGenerator extends BaseTestGenerator {
 
         // Generate test
         console.log(`### generating test for ${this.functionSymbol.name} in ${this.document.uri.fsPath}`);
-        const promptObj = generateTestSymprompt(this.document, this.functionSymbol, functionText, enrichedTerms, minimizedPaths, this.fileName, this.functionInfo)
+        const promptObj = generateTestSymprompt(this.document, this.functionSymbol, functionText, enrichedTerms, minimizedPaths, this.fileName, this.functionInfo);
 
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
         const testCode = await invokeLLM(promptObj, logObj);

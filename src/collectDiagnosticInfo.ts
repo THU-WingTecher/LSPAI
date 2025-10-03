@@ -247,7 +247,7 @@ class DiagnosticContextCollector {
 				if (importAndPackageStatement) {
 					context.push("\n=== Import and Package Statement of Code File that this is testing===");
 					context.push(importAndPackageStatement);
-					context.push("\n")
+					context.push("\n");
 				}
 			}
 		}
@@ -513,7 +513,9 @@ class DiagnosticContextCollector {
 	// }
 
 	private async collectTypeInformation(document?: vscode.TextDocument, diagnostics?: vscode.Diagnostic[]): Promise<string> {
-		if (!document) return "";
+		if (!document) {
+			return "";
+		}
 
 		try {
 			const typeInfo: string[] = [];
@@ -684,14 +686,20 @@ class DiagnosticContextCollector {
 				processedPaths.add(path);
 				
 				const children = fileTree.get(path);
-				if (!children) return;
+				if (!children) {
+					return;
+				}
 				
 				const items = Array.from(children).sort((a, b) => {
 					// Directories come first
 					const aIsDir = fileTree.has(path ? `${path}/${a}` : a);
 					const bIsDir = fileTree.has(path ? `${path}/${b}` : b);
-					if (aIsDir && !bIsDir) return -1;
-					if (!aIsDir && bIsDir) return 1;
+					if (aIsDir && !bIsDir) {
+						return -1;
+					}
+					if (!aIsDir && bIsDir) {
+						return 1;
+					}
 					return a.localeCompare(b);
 				});
 	
@@ -732,7 +740,9 @@ class DiagnosticContextCollector {
 	}
 
 	private async collectAPIInformation(document: vscode.TextDocument): Promise<string> {
-		if (!document) return "";
+		if (!document) {
+			return "";
+		}
 
 		try {
 			const apiInfo: string[] = [];

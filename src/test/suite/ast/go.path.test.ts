@@ -395,7 +395,7 @@ test('Run all functions under a repository : cobra', async function() {
             console.log('activate');
             await activate();
         }
-        const projectPath = "/LSPRAG/experiments/projects/cobra"
+        const projectPath = "/LSPRAG/experiments/projects/cobra";
         const workspaceFolders = setWorkspaceFolders(projectPath);
         // await updateWorkspaceFolders(workspaceFolders);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);

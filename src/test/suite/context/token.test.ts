@@ -30,7 +30,7 @@ suite('Token collecting test - python', () => {
         parallelCount: 1,
         maxRound: 3,
         savePath: path.join(__dirname, '../../../logs'),
-    }
+    };
     getConfigInstance().updateConfig({
         ...currentConfig
     });
@@ -162,7 +162,7 @@ suite('Token collecting test - python', () => {
             "VARARGS_PARENTS",
             "CLOSING_BRACKETS",
             "MATH_PRIORITIES",
-        ]
+        ];
         assert.ok(tokens.some((t : DecodedToken) => expectedTokens.includes(t.word)), 'Should include is_vararg');
         // console.log("enrichedTerms", JSON.stringify(enrichedTerms, null, 2));
     });

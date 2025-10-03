@@ -149,7 +149,7 @@ suite('tokenAnalyzer Helpfulness Algorithm', () => {
         console.log("handleConcatenatedOptions::enrichedTerms", enrichedTerms);
         const expectedTerms = [
             'Option',
-        ]
+        ];
         // defaultTerms's name should be in expectedTerms
         for (const term of expectedTerms) {
             assert.ok(defaultTerms.map(t => t.name).includes(term), `term ${term} should be in expectedTerms`);

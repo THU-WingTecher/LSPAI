@@ -31,7 +31,7 @@ suite('Utils Test Suite', () => {
         workspace: projectPath,
         parallelCount: 1,
         maxRound: 3,
-    }
+    };
     getConfigInstance().updateConfig({
         ...currentConfig
     });

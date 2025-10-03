@@ -18,42 +18,32 @@ export function reportLogCoverage(testFiles: TestFile[], logsDir: string, junitD
   const existingLogs = new Set(fs.readdirSync(logsDir).filter((n) => n.endsWith('.log')).map((n) => n.slice(0, -4)));
   const existingXmls = new Set(fs.readdirSync(junitDir).filter((n) => n.endsWith('.xml')).map((n) => n.slice(0, -4)));
 
-  // eslint-disable-next-line no-console
   console.log(`Existing logs in ${logsDir}: ${existingLogs.size}`);
   if (existingLogs.size) {
-    // eslint-disable-next-line no-console
     console.log(`Logs: ${Array.from(existingLogs).sort().join(', ')}`);
   }
 
   const missingLogs = new Set([...expected].filter((f) => !existingLogs.has(f)));
   if (missingLogs.size) {
-    // eslint-disable-next-line no-console
     console.log(`Missing logs for ${missingLogs.size} collected tests:`);
-    // eslint-disable-next-line no-console
     console.log(Array.from(missingLogs).sort().join(', '));
   }
 
   const orphanLogs = new Set([...existingLogs].filter((f) => !expected.has(f)));
   if (orphanLogs.size) {
-    // eslint-disable-next-line no-console
     console.log(`Orphan logs (not in current collection): ${orphanLogs.size}`);
-    // eslint-disable-next-line no-console
     console.log(Array.from(orphanLogs).sort().join(', '));
   }
 
   const logsWithoutJunit = new Set([...existingLogs].filter((f) => !existingXmls.has(f)));
   if (logsWithoutJunit.size) {
-    // eslint-disable-next-line no-console
     console.log(`Logs without matching JUnit XML: ${logsWithoutJunit.size}`);
-    // eslint-disable-next-line no-console
     console.log(Array.from(logsWithoutJunit).sort().join(', '));
   }
 
   const junitWithoutLogs = new Set([...existingXmls].filter((f) => !existingLogs.has(f)));
   if (junitWithoutLogs.size) {
-    // eslint-disable-next-line no-console
     console.log(`JUnit XML without matching logs: ${junitWithoutLogs.size}`);
-    // eslint-disable-next-line no-console
     console.log(Array.from(junitWithoutLogs).sort().join(', '));
   }
 }
@@ -91,10 +81,10 @@ export function splitCached(testFiles: TestFile[], logsDir: string, junitDir: st
       
       // Log cache issues for debugging
       const issues: string[] = [];
-      if (!logExists) issues.push('missing log');
-      if (!junitExists) issues.push('missing junit');
-      if (logExists && logSize === 0) issues.push('empty log');
-      if (junitExists && junitSize === 0) issues.push('empty junit');
+      if (!logExists) { issues.push('missing log'); }
+      if (!junitExists) { issues.push('missing junit'); }
+      if (logExists && logSize === 0) { issues.push('empty log'); }
+      if (junitExists && junitSize === 0) { issues.push('empty junit'); }
       
       if (issues.length > 0) {
         cacheIssues.push(`${tf.path}: ${issues.join(', ')}`);
@@ -370,6 +360,7 @@ export async function runPipeline(testsDir: string, outputDir: string, test_file
   
   try {
     const analyzer = new Analyzer(language);
+    console.log("Exec Results", execResults);
     report = analyzer.analyze(execResults, path.resolve(testsDir), path.resolve(outputDir), path.resolve(test_file_map_path));
     const analysisDuration = new Date().getTime() - analysisStartTime.getTime();
     

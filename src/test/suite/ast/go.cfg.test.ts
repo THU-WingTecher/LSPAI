@@ -189,7 +189,7 @@ for x > 0 {
 
     // Find conditions inside the loop by their specific expressions
     const conditions = Array.from(cfg.nodes.values())
-        .filter(n => n.type === CFGNodeType.CONDITION)
+        .filter(n => n.type === CFGNodeType.CONDITION);
 
     assert.equal(conditions.length, 4, "Should have exactly 4 conditions");
 

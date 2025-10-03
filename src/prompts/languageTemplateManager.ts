@@ -24,7 +24,7 @@ export class LanguageTemplateManager {
         if (fileName.includes("/")) {
             fileName = fileName.split("/").pop() || fileName;
         }
-        let signature = ""
+        let signature = "";
         if (functionInfo.size > 0 && functionInfo.has('signature')) {
             signature += functionInfo.get('name') || "";
             signature += functionInfo.get('signature') || "";

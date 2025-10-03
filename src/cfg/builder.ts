@@ -358,7 +358,7 @@ export class CFGBuilder {
     
             // Process handler body
             let lastHandlerNode = handlerNode;
-            const handlerBody = handler.children.find(child => child.type === 'block')
+            const handlerBody = handler.children.find(child => child.type === 'block');
             if (handlerBody) {
                 for (const child of handlerBody.children) {
                     const processed = this.processNode(child, lastHandlerNode);

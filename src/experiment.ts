@@ -419,7 +419,7 @@ export async function runGenerateTestCodeSuite(
     assert.ok(llmlogs.length > 0, 'llm_logs.json should exist');
 
     // Check diagnostic reports if needed
-    if (getConfigInstance().fixType != FixType.NOFIX && getConfigInstance().generationType != GenerationType.NAIVE) {
+    if (getConfigInstance().fixType !== FixType.NOFIX && getConfigInstance().generationType !== GenerationType.NAIVE) {
         const diagnosticReportFolder = path.join(logPath, 'diagnostic_report');
         const diagnosticReports = await findJsonFilesRecursively(diagnosticReportFolder);
         console.log(`#### Diagnostic reports: ${diagnosticReports.length}`);

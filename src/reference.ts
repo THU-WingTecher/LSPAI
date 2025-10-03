@@ -164,8 +164,12 @@ async function processReferences(
         const bIsTest = testFileMap.get(b.uri.toString()) || false;
         
         // If one is a test file and the other isn't, prioritize the test file
-        if (aIsTest && !bIsTest) return -1;
-        if (!aIsTest && bIsTest) return 1;
+        if (aIsTest && !bIsTest) {
+            return -1;
+        }
+        if (!aIsTest && bIsTest) {
+            return 1;
+        }
         
         // If both are test files or both are not test files, sort by range size
         const rangeA = a.range.end.line - a.range.start.line;
@@ -272,7 +276,7 @@ function isSameLocation(
     const noNeedLocation = "/lsprag"; // "lsprag-workspace", "lsprag"
 
 function isNoNeedLocation(ref: vscode.Location): boolean {
-    return ref.uri.toString().includes(noNeedLocation)
+    return ref.uri.toString().includes(noNeedLocation);
 }
 
 // export async function getReferenceInfo(document: vscode.TextDocument, range: vscode.Range, refWindow: number = 60, skipTestCode: boolean = true): Promise<string> {

@@ -60,7 +60,9 @@ export function isUsedAsMutatedVariable(token: DecodedToken): boolean {
 
 // --- Default Algorithm ---
 function defaultIsDefinitionHelpful(token: DecodedToken): boolean {
-    if (!token || !token.type) return false;
+    if (!token || !token.type) {
+        return false;
+    }
     if (token.type === "method"){
         return true;
     }
@@ -69,7 +71,9 @@ function defaultIsDefinitionHelpful(token: DecodedToken): boolean {
 }
 
 function defaultIsReferenceHelpful(token: DecodedToken): boolean {
-    if (!token) return false;
+    if (!token) {
+        return false;
+    }
     if ( isFunctionArg(token) || isMutated(token)) {
         return true;
     }
@@ -126,20 +130,14 @@ function cfgBasedIsReferenceHelpful(token: DecodedToken): boolean {
 
 function isTokenInPath(token: DecodedToken, path: any): boolean {
     // Get all conditions from the path segments
-    return path.includes(token.word)
-    const conditions = path.simple.split("&&")
-    
-    // Check if the token's word appears in any of the conditions
-    return conditions.some((condition: string) => 
-        condition.includes(token.word)
-    );
+    return path.includes(token.word);
 }
 // To get all tokens that appear in a path:
 function getTokensInPath(tokens: DecodedToken[], path: any): DecodedToken[] {
     return tokens.filter(token => isTokenInPath(token, path));
 }
 export function getTokenInPaths(token: DecodedToken, paths: Set<string>): boolean {
-    return Array.from(paths).some(path => isTokenInPath(token, path))
+    return Array.from(paths).some(path => isTokenInPath(token, path));
 }
 // To get all tokens that appear in any of the paths:
 export function getTokensInPaths(tokens: DecodedToken[], paths: Set<string>): DecodedToken[] {
@@ -298,13 +296,13 @@ export async function getContextTermsFromTokens(
         case 'cfg':
             // console.log("tokens :", tokens)
             const needContextTerms = await cfgGetContextTermsFromTokens(document, tokens, conditions, functionInfo);
-            const filteredTerms = needContextTerms.filter(term => term.need_definition == true || term.need_example == true);
+            const filteredTerms = needContextTerms.filter(term => term.need_definition === true || term.need_example === true);
             let uniqueTokens = removeRedundantTokens(filteredTerms);
             uniqueTokens = removeFocalMethodFromContextTerms(uniqueTokens, symbol.name);
-            console.log("needContextTerms :", uniqueTokens.map(term => [term.name, term.need_definition, term.need_example]))
+            console.log("needContextTerms :", uniqueTokens.map(term => [term.name, term.need_definition, term.need_example]));
             return uniqueTokens;
         case 'default':
         default:
-            return defaultGetContextTermsFromTokens(tokens).filter(term => term.need_definition == true || term.need_example == true);
+            return defaultGetContextTermsFromTokens(tokens).filter(term => term.need_definition === true || term.need_example === true);
     }
-}
+};

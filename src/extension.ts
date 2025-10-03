@@ -215,7 +215,7 @@ export async function activate(context: vscode.ExtensionContext) {
 						model: 'deepseek-chat',
 						provider: 'deepseek' as Provider,
 					},
-				]
+				];
 
 				await runExperiment(configurations, symbols, languageId, projectPath, repeatCount);
 
@@ -446,7 +446,7 @@ export async function activate(context: vscode.ExtensionContext) {
 						model: 'deepseek-chat',
 						provider: 'deepseek' as Provider,
 					},
-				]
+				];
 
 				await runExperiment(configurations, symbols, languageId, projectPath, repeatCount);
 				vscode.window.showInformationMessage(`Java Commons-csv experiment completed successfully! Processed ${symbols.length} symbols.`);
@@ -514,7 +514,7 @@ export async function activate(context: vscode.ExtensionContext) {
 						model: 'deepseek-chat',
 						provider: 'deepseek' as Provider,
 					},
-				]
+				];
 
 				await runExperiment(configurations, symbols, languageId, projectPath, repeatCount);
 
@@ -583,7 +583,7 @@ export async function activate(context: vscode.ExtensionContext) {
 						model: 'deepseek-chat',
 						provider: 'deepseek' as Provider,
 					},
-				]
+				];
 
 				await runExperiment(configurations, symbols, languageId, projectPath, repeatCount);
 				vscode.window.showInformationMessage(`Go Cobra experiment completed successfully! Processed ${symbols.length} symbols.`);
@@ -606,7 +606,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				role: 'user',
 				content: 'What is the capital of the moon?'
 			}
-		]
+		];
 
 		const response = await invokeLLM(promptObj, []);
 		if (response) {

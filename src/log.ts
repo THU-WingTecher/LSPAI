@@ -63,7 +63,7 @@ export class ExpLogger {
 		const pathLog = {
 			sourceCode: functionText,
 			paths: paths
-		}
+		};
 		console.log(`### saveCFGPaths::fullPath: ${fullPath}`);
 		fs.writeFileSync(fullPath, JSON.stringify(pathLog, null, 2));
 	}

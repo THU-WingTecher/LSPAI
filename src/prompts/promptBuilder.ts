@@ -203,10 +203,10 @@ export function generateTestWithContextWithCFG(
     const result = [];
     let context_info_str = "";
     for (const item of context_info) {
-        if (item.need_definition && item.context && item.context!=item.name) {
+        if (item.need_definition && item.context && item.context!==item.name) {
             result.push(`\n#### Definition of ${item.name}\n${item.context}`);
         }
-        if (item.need_example && item.example && item.example!=item.name) {
+        if (item.need_example && item.example && item.example!==item.name) {
             result.push(`\n#### Example of ${item.name}\n${item.example}`);
         }
     }
@@ -222,14 +222,14 @@ export function generateTestWithContextWithCFG(
         fileName = fileName.split("/").pop() || fileName;
     }
 
-    const systemPrompt = prompts.system_prompt
+    const systemPrompt = prompts.system_prompt;
     let userPrompt = prompts.user_prompt;
     if (context_info_str.length > 0) {
         userPrompt = userPrompt
-        .replace('{context_info}', context_info_str)
+        .replace('{context_info}', context_info_str);
     } else {
         userPrompt = userPrompt
-        .replace("Important terms' context information:\n\n{context_info}", context_info_str)
+        .replace("Important terms' context information:\n\n{context_info}", context_info_str);
     }
     userPrompt = userPrompt
         .replace('{source_code}', source_code)

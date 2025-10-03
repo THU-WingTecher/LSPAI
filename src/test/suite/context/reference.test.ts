@@ -202,7 +202,7 @@ suite('Context Selector Agent Tests', () => {
         // should include file uri , but it can be the same with symbol
         console.log(
             reference.map(ref => ref.uri.fsPath)
-        )
+        );
 
         // console.log("enrichedTerms", JSON.stringify(enrichedTerms, null, 2));
     });

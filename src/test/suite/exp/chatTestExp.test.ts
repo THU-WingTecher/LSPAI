@@ -31,7 +31,7 @@ suite('Utils Test Suite', () => {
         workspace: projectPath,
         parallelCount: 8,
         maxRound: 5,
-    }
+    };
     getConfigInstance().updateConfig({
         ...currentConfig
     });
@@ -45,7 +45,7 @@ suite('Utils Test Suite', () => {
             expProb: 1,
         });
 
-        const tasklistPath = `/LSPRAG/experiments/settings/${projectName}/tasklist.json`
+        const tasklistPath = `/LSPRAG/experiments/settings/${projectName}/tasklist.json`;
 
         if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
             currentSrcPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);

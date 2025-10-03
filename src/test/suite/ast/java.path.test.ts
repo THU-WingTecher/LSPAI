@@ -378,7 +378,7 @@ result = x + y;
     // Path 1: Normal execution (no exception)
     // if no exception, then the path should be:
     // TRY_START -> x = 1 -> y = 2  -> TRY_END -> y = y + 1 -> w = 4 -> cleanup = True -> result = x + y
-'TRY_START\nx = 1;\ny = 2;\nTRY_END\nx = -1;\nz = 3;\ncleanup = true;\nresult = x + y;'
+'TRY_START\nx = 1;\ny = 2;\nTRY_END\nx = -1;\nz = 3;\ncleanup = true;\nresult = x + y;';
 
     assert.ok(
         paths.some(p => 
@@ -559,7 +559,7 @@ test('Run all functions under a repository : commons-cli', async function() {
         console.log('activate');
         await activate();
     }
-    const projectPath = "/LSPRAG/experiments/projects/commons-cli"
+    const projectPath = "/LSPRAG/experiments/projects/commons-cli";
     const workspaceFolders = setWorkspaceFolders(projectPath);
     // await updateWorkspaceFolders(workspaceFolders);
     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);

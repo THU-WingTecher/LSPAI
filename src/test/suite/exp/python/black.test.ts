@@ -15,14 +15,14 @@ suite('Experiment Test Suite', () => {
     const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src")];
     const sampleNumber = -1;
     const languageId = "python";
-    const blackImportTestPath = "../../../resources/black_module_import_test.py"
+    const blackImportTestPath = "../../../resources/black_module_import_test.py";
     const currentConfig = {
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
         expProb: 1,
         promptType: PromptType.DETAILED,
         workspace: projectPath,
-    }
+    };
     // let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
         ...currentConfig
@@ -80,7 +80,7 @@ suite('Experiment Test Suite', () => {
             console.log('activate');
             await activate();
         }
-        const taskListPath = '/LSPRAG/experiments/config/black-taskList.json'
+        const taskListPath = '/LSPRAG/experiments/config/black-taskList.json';
         const workspaceFolders = setWorkspaceFolders(projectPath);
         // await updateWorkspaceFolders(workspaceFolders);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);

@@ -25,7 +25,9 @@ import { constructSourceCodeWithRelatedInfo } from '../../utils';
  * Truncate context string to fit within token limit
  */
 function truncateContextString(context: string, maxTokens: number): string {
-    if (maxTokens <= 0) return "";
+    if (maxTokens <= 0) {
+        return "";
+    }
     
     const words = context.split(/\s+/);
     if (words.length <= maxTokens) {
@@ -138,7 +140,7 @@ export class CFGTestGenerator extends BaseTestGenerator {
             context: referenceStrings,
             need_example: true,
             hint: ["focal method"]
-        }
+        };
         enrichedTerms.unshift(contextTermsForFunctionSymbol);
         this.logger.log("gatherContext-2", (Date.now() - retreiveTime2).toString(), null, "");
         this.logger.log("gatherContext", (Date.now() - retreiveTime).toString(), null, "");
@@ -176,7 +178,7 @@ export class CFGTestGenerator extends BaseTestGenerator {
 
         // Generate test
         const generationStartTime = Date.now();
-        const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms!, conditionAnalyses, this.fileName)
+        const promptObj = await generateTestWithContextWithCFG(this.document, this.functionSymbol, functionText, enrichedTerms!, conditionAnalyses, this.fileName);
         const logObj: LLMLogs = {tokenUsage: "", result: "", prompt: "", model: getConfigInstance().model};
         console.log("promptObj:", promptObj[1].content);
         const testCode = await invokeLLM(promptObj, logObj);

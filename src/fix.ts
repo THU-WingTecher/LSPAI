@@ -288,7 +288,7 @@ export async function fixDiagnostics(
 		// }
 		if (!filteredDiagnostics) {
 			console.log("No diagnostics found, breaking");
-			progress.report({ message: `Fixing Completed at Round ${round}`, increment: 10 })
+			progress.report({ message: `Fixing Completed at Round ${round}`, increment: 10 });
 			break;
 		} else {
 			progress.report({ message: `Fixing Not completed at Round ${round}`, increment: -10 });

@@ -72,7 +72,9 @@ export function contextToString(contextTerms: ContextTerm[]): string {
 
     // Add other groups
     for (const [path, contents] of pathGroups.entries()) {
-        if (path === 'focal') continue;
+        if (path === 'focal') {
+            continue;
+        }
         
         // First, remove redundant contexts by checking line number overlaps
         const uniqueRanges = removeRedundantContexts(contents);
@@ -198,7 +200,9 @@ function removeRedundantContexts(contents: string[]): string[] {
     // Filter out type-related contexts first
     contents = contents.filter(content => {
         const lines = content.split('\n');
-        if (lines.length < 2) return true; // Keep single line contents
+        if (lines.length < 2) {
+            return true; // Keep single line contents
+        }
         
         // Check if content is mostly type definitions
         const typeDefCount = lines.filter(line => 
@@ -235,7 +239,9 @@ function removeRedundantContexts(contents: string[]): string[] {
     const uniqueRanges: string[] = [];
     const processedNames = new Set<string>();
     
-    if (ranges.length === 0) return [];
+    if (ranges.length === 0) {
+        return [];
+    }
     
     for (let i = 0; i < ranges.length; i++) {
         const currentRange = ranges[i];
@@ -411,7 +417,7 @@ export class ContextSelector {
     public needKeyTermFilter(tokens: DecodedToken[] | null = null): boolean {
         let curTokens = tokens;
         if (!curTokens) {
-            curTokens = this.tokens
+            curTokens = this.tokens;
         }
         // const uniqueDefinitions = countUniqueDefinitions(curTokens);
         // if (uniqueDefinitions > this.config.general.max_terms) {
