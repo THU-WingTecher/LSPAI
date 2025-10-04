@@ -4,9 +4,9 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { getConfigInstance, PromptType, GenerationType } from '../../../config';
 import { genPrompt } from '../../../prompts/promptBuilder';
-import { getDocUri, activate } from '../../../lsp';
+import { getDocUri, activate } from '../../../lsp/helper';
 import { collectInfo, ContextInfo } from '../../../generate';
-import { getAllSymbols } from '../../../lsp';
+import { getAllSymbols } from '../../../lsp/symbol';
 suite('Context and Prompt Tests', () => {
     // const testFilesPath = path.join(__dirname, '../../../testFixture');
     const workspaceFolders = [
@@ -54,11 +54,7 @@ getConfigInstance().updateConfig({ workspace: "/LSPRAG/experiments/projects/comm
         // Get symbols from the document
         const symbols = await getAllSymbols(docUri);
         console.log('symbols', symbols.map((s: vscode.DocumentSymbol) => s.name));
-        // const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-        //     'vscode.executeDocumentSymbolProvider',
-        //     docUri
-        // );
-        
+
         assert.ok(symbols && symbols.length > 0, 'Should have symbols');
         
         // Find the calculate method

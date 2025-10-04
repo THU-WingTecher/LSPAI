@@ -5,22 +5,22 @@ import { createCFGBuilder } from '../../cfg/builderFactory';
 import { ConditionAnalysis, Path, PathCollector } from '../../cfg/path';
 import { getContextSelectorInstance, ContextTerm, contextToString, ContextSelector } from '../../agents/contextSelector';
 import { getConfigInstance, PromptType } from '../../config';
-import { parseCode } from '../../utils';
+import { parseCode } from '../../lsp/utils';
 import { BaseTestGenerator } from '../base';
 import { conditionToPrompt, findTemplateFile, generateTestWithContext, loadPathTestTemplate } from '../../prompts/promptBuilder';
 import { LLMLogs } from '../../log';
 import { invokeLLM } from '../../invokeLLM';
 import { ChatMessage } from '../../prompts/ChatMessage';
-import { getPackageStatement, getImportStatement } from '../../retrieve';
-import { getOuterSymbols } from '../../lsp';
+import { getPackageStatement, getImportStatement } from '../../lsp/definition';
+import { getOuterSymbols } from '../../lsp/symbol';
 import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
 import { readTxtFile, saveContextTerms } from '../../fileHandler';
-import { getReferenceInfo } from '../../reference';
+import { getReferenceInfo } from '../../lsp/reference';
 import path from 'path';
 import fs from 'fs';
-import { getAllSymbols } from '../../lsp';
-import { DecodedToken } from '../../token';
-import { constructSourceCodeWithRelatedInfo } from '../../utils';
+import { getAllSymbols } from '../../lsp/symbol';
+import { DecodedToken } from '../../lsp/token';
+import { constructSourceCodeWithRelatedInfo } from '../../lsp/utils';
 
 /**
  * Truncate context string to fit within token limit

@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { WorkspaceEdit, workspace } from 'vscode';
-import { getPackageStatement } from './retrieve';
+import { getPackageStatement } from './lsp/definition';
 import { getLanguageSuffix } from './language';
 import { DEFAULT_FILE_ENCODING, TIME_FORMAT_OPTIONS, getConfigInstance } from './config';
 import { goSpecificEnvGen, sleep } from './helper';

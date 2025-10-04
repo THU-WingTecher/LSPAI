@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getImportStatement, getPackageStatement } from '../retrieve';
+import { getImportStatement, getPackageStatement } from '../lsp/definition';
 import { getLanguageSuffix } from '../language';
 
 export function getUnitTestTemplateOnly(document: vscode.TextDocument, symbol:vscode.DocumentSymbol, FileName: string): string {

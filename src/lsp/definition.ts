@@ -1,10 +1,13 @@
 import * as vscode from 'vscode';
 import { DecodedToken, getSymbolKindString } from './token';
-import { getSymbolDetail, isStandardClass, removeComments } from './utils';
-import { getAllSymbols, getOuterSymbols } from './lsp';
+import { isStandardClass, removeComments } from './utils';
+import { getSymbolDetail } from './symbol';
+import { getAllSymbols } from './symbol';
+import { getOuterSymbols } from './symbol';
 import path from 'path';
-import { getConfigInstance, Configuration } from './config';
-import { genPythonicSrcImportStatement } from './helper';
+import { getConfigInstance, Configuration } from '../config';
+import { genPythonicSrcImportStatement } from '../helper';
+import { VscodeRequestManager } from './vscodeRequestManager';
 export function getSourcCodes(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): string {
     const functionRange = functionSymbol.range;
     const text = document.getText(functionRange);
@@ -527,45 +530,6 @@ export function getPackageStatement(document: vscode.TextDocument, language: str
     }
 }
 
-// function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vscode.DocumentSymbol | null): string {
-//     // const workspaceFolders = getConfigInstance().workspace;
-//     // if (!workspaceFolders) {
-//     //     throw new Error("No workspace folder found");
-//     // }
-
-//     const workspacePath = getConfigInstance().workspace;
-//     let importStatement = document.uri.fsPath.replace(workspacePath, '');
-//     // Check if the import statement starts with a '/', and remove it if it does
-//     if (importStatement.startsWith('/')) {
-//         importStatement = importStatement.substring(1);
-//     }
-//     importStatement = importStatement.replace(/\//g, ".").replace(/\.py/g, "");
-//     let res = `from ${importStatement} import *\n`;
-//     if (symbol) {
-//         res.replace("import *", `import ${document.getText(symbol.selectionRange)}`);
-//     }
-//     return res;
-// }
-// function genPythonicSrcImportStatement(document: vscode.TextDocument, symbol: vscode.DocumentSymbol | null): string {
-//     // const workspaceFolders = getConfigInstance().workspace;
-//     // if (!workspaceFolders) {
-//     //     throw new Error("No workspace folder found");
-//     // }
-
-//     const workspacePath = getConfigInstance().workspace;
-//     let importStatement = document.uri.fsPath.replace(workspacePath, '');
-//     // Check if the import statement starts with a '/', and remove it if it does
-//     if (importStatement.startsWith('/')) {
-//         importStatement = importStatement.substring(1);
-//     }
-//     importStatement = importStatement.replace(/\//g, ".").replace(/\.py/g, "");
-//     let res = `from ${importStatement} import *\n`;
-//     if (symbol) {
-//         res.replace("import *", `import ${document.getText(symbol.selectionRange)}`);
-//     }
-//     return res;
-// }
-
 export function getImportStatement(document: vscode.TextDocument, language: string, symbol: vscode.DocumentSymbol | null = null): string {
     let allImportStatements = "";
     const documentText = document.getText();
@@ -625,46 +589,6 @@ export async function retrieveDefs(document: vscode.TextDocument, decodedTokens:
     }
     return defTokens;
 }
-// export async function getDecodedTokensForLine(editor: vscode.TextEditor, lineNumber: number): Promise<DecodedToken[]> {
-//     if (!editor || !editor.document) {
-//         vscode.window.showErrorMessage('Invalid editor or document.');
-//         return [];
-//     }
-//     const document = editor.document;
-//     if (lineNumber < 0 || lineNumber >= document.lineCount) {
-//         vscode.window.showErrorMessage('Line number out of range.');
-//         return [];
-//     }
-//     // Define the range for the entire line
-//     const line = document.lineAt(lineNumber);
-//     const range = new vscode.Range(line.range.start, line.range.end);
-//     try {
-//         // Retrieve semantic tokens for the specified range
-//         const tokens: vscode.SemanticTokens | undefined = await vscode.commands.executeCommand(
-//             'vscode.provideDocumentRangeSemanticTokens',
-//             document.uri,
-//             range
-//         );
-//         // Retrieve the semantic tokens legend
-//         const tokensLegend: vscode.SemanticTokensLegend | undefined = await vscode.commands.executeCommand(
-//             'vscode.provideDocumentRangeSemanticTokensLegend',
-//             document.uri,
-//             range
-//         );
-//         if (!tokens || !tokensLegend) {
-//             vscode.window.showErrorMessage('Failed to retrieve semantic tokens or legend.');
-//             return [];
-//         }
-//         // Decode the semantic tokens
-//         const decodedTokens = await decodeSemanticTokens(Array.from(tokens.data), tokensLegend, lineNumber);
-//         const decodedTokensWithDefUse = await retrieveDef(editor, decodedTokens);
-//         return decodedTokensWithDefUse;
-//     } catch (error) {
-//         console.error('Error retrieving semantic tokens:', error);
-//         vscode.window.showErrorMessage('An error occurred while retrieving semantic tokens.');
-//         return [];
-//     }
-// }
 
 export async function retrieveDef(document: vscode.TextDocument, decodedToken: DecodedToken, skipDefinition: boolean = false): Promise<DecodedToken> {
     if (decodedToken) {
@@ -675,23 +599,9 @@ export async function retrieveDef(document: vscode.TextDocument, decodedToken: D
         if (skipDefinition) {
             decodedToken.definition = [];
         } else {
-            const definition = await vscode.commands.executeCommand<Array<vscode.Location>>(
-                'vscode.executeDefinitionProvider',
-                document.uri,
-                startPos
-            );
+            const definition = await VscodeRequestManager.definitions(document.uri, startPos);
             decodedToken.definition = definition;
         }
     }
     return decodedToken;
 }
-// Example usage
-// (async () => {
-//     // Example tokenMap and DefUseMap (populate these as per your application's logic)
-    
-//     const DefUseMap: DecodedToken[] = []; // Populate as needed
-    
-//     const tokenMap = await classifyTokenByUri(editor, DefUseMap);
-//     await processAndGenerateHierarchy(tokenMap, DefUseMap);
-// })();    
-

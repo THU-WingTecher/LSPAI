@@ -1,9 +1,9 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { formatToJSON } from '../../../utils';
+import { formatToJSON } from '../../../lsp/utils';
 import { loadAllTargetSymbolsFromWorkspace, experiment, sleep, setWorkspaceFolders } from '../../../helper';
 import { FixType, SRC_PATHS } from '../../../config';
-import { activate } from '../../../lsp';
+import { activate } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider } from '../../../config';
 import path from 'path';
 import { generateFileNameForDiffLanguage, generateTimestampString } from '../../../fileHandler';

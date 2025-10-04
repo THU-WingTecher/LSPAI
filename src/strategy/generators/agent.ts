@@ -4,7 +4,7 @@ import { getConfigInstance, PromptType } from '../../config';
 import { invokeLLM } from '../../invokeLLM';
 import { LLMLogs } from '../../log';
 import { generateTestWithContext } from '../../prompts/promptBuilder';
-import { parseCode } from '../../utils';
+import { parseCode } from '../../lsp/utils';
 import { BaseTestGenerator } from '../base';
 
 

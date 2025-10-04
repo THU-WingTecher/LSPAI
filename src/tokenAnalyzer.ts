@@ -1,9 +1,9 @@
 // ... existing code ...
 
 import { ContextTerm } from "./agents/contextSelector";
-import { retrieveDef } from "./retrieve";
-import { DecodedToken } from "./token";
-import { getSymbolByLocation } from "./lsp";
+import { retrieveDef } from "./lsp/definition";
+import { DecodedToken } from "./lsp/token";
+import { getSymbolByLocation } from './lsp/symbol';
 import * as vscode from 'vscode';
 import { ConditionAnalysis } from "./cfg/path";
 // 1. Define the type for the algorithm

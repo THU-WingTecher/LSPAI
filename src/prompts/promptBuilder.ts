@@ -5,7 +5,7 @@ import { ContextTerm } from "../agents/contextSelector";
 import path from "path";
 import fs from "fs";
 import ini from "ini";
-import { getPackageStatement, getImportStatement } from "../retrieve";
+import { getPackageStatement, getImportStatement } from "../lsp/definition";
 import * as vscode from 'vscode';
 import { LanguageTemplateManager } from "./languageTemplateManager";
 import { ConditionAnalysis } from "../cfg/path";

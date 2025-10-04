@@ -3,15 +3,16 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { getContextSelectorInstance, ContextTerm } from '../../../agents/contextSelector';
-import { getDocUri, activate, setPythonExtraPaths, getPythonExtraPaths } from '../../../lsp';
-import { getAllSymbols } from '../../../lsp';
+import { getDocUri, activate, setPythonExtraPaths, getPythonExtraPaths } from '../../../lsp/helper';
+import { getAllSymbols } from '../../../lsp/symbol';
 import { selectOneSymbolFileFromWorkspace, setWorkspaceFolders } from '../../../helper';
-import { getSourcCodes } from '../../../retrieve';
+import { getSourcCodes } from '../../../lsp/definition';
 import { getContextTermsFromTokens } from '../../../tokenAnalyzer';
 import { PathCollector } from '../../../cfg/path';
 import { createCFGBuilder } from '../../../cfg/builderFactory';
 import { SupportedLanguage } from '../../../ast';
-import { findReferences, getReferenceInfo } from '../../../reference';
+import { findReferences, getReferenceInfo } from '../../../lsp/reference';
+import { VscodeRequestManager } from '../../../lsp/vscodeRequestManager';
 
 suite('Context Selector Agent Tests', () => {
 
@@ -59,17 +60,9 @@ suite('Context Selector Agent Tests', () => {
     
         // Get language server status
         const document = symbolDocumentMap!.document;
-        // console.log("3. Checking Language Server Features");
-        // const capabilities = await vscode.commands.executeCommand(
-        //     'python.getLanguageServerStatus'
-        // );
-        // console.log("Language Server Capabilities:", capabilities);
-    
-        // Check if we can get symbols (this indicates the language server is working)
-        const symbols = await vscode.commands.executeCommand(
-            'vscode.executeDocumentSymbolProvider',
-            document.uri
-        );
+
+        // Check if we can get symbols (this indicates the language server is working)  
+        const symbols = await VscodeRequestManager.documentSymbols(document.uri);
         console.log("Symbol Provider Working:", !!symbols);
     });
 
@@ -100,10 +93,7 @@ suite('Context Selector Agent Tests', () => {
             const doc = await vscode.workspace.openTextDocument(uri);
             
             // Check for symbols
-            const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-                'vscode.executeDocumentSymbolProvider',
-                uri
-            );
+            const symbols = await VscodeRequestManager.documentSymbols(uri);
             
             // Check for diagnostics
             const diagnostics = await vscode.languages.getDiagnostics(uri);
@@ -132,26 +122,14 @@ suite('Context Selector Agent Tests', () => {
         })));
         
         // 2. Try to find definition (if we can find definition, we should be able to find references)
-        const definitions = await vscode.commands.executeCommand<vscode.Location[]>(
-            'vscode.executeDefinitionProvider',
-            document.uri,
-            symbol.selectionRange.start
-        );
+        const definitions = await VscodeRequestManager.definitions(document.uri, symbol.selectionRange.start);
         console.log("Definition found:", !!definitions && definitions.length > 0);
         if (definitions) {
             console.log("Definition locations:", definitions.map(d => d.uri.fsPath));
         }
         
         // 3. Check workspace symbol search (this shows if the symbol is indexed project-wide)
-        const workspaceSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
-            'vscode.executeWorkspaceSymbolProvider',
-            symbol.name
-        );
-        console.log("Workspace symbols found:", !!workspaceSymbols && workspaceSymbols.length > 0);
-        if (workspaceSymbols) {
-            console.log("Symbol locations:", workspaceSymbols.map(s => s.location.uri.fsPath));
-        }
-        
+
         // 4. Try to find references with more details
         const references = await vscode.commands.executeCommand<vscode.Location[]>(
             'vscode.executeReferenceProvider',

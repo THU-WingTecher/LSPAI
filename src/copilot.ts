@@ -17,7 +17,7 @@ import {
   DidChangeTextDocumentNotification
   // You can import other LSP structures (e.g. DidChangeConfigurationNotification, etc.)
 } from 'vscode-languageserver-protocol';
-import { commentizeCode } from './utils';
+import { commentizeCode } from './lsp/utils';
 import { generateFileNameForDiffLanguage, saveGeneratedCodeToFolder } from './fileHandler';
 import { workspace } from 'vscode';
 import { getConfigInstance } from './config';

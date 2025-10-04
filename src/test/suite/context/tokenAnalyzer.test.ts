@@ -5,7 +5,8 @@ import { ContextTerm, getContextSelectorInstance } from '../../../agents/context
 import { PathCollector } from '../../../cfg/path';
 import { createCFGBuilder } from '../../../cfg/builderFactory';
 import { SupportedLanguage } from '../../../ast';
-import { activate, getSymbolByLocation } from '../../../lsp';
+import { activate } from '../../../lsp/helper';
+import { getSymbolByLocation } from '../../../lsp/symbol';
 
 suite('tokenAnalyzer Helpfulness Algorithm', () => {
     setHelpfulnessAlgorithm('cfg');

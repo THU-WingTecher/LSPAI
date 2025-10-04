@@ -3,7 +3,7 @@ import { invokeLLM } from '../../invokeLLM';
 import { TokenLimitExceededError } from '../../invokeLLM';
 import { LLMLogs } from '../../log';
 import { genPrompt } from '../../prompts/promptBuilder';
-import { parseCode } from '../../utils';
+import { parseCode } from '../../lsp/utils';
 import { BaseTestGenerator } from '../base';
 
 

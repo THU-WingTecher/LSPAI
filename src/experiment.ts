@@ -6,7 +6,7 @@ import fs from 'fs';
 import { getConfigInstance, GenerationType, PromptType, FixType, SRC_PATHS, ProjectName, Provider } from './config';
 import { generateFileNameForDiffLanguage } from './fileHandler';
 import { generateUnitTestForAFunction } from './generate';
-import { activate } from './lsp';
+import { activate } from './lsp/helper';
 import { createCFGBuilder } from './cfg/builderFactory';
 import { PathCollector } from './cfg/path';
 import { SupportedLanguage } from './ast';

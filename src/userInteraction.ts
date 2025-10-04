@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { getConfigInstance } from './config';
-import { closeEditor } from './lsp';
+import { closeEditor } from './lsp/helper';
 import { saveCode } from './fileHandler';
 
 function getVisibleCodeWithLineNumbers(textEditor: vscode.TextEditor) {

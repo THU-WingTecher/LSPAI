@@ -4,6 +4,7 @@ import * as path from 'path';
 import { generateUnitTestForAFunction } from '../generate';
 import { getConfigInstance } from '../config';
 import { getTempDirAtCurWorkspace } from '../fileHandler';
+import { VscodeRequestManager } from '../lsp/vscodeRequestManager';
 
 
 suite('Extension Test Suite', () => {
@@ -14,19 +15,14 @@ suite('Extension Test Suite', () => {
         const functionName = process.env.EXPERIMENT_FUNCTION_NAME!;
 
         // Wait for extension to activate
-        await vscode.commands.executeCommand('workbench.action.files.openFolder', 
-            vscode.Uri.file(srcPath));
-        
+
         // Open the target file
         const document = await vscode.workspace.openTextDocument(
             path.join(srcPath, targetFile)
         );
 
         // Get the symbols
-        const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-            'vscode.executeDocumentSymbolProvider',
-            document.uri
-        );
+        const symbols = await VscodeRequestManager.documentSymbols(document.uri);
 
         if (!symbols) {
             throw new Error('No symbols found in the document');

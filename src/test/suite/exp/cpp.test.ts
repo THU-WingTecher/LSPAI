@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders, selectOneSymbolFileFromWorkspace } from '../../../helper';
 import { SRC_PATHS } from '../../../config';
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../config';
 import { generateFileNameForDiffLanguage } from '../../../fileHandler';
 import { generateUnitTestForAFunction } from '../../../generate';

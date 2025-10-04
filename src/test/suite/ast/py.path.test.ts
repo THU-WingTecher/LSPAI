@@ -5,7 +5,7 @@ import { JavaCFGBuilder } from '../../../cfg/java';
 import { CFGNodeType } from '../../../cfg/types';
 import { loadAllTargetSymbolsFromWorkspace } from '../../../helper';
 import { setWorkspaceFolders } from '../../../helper';
-import { activate } from '../../../lsp';
+import { activate } from '../../../lsp/helper';
 import { collectPathforSymbols } from '../../../experiment';
 // Known issues : we cannot detect the break / continue condition in the loop
 // Basic path tests

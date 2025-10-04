@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { extractArrayFromJSON, formatToJSON } from '../../../utils';
+import { extractArrayFromJSON, formatToJSON } from '../../../lsp/utils';
 import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, setWorkspaceFolders } from '../../../helper';
 import { getConfigInstance } from '../../../config';
 import path from 'path';

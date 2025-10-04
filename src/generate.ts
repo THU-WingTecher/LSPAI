@@ -1,13 +1,15 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { DecodedToken, extractUseDefInfo } from "./token";
-import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement, constructSymbolRelationShip} from "./retrieve";
-import {getReferenceInfo} from "./reference";
+import { DecodedToken, extractUseDefInfo } from "./lsp/token";
+import {getPackageStatement, getDependentContext, DpendenceAnalysisResult, getImportStatement, constructSymbolRelationShip} from "./lsp/definition";
+import {getReferenceInfo} from "./lsp/reference";
 import { TokenLimitExceededError } from "./invokeLLM";
 import { ExpLogger, LLMLogs } from './log';
 import { invokeLLM } from "./invokeLLM";
 import { genPrompt, generateTestWithContext, generateTestWithContextWithCFG } from "./prompts/promptBuilder";
-import { isFunctionSymbol, isValidFunctionSymbol, getFunctionSymbol, parseCode } from './utils';
+import { isValidFunctionSymbol, parseCode } from './lsp/utils';
+import { getAllSymbols, isFunctionSymbol } from './lsp/symbol';
+import { getFunctionSymbol } from './lsp/symbol';
 import { generateFileNameForDiffLanguage, saveToIntermediate, saveCode, getFileName } from './fileHandler';
 import { getConfigInstance, GenerationType, PromptType } from './config';
 import { ContextTerm, getContextSelectorInstance } from './agents/contextSelector';
@@ -73,10 +75,7 @@ export async function collectInfo(document: vscode.TextDocument, functionSymbol:
 
 export async function generateUnitTestForSelectedRange(document: vscode.TextDocument, position: vscode.Position): Promise<string> {
 	// 获取符号信息
-	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-		'vscode.executeDocumentSymbolProvider',
-		document.uri
-	);
+	const symbols = await getAllSymbols(document.uri);
 
 	if (!symbols) {
 		vscode.window.showErrorMessage('No symbols found! - It seems language server is not running.');

@@ -1,6 +1,6 @@
 import { CFGNode, CFGNodeType } from './types';
 import { ExceptionExtractorFactory, ExceptionTypeExtractor } from "./languageAgnostic";
-import { removeComments } from '../utils';
+import { removeComments } from '../lsp/utils';
 import { collapseTextChangeRangesAcrossMultipleVersions } from 'typescript/lib/typescript';
 import { ContextTerm } from '../agents/contextSelector';
 

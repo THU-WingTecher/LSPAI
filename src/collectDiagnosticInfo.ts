@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
-import { DecodedToken, getDecodedTokensFromLine } from './token';
-import { getImportStatement, getPackageStatement, retrieveDefs } from './retrieve';
+import { DecodedToken, getDecodedTokensFromLine } from './lsp/token';
+import { getImportStatement, getPackageStatement, retrieveDefs } from './lsp/definition';
 import * as fpath from 'path';
-import { getSymbolByLocation, getTypeInfo, getAllSymbols } from './lsp';
-import { getReferenceInfo } from './reference';
-import { getLinesTexts } from './diagnostic';
+import { getTypeInfo } from './lsp/helper';
+import { getAllSymbols } from './lsp/symbol';
+import { getSymbolByLocation } from './lsp/symbol';
+import { getReferenceInfo } from './lsp/reference';
+import { getLinesTexts } from './lsp/diagnostic';
 import { isInWorkspace } from './agents/contextSelector';
 import { getConfigInstance } from './config';
 
@@ -427,10 +429,7 @@ class DiagnosticContextCollector {
 	private async collectScopeInformation(document: vscode.TextDocument): Promise<string> {
 		try {
 			// Get document symbols to understand scope
-			const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-				'vscode.executeDocumentSymbolProvider',
-				document.uri
-			);
+			const symbols = await getAllSymbols(document.uri);
 
 			if (!symbols || symbols.length === 0) {
 				return "";
@@ -512,60 +511,6 @@ class DiagnosticContextCollector {
 	// 	}
 	// }
 
-	private async collectTypeInformation(document?: vscode.TextDocument, diagnostics?: vscode.Diagnostic[]): Promise<string> {
-		if (!document) {
-			return "";
-		}
-
-		try {
-			const typeInfo: string[] = [];
-			
-			// Get type definitions from document symbols
-			const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-				'vscode.executeDocumentSymbolProvider',
-				document.uri
-			);
-
-			if (symbols) {
-				const classes = symbols.filter(s => s.kind === vscode.SymbolKind.Class);
-				const interfaces = symbols.filter(s => s.kind === vscode.SymbolKind.Interface);
-				const enums = symbols.filter(s => s.kind === vscode.SymbolKind.Enum);
-
-				if (classes.length > 0) {
-					typeInfo.push("Classes defined in file:");
-					classes.forEach(cls => {
-						typeInfo.push(`- ${cls.name}`);
-						if (cls.children) {
-							const methods = cls.children.filter(c => c.kind === vscode.SymbolKind.Method);
-							const fields = cls.children.filter(c => c.kind === vscode.SymbolKind.Field || c.kind === vscode.SymbolKind.Property);
-							
-							if (methods.length > 0) {
-								typeInfo.push(`  Methods: ${methods.map(m => m.name).join(', ')}`);
-							}
-							if (fields.length > 0) {
-								typeInfo.push(`  Fields: ${fields.map(f => f.name).join(', ')}`);
-							}
-						}
-					});
-				}
-
-				if (interfaces.length > 0) {
-					typeInfo.push("Interfaces:");
-					interfaces.forEach(iface => typeInfo.push(`- ${iface.name}`));
-				}
-
-				if (enums.length > 0) {
-					typeInfo.push("Enums:");
-					enums.forEach(enm => typeInfo.push(`- ${enm.name}`));
-				}
-			}
-
-			return typeInfo.join('\n');
-		} catch (error) {
-			console.warn('Failed to collect type information:', error);
-			return "";
-		}
-	}
 	private getSourceFilePattern(): string {
 		switch (this.languageId) {
 			case 'python':

@@ -7,7 +7,7 @@ import {
     updateWorkspaceFolders,
     extractSymbolDocumentMapFromTaskList
 } from '../../../helper';
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 import { 
     getConfigInstance, 
     GenerationType, 

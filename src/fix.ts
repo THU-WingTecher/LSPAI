@@ -1,12 +1,12 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getConfigInstance } from './config';
-import { groupDiagnosticsByMessage, groupedDiagnosticsToString, DiagnosticsToString, getDiagnosticsForFilePath, chooseDiagnostic, markTestCodeWithDiagnostic } from './diagnostic';
+import { groupDiagnosticsByMessage, groupedDiagnosticsToString, DiagnosticsToString, getDiagnosticsForFilePath, chooseDiagnostic, markTestCodeWithDiagnostic } from './lsp/diagnostic';
 import { saveToIntermediate, showGeneratedCodeWithPreview } from './fileHandler';
 import { invokeLLM, TokenLimitExceededError } from './invokeLLM';
 import { ExpLogs, LLMLogs, ExpLogger } from './log';
 import { experimentalDiagnosticPrompt, constructDiagnosticPrompt, FixSystemPrompt } from './prompts/promptBuilder';
-import { parseCode } from './utils';
+import { parseCode } from './lsp/utils';
 import { reportProgressWithCancellation } from './userInteraction';
 import { collectRelatedInfo } from './collectDiagnosticInfo';
 

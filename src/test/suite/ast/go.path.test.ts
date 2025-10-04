@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import { GolangCFGBuilder } from '../../../cfg/golang';
 import { PathCollector } from '../../../cfg/path';
 import { CFGNodeType } from '../../../cfg/types';
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 
 import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders } from '../../../helper';
 import { collectPathforSymbols } from '../../../experiment';

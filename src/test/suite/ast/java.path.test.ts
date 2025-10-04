@@ -5,7 +5,7 @@ import { CFGNodeType } from '../../../cfg/types';
 import { setWorkspaceFolders } from '../../../helper';
 import { collectPathforSymbols } from '../../../experiment';
 import { loadAllTargetSymbolsFromWorkspace } from '../../../helper';
-import { activate } from '../../../lsp';
+import { activate } from '../../../lsp/helper';
 
 
 test('Java CFG Path - Simple If-Else', async function() {

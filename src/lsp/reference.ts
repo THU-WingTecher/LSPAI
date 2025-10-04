@@ -1,19 +1,8 @@
 import * as vscode from 'vscode';
 import { removeComments } from './utils';
-import { activate, getAllSymbols, getSymbolByLocation } from './lsp';
+import { getAllSymbols, getShortestSymbol } from './symbol';
 import { DecodedToken, getDecodedTokensFromSybol } from './token';
-
-function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
-    let shortestSymbol: vscode.DocumentSymbol | null = null;
-    for (const symbol of symbols) {
-        if (symbol.range.contains(range)) {
-            if (!shortestSymbol || (symbol.range.end.line - symbol.range.start.line) < (shortestSymbol.range.end.line - shortestSymbol.range.start.line)) {
-                shortestSymbol = symbol;
-            }
-        }
-    }
-    return shortestSymbol;
-}
+import { VscodeRequestManager } from './vscodeRequestManager';
 
 /**
  * Determines if a file is a test file based on its path and content
@@ -95,11 +84,7 @@ interface ReferenceProcessingOptions {
 }
 
 export async function findReferences(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Location[]> {
-    return await vscode.commands.executeCommand<vscode.Location[]>(
-        'vscode.executeReferenceProvider',
-        document.uri,
-        position
-    );
+    return await VscodeRequestManager.references(document.uri, position);
 }
 
 // async function processReferences(
@@ -278,57 +263,6 @@ function isSameLocation(
 function isNoNeedLocation(ref: vscode.Location): boolean {
     return ref.uri.toString().includes(noNeedLocation);
 }
-
-// export async function getReferenceInfo(document: vscode.TextDocument, range: vscode.Range, refWindow: number = 60, skipTestCode: boolean = true): Promise<string> {
-//     const targetToken = document.getText(range)
-//     const position = range.start;
-//     const refes = await vscode.commands.executeCommand<vscode.Location[]>(
-//         'vscode.executeReferenceProvider',
-//         document.uri,
-//         position,
-//     );
-//     // console.log('References:', refes);
-
-//     const referenceCodes: string[] = [];
-//     console.log("targetToken:", targetToken);
-//     for (const ref of refes) {
-//         const refDocument = await vscode.workspace.openTextDocument(ref.uri);
-//         // Skip test files if requested
-//         if (skipTestCode && isTestFile(ref.uri, refDocument)) {
-//             // console.log(`Skipping test file: ${ref.uri.fsPath}`);
-//             continue;
-//         // console.log('symbolUsage', symbolUsage);
-//         }
-//         const symbols = await getAllSymbols(ref.uri);
-//         const shortestSymbol = getShortestSymbol(symbols, ref.range);
-//         const targetTokenUsages = await determineTargetTokenUsageByLocation(ref.uri, ref.range, targetToken);
-
-//         if (shortestSymbol) {
-//             if (ref.uri.toString() === document.uri.toString() && shortestSymbol.range.start.isBeforeOrEqual(position) && shortestSymbol.range.end.isAfterOrEqual(position)) {
-//                 continue; // Skip the reference at the same position and URI
-//             }
-//             const allAreParameters = targetTokenUsages.every(usage => usage === "parameters");
-//             if (allAreParameters) {
-//                 // console.log("All targetTokenUsage values are 'parameters'.");
-//                 continue;
-//             } 
-//             const refText = removeComments(refDocument.getText(shortestSymbol.range)).trim();
-//             if (refWindow === -1) {
-//                 referenceCodes.push(refText);
-//             } else {
-//                 const refTextLines = refText.split('\n').length;
-//                 const currentTotalLines = referenceCodes.reduce((acc, code) => acc + code.split('\n').length, 0);
-//                 if (currentTotalLines + refTextLines <= refWindow) {
-//                     referenceCodes.push(refText);
-//                 } else {
-//                     break;
-//                 }
-//             }
-//         }
-//     }
-//     console.log('Reference Codes:', referenceCodes.join('\n'));
-//     return referenceCodes.join('\n');
-// }
 
 async function determineTargetTokenUsageByLocation(uri: vscode.Uri, location: vscode.Range, targetToken: string): Promise<string[]> {
     try {

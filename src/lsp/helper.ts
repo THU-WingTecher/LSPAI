@@ -5,9 +5,9 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { sleep } from './helper';
+import { sleep } from '../helper';
 import * as assert from 'assert';
-import { symbolName } from 'typescript/lib/typescript';
+import { VscodeRequestManager } from './vscodeRequestManager';
 export let doc: vscode.TextDocument;
 export let editor: vscode.TextEditor;
 export let documentEol: string;
@@ -86,18 +86,10 @@ export async function closeEditor(editor: vscode.TextEditor) {
             new vscode.Position(editor.document.lineCount, 0)
         ));
     }).then(() => {
-        vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+        VscodeRequestManager.closeActiveEditor();
     });
 }
 
-export async function getSymbolByLocation(document: vscode.TextDocument, location: vscode.Position): Promise<vscode.DocumentSymbol | null> {
-    const symbols = await getAllSymbols(document.uri);
-    const shortestSymbol = getShortestSymbol(symbols, new vscode.Range(location, location));
-    if (shortestSymbol) {
-        return shortestSymbol;
-    }
-    return null;
-}
 /**
  * Activates the vscode.lsp-sample extension
  */
@@ -119,13 +111,9 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 		}
 	}
 }
-// const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-//     'vscode.executeDocumentSymbolProvider',
-//     document.uri
-// );
+
 export async function getTypeInfo(uri: vscode.Uri, position: vscode.Position): Promise<any> {
-    const typeInfo = await vscode.commands.executeCommand<vscode.Definition | vscode.Location | null>(
-        'vscode.executeTypeDefinitionProvider', uri, position);
+    const typeInfo = await VscodeRequestManager.typeDefinition(uri, position);
     return typeInfo;
 }
 
@@ -142,65 +130,6 @@ export async function setTestContent(content: string): Promise<boolean> {
 		doc.positionAt(doc.getText().length)
 	);
 	return editor.edit(eb => eb.replace(all, content));
-}
-
-export async function getSymbolFromDocument(document: vscode.TextDocument, symbolName: string): Promise<vscode.DocumentSymbol | null> {
-    const symbols = await getAllSymbols(document.uri);
-    console.log("symbols:", symbols);
-    const symbol = symbols.find(s => s.name.toLocaleLowerCase().includes(symbolName.toLowerCase()));
-    return symbol || null;
-}
-
-export async function getOuterSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
-    await activate(uri);
-    let syms: vscode.DocumentSymbol[] = [];
-    for (let i = 0; i < retries; i++) {
-      const newSyms = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-        'vscode.executeDocumentSymbolProvider',
-        uri
-        );
-      
-      if (newSyms.length) {
-        console.log(`found ${newSyms.length} symbols for ${uri.path}`);
-        syms.push(...newSyms);
-        break;
-      }
-      console.log(`waiting for symbols... ${i}`);
-      await new Promise(r => setTimeout(r, delayMs));
-    }
-    return syms;
-}
-
-export async function getAllSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
-
-    // console.log(`uri = ${uri}, symbols = ${symbols}`);
-    let syms: vscode.DocumentSymbol[] = [];
-    syms.push(...await getOuterSymbols(uri));
-    const flat: vscode.DocumentSymbol[] = [];
-    function collectSymbols(list: vscode.DocumentSymbol[]) {
-        for (const symbol of list) {
-            flat.push(symbol);
-            if (symbol.children && symbol.children.length > 0) {
-                collectSymbols(symbol.children);
-            }
-        }
-    }
-    if (syms && syms.length) {
-        collectSymbols(syms);
-    }
-    return flat;
-}
-
-export function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
-    let shortestSymbol: vscode.DocumentSymbol | null = null;
-    for (const symbol of symbols) {
-        if (symbol.range.contains(range)) {
-            if (!shortestSymbol || (symbol.range.end.line - symbol.range.start.line) < (shortestSymbol.range.end.line - shortestSymbol.range.start.line)) {
-                shortestSymbol = symbol;
-            }
-        }
-    }
-    return shortestSymbol;
 }
 
 export async function getJavaConfiguration(): Promise<any> {

@@ -5,13 +5,13 @@ import { createCFGBuilder } from '../../cfg/builderFactory';
 import { PathCollector } from '../../cfg/path';
 import { getContextSelectorInstance } from '../../agents/contextSelector';
 import { getConfigInstance, PromptType } from '../../config';
-import { parseCode } from '../../utils';
+import { parseCode } from '../../lsp/utils';
 import { BaseTestGenerator } from '../base';
 import { LLMLogs } from '../../log';
 import { invokeLLM } from '../../invokeLLM';
 import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
 import { ChatMessage } from '../../prompts/ChatMessage';
-import { getPackageStatement, getImportStatement } from "../../retrieve";
+import { getPackageStatement, getImportStatement } from "../../lsp/definition";
 import * as vscode from 'vscode';
 import { findTemplateFile, generateTestWithContext, loadPathTestTemplate } from '../../prompts/promptBuilder';
 

@@ -1,10 +1,10 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
-import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../../../diagnostic';
+import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../../../lsp/diagnostic';
 import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, selectOneSymbolFileFromWorkspace, setWorkspaceFolders } from '../../../../helper';
 import { SRC_PATHS } from '../../../../config';
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../../lsp';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../../config';
 
 import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from '../../../../experiment';

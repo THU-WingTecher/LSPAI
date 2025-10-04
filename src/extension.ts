@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { generateUnitTestForSelectedRange } from './generate';
 import { Configuration, getConfigInstance } from './config';
 import path from 'path';
-import { getCodeAction } from './diagnostic';
+import { getCodeAction } from './lsp/diagnostic';
 import { generateUnitTestsForFocalMethod, init, signIn, copilotServer } from './copilot';
 import { GenerationType, PromptType, FixType, Provider } from './config';
 import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace, selectOneSymbolFileFromWorkspace } from './helper';
@@ -10,7 +10,7 @@ import { experimentWithCopilot } from './copilot';
 import { generateTimestampString } from './fileHandler';
 import { invokeLLM } from './invokeLLM';
 import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from './experiment';
-import { activate as activateLSP, setPythonAnalysisExclude, setPythonAnalysisInclude, setPythonExtraPaths, setPythonInterpreterPath } from './lsp';
+import { activate as activateLSP, setPythonAnalysisExclude, setPythonAnalysisInclude, setPythonExtraPaths, setPythonInterpreterPath } from './lsp/helper';
 
 async function runExperiment(configurations: any[], symbols: any[], languageId: string, projectPath: string, repeatCount: number) {
 	for (let j = 0; j < repeatCount; j++) {
@@ -651,66 +651,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		});
 	});
 	context.subscriptions.push(showSettingsDisposable);
-	// ... existing code ...
-    // const hoverProvider = vscode.languages.registerHoverProvider({ scheme: 'untitled' }, {
-    //     provideHover(document, position, token) {
-    //         // Check if this is one of our test documents
-    //         // Implementation logic for test documents
-            
-    //         const lastLineNumber = document.lineCount - 1;
-            
-    //         // Hover for Accept button
-    //         if (position.line === lastLineNumber && position.character >= document.lineAt(lastLineNumber).text.length) {
-    //             return new vscode.Hover('Accept these changes');
-    //         } 
-    //         // Hover for Reject button
-    //         else if (position.line === lastLineNumber + 1 && position.character <= 8) {
-    //             return new vscode.Hover('Reject these changes and close the document');
-    //         }
-            
-    //         return null;
-    //     }
-    // });
-    // context.subscriptions.push(hoverProvider);
-    // Handle user interaction
-    // const acceptCommand = vscode.commands.registerCommand('extension.acceptChanges', async () => {
-    //     const originalEditor = vscode.window.activeTextEditor;
-    //     if (originalEditor) {
-    //         await originalEditor.edit(editBuilder => {
-    //             editBuilder.replace(new vscode.Range(0, 0, originalEditor.document.lineCount, 0), 'accepted');
-    //         });
-    //         vscode.window.showInformationMessage('Changes accepted.');
-    //     }
-    // });
-
-    // const rejectCommand = vscode.commands.registerCommand('extension.rejectChanges', () => {
-    //     vscode.window.showInformationMessage('Changes rejected.');
-		
-    // });
-	// // Add commands to the context
-	// context.subscriptions.push(acceptCommand, rejectCommand);
-	// Clean up the selection change listener when done
-	// const disposable = vscode.workspace.onDidCloseTextDocument((doc) => {
-	// 	if (doc === untitledDocument) {
-	// 		acceptCommand.dispose();
-	// 		rejectCommand.dispose();
-	// 		vscode.commands.executeCommand('setContext', 'extension.showAcceptReject', false);
-	// 		// Close the document
-	// 		vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-	// 	}
-	// });
-
-    // context.subscriptions.push(
-    //     vscode.commands.registerCommand('extension.showInlineSuggestion', () => {
-    //         const editor = vscode.window.activeTextEditor;
-    //         if (editor) {
-    //             const range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 10)); // Example range
-    //             const decoration = { range, hoverMessage: 'Suggested change: ...' };
-    //             editor.setDecorations(decorationType, [decoration]);
-    //         }
-    //     })
-    // );
-  // ... existing code ...
 
 	const diagnosticDisposable = vscode.commands.registerCommand('extension.diagnostic', async () => {
 

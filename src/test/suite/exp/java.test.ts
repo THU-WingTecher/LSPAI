@@ -4,13 +4,13 @@ import path from 'path';
 import fs from 'fs';
 import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders, selectOneSymbolFileFromWorkspace, updateWorkspaceFolders } from '../../../helper';
 import { SRC_PATHS } from '../../../config';
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../config';
 import { generateFileNameForDiffLanguage } from '../../../fileHandler';
 import { generateUnitTestForAFunction } from '../../../generate';
 import { ProjectName } from '../../../config';
 import { runGenerateTestCodeSuite } from '../../../experiment';
-import { getDiagnosticsForFilePath, getDiagnosticsForUri } from '../../../diagnostic';
+import { getDiagnosticsForFilePath, getDiagnosticsForUri } from '../../../lsp/diagnostic';
 
 export async function getJavaConfiguration(): Promise<{[key: string]: any}> {
     const config = vscode.workspace.getConfiguration('java');
@@ -70,13 +70,12 @@ async function setupJavaTestEnvironment(projectPath: string) {
     // 5. Instead of clean workspace, just update project configuration
     try {
         console.log('executing java.projectConfiguration.update');
-        await vscode.commands.executeCommand('java.projectConfiguration.update');
+        // await vscode.commands.executeCommand('java.projectConfiguration.update');
         // Add a shorter timeout
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Optionally, you can also try to force a compilation
         // console.log('executing java.workspace.compile');
-        // await vscode.commands.executeCommand('java.workspace.compile');
     } catch (error) {
         console.error('Error updating Java configuration:', error);
     }
@@ -87,10 +86,8 @@ async function setupJavaTestEnvironment(projectPath: string) {
     
     // // 5. Reload Java language server
     // console.log('executing java.clean.workspace');
-    // await vscode.commands.executeCommand('java.clean.workspace');
     // await new Promise(resolve => setTimeout(resolve, 2000));
     // console.log('executing java.projectConfiguration.update');
-    // await vscode.commands.executeCommand('java.projectConfiguration.update');
 }
 
 suite('Experiment Test Suite - JAVA', () => {

@@ -4,16 +4,16 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { getContextSelectorInstance, ContextTerm } from '../../../agents/contextSelector';
 import { getConfigInstance, Provider, GenerationType, PromptType } from '../../../config';
-import { getDocUri, activate, setPythonExtraPaths } from '../../../lsp';
-import { getAllSymbols } from '../../../lsp';
+import { getDocUri, activate, setPythonExtraPaths } from '../../../lsp/helper';
+import { getAllSymbols } from '../../../lsp/symbol';
 import { selectOneSymbolFileFromWorkspace, setWorkspaceFolders } from '../../../helper';
-import { getSourcCodes } from '../../../retrieve';
+import { getSourcCodes } from '../../../lsp/definition';
 import { getContextTermsFromTokens } from '../../../tokenAnalyzer';
 import { PathCollector } from '../../../cfg/path';
 import { createCFGBuilder } from '../../../cfg/builderFactory';
 import { SupportedLanguage } from '../../../ast';
-import { getReferenceInfo } from '../../../reference';
-import { DecodedToken } from '../../../token';
+import { getReferenceInfo } from '../../../lsp/reference';
+import { DecodedToken } from '../../../lsp/token';
 
 suite('Token collecting test - python', () => {
     // Test file path - adjust this to point to a real file in your test fixture
