@@ -109,7 +109,7 @@ export async function getDecodedTokensFromRange(document: vscode.TextDocument, s
     return [];
 }
 
-export async function getDecodedTokensFromSybol(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
+export async function getDecodedTokensFromSymbol(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
 
     return await extractRangeTokensFromAllTokens(document, functionSymbol.range.start, functionSymbol.range.end);
 }
@@ -183,7 +183,7 @@ async function distilateTokens(document: vscode.TextDocument, decodedTokens: Dec
 }
 
 export async function extractUseDefInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]>  {
-    const decodedTokens = await getDecodedTokensFromSybol(document, functionSymbol);
+    const decodedTokens = await getDecodedTokensFromSymbol(document, functionSymbol);
     const distilatedTokens = await distilateTokens(document, decodedTokens, functionSymbol);
 	return retrieveDefs(document, distilatedTokens);
 }

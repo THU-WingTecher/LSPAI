@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { removeComments } from './utils';
 import { getAllSymbols, getShortestSymbol } from './symbol';
-import { DecodedToken, getDecodedTokensFromSybol } from './token';
+import { DecodedToken, getDecodedTokensFromSymbol } from './token';
 import { VscodeRequestManager } from './vscodeRequestManager';
 
 /**
@@ -274,7 +274,7 @@ async function determineTargetTokenUsageByLocation(uri: vscode.Uri, location: vs
         const shortestSymbol = getShortestSymbol(allSymbols, location)!;
 
         console.log("document.getText(location):\n", document.getText(shortestSymbol.range));
-        const allTokens = await getDecodedTokensFromSybol(document, shortestSymbol);
+        const allTokens = await getDecodedTokensFromSymbol(document, shortestSymbol);
         const finalTokens = allTokens.filter(token => token.word === targetToken);
         if (!finalTokens) {
             return [];

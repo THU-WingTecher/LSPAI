@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as ini from 'ini';
 import { invokeLLM } from '../invokeLLM';
-import { DecodedToken, getDecodedTokensFromSybol, countUniqueDefinitions, getTokensFromStr } from '../lsp/token';
+import { DecodedToken, getDecodedTokensFromSymbol, countUniqueDefinitions, getTokensFromStr } from '../lsp/token';
 import { retrieveDef } from '../lsp/definition';
 import { getReferenceInfo } from '../lsp/reference';
 import { formatToJSON, extractArrayFromJSON } from '../lsp/utils';
@@ -377,7 +377,7 @@ export class ContextSelector {
 
     public async loadTokens(): Promise<DecodedToken[]> {
         await activate(this.document.uri);
-        const decodedTokens = await getDecodedTokensFromSybol(this.document, this.targetSymbol);
+        const decodedTokens = await getDecodedTokensFromSymbol(this.document, this.targetSymbol);
         this.tokens = decodedTokens;
         return decodedTokens;
     }
