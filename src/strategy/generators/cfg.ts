@@ -11,7 +11,8 @@ import { conditionToPrompt, findTemplateFile, generateTestWithContext, loadPathT
 import { LLMLogs } from '../../log';
 import { invokeLLM } from '../../invokeLLM';
 import { ChatMessage } from '../../prompts/ChatMessage';
-import { getPackageStatement, getImportStatement, getOuterSymbols } from '../../retrieve';
+import { getPackageStatement, getImportStatement } from '../../retrieve';
+import { getOuterSymbols } from '../../lsp';
 import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
 import { readTxtFile, saveContextTerms } from '../../fileHandler';
 import { getReferenceInfo } from '../../reference';

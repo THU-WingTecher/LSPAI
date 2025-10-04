@@ -144,7 +144,7 @@
     "lint": "eslint src",
     "lightWeightBuild": "node scripts/build.js",
     "build": "tsc",
-    "test": "node ./out/test/runTest.js $TEST_FILE",
+    "test": "npm run compile && node ./out/test/runTest.js $TEST_FILE",
     "test:util": "node ./out/test/runTest.js util",
     "experiment": "node ./out/test/runExperiment.js $TEST_FILE"
   },

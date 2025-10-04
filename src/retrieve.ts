@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { DecodedToken, getSymbolKindString } from './token';
 import { getSymbolDetail, isStandardClass, removeComments } from './utils';
-import { getAllSymbols } from './lsp';
+import { getAllSymbols, getOuterSymbols } from './lsp';
 import path from 'path';
 import { getConfigInstance, Configuration } from './config';
 import { genPythonicSrcImportStatement } from './helper';
@@ -166,13 +166,6 @@ export async function getDependentContext(
     const result = await processAndGenerateHierarchy(document, functionSymbol, processedTokenMap);
     // console.log('collectinfo::result', result);
     return result;
-}
-
-export async function getOuterSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
-    return await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-        'vscode.executeDocumentSymbolProvider',
-        uri
-    );
 }
 
 interface ParentDefinition {

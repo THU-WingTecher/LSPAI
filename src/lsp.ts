@@ -5,8 +5,9 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { customExecuteDocumentSymbolProvider } from './utils';
 import { sleep } from './helper';
+import * as assert from 'assert';
+import { symbolName } from 'typescript/lib/typescript';
 export let doc: vscode.TextDocument;
 export let editor: vscode.TextEditor;
 export let documentEol: string;
@@ -66,6 +67,17 @@ export async function setPythonExtraPaths(pythonExtraPaths: string[]) {
     );
 
 }
+
+
+export async function setupPythonLSP(extraPaths: string[], interpreterPath: string) {
+    await setPythonExtraPaths(extraPaths);
+    const currentPythonExtraPaths = await getPythonExtraPaths();
+    assert.ok(currentPythonExtraPaths.length === extraPaths.length, 'python extra paths should be set as expected');
+    assert.ok(currentPythonExtraPaths.every((path, index) => path === extraPaths[index]), 'python extra paths should be set as expected');
+    await setPythonInterpreterPath(interpreterPath);
+    const currentPythonInterpreterPath = await getPythonInterpreterPath();
+    assert.ok(currentPythonInterpreterPath === interpreterPath, 'python interpreter path should be set as expected');
+  }
 
 export async function closeEditor(editor: vscode.TextEditor) {
     editor.edit(editBuilder => {
@@ -139,27 +151,44 @@ export async function getSymbolFromDocument(document: vscode.TextDocument, symbo
     return symbol || null;
 }
 
+export async function getOuterSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
+    await activate(uri);
+    let syms: vscode.DocumentSymbol[] = [];
+    for (let i = 0; i < retries; i++) {
+      const newSyms = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+        'vscode.executeDocumentSymbolProvider',
+        uri
+        );
+      
+      if (newSyms.length) {
+        console.log(`found ${newSyms.length} symbols for ${uri.path}`);
+        syms.push(...newSyms);
+        break;
+      }
+      console.log(`waiting for symbols... ${i}`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+    return syms;
+}
 
-export async function getAllSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
-    const allSymbols: vscode.DocumentSymbol[] = [];
-    // console.log("sending request to get all symbols");
-    const symbols = await customExecuteDocumentSymbolProvider(uri);
+export async function getAllSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
+
     // console.log(`uri = ${uri}, symbols = ${symbols}`);
-    function collectSymbols(symbols: vscode.DocumentSymbol[]) {
-        // console.log("collecting...")
-        for (const symbol of symbols) {
-            allSymbols.push(symbol);
-            if (symbol.children.length > 0) {
+    let syms: vscode.DocumentSymbol[] = [];
+    syms.push(...await getOuterSymbols(uri));
+    const flat: vscode.DocumentSymbol[] = [];
+    function collectSymbols(list: vscode.DocumentSymbol[]) {
+        for (const symbol of list) {
+            flat.push(symbol);
+            if (symbol.children && symbol.children.length > 0) {
                 collectSymbols(symbol.children);
             }
         }
     }
-
-    if (symbols) {
-        collectSymbols(symbols);
+    if (syms && syms.length) {
+        collectSymbols(syms);
     }
-
-    return allSymbols;
+    return flat;
 }
 
 export function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
@@ -257,4 +286,3 @@ export async function addJavaTestPath(testPath: string) {
         throw error;
     }
 }
-

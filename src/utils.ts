@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { assert } from 'console';
-import { getOuterSymbols, getPackageStatement } from './retrieve';
+import { getPackageStatement } from './retrieve';
+import { getOuterSymbols } from './lsp';
 import { getConfigInstance } from './config';
 import { activate } from './lsp';
 import path from 'path';
@@ -126,14 +127,6 @@ export function isStandardClass(uri: string, language: string): boolean {
 // 	]);
 // 	return symbols || [];
 // }
-
-export async function customExecuteDocumentSymbolProvider(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
-	const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-        'vscode.executeDocumentSymbolProvider',
-        uri
-    );
-	return symbols || [];
-}
 
 export function parseCode(response: string): string {
     // Regular expression to match code block wrapped by triple backticks, optional `~~`, and language tag
