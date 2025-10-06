@@ -24,55 +24,63 @@ function initializeSeededRandom(seed: number) {
     };
 }
 
+
 export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]): Promise<vscode.WorkspaceFolder[]> {
-    try {
-        // First, remove all existing workspaces
-        if (vscode.workspace.workspaceFolders?.length) {
-            const removeResult = await vscode.workspace.updateWorkspaceFolders(
-                0,  // Start index
-                vscode.workspace.workspaceFolders.length  // Number of workspaces to remove
-            );
-            if (!removeResult) {
-                throw new Error('Failed to remove existing workspaces');
-            }
-        }
+    // NOTE!!! this function cannot be used, we should not programmatically set workspace. 
+    // console.log('before updating vscode.workspace.workspaceFolders', vscode.workspace.workspaceFolders);
+    // await vscode.commands.executeCommand('vscode.openFolder', workspaceFolders[0].uri, { forceNewWindow: false });
+    // console.log('after updating vscode.workspace.workspaceFolders', vscode.workspace.workspaceFolders);
+    return workspaceFolders;
 
-        // Wait a bit for the workspace to clear
-        await new Promise(resolve => setTimeout(resolve, 3000));
+    // try {
+    //     // First, remove all existing workspaces
+    //     if (vscode.workspace.workspaceFolders?.length) {
+    //         const removeResult = await vscode.workspace.updateWorkspaceFolders(
+    //             0,  // Start index
+    //             vscode.workspace.workspaceFolders.length  // Number of workspaces to remove
+    //         );
+    //         if (!removeResult) {
+    //             throw new Error('Failed to remove existing workspaces');
+    //         }
+    //     }
 
-        console.log('Adding workspace:', workspaceFolders[0].uri.fsPath);
+    //     // Wait a bit for the workspace to clear
+    //     await new Promise(resolve => setTimeout(resolve, 3000));
+
+    //     console.log('Adding workspace:', workspaceFolders[0].uri.fsPath);
         
-        // Then add the new workspace
-        const addResult = await vscode.workspace.updateWorkspaceFolders(
-            0,  // Start index
-            null,  // Number of workspaces to remove (use 0 instead of null)
-            // {
-            //     uri: vscode.Uri.file(workspaceFolders[0].uri.fsPath),
-            //     name: workspaceFolders[0].name
-            // }
-            ...workspaceFolders
-        );
+    //     // Then add the new workspace
+    //     const addResult = await vscode.workspace.updateWorkspaceFolders(
+    //         0,  // Start index
+    //         null,  // Number of workspaces to remove (use 0 instead of null)
+    //         // {
+    //         //     uri: vscode.Uri.file(workspaceFolders[0].uri.fsPath),
+    //         //     name: workspaceFolders[0].name
+    //         // }
+    //         ...workspaceFolders
+    //     );
 
-        if (!addResult) {
-            throw new Error('Failed to add new workspace');
-        }
+    //     if (!addResult) {
+    //         throw new Error('Failed to add new workspace');
+    //     }
 
-        // Wait for workspace to be updated
-        await new Promise(resolve => setTimeout(resolve, 3000));
+    //     // Wait for workspace to be updated
+    //     await new Promise(resolve => setTimeout(resolve, 3000));
 
-        // Verify the workspace was updated
-        const currentWorkspace = vscode.workspace.workspaceFolders?.[0];
-        if (!currentWorkspace) {
-            throw new Error('Workspace not properly set after update');
-        }
+    //     // Verify the workspace was updated
+    //     console.log('vscode.workspace.workspaceFolders', vscode.workspace.workspaceFolders);
+    //     const currentWorkspace = vscode.workspace.workspaceFolders?.[0];
+    //     if (!currentWorkspace) {
+    //         throw new Error('Workspace not properly set after update');
+    //     }
 
-        console.log('Successfully updated workspace to:', currentWorkspace.uri.fsPath);
-        return workspaceFolders;
+    //     console.log('Successfully updated workspace to:', currentWorkspace.uri.fsPath);
+    //     return workspaceFolders;
 
-    } catch (error) {
-        console.error('Workspace update failed:', error);
-        throw error;
-    }
+    // } catch (error) {
+    //     console.error('Workspace update failed:', error);
+    //     throw error;
+    // }
 }
 
 // export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]) {
@@ -104,7 +112,6 @@ export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceF
 
 //     return workspaceFolders;
 // }
-
 export function setWorkspaceFolders(projectPath: string) {
     getConfigInstance().updateConfig({
         workspace: projectPath
