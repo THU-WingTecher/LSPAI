@@ -5,12 +5,7 @@ import { Collector } from '../../../ut_runner/collector';
 import { Provider, PromptType, getConfigInstance } from '../../../config';
 
 suite('Analyzer - Unit test to source mapping coverage (python/black)', () => {
-  const pythonInterpreterPath = "/root/miniconda3/envs/LSPRAG/bin/python";
   const projectPath = "/LSPRAG/experiments/projects/black";
-  const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src")];
-  const sampleNumber = -1;
-  const languageId = "python";
-  const blackImportTestPath = "../../../resources/black_module_import_test.py";
   const currentConfig = {
       model: 'gpt-4o-mini',
       provider: 'openai' as Provider,

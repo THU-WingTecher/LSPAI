@@ -9,6 +9,40 @@ import { Analyzer } from './analyzer';
 import { Writer } from './writer';
 import { ExecutionResult, TestFile } from './types';
 
+/**
+ * Infers the exit code from pytest log content
+ * Returns 0 if all tests passed, 1 if any failures/errors occurred
+ */
+function inferExitCodeFromLog(logPath: string): number {
+  try {
+    const content = fs.readFileSync(logPath, 'utf-8');
+    
+    // Check for test failures or errors in the log
+    // Pytest summary patterns:
+    // "1 passed" -> exit 0
+    // "1 failed, 1 passed" -> exit 1
+    // "1 error" -> exit 1
+    const failedMatch = content.match(/(\d+)\s+failed/);
+    const errorMatch = content.match(/(\d+)\s+error/);
+    
+    if (failedMatch || errorMatch) {
+      return 1; // Test failures or errors
+    }
+    
+    // Check if there's a passed count
+    const passedMatch = content.match(/(\d+)\s+passed/);
+    if (passedMatch) {
+      return 0; // All tests passed
+    }
+    
+    // If no clear indicators, assume success (cached result exists)
+    return 0;
+  } catch (error) {
+    console.warn(`[RUNNER] Failed to infer exit code from ${logPath}:`, error);
+    return 0; // Default to success for cached results
+  }
+}
+
 export function reportLogCoverage(testFiles: TestFile[], logsDir: string, junitDir: string): void {
   const expected = new Set(testFiles.map((t) => path.basename(t.path)));
 
@@ -67,9 +101,12 @@ export function splitCached(testFiles: TestFile[], logsDir: string, junitDir: st
     const junitSize = junitExists ? fs.statSync(junitPath).size : 0;
     
     if (logExists && junitExists && logSize > 0 && junitSize > 0) {
+      // Infer exit code from log content to properly reflect test failures
+      const exitCode = inferExitCodeFromLog(logPath);
+      
       cached.push({
         testFile: tf,
-        exitCode: 0,
+        exitCode,
         logPath,
         junitPath,
         startedAt: 'CACHED',
@@ -361,7 +398,7 @@ export async function runPipeline(testsDir: string, outputDir: string, test_file
   try {
     const analyzer = new Analyzer(language);
     console.log("Exec Results", execResults);
-    report = analyzer.analyze(execResults, path.resolve(testsDir), path.resolve(outputDir), path.resolve(test_file_map_path));
+    report = await analyzer.analyze(execResults, path.resolve(testsDir), path.resolve(outputDir), path.resolve(test_file_map_path));
     const analysisDuration = new Date().getTime() - analysisStartTime.getTime();
     
     console.log(`[RUNNER] Analysis completed in ${analysisDuration}ms`);

@@ -31,6 +31,9 @@ suite('EXECUTE - Python (black)', () => {
     const unifiedLog = path.join(outputDir, 'pytest_output.log');
     const testResultsJson = path.join(outputDir, 'test_results.json');
     const fileResultsJson = path.join(outputDir, 'file_results.json');
+    const examinationJson = path.join(outputDir, 'examination_results.json');
+    const examinationSummaryMd = path.join(outputDir, 'examination_summary.md');
+    const examinationDir = path.join(outputDir, 'examination');
 
     // Outputs exist
     assert.ok(fs.existsSync(logsDir), 'logs dir should exist');
@@ -55,5 +58,25 @@ suite('EXECUTE - Python (black)', () => {
     const fileJson = JSON.parse(fs.readFileSync(fileResultsJson, 'utf-8'));
     assert.ok(testJson && typeof testJson === 'object', 'test_results.json should be valid JSON');
     assert.ok(fileJson && typeof fileJson === 'object', 'file_results.json should be valid JSON');
+
+    // Examination outputs (may or may not exist depending on whether there were assertion errors)
+    console.log('[TEST] Checking examination outputs...');
+    if (fs.existsSync(examinationJson)) {
+      console.log('[TEST] Examination results found');
+      const examJson = JSON.parse(fs.readFileSync(examinationJson, 'utf-8'));
+      assert.ok(examJson && typeof examJson === 'object', 'examination_results.json should be valid JSON');
+      assert.ok(examJson.summary, 'examination results should have summary');
+      assert.ok(examJson.tests, 'examination results should have tests array');
+      console.log(`[TEST] Examined ${examJson.summary.total_examined} test cases`);
+      console.log(`[TEST] Found ${examJson.summary.with_redefined_symbols} with redefined symbols`);
+      
+      // Check examination summary markdown
+      assert.ok(fs.existsSync(examinationSummaryMd), 'examination_summary.md should exist');
+      
+      // Check examination directory
+      assert.ok(fs.existsSync(examinationDir), 'examination directory should exist');
+    } else {
+      console.log('[TEST] No examination results (no assertion errors found)');
+    }
   });
 });

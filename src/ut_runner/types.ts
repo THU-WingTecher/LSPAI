@@ -13,6 +13,21 @@ export interface TestFile {
     endedAt: string;
     timeout: boolean;
   }
+
+  export interface RedefinedSymbol {
+    name: string;
+    sourceLoc: string | null;
+    testLoc: string | null;
+  }
+
+  export interface ExaminationResult {
+    testCaseName: string;
+    examined: boolean;
+    hasRedefinedSymbols: boolean;
+    redefinedSymbols: RedefinedSymbol[];
+    examinationError?: string | null;
+    definitionTreeSummary?: string | null;
+  }
   
   export interface TestCaseResult {
     codeName: string;
@@ -32,6 +47,9 @@ export interface TestFile {
   
     testSource?: string | null;
     functionSource?: string | null;
+
+    // Examination results
+    examination?: ExaminationResult | null;
   }
   
   export interface FileAnalysis {

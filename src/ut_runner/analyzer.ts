@@ -5,6 +5,7 @@ import { AnalysisReport, ExecutionResult, FileAnalysis, TestCaseResult, makeEmpt
 import { findFiles } from '../fileHandler';
 import { SRC_PATHS, ProjectName, getConfigInstance } from '../config';
 import { getLanguageSuffix } from '../language';
+import { examineTestCasesBatch, filterTestCasesForExamination } from './analysis/examiner';
 
 
 export class Analyzer {
@@ -260,21 +261,21 @@ export class Analyzer {
     let focalModule = '';
     let focalFunction = '';
     
-    console.log(`Debug: Parsing ${fileName}`);
-    console.log(`Debug: beforeRandom = ${JSON.stringify(beforeRandom)}`);
-    console.log(`Debug: sourceFileNames = ${JSON.stringify(this.sourceFileNames)}`);
+    // console.log(`Debug: Parsing ${fileName}`);
+    // console.log(`Debug: beforeRandom = ${JSON.stringify(beforeRandom)}`);
+    // console.log(`Debug: sourceFileNames = ${JSON.stringify(this.sourceFileNames)}`);
     
     if (beforeRandom.length === 2) {
       // Simple case: module_function_random
       focalModule = beforeRandom[0];
       focalFunction = beforeRandom[1];
-      console.log(`Debug: Simple case - module: ${focalModule}, function: ${focalFunction}`);
+      // console.log(`Debug: Simple case - module: ${focalModule}, function: ${focalFunction}`);
     } else {
       // Complex case: need to identify module vs function boundary
       // Strategy: Try to match against discovered source files
       
       if (this.sourceFileNames.length > 0) {
-        console.log(`Debug: Using source file matching`);
+        // console.log(`Debug: Using source file matching`);
         // Try to find the longest matching module name
         let bestMatch = '';
         let bestMatchLength = 0;
@@ -283,7 +284,7 @@ export class Analyzer {
           const moduleName = sourceFileName.replace('.py', '');
           const moduleParts = moduleName.split('_');
           
-          console.log(`Debug: Checking against module ${moduleName}, parts: ${JSON.stringify(moduleParts)}`);
+          // console.log(`Debug: Checking against module ${moduleName}, parts: ${JSON.stringify(moduleParts)}`);
           
           // Check if this module name matches the beginning of our parts
           let matchLength = 0;
@@ -295,13 +296,13 @@ export class Analyzer {
             }
           }
           
-          console.log(`Debug: Match length for ${moduleName}: ${matchLength}`);
+          // console.log(`Debug: Match length for ${moduleName}: ${matchLength}`);
           
           // If we have a complete match and it's longer than our current best
           if (matchLength === moduleParts.length && matchLength > bestMatchLength) {
             bestMatch = moduleName;
             bestMatchLength = matchLength;
-            console.log(`Debug: New best match: ${bestMatch} with length ${bestMatchLength}`);
+            // console.log(`Debug: New best match: ${bestMatch} with length ${bestMatchLength}`);
           }
         }
         
@@ -310,15 +311,15 @@ export class Analyzer {
           // Join the remaining parts, but be careful about underscores
           const remainingParts = beforeRandom.slice(bestMatchLength);
           focalFunction = remainingParts.join('_');
-          console.log(`Debug: Found match - module: ${focalModule}, function: ${focalFunction}`);
+          // console.log(`Debug: Found match - module: ${focalModule}, function: ${focalFunction}`);
         } else {
           // Fallback to heuristics
           focalModule = beforeRandom[0];
           focalFunction = beforeRandom.slice(1).join('_');
-          console.log(`Debug: No match found, using fallback - module: ${focalModule}, function: ${focalFunction}`);
+          // console.log(`Debug: No match found, using fallback - module: ${focalModule}, function: ${focalFunction}`);
         }
       } else {
-        console.log(`Debug: No source files, using heuristics`);
+        // console.log(`Debug: No source files, using heuristics`);
         // No source files available, use heuristics
         // Look for double underscore patterns
         const doubleUnderscoreIndex = beforeRandom.findIndex(part => part.startsWith('__'));
@@ -326,12 +327,12 @@ export class Analyzer {
         if (doubleUnderscoreIndex > 0) {
           focalModule = beforeRandom.slice(0, doubleUnderscoreIndex).join('_');
           focalFunction = beforeRandom.slice(doubleUnderscoreIndex).join('_');
-          console.log(`Debug: Double underscore heuristic - module: ${focalModule}, function: ${focalFunction}`);
+          // console.log(`Debug: Double underscore heuristic - module: ${focalModule}, function: ${focalFunction}`);
         } else {
           // Fallback: first part is module, rest is function
           focalModule = beforeRandom[0];
           focalFunction = beforeRandom.slice(1).join('_');
-          console.log(`Debug: Simple heuristic - module: ${focalModule}, function: ${focalFunction}`);
+          // console.log(`Debug: Simple heuristic - module: ${focalModule}, function: ${focalFunction}`);
         }
       }
     }
@@ -457,9 +458,32 @@ export class Analyzer {
     const passed = this.extractPassedFromSession(content);
     const failed = this.extractFailedFromSummary(content);
     const errors = this.extractErrorFromSummary(content);
-    console.log(`[ANALYZER] Passed: ${passed}`);
-    console.log(`[ANALYZER] Failed: ${failed}`);
-    console.log(`[ANALYZER] Errors: ${errors}`);
+    
+    // Log the test results with proper formatting
+    const testFileName = path.basename(testFilePath);
+    console.log(`[ANALYZER] Processing ${testFileName}:`);
+    console.log(`[ANALYZER]   Passed: ${passed.size} tests - ${Array.from(passed).join(', ')}`);
+    console.log(`[ANALYZER]   Failed: ${Object.keys(failed).length} tests - ${Object.keys(failed).join(', ')}`);
+    console.log(`[ANALYZER]   Errors: ${Object.keys(errors).length} tests - ${Object.keys(errors).join(', ')}`);
+    
+    // If there are failures, print details
+    if (Object.keys(failed).length > 0) {
+      console.log(`[ANALYZER] Failure details for ${testFileName}:`);
+      for (const [testName, errorDetail] of Object.entries(failed)) {
+        console.log(`[ANALYZER]   - ${testName}:`);
+        console.log(`[ANALYZER]     ${errorDetail}`);
+      }
+    }
+    
+    // If there are errors, print details
+    if (Object.keys(errors).length > 0) {
+      console.log(`[ANALYZER] Error details for ${testFileName}:`);
+      for (const [testName, errorDetail] of Object.entries(errors)) {
+        console.log(`[ANALYZER]   - ${testName}:`);
+        console.log(`[ANALYZER]     ${errorDetail}`);
+      }
+    }
+    
     const out: TestCaseResult[] = [];
     
     // Get implementation origin classification for this test file
@@ -555,7 +579,7 @@ export class Analyzer {
 //   }
 // }
   // Minimal analysis for unit-test to source mapping bootstrap
-  analyze(execResults: ExecutionResult[], testsDir: string, outputDir: string, testFileMapPath: string): AnalysisReport {
+  async analyze(execResults: ExecutionResult[], testsDir: string, outputDir: string, testFileMapPath: string): Promise<AnalysisReport> {
     const tests: Record<string, TestCaseResult> = {};
     const files: Record<string, FileAnalysis> = {};
 
@@ -586,6 +610,32 @@ export class Analyzer {
         const prev = files[fkey].counts[tcr.status] ?? 0;
         files[fkey].counts[tcr.status] = prev + 1;
       }
+    }
+
+    // Examination phase: analyze assertion errors for redefined symbols
+    console.log('[ANALYZER] Starting examination phase for assertion errors...');
+    const allTestCases = Object.values(tests);
+    const testCasesToExamine = filterTestCasesForExamination(allTestCases);
+
+    if (testCasesToExamine.length > 0) {
+      const examinations = await examineTestCasesBatch(
+        testCasesToExamine,
+        (tc) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
+        (tc) => tc.focalFunction || null,
+        5 // concurrency
+      );
+
+      // Attach examination results back to test cases
+      for (const exam of examinations) {
+        const testCase = tests[exam.testCaseName];
+        if (testCase) {
+          testCase.examination = exam;
+        }
+      }
+
+      console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+    } else {
+      console.log('[ANALYZER] No assertion errors to examine');
     }
 
     return {
