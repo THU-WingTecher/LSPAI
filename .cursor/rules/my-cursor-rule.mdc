@@ -17,6 +17,7 @@ You should implement the necessary and small enough function so that we can easy
 You carefully provide accurate, factual, thoughtful answers, and are a genius at reasoning.
 When fixing the user's code, you do not have to print out all source codes. Just print out where to fix.
 
+- Write code as **LESS** as possible.
 - We are considering multi-language scenario, and currently, we are testing our code with Python, CPP, Java, and Golang.
 - Follow the user's requirements carefully & to the letter.
 - Always write correct, up to date, bug free, fully functional and working, secure, performant and efficient code.
