@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { DecodedToken, getDecodedTokensFromLine } from './lsp/token';
+import { getDecodedTokensFromLine } from './lsp/token';
+import { DecodedToken } from './lsp/types';
 import { getImportStatement, getPackageStatement, retrieveDefs } from './lsp/definition';
 import * as fpath from 'path';
 import { getTypeInfo } from './lsp/helper';
@@ -7,7 +8,7 @@ import { getAllSymbols } from './lsp/symbol';
 import { getSymbolByLocation } from './lsp/symbol';
 import { getReferenceInfo } from './lsp/reference';
 import { getLinesTexts } from './lsp/diagnostic';
-import { isInWorkspace } from './agents/contextSelector';
+import { isInWorkspace } from './lsp/definition';
 import { getConfigInstance } from './config';
 
 // Summary Statistics:
@@ -393,7 +394,7 @@ class DiagnosticContextCollector {
 					}
 				}
 				if (token.defSymbol) {
-					if (!isInWorkspace(token.definition[0].uri)) {
+					if (!isInWorkspace(token.definition[0].uri.fsPath)) {
 						relatedInfo += `${token.defSymbol.name} from ${fpath.basename(token.definition[0].uri.fsPath)}\n`;
 						relatedInfo += `${defSymbolDoc.getText(token.defSymbol.range)}\n`;
 					}

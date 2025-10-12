@@ -16,7 +16,7 @@ import { getOuterSymbols } from '../../lsp/symbol';
 import { LanguageTemplateManager } from '../../prompts/languageTemplateManager';
 import { readTxtFile, saveContextTerms } from '../../fileHandler';
 import { getReferenceInfo } from '../../lsp/reference';
-import { DecodedToken } from '../../lsp/token';
+import { DecodedToken } from '../../lsp/types';
 import { constructSourceCodeWithRelatedInfo } from '../../lsp/utils';
 
 export async function generateTestWithContextWithCFG(

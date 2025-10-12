@@ -5,6 +5,69 @@ import { getPackageStatement } from './definition';
 import { VscodeRequestManager } from './vscodeRequestManager';
 
 
+export function getSymbolRange(symbol: vscode.DocumentSymbol): vscode.Range {
+    
+    switch (symbol.kind) {
+        case vscode.SymbolKind.Class:
+        case vscode.SymbolKind.Interface:
+        case vscode.SymbolKind.Struct:
+        case vscode.SymbolKind.Enum:
+        case vscode.SymbolKind.Function:
+        case vscode.SymbolKind.Method:
+        case vscode.SymbolKind.Constructor:
+        case vscode.SymbolKind.Namespace:
+        case vscode.SymbolKind.Module:
+            return symbol.range;
+
+        case vscode.SymbolKind.Variable:
+            return symbol.range; // TODO : need to handle this
+
+        case vscode.SymbolKind.Property:
+        case vscode.SymbolKind.Field:
+        case vscode.SymbolKind.Constant:
+        case vscode.SymbolKind.EnumMember:
+            return new vscode.Range(symbol.range.start.line, symbol.range.start.character, symbol.range.end.line, symbol.range.end.character);
+
+        default:
+            return symbol.range;
+    }
+}
+
+
+export async function getSymbolWithNeighborBoundedRange(
+    document: vscode.TextDocument,
+    range: vscode.Range,
+    symbols: vscode.DocumentSymbol[]
+): Promise<{ symbol: vscode.DocumentSymbol | null; boundedRange: vscode.Range | null }> {
+    // Load once: get hierarchical roots (keeps structure)
+
+    // Flatten without new LSP calls
+    // const flat: vscode.DocumentSymbol[] = await getAllSymbols(document.uri);
+    const flat: vscode.DocumentSymbol[] = symbols;
+
+    // Smallest containing symbol (by total lines)
+    const sorted_flat = flat.sort((a, b) => {
+        // First sort by line number
+        const lineDiff = a.range.start.line - b.range.start.line;
+        if (lineDiff !== 0) {
+            return lineDiff;
+        }
+        // Then sort by character position
+        return a.range.start.character - b.range.start.character;
+    });
+    const docStart = new vscode.Position(0, 0);
+    const docEnd = document.lineAt(document.lineCount - 1).range.end;
+    const targetIdx = getShortestSymbolIdx(sorted_flat, range);
+    if (targetIdx === -1) {
+        return { symbol: null, boundedRange: null};
+    }
+    const symbol = sorted_flat[targetIdx];
+    // const rightBefore = targetIdx > 0 ? sorted_flat[targetIdx - 1].range.end : docStart; //TODO : except for import statements?
+    const rightBefore = range.end; //TODO : except for import statements?
+    const rightAfter = targetIdx < sorted_flat.length - 1 ? sorted_flat[targetIdx + 1].range.start : docEnd;
+    return { symbol: symbol ?? null, boundedRange: new vscode.Range(rightBefore, rightAfter) };
+}
+
 export async function getSymbolByLocation(document: vscode.TextDocument, location: vscode.Position): Promise<vscode.DocumentSymbol | null> {
     const symbols = await getAllSymbols(document.uri);
     const shortestSymbol = getShortestSymbol(symbols, new vscode.Range(location, location));
@@ -22,20 +85,20 @@ export async function getSymbolFromDocument(document: vscode.TextDocument, symbo
 }
 
 export async function getOuterSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
-    await activate(uri);
-    let syms: vscode.DocumentSymbol[] = [];
-    for (let i = 0; i < retries; i++) {
-        const newSyms = await VscodeRequestManager.documentSymbols(uri);
+    return await VscodeRequestManager.documentSymbols(uri);
+    // let syms: vscode.DocumentSymbol[] = [];
+    // for (let i = 0; i < retries; i++) {
+    //     const newSyms = await VscodeRequestManager.documentSymbols(uri);
 
-        if (newSyms && newSyms.length) {
-            console.log(`found ${newSyms.length} symbols for ${uri.path}`);
-            syms.push(...newSyms);
-            break;
-        }
-        console.log(`waiting for symbols... ${i + 1}th attempt`);
-        await new Promise(r => setTimeout(r, delayMs));
-    }
-    return syms;
+    //     if (newSyms && newSyms.length) {
+    //         console.log(`found ${newSyms.length} symbols for ${uri.path}`);
+    //         syms.push(...newSyms);
+    //         break;
+    //     }
+    //     console.log(`waiting for symbols... ${i + 1}th attempt`);
+    //     await new Promise(r => setTimeout(r, delayMs));
+    // }
+    // return syms;
 }
 export async function getAllSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
 
@@ -57,15 +120,30 @@ export async function getAllSymbols(uri: vscode.Uri, retries = 10, delayMs = 500
     return flat;
 }
 export function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
-    let shortestSymbol: vscode.DocumentSymbol | null = null;
-    for (const symbol of symbols) {
-        if (symbol.range.contains(range)) {
-            if (!shortestSymbol || (symbol.range.end.line - symbol.range.start.line) < (shortestSymbol.range.end.line - shortestSymbol.range.start.line)) {
-                shortestSymbol = symbol;
+    return symbols[getShortestSymbolIdx(symbols, range)];
+    // let shortestSymbol: vscode.DocumentSymbol | null = null;
+    // for (const symbol of symbols) {
+    //     if (symbol.range.contains(range)) {
+    //         if (!shortestSymbol || (symbol.range.end.line - symbol.range.start.line) < (shortestSymbol.range.end.line - shortestSymbol.range.start.line)) {
+    //             shortestSymbol = symbol;
+    //         }
+    //     }
+    // }
+    // return shortestSymbol;
+}
+export function getShortestSymbolIdx(symbols: vscode.DocumentSymbol[], range: vscode.Range): number {
+    let shortestSymbolIdx: number = -1;
+    for (let idx = 0; idx < symbols.length; idx++) {
+        const symbol = symbols[idx];
+        if (symbol.selectionRange.contains(range)) {
+            // console.log(`shortestSymbolIdx: ${shortestSymbolIdx}, symbol: ${symbols[shortestSymbolIdx]}`);
+            if (shortestSymbolIdx === -1 || 
+                (symbol.range.end.line - symbol.range.start.line) < (symbols[shortestSymbolIdx].range.end.line - symbols[shortestSymbolIdx].range.start.line)) {
+                shortestSymbolIdx = idx;
             }
         }
     }
-    return shortestSymbol;
+    return shortestSymbolIdx;
 }
 export function getFunctionSymbol(symbols: vscode.DocumentSymbol[], functionPosition: vscode.Position): vscode.DocumentSymbol | null {
     for (const symbol of symbols) {
@@ -110,7 +188,6 @@ export function getFunctionSymbolWithItsParents(symbols: vscode.DocumentSymbol[]
  * @param symbol - The DocumentSymbol to summarize.
  * @returns A string summarizing the symbol's details.
  */
-
 export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, getFullInfo: boolean = false): string {
     // symbol.kind >= vscode.SymbolKind.Variable  MEANS that the symbol is a variable, constant, ... other no need to summarize symbols
     // if (symbol.kind >= vscode.SymbolKind.Variable){
@@ -201,5 +278,10 @@ export function getSymbolDetail(document: vscode.TextDocument, symbol: vscode.Do
 
 export function isFunctionSymbol(symbol: vscode.DocumentSymbol): boolean {
     return symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method;
+}
+
+export function generateSymbolKey(symbol: vscode.DocumentSymbol): string {
+    const { start, end } = symbol.selectionRange;
+    return `${symbol.name}-${start.line}:${start.character}-${end.line}:${end.character}`;
 }
 

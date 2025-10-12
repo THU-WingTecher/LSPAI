@@ -5,23 +5,26 @@ import { runPipeline } from '../../../ut_runner/runner';
 import { getConfigInstance } from '../../../config';
 import * as vscode from 'vscode';
 import { setupPythonLSP } from '../../../lsp/helper';
-import { isBetweenFocalMethod, isInWorkspace } from '../../../lsp/definition';
+import { getDecodedTokensFromSymbol, processTokenDefinitions } from '../../../lsp/token';
 import { getAllSymbols } from '../../../lsp/symbol';
 import { getSymbolFromDocument } from '../../../lsp/symbol';
-import { getSymbolByLocation, getSymbolDetail } from '../../../lsp/symbol';
-import { DecodedToken, getDecodedTokensFromSymbol } from '../../../lsp/token';
-import { retrieveDef, retrieveDefs } from '../../../lsp/definition';
+import { extractRangeTokensFromAllTokens } from '../../../lsp/token';
+import { Cached, DecodedToken } from '../../../lsp/types';
+import { retrieveDefs } from '../../../lsp/definition';
 
-async function buildDefTree(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, maxDepth: number = 5) {
+
+async function buildDefTree(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, maxDepth: number = 3) {
   const visited = new Set<string>();
-
+  const cached = new Map<string, Cached>();
   const root: any = { name: symbol.name, uri: document.uri.toString(), children: [] as any[] };
-  const queue: { doc: vscode.TextDocument; sym: vscode.DocumentSymbol; depth: number; node: any }[] = [
-    { doc: document, sym: symbol, depth: 0, node: root }
+  visited.add(`${document.uri.toString()}#${symbol.name}`);
+  const queue: { doc: vscode.TextDocument; sym: vscode.DocumentSymbol; depth: number; node: any; range: vscode.Range }[] = [
+    { doc: document, sym: symbol, depth: 0, node: root, range: symbol.range } // [27:3 -> 31:0)
   ];
-
+  // root.children = queue.map(q => q.node);
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
   while (queue.length > 0) {
-    const { doc: currDoc, sym: currSym, depth, node } = queue.shift()!;
+    const { doc: currDoc, sym: currSym, depth, node, range: currRange } = queue.shift()!;
     if (depth >= maxDepth) {
       console.log(`#### Depth limit reached at ${currDoc.uri.fsPath} :: ${currSym.name} (depth=${depth})`);
       node.truncated = true;
@@ -29,45 +32,27 @@ async function buildDefTree(document: vscode.TextDocument, symbol: vscode.Docume
     }
 
     console.log(`#### Visiting: ${currDoc.uri.fsPath} :: ${currSym.name}`);
-    const tokens: DecodedToken[] = await getDecodedTokensFromSymbol(currDoc, currSym);
-    const defTokens: DecodedToken[] = await retrieveDefs(currDoc, tokens, false);
-    console.log(`#### Tokens: ${tokens.length}, DefTokens: ${defTokens.length}`);
-    console.log(`#### DefTokens: ${defTokens.map(tok => tok.defSymbol ? tok.defSymbol.name : '')}`);
 
-    for (const tok of defTokens) {
-      if (!tok.definition || tok.definition.length === 0) {
-        continue;
-      }
-      for (const defLoc of tok.definition) {
-        const key = `${defLoc.uri.toString()}#${defLoc.range.start.line}:${defLoc.range.start.character}-${defLoc.range.end.line}:${defLoc.range.end.character}`;
-        if (visited.has(key)) {
-          console.log(`#### Skip visited: ${key}`);
-          continue;
-        }
-        visited.add(key);
-        try {
-          const defDoc = await vscode.workspace.openTextDocument(defLoc.uri);
-          const defSym = await getSymbolByLocation(defDoc, defLoc.range.start);
-          if (!defSym) {
-            console.log(`#### No symbol at def for token '${tok.word}' in ${defLoc.uri.fsPath}`);
-            continue;
-          }
-          if (!isBetweenFocalMethod(defLoc.range, currSym)) {
-            console.log(`#### Definition is within focal method: ${defSym.name}`);
-            continue;
-          }
-          if (!isInWorkspace(defLoc.uri.fsPath)) {
-            const brief = defSym.detail || getSymbolDetail(defDoc, defSym, false);
-            console.log(`#### External: ${defSym.name} :: ${brief}`);
-            node.children.push({ name: defSym.name, uri: defLoc.uri.toString(), external: true, detail: brief });
-            continue;
-          }
+    const tokensofSymbols = await extractRangeTokensFromAllTokens(currDoc, currRange.start, currRange.end);
+    const childDefTokens: DecodedToken[] = await retrieveDefs(currDoc, tokensofSymbols, false);
+    const uriTokenMap = await processTokenDefinitions(currDoc, childDefTokens, currSym);
 
-          const childNode: any = { name: defSym.name, uri: defLoc.uri.toString(), children: [] as any[] };
-          node.children.push(childNode);
-          queue.push({ doc: defDoc, sym: defSym, depth: depth + 1, node: childNode });
-        } catch (e) {
-          console.log(`#### Error processing definition for '${tok.word}': ${e}`);
+    for (const [uri, childTokens] of uriTokenMap.entries()) {
+      for (const childToken of childTokens) {
+        const childNode: any = { name: childToken.word, uri: uri.toString(), detail: childToken.word, children: [] as any[] };
+        node.children.push(childNode);
+        if (childToken.defSymbol) {
+          const key = `${childToken.document.uri.toString()}#${childToken.word}`;
+          console.log(`#### Key: ${key}, tok.word: ${childToken.word}`);
+          if (childToken.word.includes("DFA")) {
+            console.log(`${childToken.word}`);
+          }
+          if (visited.has(key)) {
+            console.log(`#### Skip visited: ${key}`);
+            continue;
+          }
+          visited.add(key);
+          queue.push({ doc: childToken.document, sym: childToken.defSymbol, depth: depth + 1, node: childNode, range: childToken.defSymbolRange! });
         }
       }
     }
@@ -78,27 +63,70 @@ async function buildDefTree(document: vscode.TextDocument, symbol: vscode.Docume
 }
 
 
-function prettyPrintDefTree(node: any, prefix: string = '', isLast: boolean = true): string {
-  const connector = prefix ? (isLast ? '└─ ' : '├─ ') : '';
-  const labelBase = node.external ? `${node.name} [external]` : node.name;
+function prettyPrintDefTree(node: any, prefix: string = '', isLast: boolean = true, visited: Set<string> = new Set()): string {
+  // Create a unique identifier for this node to detect cycles
+  // parent
+  // -- child
+  // ---- child
+  const nodeId = `${node.name}|${node.uri}|${node.edge?.via || ''}|${node.edge?.loc || ''}`;
+  const connector = prefix === '' ? '' : (isLast ? '└─ ' : '├─ ');
+  
+  // Check for circular reference
+  if (visited.has(nodeId)) {
+    return '';
+    // return `${prefix}${connector}${node.name} [circular reference]`;
+  }
+  
+  // Add current node to visited set
+  visited.add(nodeId);
+  
+  const edgeInfo = node.edge ? ` ← ${node.edge.via} @ ${node.edge.loc}` : '';
+  const detailInfo = node.detail && !node.external ? ` : ${String(node.detail).split('\n')[0]}` : '';
+  const labelBase = node.external ? `${node.name} [external]${edgeInfo}` : `${node.name}${edgeInfo}${detailInfo}`;
   const label = node.truncated ? `${labelBase} [max-depth]` : labelBase;
   const lines: string[] = [`${prefix}${connector}${label}`];
 
-  const children = Array.isArray(node.children) ? node.children : [];
-  const nextPrefixBase = prefix ? (isLast ? '   ' : '│  ') : '';
+  const rawChildren = Array.isArray(node.children) ? node.children : [];
+  const nextPrefixBase = isLast ? '   ' : '│  ';
 
   // For external nodes, append brief detail one level below and stop
   if (node.external && node.detail) {
     lines.push(`${prefix}${nextPrefixBase}${String(node.detail).trim()}`);
+    visited.delete(nodeId); // Clean up visited set
     return lines.join('\n');
   }
 
-  children.forEach((child: any, index: number) => {
-    const childIsLast = index === children.length - 1;
-    const childPrefix = prefix + nextPrefixBase;
-    lines.push(prettyPrintDefTree(child, childPrefix, childIsLast));
+  // Group duplicate children (by name + uri + external/detail) and count occurrences
+  type GroupKey = string;
+  const groups = new Map<GroupKey, { base: any; count: number }>();
+  for (const child of rawChildren) {
+    const key = `${child.name}|${child.uri}|${child.external ? 'ext' : 'int'}|${child.external ? (child.detail ?? '') : ''}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count += 1;
+    } else {
+      groups.set(key, { base: child, count: 1 });
+    }
+  }
+
+  const groupedChildren = Array.from(groups.values()).map(({ base, count }) => {
+    if (count > 1) {
+      // Annotate grouped node label with count multiplier
+      const annotated = { ...base };
+      annotated.name = `${base.name} ×${count}`;
+      return annotated;
+    }
+    return base;
   });
 
+  groupedChildren.forEach((child: any, index: number) => {
+    const childIsLast = index === groupedChildren.length - 1;
+    const childPrefix = prefix + nextPrefixBase;
+    lines.push(prettyPrintDefTree(child, childPrefix, childIsLast, visited));
+  });
+
+  // Clean up visited set before returning
+  visited.delete(nodeId);
   return lines.join('\n');
 }
 
@@ -147,18 +175,104 @@ suite('EXECUTE - Python (black)', () => {
 
   });
   // vscode.workspace.updateWorkspaceFolders(0, 1, { uri: vscode.Uri.file(projectPath), name: path.basename(projectPath) })
+  // test('push method definition retreival', async () => {
+  //   // const workspaceFolders = setWorkspaceFolders(projectPath);
+  //   // await updateWorkspaceFolders(workspaceFolders);
+
+  //   // const testFile = "/LSPRAG/experiments/projects/black/src/lsprag_tests/gpt-4o-1/strings_replace_3505_test.py";
+  //   // const sourceFile = "/LSPRAG/experiments/projects/black/src/black/strings.py";
+  //   // const symbolName = "replace";
+  //   // const symbolName = "normalize_fstring_quotes";
+
+  //   const testFile = "/LSPRAG/experiments/projects/black/src/lsprag_tests/gpt-4o-1/parse_push_8719_test.py";
+  //   const sourceFile = "/LSPRAG/experiments/projects/black/src/blib2to3/pgen2/parse.py";
+  //   const symbolName = "push";
+  
+  //   const document = await vscode.workspace.openTextDocument(vscode.Uri.file(sourceFile));
+  //   const symbol = await getSymbolFromDocument(document, symbolName)!;
+  //   console.log(`#### Symbol: ${symbol}`);
+  //   const cached = new Map<string, Cached>();
+  //   const tokensofSymbols = await getDecodedTokensFromSymbol(document, symbol!);
+  //   // filter out tokens based on .word property
+
+  //   const filterOutRedundantTokens = tokensofSymbols.filter(token => token.word !== symbolName);
+  //   const childDefTokens: DecodedToken[] = await retrieveDefs(document, tokensofSymbols, false);
+  //   const uriTokenMap = await processTokenDefinitions(document, childDefTokens, symbol, cached);
+
+  //   // uriTokenMap should include [is_backtracking, DUMMY_NODE, DFAS, Context, RawNode], and should not include other words.
+  //   const expectedSymbols = new Set(['is_backtracking', 'DUMMY_NODE', 'DFAS', 'Context', 'RawNode']);
+  //   console.log()
+  //   const actualSymbols = new Set<string>();
+
+  //   for (const [uri, tokens] of uriTokenMap.entries()) {
+  //     for (const token of tokens) {
+  //       actualSymbols.add(token.word);
+  //     }
+  //   }
+
+  //   // Check that all expected symbols are present
+  //   for (const expectedSymbol of expectedSymbols) {
+  //     assert.ok(actualSymbols.has(expectedSymbol), `Expected symbol '${expectedSymbol}' not found in uriTokenMap`);
+  //   }
+
+  //   // Check that no unexpected symbols are present
+  //   for (const actualSymbol of actualSymbols) {
+  //     assert.ok(expectedSymbols.has(actualSymbol), `Unexpected symbol '${actualSymbol}' found in uriTokenMap`);
+  //   }
+
+  // });
+
   test('execute all python files and produce reports', async () => {
     // const workspaceFolders = setWorkspaceFolders(projectPath);
     // await updateWorkspaceFolders(workspaceFolders);
 
-    const testFile = "/LSPRAG/experiments/projects/black/src/lsprag_tests/gpt-4o-1/strings_replace_3505_test.py";
-    const sourceFile = "/LSPRAG/experiments/projects/black/src/black/strings.py";
+    // const testFile = "/LSPRAG/experiments/projects/black/src/lsprag_tests/gpt-4o-1/strings_replace_3505_test.py";
+    // const sourceFile = "/LSPRAG/experiments/projects/black/src/black/strings.py";
     // const symbolName = "replace";
-    const symbolName = "normalize_fstring_quotes";
+    // const symbolName = "normalize_fstring_quotes";
 
-    // const testFile = "/LSPRAG/experiments/projects/black/src/lsprag_tests/gpt-4o-1/parse_push_8719_test.py";
-    // const sourceFile = "/LSPRAG/experiments/projects/black/src/blib2to3/pgen2/parse.py";
-    // const symbolName = "push";
+    const testFile = "/LSPRAG/experiments/projects/black/src/lsprag_tests/gpt-4o-1/parse_push_8719_test.py";
+    const sourceFile = "/LSPRAG/experiments/projects/black/src/blib2to3/pgen2/parse.py";
+    const symbolName = "push";
     await setupDetect(testFile, sourceFile, symbolName);
   });
+
+  // test('test buildDefTree with DFAS symbol', async () => {
+  //   // Test with DFAS symbol that should have DFA children
+  //   const sourceFile = "/LSPRAG/experiments/projects/black/src/blib2to3/pgen2/parse.py";
+  //   const symbolName = "DFAS";
+
+  //   const srcDoc = await vscode.workspace.openTextDocument(vscode.Uri.file(sourceFile));
+  //   const symbol = await getSymbolFromDocument(srcDoc, symbolName)!;
+
+  //   if (symbol) {
+  //     console.log(`#### Testing buildDefTree with symbol: ${symbol.name}`);
+  //     const tree = await buildDefTree(srcDoc, symbol, 3); // Limit depth for testing
+  //     const printed = prettyPrintDefTree(tree);
+  //     console.log(`\n#### Definition Tree for ${symbol.name}:\n${printed}\n`);
+
+  //     // Verify that DFA appears as children
+  //     let hasDFAChildren = false;
+  //     function checkForDFAChildren(node: any) {
+  //       if (node.children && Array.isArray(node.children)) {
+  //         for (const child of node.children) {
+  //           if (child.name && child.name.includes('DFA')) {
+  //             hasDFAChildren = true;
+  //             console.log(`#### Found DFA child: ${child.name}`);
+  //           }
+  //           checkForDFAChildren(child);
+  //         }
+  //       }
+  //     }
+  //     checkForDFAChildren(tree);
+
+  //     if (hasDFAChildren) {
+  //       console.log('#### SUCCESS: DFAS symbol has DFA children as expected');
+  //     } else {
+  //       console.log('#### WARNING: No DFA children found in DFAS symbol tree');
+  //     }
+  //   } else {
+  //     console.log(`#### Symbol ${symbolName} not found in ${sourceFile}`);
+  //   }
+  // });
 });

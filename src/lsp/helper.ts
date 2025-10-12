@@ -18,6 +18,7 @@ export async function getPythonInterpreterPath(): Promise<string> {
     if (pythonExtension) {
         await pythonExtension.activate();
         const pythonPath = pythonExtension.exports.settings.getExecutionDetails().execCommand[0];
+        console.log('pythonPath', pythonPath);
         return pythonPath;
     }
     return '';
@@ -95,11 +96,11 @@ export async function closeEditor(editor: vscode.TextEditor) {
  */
 export async function activate(docUri: vscode.Uri | undefined = undefined) {
 	// The extensionId is `publisher.name` from package.json
-	const ext = vscode.extensions.getExtension('LSPRAG.LSPRAG');
-	if (!ext) {
-		throw new Error('Extension not found');
-	}	
-	await ext.activate();
+	// const ext = vscode.extensions.getExtension('LSPRAG.LSPRAG');
+	// if (!ext) {
+	// 	throw new Error('Extension not found');
+	// }	
+	// await ext.activate();
     console.log("activate docUri", docUri?.path);
 	if (docUri) {
 		try {

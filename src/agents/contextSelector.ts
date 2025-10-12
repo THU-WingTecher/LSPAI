@@ -3,17 +3,16 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as ini from 'ini';
 import { invokeLLM } from '../invokeLLM';
-import { DecodedToken, getDecodedTokensFromSymbol, countUniqueDefinitions, getTokensFromStr } from '../lsp/token';
-import { retrieveDef } from '../lsp/definition';
+import { getDecodedTokensFromSymbol, countUniqueDefinitions, getTokensFromStr } from '../lsp/token';
+import { DecodedToken } from '../lsp/types';
+import { retrieveDef, isBetweenFocalMethod, isInWorkspace } from '../lsp/definition';
 import { getReferenceInfo } from '../lsp/reference';
 import { formatToJSON, extractArrayFromJSON } from '../lsp/utils';
 import { getSymbolDetail } from '../lsp/symbol';
-import { getAllSymbols } from '../lsp/symbol';
-import { activate } from '../lsp/helper';
 import { getSymbolByLocation } from '../lsp/symbol';
-import { clear } from 'console';
 import { ContextSelectorConfig, findTemplateFile } from '../prompts/promptBuilder';
 import { getConfigInstance } from '../config';
+
 export interface ContextTerm {
     name: string;
     context?: string; // Optional context once retrieved
@@ -376,7 +375,6 @@ export class ContextSelector {
     }
 
     public async loadTokens(): Promise<DecodedToken[]> {
-        await activate(this.document.uri);
         const decodedTokens = await getDecodedTokensFromSymbol(this.document, this.targetSymbol);
         this.tokens = decodedTokens;
         return decodedTokens;
@@ -562,7 +560,7 @@ export class ContextSelector {
             return null;
         }
 
-        if (!isInWorkspace(currentToken.definition[0].uri)) {
+        if (!isInWorkspace(currentToken.definition[0].uri.fsPath)) {
             console.log(`[enrichTermWithContext] Term ${term.name} is outside workspace: ${currentToken.definition[0].uri}`);
             return null;
         }
@@ -729,113 +727,9 @@ export class ContextSelector {
         return true;
     }
 }
-//     /**
-//      * Retrieves context for identified terms
-//      * @param terms Array of terms to get context for
-//      * @param codebase Optional codebase information to help with context gathering
-//      * @returns The same terms with description fields populated
-//      */
-//     public async gatherContext(terms: ContextTerm[], functionSymbol: vscode.DocumentSymbol | null): Promise<ContextTerm[]> {
-        
-//         const enrichedTerms: ContextTerm[] = [];
-//         for (const term of terms) {
-//             // Prepare prompt using the template from config
-//             // find the symbol of term in AllTokens 
-//             const targetToken = this.tokens.find(token => token.word === term.name);
-//             let enriched = false;
-//             if (targetToken) {
-//                 const currentToken = await retrieveDef(this.document, targetToken);
-//                 // const symbols = await getAllSymbols(this.document.uri);
-//                 // const isDefUnderFocalMethod = isDefUnderFocalMethod(currentToken, functionSymbol);
-//                 if (!currentToken.definition || !currentToken.definition[0] || !currentToken.definition[0].uri) {
-//                     console.log(`No definition found for "${term.name}"`);
-//                     continue;
-//                 }
 
-//                 if (isInWorkspace(currentToken.definition[0].uri)) {
-
-//                     if (currentToken.definition && currentToken.definition[0].range && currentToken.definition.length > 0) {
-//                             const defSymbolDoc = await vscode.workspace.openTextDocument(currentToken.definition[0].uri);
-//                             if (term.need_example) {
-//                                 if (currentToken.definition[0].range) {
-//                                     term.example = await getReferenceInfo(defSymbolDoc, currentToken.definition[0].range, 20, false);
-//                                     if (term.example) {
-//                                         enriched = true;
-//                                     }
-//                                 }
-//                              }
-//                             if (term.need_definition) {
-//                                 if (currentToken.definition[0].range && !isBetweenFocalMethod(currentToken.definition[0].range, functionSymbol)) {
-//                                     if (currentToken.type == 'variable' || currentToken.type == 'property') {
-//                                         // Some tokens don't have to find symbol, directly recall its definition
-//                                         const defSymbolDoc = await vscode.workspace.openTextDocument(currentToken.definition[0].uri);
-//                                         term.context = defSymbolDoc.lineAt(currentToken.definition[0].range.start.line).text.trim();
-//                                         if (this.document.getText(this.targetSymbol.range).includes(term.context)) {
-//                                             // we don't need to find the definition of the term if it is in the source code
-//                                             term.context = "";
-//                                         } else {
-//                                             enriched = true;
-//                                         }
-//                                     } else {    
-//                                         // fir method, functions, we need first find out its symbol to recall its definition
-//                                         if (currentToken.defSymbol === null){
-//                                             currentToken.defSymbol = await getSymbolByLocation(defSymbolDoc, currentToken.definition[0].range.start);
-//                                         }
-//                                         if (currentToken.defSymbol && currentToken.defSymbol !== functionSymbol) {
-//                                             // if need_full_definition is not defined => false, defined && value is true => true, defined && value is false => false
-//                                             const needFullDefinition = term.need_full_definition === undefined ? false : term.need_full_definition;
-//                                             term.context = await getSymbolDetail(defSymbolDoc, currentToken.defSymbol, needFullDefinition);
-//                                             enriched = true;
-//                                             }
-//                                     }
-//                             }
-//                         }
-//                     } else {
-//                         console.log(`No definition found for "${term.name}"`);
-//                         continue;
-//                     }
-//                 } else {
-//                     console.log(`word ${term.name} is out of workspace`);
-//                     continue;
-//                 }
-//                 if (enriched) {
-//                     enrichedTerms.push(term);
-//                     // continue;
-//                 } else {
-//                     console.log(`No context found for "${term.name}"`);
-//                 }
-//             }
-//         }
-//         return enrichedTerms;
-//     }
-    
-// }
-
-/**
- * Checks if a token's definition is located between the start and end lines of a focal method
- * @param tokenRange The range of the token's definition
- * @param focalMethodSymbol The symbol representing the focal method
- * @returns true if the token's definition is between the focal method's lines, false otherwise
- */
-function isBetweenFocalMethod(
-    tokenRange: vscode.Range,
-    focalMethodSymbol: vscode.DocumentSymbol | null
-): boolean {
-    if (!focalMethodSymbol) {
-        return false;
-    }
-
-    return (
-        tokenRange.start.line > focalMethodSymbol.range.start.line && 
-        tokenRange.end.line < focalMethodSymbol.range.end.line
-    );
-}
 
 // Export a convenience function to get the singleton instance
 export async function getContextSelectorInstance(document: vscode.TextDocument, targetSymbol: vscode.DocumentSymbol): Promise<ContextSelector> {
     return await ContextSelector.getInstance(document, targetSymbol);
-}
-
-export function isInWorkspace(uri: vscode.Uri): boolean {
-    return uri.fsPath.includes(getConfigInstance().workspace);
 }

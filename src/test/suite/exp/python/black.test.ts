@@ -10,7 +10,7 @@ import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from
 import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from '../../../../experiment';
 
 suite('Experiment Test Suite', () => {
-    const pythonInterpreterPath = "/root/miniconda3/envs/LSPRAG/bin/python";
+    const pythonInterpreterPath = "/root/miniconda3/envs/black/bin/python";
     const projectPath = "/LSPRAG/experiments/projects/black";
     const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src")];
     const sampleNumber = -1;

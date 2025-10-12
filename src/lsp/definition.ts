@@ -1,13 +1,22 @@
 import * as vscode from 'vscode';
-import { DecodedToken, getSymbolKindString } from './token';
-import { isStandardClass, removeComments } from './utils';
-import { getSymbolDetail } from './symbol';
+import { DecodedToken } from './types';
+import { removeComments } from './utils';
+import { generateSymbolKey, getSymbolDetail } from './symbol';
 import { getAllSymbols } from './symbol';
 import { getOuterSymbols } from './symbol';
 import path from 'path';
 import { getConfigInstance, Configuration } from '../config';
 import { genPythonicSrcImportStatement } from '../helper';
 import { VscodeRequestManager } from './vscodeRequestManager';
+
+
+
+interface ParentDefinition {
+    parent: vscode.DocumentSymbol;
+    uri: string;
+    children: ParentDefinition[];
+}
+
 export function getSourcCodes(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): string {
     const functionRange = functionSymbol.range;
     const text = document.getText(functionRange);
@@ -76,110 +85,6 @@ export async function getMethodOrFunctionsParamTokens(document: vscode.TextDocum
     return methodOrFunctionParamTokens;
 }
 
-/**
- * Traverses the tokenMap to load definitions and handle tokens without definitions
- * @param tokenMap - Map containing tokens grouped by URI
- * @returns Processed tokens with their definitions
- */
-export async function processTokenDefinitions(tokenMap: Map<string, DecodedToken[]>): Promise<Map<string, DecodedToken[]>> {
-    const processedMap = new Map<string, DecodedToken[]>();
-    
-    // Iterate through each URI in the tokenMap
-    for (const [uri, tokens] of tokenMap.entries()) {
-        console.log(`Processing tokens for URI: ${uri}`);
-        const symbols = await getAllSymbols(vscode.Uri.parse(uri));
-        const validTokens: DecodedToken[] = [];
-        
-        // Process each token in the current URI
-        for (const token of tokens) {
-            try {
-                // Try to open the document containing the token
-                const document = await vscode.workspace.openTextDocument(vscode.Uri.parse(uri));
-                const defSymbol = symbols.find(s => s.range.contains(new vscode.Position(token.line, token.startChar))) || null;
-                if (defSymbol) {
-                    token.defSymbol = defSymbol;
-                    // 1. Load its definition and code using getSymbolDetail
-                    const symbolDetail = await getSymbolDetail(document, token.defSymbol!, true);
-                    token.context = symbolDetail;
-                    validTokens.push(token);
-                } else {
-                    console.log(`No symbol found for token: ${token.word} in ${uri}`);
-                }
-            } catch (error) {
-                // Handle errors during processing
-                console.error(`Error processing token ${token.word} in ${uri}:`, error);
-                // 2. Log error and remove from data structure
-                console.log(`Removing token due to error: ${token.word} in ${uri}`);
-            }
-        }
-        
-        // Only add to processed map if there are valid tokens
-        if (validTokens.length > 0) {
-            processedMap.set(uri, validTokens);
-        }
-    }
-    
-    console.log(`Processed ${processedMap.size} URIs with valid definitions`);
-    return processedMap;
-}
-
-// Usage example:
-// const tokenMap = await classifyTokenByUri(document, DefUseMap);
-// console.log('collectinfo::tokenMap', Array.from(tokenMap.values()).map(t => t.map(t => t.word)));
-// const processedTokenMap = await processTokenDefinitions(tokenMap);
-
-export async function getDependentContext(
-    document: vscode.TextDocument,
-    DefUseMap: DecodedToken[],
-    functionSymbol: vscode.DocumentSymbol,
-    summarizeContext: boolean = true // New parameter with default value
-): Promise<DpendenceAnalysisResult> { 
-
-    // const uniqueTokensMap = new Map<string, DecodedToken>();
-    // // console.log('collectinfo::DefUseMap', DefUseMap);
-    // for (const token of DefUseMap) {
-    //     if (!uniqueTokensMap.has(token.id)) {
-    //         uniqueTokensMap.set(token.id, token);
-    //     }
-    // }
-    // const uniqueTokens = Array.from(uniqueTokensMap.values());
-    // // console.log('collectinfo::uniqueTokens', uniqueTokens);
-    // // Collect dependencies for all unique tokens in parallel
-    // const dependenciesArrays = await Promise.all(uniqueTokens.map(token => 
-    //     followSymbolDataFlowAndCollectDependency(document, DefUseMap, functionSymbol, token)
-    // ));
-    // // console.log('collectinfo::dependenciesArrays', dependenciesArrays);
-    // // Flatten the array of dependencies
-    // const dependenciesArray = dependenciesArrays.flat();
-
-    // const uniqueDependenciesMap = new Map<string, DecodedToken>();
-    // // console.log('collectinfo::DefUseMap', DefUseMap);
-    // for (const token of dependenciesArray) {
-    //     if (!uniqueDependenciesMap.has(token.id)) {
-    //         uniqueDependenciesMap.set(token.id, token);
-    //     }
-    // }
-    // // Classify tokens by URI and generate the hierarchy
-    // const uniqueDependencies = Array.from(uniqueDependenciesMap.values());
-    // const uniqueDependenciesWithDef = await retrieveDef(document, DefUseMap, true);
-    const tokenMap = await classifyTokenByUri(document, DefUseMap);
-    console.log('collectinfo::tokenMap', Array.from(tokenMap.values()).map(t => t.map(t => t.word)));
-    // Use the summarizeContext parameter to determine whether to summarize or provide full context
-    const processedTokenMap = await processTokenDefinitions(tokenMap);
-    const result = await processAndGenerateHierarchy(document, functionSymbol, processedTokenMap);
-    // console.log('collectinfo::result', result);
-    return result;
-}
-
-interface ParentDefinition {
-    parent: vscode.DocumentSymbol;
-    uri: string;
-    children: ParentDefinition[];
-}
-function generateSymbolKey(symbol: vscode.DocumentSymbol): string {
-    const { start, end } = symbol.selectionRange;
-    return `${symbol.name}-${start.line}:${start.character}-${end.line}:${end.character}`;
-}
 /**
  * Maps filtered DocumentSymbols into ParentDefinition structures.
  * 
@@ -266,14 +171,34 @@ function mapFilteredSymbols(
     return parentDefinitions;
 }
 
-function isInWorkspace(uriString: string): boolean {
+/**
+ * Checks if a token's definition is located between the start and end lines of a focal method
+ * @param tokenRange The range of the token's definition
+ * @param focalMethodSymbol The symbol representing the focal method
+ * @returns true if the token's definition is between the focal method's lines, false otherwise
+ */
+export function isBetweenFocalMethod(
+    tokenRange: vscode.Range,
+    focalMethodSymbol: vscode.DocumentSymbol | null
+): boolean {
+    if (!focalMethodSymbol) {
+        return false;
+    }
+
+    return (
+        tokenRange.start.line > focalMethodSymbol.range.start.line && 
+        tokenRange.end.line < focalMethodSymbol.range.end.line
+    );
+}
+
+export function isInWorkspace(uriString: string): boolean {
     if (uriString) {
         if (Configuration.isTestingEnvironment() || Configuration.isExperimentEnvironment()) {
             const srcPath = vscode.Uri.parse(getConfigInstance().workspace);
             // console.log('collectinfo::isInWorkspace', uriString, getConfigInstance().srcPath);
             // console.log(vscode.Uri.parse(getConfigInstance().srcPath).fsPath);
             // console.log(vscode.Uri.parse(getConfigInstance().srcPath));
-            return uriString.startsWith(srcPath.toString());
+            return uriString.startsWith(srcPath.fsPath);
         } else {
             const workspaceFolders = vscode.workspace.workspaceFolders || [];
             return workspaceFolders.some(folder => uriString.startsWith(folder.uri.toString()));
@@ -282,7 +207,7 @@ function isInWorkspace(uriString: string): boolean {
     return false;
 }
 
-export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMap: DecodedToken[]): Promise<Map<string, DecodedToken[]>> {
+export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMap: DecodedToken[], parentSymbol: vscode.DocumentSymbol | null = null): Promise<Map<string, DecodedToken[]>> {
     // Get all definitions from DefUseMap, but we retreive the method and definition together
     // Define the structure for ParentDefinition
     const tokenMap = new Map<string, DecodedToken[]>();
@@ -292,7 +217,11 @@ export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMa
         const uri = token.definition?.[0]?.uri.toString();
         // console.log('collectinfo::uri', uri);
         // console.log('collectinfo::isInWorkspace', isInWorkspace(uri));
-        if (uri && isInWorkspace(uri)) {
+        if (uri && isInWorkspace(token.definition?.[0]?.uri.fsPath) ) {
+            if (parentSymbol && isBetweenFocalMethod(token.definition?.[0]?.range, parentSymbol)) {
+                console.log(`collectinfo::${token.word} is within parent symbol: ${parentSymbol.name}`);
+                continue;
+            }
             // console.log('collectinfo::uri and isInWorkspace', uri, isInWorkspace(uri));
             if (!tokenMap.has(uri)) {
                 tokenMap.set(uri, []);
@@ -399,6 +328,11 @@ export async function constructSymbolRelationShip(
     });
 
     return uniqueParentToChildrenMap;
+}
+
+
+export function getSymbolKindString(value: number): string | undefined {
+    return vscode.SymbolKind[value];
 }
 
 function getPackageOrUri(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): string {
@@ -565,7 +499,6 @@ export function getImportStatement(document: vscode.TextDocument, language: stri
     return allImportStatements;
 }
 
-
 export async function summarizeClass(document: vscode.TextDocument, classSymbol: vscode.DocumentSymbol, language: string): Promise<string> {
     let result = "";
     const children = classSymbol.children;
@@ -578,6 +511,7 @@ export async function summarizeClass(document: vscode.TextDocument, classSymbol:
     }
     return result;
 }
+
 export async function retrieveDefs(document: vscode.TextDocument, decodedTokens: DecodedToken[], skipDefinition: boolean = false): Promise<DecodedToken[]> {
     // console.log('Retrieving Def from Decoded tokens:', decodedTokens);
     const defTokens: DecodedToken[] = [];

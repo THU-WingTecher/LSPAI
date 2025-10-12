@@ -146,7 +146,7 @@ export class Configuration {
             this.updateWorkspace(this.config.workspace);
         }
 
-        console.log('Current Environment:', process.env.NODE_ENV);
+        // console.log('Current Environment:', process.env.NODE_ENV);
         // console.log('config::config', this.config);
         this.adjustTimeout();
         vscode.workspace.onDidChangeConfiguration(this.handleConfigurationChange, this);
@@ -256,12 +256,12 @@ export class Configuration {
     }
 
     public static isTestingEnvironment(): boolean {
-        console.log('config::isTestingEnvironment', process.env.NODE_ENV);
+        // console.log('config::isTestingEnvironment', process.env.NODE_ENV);
         return process.env.NODE_ENV === 'test' || process.env.TESTING_MODE === 'true';
     }
 
     public static isExperimentEnvironment(): boolean {
-        console.log('config::isExperimentEnvironment', process.env.NODE_ENV);
+        // console.log('config::isExperimentEnvironment', process.env.NODE_ENV);
         return process.env.NODE_ENV === 'experiment' || process.env.EXPERIMENT_MODE === 'true';
     }
 

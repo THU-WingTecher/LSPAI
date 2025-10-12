@@ -13,7 +13,7 @@ import { getSourcCodes } from '../../../../lsp/definition';
 import { SupportedLanguage } from '../../../../ast';
 import { createCFGBuilder } from '../../../../cfg/builderFactory';
 import { ConditionAnalysis, PathCollector } from '../../../../cfg/path';
-import { DecodedToken } from '../../../../lsp/token';
+import { DecodedToken } from '../../../../lsp/types';
 import { getContextTermsFromTokens } from '../../../../tokenAnalyzer';
 import { getContextSelectorInstance, ContextTerm } from '../../../../agents/contextSelector';
 

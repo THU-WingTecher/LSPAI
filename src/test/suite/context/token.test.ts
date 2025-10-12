@@ -13,7 +13,7 @@ import { PathCollector } from '../../../cfg/path';
 import { createCFGBuilder } from '../../../cfg/builderFactory';
 import { SupportedLanguage } from '../../../ast';
 import { getReferenceInfo } from '../../../lsp/reference';
-import { DecodedToken } from '../../../lsp/token';
+import { DecodedToken } from '../../../lsp/types';
 
 suite('Token collecting test - python', () => {
     // Test file path - adjust this to point to a real file in your test fixture
@@ -167,23 +167,4 @@ suite('Token collecting test - python', () => {
         // console.log("enrichedTerms", JSON.stringify(enrichedTerms, null, 2));
     });
 
-    // test('Context Gathering for Terms - PYTHON', async () => {
-    //     // Create some test terms
-    //     const builder = createCFGBuilder(languageId as SupportedLanguage);
-    //     const cfg = await builder.buildFromCode(symbolDocumentMap!.document.getText(symbolDocumentMap!.symbol.range));
-    //     const pathCollector = new PathCollector(languageId);
-    //     const functionInfo = builder.getFunctionInfo();
-    //     const conditionAnalyses = pathCollector.getUniqueConditions();
-        
-    //     console.log("tokens", tokens.map((t : DecodedToken) => t.word));
-    //     const identifiedTerms = await getContextTermsFromTokens(
-    //       symbolDocumentMap!.document, 
-    //       tokens,
-    //       conditionAnalyses, 
-    //       functionInfo);
-    //     const enrichedTerms = await contextSelector!.gatherContext(identifiedTerms, symbolDocumentMap!.symbol);
-    //     console.log(`enrichedTerms: ${enrichedTerms.map((term: ContextTerm) => JSON.stringify(term, null, 2))}`);
-    //     assert.ok(enrichedTerms.length > 0, 'Should identify at least one context term');
-    //     // console.log("enrichedTerms", JSON.stringify(enrichedTerms, null, 2));
-    // });
 });

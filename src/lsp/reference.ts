@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { removeComments } from './utils';
 import { getAllSymbols, getShortestSymbol } from './symbol';
-import { DecodedToken, getDecodedTokensFromSymbol } from './token';
+import { getDecodedTokensFromSymbol } from './token';
+import { DecodedToken } from './types';
 import { VscodeRequestManager } from './vscodeRequestManager';
 
 /**

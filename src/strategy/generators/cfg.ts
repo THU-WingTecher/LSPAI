@@ -19,7 +19,7 @@ import { getReferenceInfo } from '../../lsp/reference';
 import path from 'path';
 import fs from 'fs';
 import { getAllSymbols } from '../../lsp/symbol';
-import { DecodedToken } from '../../lsp/token';
+import { DecodedToken } from '../../lsp/types';
 import { constructSourceCodeWithRelatedInfo } from '../../lsp/utils';
 
 /**
