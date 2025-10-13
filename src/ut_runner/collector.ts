@@ -32,6 +32,8 @@ export class Collector {
         ? includePatterns
         : language === 'python'
         ? ['*_test.py', 'test_*.py']
+        : language === 'go'
+        ? ['*_test.go']
         : [];
   }
 

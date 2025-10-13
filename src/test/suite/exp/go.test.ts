@@ -12,10 +12,10 @@ import { ProjectName } from '../../../config';
 import { runGenerateTestCodeSuite } from '../../../experiment';
 
 suite('Experiment Test Suite - GO', async () => {
-    const projectPath = "/LSPRAG/experiments/projects/cobra";
+    const projectPath = "/LSPRAG/experiments/projects/logrus";
     const workspaceFolders = await setWorkspaceFolders(projectPath);
     await updateWorkspaceFolders(workspaceFolders);
-    const sampleNumber = 2;
+    const sampleNumber = -1;
     const languageId = 'go';
     const currentConfig = {
         model: 'gpt-4o-mini',

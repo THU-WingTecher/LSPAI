@@ -1,10 +1,26 @@
 import { existsSync, mkdirSync } from 'fs';
 import path from 'path';
-import * as vscode from 'vscode';
-import { generateTimestampString } from './fileHandler';
-import os from 'os';
-import { assert } from 'console';
-import { loadPrivateConfig } from './test/runTest';
+
+// Optional vscode import - only available in VSCode extension context
+let vscode: any = null;
+try {
+    vscode = require('vscode');
+} catch (e) {
+    // Running outside VSCode extension context - vscode features will be disabled
+    console.log('[CONFIG] Running without VSCode extension API');
+}
+
+// Utility function for timestamp generation (copied to avoid fileHandler dependency)
+export function generateTimestampString(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+}
 
 export enum PromptType {
     BASIC = 'basic',
@@ -149,7 +165,10 @@ export class Configuration {
         // console.log('Current Environment:', process.env.NODE_ENV);
         // console.log('config::config', this.config);
         this.adjustTimeout();
-        vscode.workspace.onDidChangeConfiguration(this.handleConfigurationChange, this);
+        // Only watch for configuration changes if running in VSCode extension context
+        if (vscode && vscode.workspace) {
+            vscode.workspace.onDidChangeConfiguration(this.handleConfigurationChange, this);
+        }
     }
 
     public logAllConfig(): void {
@@ -185,8 +204,8 @@ export class Configuration {
         }
     }
 
-    private handleConfigurationChange(event: vscode.ConfigurationChangeEvent): void {
-        if (event.affectsConfiguration('LSPRAG')) {
+    private handleConfigurationChange(event: any): void {
+        if (event?.affectsConfiguration?.('LSPRAG')) {
             console.log('Configuration changed, reloading...');
             this.config = this.loadConfiguration();
             this.logAllConfig();
@@ -314,25 +333,47 @@ export class Configuration {
                 expProb: DEFAULT_CONFIG.expProb,
                 savePath: DEFAULT_CONFIG.savePath
             };
-        } else {
+        } else if (vscode && vscode.workspace) {
+            // Running in VSCode extension context - use VSCode configuration
             const config = vscode.workspace.getConfiguration('LSPRAG');
             const globalConfig = vscode.workspace.getConfiguration('http');
-            const globalProxy = globalConfig.get<string>('proxy') || '';
+            const globalProxy = (globalConfig.get('proxy') as string) || '';
             return {
-                workspace: config.get<string>('workspace') ?? vscode.workspace.workspaceFolders![0].uri.fsPath,
+                workspace: (config.get('workspace') as string) ?? vscode.workspace.workspaceFolders![0].uri.fsPath,
                 expProb: DEFAULT_CONFIG.expProb,
-                model: config.get<string>('model') ?? DEFAULT_CONFIG.model,
-                provider: config.get<Provider>('provider') ?? DEFAULT_CONFIG.provider,
-                promptType: config.get<PromptType>('promptType') ?? DEFAULT_CONFIG.promptType,
-                generationType: config.get<GenerationType>('generationType') ?? DEFAULT_CONFIG.generationType,
+                model: (config.get('model') as string) ?? DEFAULT_CONFIG.model,
+                provider: (config.get('provider') as Provider) ?? DEFAULT_CONFIG.provider,
+                promptType: (config.get('promptType') as PromptType) ?? DEFAULT_CONFIG.promptType,
+                generationType: (config.get('generationType') as GenerationType) ?? DEFAULT_CONFIG.generationType,
                 timeoutMs: DEFAULT_CONFIG.timeoutMs,
-                parallelCount: config.get<number>('parallel') ?? DEFAULT_CONFIG.parallelCount,
-                maxRound: config.get<number>('maxRound') ?? DEFAULT_CONFIG.maxRound,
-                openaiApiKey: config.get<string>('openaiApiKey'),
-                deepseekApiKey: config.get<string>('deepseekApiKey'),
-                localLLMUrl: config.get<string>('localLLMUrl'),
-                savePath: config.get<string>('savePath') ?? DEFAULT_CONFIG.savePath,
+                parallelCount: (config.get('parallel') as number) ?? DEFAULT_CONFIG.parallelCount,
+                maxRound: (config.get('maxRound') as number) ?? DEFAULT_CONFIG.maxRound,
+                openaiApiKey: config.get('openaiApiKey') as string,
+                deepseekApiKey: config.get('deepseekApiKey') as string,
+                localLLMUrl: config.get('localLLMUrl') as string,
+                savePath: (config.get('savePath') as string) ?? DEFAULT_CONFIG.savePath,
                 proxyUrl: globalProxy || ''
+            };
+        } else {
+            // Running outside VSCode (e.g., standalone scripts) - use defaults or environment variables
+            console.log('[CONFIG] No VSCode context, using default configuration');
+            return {
+                workspace: process.env.LSPRAG_WORKSPACE || process.cwd(),
+                expProb: DEFAULT_CONFIG.expProb,
+                model: process.env.LSPRAG_MODEL || DEFAULT_CONFIG.model,
+                provider: (process.env.LSPRAG_PROVIDER as Provider) || DEFAULT_CONFIG.provider,
+                promptType: DEFAULT_CONFIG.promptType,
+                generationType: DEFAULT_CONFIG.generationType,
+                fixType: DEFAULT_CONFIG.fixType,
+                timeoutMs: DEFAULT_CONFIG.timeoutMs,
+                parallelCount: DEFAULT_CONFIG.parallelCount,
+                maxRound: DEFAULT_CONFIG.maxRound,
+                testNumber: DEFAULT_CONFIG.testNumber,
+                openaiApiKey: process.env.OPENAI_API_KEY,
+                deepseekApiKey: process.env.DEEPSEEK_API_KEY,
+                localLLMUrl: process.env.LOCAL_LLM_URL,
+                savePath: DEFAULT_CONFIG.savePath,
+                proxyUrl: process.env.HTTP_PROXY || process.env.HTTPS_PROXY || ''
             };
         }
     }
@@ -503,6 +544,7 @@ export class Configuration {
 
 // Export singleton instance
 // Create and export the singleton instance
+// Non-functional edit by Claude Code: verifying write access
 export function getConfigInstance() {
     return Configuration.getInstance();
 }

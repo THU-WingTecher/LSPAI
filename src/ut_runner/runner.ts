@@ -372,7 +372,12 @@ export async function runPipeline(testsDir: string, outputDir: string, test_file
               timeout,
               env,
             })
-          : makeExecutor(language, {});
+          : makeExecutor(language, {
+              logsDir,
+              junitDir,
+              timeout,
+              env,
+            });
       
       const ran = await executor.executeMany(toRun, jobs);
       const executionDuration = new Date().getTime() - executionStartTime.getTime();

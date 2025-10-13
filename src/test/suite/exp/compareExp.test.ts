@@ -1,16 +1,11 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { formatToJSON } from '../../../lsp/utils';
-import { loadAllTargetSymbolsFromWorkspace, experiment, sleep, setWorkspaceFolders } from '../../../helper';
+import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders } from '../../../helper';
 import { FixType, SRC_PATHS } from '../../../config';
 import { activate } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider } from '../../../config';
 import path from 'path';
-import { generateFileNameForDiffLanguage, generateTimestampString } from '../../../fileHandler';
-import { generateUnitTestForAFunction } from '../../../generate';
 import { ProjectName } from '../../../config';
-import fs from 'fs';
-import { METHODS } from 'http';
 
 suite('Utils Test Suite', () => {
 

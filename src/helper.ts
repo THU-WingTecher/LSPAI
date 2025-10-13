@@ -226,61 +226,6 @@ export async function extractSymbolDocumentMapFromTaskList(
     return matchedSymbols;
 }
 
-// async function _experiment(srcPath: string, language: string, methods: string[]) : Promise<{[key: string]: boolean[]}> {
-// 	const workspace = vscode.workspace.workspaceFolders![0].uri.fsPath;
-// 	const folderPath = path.join(workspace, RESULTS_FOLDER_PREFIX + generateTimestampString());
-// 	const expLogPath = path.join(folderPath, "logs");
-
-//     console.log(`Testing the folder of ${srcPath}`);
-//     console.log(`saving the result to ${folderPath}`);
-//     console.log(`Model: ${currentModel}`);
-//     console.log(`Methods: ${methods}`);
-//     console.log(`Max Rounds: ${MAX_ROUNDS}`);
-//     console.log(`Experiment Log Folder: ${expLogPath}`);
-//     console.log(`EXP_PROB_TO_TEST: ${currentExpProb}`);
-//     console.log(`PARALLEL: ${currentParallelCount}`);
-// 	const suffix = getLanguageSuffix(language); 
-// 	const Files: string[] = [];
-// 	findFiles(srcPath, Files, language, suffix);	
-// 	const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
-
-// 	initializeSeededRandom(SEED); // Initialize the seeded random generator
-	
-// 	for (const filePath of Files) {
-// 		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
-// 		console.log(`#### Preparing symbols under file: ${filePath}`);
-//         await activate(document.uri);
-// 		const symbols = await getAllSymbols(document.uri);
-// 		if (symbols) {
-// 			for (const symbol of symbols) {
-// 				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-// 					// if (language === 'java' && !isPublic(symbol, document)) {
-// 					// 	continue;
-// 					// }
-// 					if (isSymbolLessThanLines(symbol)){
-// 						continue;
-// 					}
-// 					if (seededRandom() < currentExpProb) { 
-// 						symbolDocumentMap.push({ symbol, document });
-// 					}
-// 				}
-// 			}
-// 		}
-// 		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
-// 	}
-// 	const generatedResults: { [key: string]: boolean[] } = {};
-//     await saveTaskList(symbolDocumentMap, workspace, folderPath);
-//     const matchedSymbols = await extractSymbolDocumentMapFromTaskList(
-//         workspace,
-//         symbolDocumentMap,
-//         path.join(folderPath, "taskList.json")
-//     );
-// 	// for (const method of methods) {
-// 	// 	console.log(`#### Starting experiment for method: ${method}`);
-// 	// 	generatedResults[method] = await parallelGenUnitTestForSymbols(symbolDocumentMap, srcPath, folderPath, language, method, currentParallelCount);
-// 	// }
-// 	console.log('#### Experiment completed!');
-
 export async function experiment(symbolDocumentMaps: {document: vscode.TextDocument, symbol: vscode.DocumentSymbol}[], currentSrcPath: string, _round: number) : Promise<any[]> {
     const symbolFilePairs = symbolDocumentMaps.map(({symbol, document}) => {
         return ;
@@ -454,7 +399,6 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
         console.log('filePath', filePath);
 		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
 		console.log(`#### Preparing symbols under file: ${filePath}`);
-        await activate(document.uri);
 		const symbols = await getAllSymbols(document.uri);
         console.log(`#### Symbols: ${symbols.length}`);
 		if (symbols) {

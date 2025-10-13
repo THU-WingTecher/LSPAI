@@ -16,6 +16,17 @@ export interface PytestExecutorOptions {
   env?: NodeJS.ProcessEnv;
 }
 
+export interface GoExecutorOptions {
+  logsDir: string;
+  junitDir?: string; // currently unused for Go
+  timeout?: number; // seconds, 0 = no timeout
+  env?: NodeJS.ProcessEnv;
+  cleanCache?: boolean; // Clean build cache before tests
+  verbose?: boolean; // Extra logging
+  coverageDir?: string; // Optional coverage output
+  buildFlags?: string[]; // Additional go test flags
+}
+
 function ensureDir(p: string) {
   fs.mkdirSync(p, { recursive: true });
 }
@@ -38,6 +49,445 @@ async function runWithLimit<T>(limit: number, items: T[], fn: (it: T) => Promise
     }
   }
   return Promise.all(results);
+}
+
+class GoExecutor implements BaseExecutor {
+  private logsDir: string;
+  private junitDir: string | null;
+  private timeoutSec: number;
+  private env: NodeJS.ProcessEnv;
+  private cleanCache: boolean;
+  private verbose: boolean;
+  private coverageDir: string | null;
+  private buildFlags: string[];
+
+  constructor(opts: GoExecutorOptions) {
+    this.logsDir = path.resolve(opts.logsDir);
+    this.junitDir = opts.junitDir ? path.resolve(opts.junitDir) : null;
+    this.timeoutSec = Math.max(0, opts.timeout ?? 0);
+    this.env = { ...process.env, ...(opts.env || {}) };
+    this.cleanCache = opts.cleanCache ?? false;
+    this.verbose = opts.verbose ?? false;
+    this.coverageDir = opts.coverageDir ? path.resolve(opts.coverageDir) : null;
+    this.buildFlags = opts.buildFlags ?? [];
+    
+    ensureDir(this.logsDir);
+    if (this.junitDir) {
+      ensureDir(this.junitDir);
+    }
+    if (this.coverageDir) {
+      ensureDir(this.coverageDir);
+    }
+    
+    // Validate go toolchain early
+    try {
+      const v = execSync('go version', { encoding: 'utf8', timeout: 5000 });
+      console.log(`[EXECUTOR][GO] ${v.trim()}`);
+    } catch (e) {
+      throw new Error('Go toolchain not found in PATH (need `go` command)');
+    }
+  }
+
+  private findModuleRoot(startDir: string): string {
+    let dir = path.resolve(startDir);
+    const maxDepth = 20; // prevent infinite loops
+    let depth = 0;
+    
+    while (depth < maxDepth) {
+      const candidate = path.join(dir, 'go.mod');
+      if (fs.existsSync(candidate)) {
+        if (this.verbose) {
+          console.log(`[EXECUTOR][GO] Found go.mod at: ${dir}`);
+        }
+        return dir;
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) {
+        break;
+      }
+      dir = parent;
+      depth++;
+    }
+    
+    console.warn(`[EXECUTOR][GO] No go.mod found within ${maxDepth} levels, using directory: ${startDir}`);
+    return startDir; // Fallback to original directory
+  }
+
+  private listTestNamesInFile(filePath: string): string[] {
+    try {
+      const src = fs.readFileSync(filePath, 'utf8');
+      const names: string[] = [];
+      
+      // Match various test function patterns:
+      // - func TestName(t *testing.T)
+      // - func TestName(t *testing.TB)
+      // - func TestName(t testing.TB)
+      // - func BenchmarkName(b *testing.B)
+      // - func ExampleName()
+      const patterns = [
+        /\bfunc\s+(Test[\w\d_]+)\s*\(\s*\w+\s+\*?testing\.T\w*\s*\)/g,
+        /\bfunc\s+(Benchmark[\w\d_]+)\s*\(\s*\w+\s+\*testing\.B\s*\)/g,
+        /\bfunc\s+(Example[\w\d_]+)\s*\(\s*\)/g,
+      ];
+      
+      for (const pattern of patterns) {
+        let m: RegExpExecArray | null;
+        while ((m = pattern.exec(src)) !== null) {
+          names.push(m[1]);
+        }
+      }
+      
+      if (this.verbose) {
+        console.log(`[EXECUTOR][GO] Found ${names.length} tests in ${path.basename(filePath)}: ${names.join(', ')}`);
+      }
+      return names;
+    } catch (error) {
+      console.error(`[EXECUTOR][GO] Failed to extract test names from ${filePath}:`, error);
+      return [];
+    }
+  }
+
+  private cleanBuildCache(modRoot: string): void {
+    if (!this.cleanCache) {
+      return;
+    }
+    
+    try {
+      console.log(`[EXECUTOR][GO] Cleaning build cache for ${modRoot}`);
+      execSync('go clean -cache -testcache', {
+        cwd: modRoot,
+        encoding: 'utf8',
+        timeout: 10000,
+      });
+      console.log(`[EXECUTOR][GO] Build cache cleaned successfully`);
+    } catch (error) {
+      console.warn(`[EXECUTOR][GO] Failed to clean build cache:`, error);
+      // Non-fatal, continue execution
+    }
+  }
+
+  private buildTestCommand(tf: TestFile, modRoot: string): { args: string[]; pkgPath: string } {
+    const pkgDir = path.dirname(tf.path);
+    const relPkg = path.relative(modRoot, pkgDir);
+    
+    // Normalize package path
+    let pkgPath = relPkg || '.';
+    if (!pkgPath.startsWith('./') && pkgPath !== '.') {
+      pkgPath = `./${pkgPath}`;
+    }
+    
+    const testNames = this.listTestNamesInFile(tf.path);
+    const args: string[] = ['test'];
+    
+    // JSON output for parsing
+    args.push('-json');
+    
+    // Force re-run (no cache)
+    args.push('-count=1');
+    
+    // Verbose output
+    args.push('-v');
+    
+    // Add custom build flags
+    if (this.buildFlags.length > 0) {
+      args.push(...this.buildFlags);
+    }
+    
+    // Add coverage if configured
+    if (this.coverageDir) {
+      const coverageFile = path.join(
+        this.coverageDir,
+        path.basename(tf.path) + '.coverage'
+      );
+      args.push('-cover');
+      args.push('-coverprofile', coverageFile);
+      if (this.verbose) {
+        console.log(`[EXECUTOR][GO] Coverage will be written to: ${coverageFile}`);
+      }
+    }
+    
+    // Add test filter if we found test names
+    if (testNames.length > 0) {
+      const pattern = `^(${testNames.join('|')})$`;
+      args.push('-run', pattern);
+    }
+    
+    // Package path
+    args.push(pkgPath);
+    
+    console.log(`[EXECUTOR][GO] Command: go ${args.join(' ')}`);
+    console.log(`[EXECUTOR][GO] Working directory: ${modRoot}`);
+    
+    return { args, pkgPath };
+  }
+
+  private validateJsonOutput(logPath: string): {
+    isValid: boolean;
+    lineCount: number;
+    errors: string[];
+  } {
+    try {
+      const content = fs.readFileSync(logPath, 'utf8');
+      const lines = content.split('\n').filter(line => line.trim());
+      const errors: string[] = [];
+      let validJsonLines = 0;
+      
+      for (const line of lines) {
+        // Skip header lines
+        if (line.startsWith('===') || line.startsWith('='.repeat(80))) {
+          continue;
+        }
+        
+        // Try to parse as JSON
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.Time && parsed.Action) {
+            validJsonLines++;
+          }
+        } catch (e) {
+          // Not JSON, could be build output or errors
+          if (!line.includes('PASS') && !line.includes('FAIL') && !line.includes('===')) {
+            errors.push(line);
+          }
+        }
+      }
+      
+      return {
+        isValid: validJsonLines > 0,
+        lineCount: validJsonLines,
+        errors,
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        lineCount: 0,
+        errors: [`Failed to read log: ${error}`],
+      };
+    }
+  }
+
+  private detectExecutionIssues(logPath: string): {
+    hasBuildErrors: boolean;
+    hasRuntimePanics: boolean;
+    hasTimeouts: boolean;
+    issues: string[];
+  } {
+    try {
+      const content = fs.readFileSync(logPath, 'utf8');
+      const issues: string[] = [];
+      
+      // Detect build errors
+      const buildErrors = content.match(/^# .+\n.*error:/gm);
+      const hasBuildErrors = buildErrors !== null && buildErrors.length > 0;
+      if (hasBuildErrors) {
+        issues.push(`Build errors detected: ${buildErrors.length}`);
+      }
+      
+      // Detect panics
+      const panics = content.match(/panic:/g);
+      const hasRuntimePanics = panics !== null && panics.length > 0;
+      if (hasRuntimePanics) {
+        issues.push(`Runtime panics detected: ${panics.length}`);
+      }
+      
+      // Detect test timeouts
+      const timeouts = content.match(/test timed out/gi);
+      const hasTimeouts = timeouts !== null && timeouts.length > 0;
+      if (hasTimeouts) {
+        issues.push(`Test timeouts detected: ${timeouts.length}`);
+      }
+      
+      return {
+        hasBuildErrors,
+        hasRuntimePanics,
+        hasTimeouts,
+        issues,
+      };
+    } catch (error) {
+      console.error(`[EXECUTOR][GO] Error detecting execution issues:`, error);
+      return {
+        hasBuildErrors: false,
+        hasRuntimePanics: false,
+        hasTimeouts: false,
+        issues: [],
+      };
+    }
+  }
+
+  private writeLogHeader(ws: fs.WriteStream, tf: TestFile, started: Date, command: string[], modRoot: string): void {
+    ws.write(`${'='.repeat(80)}\n`);
+    ws.write(`GO TEST EXECUTION LOG\n`);
+    ws.write(`${'='.repeat(80)}\n`);
+    ws.write(`Test File:        ${tf.path}\n`);
+    ws.write(`Language:         ${tf.language}\n`);
+    ws.write(`Module Root:      ${modRoot}\n`);
+    ws.write(`Started:          ${formatDate(started)}\n`);
+    ws.write(`Timeout:          ${this.timeoutSec > 0 ? this.timeoutSec + 's' : 'none'}\n`);
+    ws.write(`Command:          go ${command.join(' ')}\n`);
+    ws.write(`PATH:             ${this.env.PATH || 'not set'}\n`);
+    ws.write(`${'='.repeat(80)}\n\n`);
+  }
+
+  private writeLogFooter(ws: fs.WriteStream, exitCode: number, started: Date, ended: Date, timeoutHit: boolean): void {
+    const duration = ended.getTime() - started.getTime();
+    
+    ws.write(`\n${'='.repeat(80)}\n`);
+    ws.write(`EXECUTION SUMMARY\n`);
+    ws.write(`${'='.repeat(80)}\n`);
+    ws.write(`Exit Code:        ${exitCode}\n`);
+    ws.write(`Duration:         ${duration}ms (${(duration/1000).toFixed(2)}s)\n`);
+    ws.write(`Ended:            ${formatDate(ended)}\n`);
+    ws.write(`Status:           ${timeoutHit ? 'TIMEOUT' : exitCode === 0 ? 'SUCCESS' : 'FAILED'}\n`);
+    ws.write(`${'='.repeat(80)}\n`);
+  }
+
+  private postExecutionValidation(logPath: string, tf: TestFile): {
+    warnings: string[];
+    errors: string[];
+  } {
+    const warnings: string[] = [];
+    const errors: string[] = [];
+    
+    // Check if log file exists
+    if (!fs.existsSync(logPath)) {
+      errors.push('Log file was not created');
+      return { warnings, errors };
+    }
+    
+    // Check log file size
+    const stats = fs.statSync(logPath);
+    if (stats.size === 0) {
+      errors.push('Log file is empty');
+    } else if (stats.size < 100) {
+      warnings.push('Log file is suspiciously small');
+    }
+    
+    // Validate JSON output
+    const jsonValidation = this.validateJsonOutput(logPath);
+    if (!jsonValidation.isValid) {
+      warnings.push('No valid JSON output found in log');
+    } else if (this.verbose) {
+      console.log(`[EXECUTOR][GO] Found ${jsonValidation.lineCount} valid JSON lines`);
+    }
+    
+    if (jsonValidation.errors.length > 0 && this.verbose) {
+      console.log(`[EXECUTOR][GO] Found ${jsonValidation.errors.length} non-JSON lines`);
+    }
+    
+    // Detect execution issues
+    const issues = this.detectExecutionIssues(logPath);
+    if (issues.issues.length > 0) {
+      warnings.push(...issues.issues);
+    }
+    
+    return { warnings, errors };
+  }
+
+  private async runOne(tf: TestFile): Promise<ExecutionResult> {
+    const started = new Date();
+    const logPath = path.join(this.logsDir, path.basename(tf.path) + '.log');
+    const pkgDir = path.dirname(tf.path);
+    const modRoot = this.findModuleRoot(pkgDir);
+
+    // Clean build cache if configured
+    this.cleanBuildCache(modRoot);
+
+    // Build test command with all enhancements
+    const { args, pkgPath } = this.buildTestCommand(tf, modRoot);
+
+    console.log(`[EXECUTOR][GO] Executing test file: ${path.basename(tf.path)}`);
+    console.log(`[EXECUTOR][GO] Module root: ${modRoot}`);
+    console.log(`[EXECUTOR][GO] Package path: ${pkgPath}`);
+
+    let timeoutHit = false;
+    let exitCode = 1;
+    
+    await new Promise<void>((resolve) => {
+      const ws = fs.createWriteStream(logPath, { flags: 'w' });
+      
+      // Write structured header
+      this.writeLogHeader(ws, tf, started, args, modRoot);
+
+      const child = spawn('go', args, {
+        cwd: modRoot,
+        env: this.env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      const timer =
+        this.timeoutSec > 0
+          ? setTimeout(() => {
+              timeoutHit = true;
+              console.log(`[EXECUTOR][GO] TIMEOUT for ${path.basename(tf.path)} after ${this.timeoutSec}s`);
+              ws.write(`\n*** TIMEOUT DETECTED AFTER ${this.timeoutSec}s ***\n\n`);
+              try { 
+                child.kill('SIGKILL');
+                console.log(`[EXECUTOR][GO] Process killed due to timeout`);
+              } catch (err) {
+                console.error(`[EXECUTOR][GO] Failed to kill process:`, err);
+              }
+            }, this.timeoutSec * 1000)
+          : null;
+
+      child.stdout.on('data', (d) => ws.write(d));
+      child.stderr.on('data', (d) => ws.write(d));
+
+      child.on('error', (error) => {
+        console.error(`[EXECUTOR][GO] Process error for ${path.basename(tf.path)}:`, error);
+        ws.write(`\n*** PROCESS ERROR ***\n`);
+        ws.write(`${error.message}\n`);
+        if (error.stack) {
+          ws.write(`${error.stack}\n`);
+        }
+      });
+
+      child.on('close', (code) => {
+        if (timer) {
+          clearTimeout(timer);
+        }
+        exitCode = timeoutHit ? 124 : Number(code ?? 1);
+        const ended = new Date();
+        
+        // Write structured footer
+        this.writeLogFooter(ws, exitCode, started, ended, timeoutHit);
+        ws.end();
+        resolve();
+      });
+    });
+
+    const ended = new Date();
+    const duration = ended.getTime() - started.getTime();
+    
+    // Post-execution validation
+    const validation = this.postExecutionValidation(logPath, tf);
+    
+    if (validation.errors.length > 0) {
+      console.error(`[EXECUTOR][GO] ERRORS for ${path.basename(tf.path)}:`);
+      validation.errors.forEach(err => console.error(`[EXECUTOR][GO]   - ${err}`));
+    }
+    
+    if (validation.warnings.length > 0) {
+      console.warn(`[EXECUTOR][GO] Warnings for ${path.basename(tf.path)}:`);
+      validation.warnings.forEach(warn => console.warn(`[EXECUTOR][GO]   - ${warn}`));
+    }
+    
+    console.log(`[EXECUTOR][GO] Completed ${path.basename(tf.path)} - Exit: ${exitCode}, Duration: ${duration}ms, Timeout: ${timeoutHit}`);
+
+    return {
+      testFile: tf,
+      exitCode,
+      logPath,
+      junitPath: null,
+      startedAt: formatDate(started),
+      endedAt: formatDate(ended),
+      timeout: timeoutHit,
+    };
+  }
+
+  async executeMany(testFiles: TestFile[], jobs: number): Promise<ExecutionResult[]> {
+    const maxJobs = Math.max(1, Number(jobs || 1));
+    return (await runWithLimit(maxJobs, testFiles, (tf) => this.runOne(tf))) as ExecutionResult[];
+  }
 }
 
 export class PytestExecutor implements BaseExecutor {
@@ -376,6 +826,9 @@ function formatDate(d: Date): string {
 export function makeExecutor(language: string, opts: any): BaseExecutor {
   if (language === 'python') {
     return new PytestExecutor(opts as PytestExecutorOptions);
+  }
+  if (language === 'go' || language === 'golang') {
+    return new GoExecutor(opts as GoExecutorOptions);
   }
   throw new Error(`Executor for language '${language}' is not implemented yet.`);
 }

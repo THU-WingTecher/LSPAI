@@ -1,0 +1,12 @@
+{
+  "command_HasNameOrAliasPrefix_4921_test.go": {
+    "project_name": "cobra",
+    "file_name": "command.go",
+    "symbol_name": "(*Command).hasNameOrAliasPrefix"
+  },
+  "command_IsAvailableCommand_9686_test.go": {
+    "project_name": "cobra",
+    "file_name": "command.go",
+    "symbol_name": "(*Command).IsAvailableCommand"
+  }
+}

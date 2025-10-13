@@ -2,10 +2,20 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { AnalysisReport, ExecutionResult, FileAnalysis, TestCaseResult, makeEmptyFileAnalysis } from './types';
-import { findFiles } from '../fileHandler';
+import { findFiles } from '../fileUtils';
 import { SRC_PATHS, ProjectName, getConfigInstance } from '../config';
 import { getLanguageSuffix } from '../language';
-import { examineTestCasesBatch, filterTestCasesForExamination } from './analysis/examiner';
+
+// Optional examiner import - requires VSCode extension API
+let examineTestCasesBatch: any = null;
+let filterTestCasesForExamination: any = null;
+try {
+  const examinerModule = require('./analysis/examiner');
+  examineTestCasesBatch = examinerModule.examineTestCasesBatch;
+  filterTestCasesForExamination = examinerModule.filterTestCasesForExamination;
+} catch (e) {
+  console.log('[ANALYZER] Running without examiner (VSCode extension API not available)');
+}
 
 
 export class Analyzer {
@@ -613,29 +623,34 @@ export class Analyzer {
     }
 
     // Examination phase: analyze assertion errors for redefined symbols
-    console.log('[ANALYZER] Starting examination phase for assertion errors...');
-    const allTestCases = Object.values(tests);
-    const testCasesToExamine = filterTestCasesForExamination(allTestCases);
+    // Only available when running in VSCode extension context
+    if (examineTestCasesBatch && filterTestCasesForExamination) {
+      console.log('[ANALYZER] Starting examination phase for assertion errors...');
+      const allTestCases = Object.values(tests);
+      const testCasesToExamine = filterTestCasesForExamination(allTestCases);
 
-    if (testCasesToExamine.length > 0) {
-      const examinations = await examineTestCasesBatch(
-        testCasesToExamine,
-        (tc) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
-        (tc) => tc.focalFunction || null,
-        5 // concurrency
-      );
+      if (testCasesToExamine.length > 0) {
+        const examinations = await examineTestCasesBatch(
+          testCasesToExamine,
+          (tc: TestCaseResult) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
+          (tc: TestCaseResult) => tc.focalFunction || null,
+          5 // concurrency
+        );
 
-      // Attach examination results back to test cases
-      for (const exam of examinations) {
-        const testCase = tests[exam.testCaseName];
-        if (testCase) {
-          testCase.examination = exam;
+        // Attach examination results back to test cases
+        for (const exam of examinations) {
+          const testCase = tests[exam.testCaseName];
+          if (testCase) {
+            testCase.examination = exam;
+          }
         }
-      }
 
-      console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+        console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+      } else {
+        console.log('[ANALYZER] No assertion errors to examine');
+      }
     } else {
-      console.log('[ANALYZER] No assertion errors to examine');
+      console.log('[ANALYZER] Examination phase skipped (requires VSCode extension API)');
     }
 
     return {

@@ -7,7 +7,7 @@ import { generateUnitTestsForFocalMethod, init, signIn, copilotServer } from './
 import { GenerationType, PromptType, FixType, Provider } from './config';
 import { extractSymbolDocumentMapFromTaskList, loadAllTargetSymbolsFromWorkspace, selectOneSymbolFileFromWorkspace } from './helper';
 import { experimentWithCopilot } from './copilot';
-import { generateTimestampString } from './fileHandler';
+import { generateTimestampString } from './config';
 import { invokeLLM } from './invokeLLM';
 import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from './experiment';
 import { activate as activateLSP, setPythonAnalysisExclude, setPythonAnalysisInclude, setPythonExtraPaths, setPythonInterpreterPath } from './lsp/helper';
