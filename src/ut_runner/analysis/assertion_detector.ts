@@ -22,7 +22,7 @@ export interface AssertionDetectionResult {
  * Detects likely wrong assertions by analyzing symbol redefinitions between test and source files
  * This algorithm identifies symbols that are redefined in test files but also exist in the source dependency tree
  */
-export async function detectWrongAssertions(
+export async function detectRedefinedAssertions(
     testFile: string,
     sourceFile: string,
     symbolName: string
@@ -32,7 +32,9 @@ export async function detectWrongAssertions(
     }
 
     // Get symbols from test file
-    const testFileSymbols = await getAllSymbols(vscode.Uri.file(testFile));
+    const testFileUri = vscode.Uri.file(testFile);
+    const testFileDoc = await vscode.workspace.openTextDocument(testFileUri);
+    const testFileSymbols = await getAllSymbols(testFileUri);
     console.log(`#### Test File Symbols: ${testFileSymbols.length}`);
 
     // Get source symbol and build dependency tree
@@ -44,7 +46,7 @@ export async function detectWrongAssertions(
     }
 
     console.log(`#### Source Symbol: ${symbol.name}`);
-    const tree = await buildDefTree(srcDoc, symbol);
+    const tree = await buildDefTree(srcDoc, symbol, 5);
 
     // Collect all referenced names from the dependency tree
     const referencedNames = collectReferencedNames(tree);
@@ -62,6 +64,10 @@ export async function detectWrongAssertions(
         for (const r of redefinedSymbols) {
             console.log(` - ${r.name}: source=${r.sourceLoc ?? 'unknown'}, test=${r.testLoc ?? 'unknown'}`);
         }
+        console.log('#### TestFile absolute path: ', testFile);
+        console.log('#### SourceFile absolute path: ', sourceFile);
+        console.log('#### TestFile SourceCodes: ', testFileDoc.getText());
+        console.log('#### SourceFile SourceCodes: ', srcDoc.getText());
     } else {
         console.log('#### No redefined symbols found in test file (w.r.t. source dependency tree).');
     }
@@ -103,7 +109,6 @@ function buildTestSymbolMap(testFileSymbols: vscode.DocumentSymbol[]): Map<strin
 
     for (const sym of testFileSymbols) {
         const arr = testNameToSymbols.get(sym.name) || [];
-        console.log(`### Test Symbol: ${sym.name}`);
         arr.push(sym);
         testNameToSymbols.set(sym.name, arr);
     }

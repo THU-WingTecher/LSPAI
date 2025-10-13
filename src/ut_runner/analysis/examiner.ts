@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { TestCaseResult, ExaminationResult } from '../types';
-import { detectWrongAssertions, prettyPrintDefTree } from './assertion_detector';
+import { detectRedefinedAssertions, prettyPrintDefTree } from './assertion_detector';
 
 /**
  * Examines a single test case for redefined symbols
@@ -37,7 +37,7 @@ export async function examineTestCase(
     console.log(`[EXAMINER]   Symbol name: ${symbolName}`);
 
     // Run the assertion detection analysis
-    const detection = await detectWrongAssertions(
+    const detection = await detectRedefinedAssertions(
       testCase.testFile,
       sourceFile,
       symbolName
