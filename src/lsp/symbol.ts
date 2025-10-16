@@ -86,19 +86,19 @@ export async function getSymbolFromDocument(document: vscode.TextDocument, symbo
 
 export async function getOuterSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
     return await VscodeRequestManager.documentSymbols(uri);
-    // let syms: vscode.DocumentSymbol[] = [];
-    // for (let i = 0; i < retries; i++) {
-    //     const newSyms = await VscodeRequestManager.documentSymbols(uri);
+    let syms: vscode.DocumentSymbol[] = [];
+    for (let i = 0; i < retries; i++) {
+        const newSyms = await VscodeRequestManager.documentSymbols(uri);
 
-    //     if (newSyms && newSyms.length) {
-    //         console.log(`found ${newSyms.length} symbols for ${uri.path}`);
-    //         syms.push(...newSyms);
-    //         break;
-    //     }
-    //     console.log(`waiting for symbols... ${i + 1}th attempt`);
-    //     await new Promise(r => setTimeout(r, delayMs));
-    // }
-    // return syms;
+        if (newSyms && newSyms.length) {
+            console.log(`found ${newSyms.length} symbols for ${uri.path}`);
+            syms.push(...newSyms);
+            break;
+        }
+        console.log(`waiting for symbols... ${i + 1}th attempt`);
+        await new Promise(r => setTimeout(r, delayMs));
+    }
+    return syms;
 }
 export async function getAllSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
 

@@ -16,24 +16,54 @@ export class VscodeRequestManager {
     codeActions: new Map(),
     typeDefinition: new Map()
   };
-  static async documentSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+  static async documentSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
     const uriString = uri.toString();
-
+  
     // Check cache first
     if (VscodeRequestManager.cache.documentSymbols.has(uriString)) {
       return VscodeRequestManager.cache.documentSymbols.get(uriString)!;
     }
+  
+    let symbols: vscode.DocumentSymbol[] = [];
     await activate(uri);
-    const res = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
-      'vscode.executeDocumentSymbolProvider',
-      uri
-    );
-    const symbols = res ?? [];
-
+    for (let i = 0; i < retries; i++) {
+      const res = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+        'vscode.executeDocumentSymbolProvider',
+        uri
+      );
+      const newSymbols = res ?? [];
+  
+      if (newSymbols && newSymbols.length) {
+        console.log(`found ${newSymbols.length} symbols for ${uri.path}`);
+        symbols = newSymbols;
+        break;
+      }
+      console.log(`waiting for symbols... ${i + 1}th attempt`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  
     // Cache the result
     VscodeRequestManager.cache.documentSymbols.set(uriString, symbols);
     return symbols;
   }
+  // static async documentSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
+  //   const uriString = uri.toString();
+
+  //   // Check cache first
+  //   if (VscodeRequestManager.cache.documentSymbols.has(uriString)) {
+  //     return VscodeRequestManager.cache.documentSymbols.get(uriString)!;
+  //   }
+  //   await activate(uri);
+  //   const res = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+  //     'vscode.executeDocumentSymbolProvider',
+  //     uri
+  //   );
+  //   const symbols = res ?? [];
+
+  //   // Cache the result
+  //   VscodeRequestManager.cache.documentSymbols.set(uriString, symbols);
+  //   return symbols;
+  // }
 
   static async workspaceSymbols(uri: vscode.Uri): Promise<vscode.SymbolInformation[]> {
     const uriString = uri.toString();
