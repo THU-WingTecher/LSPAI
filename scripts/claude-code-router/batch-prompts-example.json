@@ -1,0 +1,26 @@
+[
+  {
+    "name": "test-fibonacci",
+    "prompt": "Generate a unit test for a Fibonacci function in Python using pytest.",
+    "options": {
+      "temperature": 0.7,
+      "max_tokens": 1000
+    }
+  },
+  {
+    "name": "test-binary-search",
+    "prompt": "Generate a unit test for a binary search implementation in Java using JUnit.",
+    "options": {
+      "temperature": 0.7,
+      "max_tokens": 1000
+    }
+  },
+  {
+    "name": "test-linked-list",
+    "prompt": "Generate a unit test for a linked list implementation in Go.",
+    "options": {
+      "temperature": 0.7,
+      "max_tokens": 1000
+    }
+  }
+]
