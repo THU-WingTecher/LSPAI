@@ -17,12 +17,12 @@ import {
   DidChangeTextDocumentNotification
   // You can import other LSP structures (e.g. DidChangeConfigurationNotification, etc.)
 } from 'vscode-languageserver-protocol';
-import { commentizeCode } from './lsp/utils';
-import { generateFileNameForDiffLanguage, saveGeneratedCodeToFolder } from './fileHandler';
+import { commentizeCode } from '../lsp/utils';
+import { generateFileNameForDiffLanguage, saveGeneratedCodeToFolder } from '../fileHandler';
 import { workspace } from 'vscode';
-import { getConfigInstance } from './config';
-import { getUnitTestTemplateOnly } from './prompts/template';
-import { sleep } from './helper';
+import { getConfigInstance } from '../config';
+import { getUnitTestTemplateOnly } from '../prompts/template';
+import { sleep } from '../helper';
 import path from 'path';
 
 // --------------------

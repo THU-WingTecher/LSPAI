@@ -1,6 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { ClaudeCodeRouterManager, generateUUID, quickPrompt } from '../claudeCodeRouter';
+import { ClaudeCodeRouterManager, generateUUID, quickPrompt } from '../experiment/claudeCodeRouter';
 import * as path from 'path';
 
 /**

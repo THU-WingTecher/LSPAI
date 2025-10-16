@@ -4,7 +4,7 @@ import path from 'path';
 import { loadAllTargetSymbolsFromWorkspace, experiment, sleep, setWorkspaceFolders } from '../../../helper';
 import { activate } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, SRC_PATHS, ProjectName } from '../../../config';
-import { experimentWithCopilot, init, signIn, copilotServer, generateUnitTestsForFocalMethod } from '../../../copilot';
+import { experimentWithCopilot, init, signIn, copilotServer, generateUnitTestsForFocalMethod } from '../../../experiment/copilot';
 
 suite('copilot Test Suite', () => {
 

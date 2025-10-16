@@ -10,6 +10,7 @@ import { goSpecificEnvGen, sleep } from './helper';
 import { ExpLogs } from './log';
 import * as path from 'path';
 import { generateTimestampString } from './config';
+import { generateFileNameCore } from './experiment/fileNameGenerator';
 
 // Re-export VSCode-independent utilities for backward compatibility
 export { findFiles, readTxtFile, saveContextTerms } from './fileUtils';
@@ -163,22 +164,27 @@ export function generateFileNameForDiffLanguage(document: vscode.TextDocument, s
     return getUniqueFileName(folderPath, baseName, disposableSuffix, generated, round);
 }
 
+/**
+ * Generate file name with given symbol (VSCode version)
+ * Uses shared core logic from experiment/fileNameGenerator.ts
+ */
 export function genFileNameWithGivenSymbol(document: vscode.TextDocument, symbol: vscode.DocumentSymbol, language: string): string {
-    const fileName = document.fileName.split('/').pop()!.replace(/\.\w+$/, '');
+    // Import shared logic
+    
+    const fileName = document.fileName.split('/').pop()!;
     const funcName = document.getText(symbol.selectionRange);
-    const finalName = `${fileName}_${funcName}`;
-    if (language === 'java') {
-        const packageStatements = getPackageStatement(document, document.languageId);
-        const packageStatement = packageStatements ? packageStatements[0] : '';
-        const packageFolder = packageStatement.replace(";", "").split(' ')[1].replace(/\./g, '/');
-        return `${packageFolder}/${finalName}`;
-    } else if (language === 'go'){
-        const relPath = path.relative(vscode.workspace.rootPath!, document.fileName);
-        // first letter of funcName is uppercase
-        return `${relPath.replace(".go","")}_${funcName.charAt(0).toUpperCase() + funcName.slice(1)}`;
-    } else {
-        return finalName;
-    }
+    
+    const packageString = language === 'java' ? (getPackageStatement(document, document.languageId)?.[0] || '') : '';
+    const relativeFilePath = language === 'go' ? path.relative(vscode.workspace.rootPath!, document.fileName) : '';
+    
+    // Use shared core logic (no test suffix, no extension)
+    return generateFileNameCore({
+        sourceFileName: fileName,
+        symbolName: funcName,
+        languageId: language,
+        packageString,
+        relativeFilePath
+    });
 }
 
 export function getUniqueFileName(folderPath: string, baseName: string, suffix: string, filePaths: string[], round: number): string {

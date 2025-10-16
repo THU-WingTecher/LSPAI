@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 export interface ClaudeCodeRouterConfig {
     sessionId?: string;  // UUID for session continuity
     outputDir?: string;  // Directory to save outputs
+    projectDir?: string;  // Project root directory
 }
 
 /**
@@ -30,16 +31,20 @@ export interface CCRResponse {
 export class ClaudeCodeRouterManager {
     private sessionId: string;
     private outputDir: string;
+    private projectDir: string;
 
     constructor(config: ClaudeCodeRouterConfig = {}) {
         this.sessionId = config.sessionId || randomUUID();
         this.outputDir = config.outputDir || path.join(process.cwd(), 'ccr-outputs');
-        
+        this.projectDir = config.projectDir || '/LSPRAG';
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
         }
     }
 
+    public getProjectDir(): string {
+        return this.projectDir;
+    }
     /**
      * Get current session ID
      */
@@ -68,14 +73,21 @@ export class ClaudeCodeRouterManager {
         console.log(`Running prompt: ${prompt.substring(0, 60)}...`);
         console.log(`Session ID: ${this.sessionId}`);
 
-        const scriptPath = path.join(__dirname, '../scripts/claude-code-router/run-prompt.sh');
+        // Write prompt to a temporary file to avoid bash escaping issues
+        const tempPromptFile = path.join(this.outputDir, `${fileName}_prompt.txt`);
+        fs.writeFileSync(tempPromptFile, prompt, 'utf-8');
+
+        // Build ccr command - read prompt from file via stdin
         const envPath = path.join(__dirname, '../.env.sh');
-        
-        const escapedPrompt = prompt.replace(/'/g, "'\\''");
+        const systemPromptPath = "/LSPRAG/templates/lspragSystem_wo_ex.txt"
+        // ccr code -p --output-format json --session-id <UUID>
+        // The prompt is passed via stdin, output is captured and saved to file
+        const ccrCommand = `ccr code -p --output-format json --session-id "${this.sessionId}"`;
+        // const ccrCommand = `ccr code -p --system-prompt-file "${systemPromptPath}" --output-format json --session-id "${this.sessionId}"`;
         
         const command = fs.existsSync(envPath)
-            ? `source "${envPath}" && bash "${scriptPath}" "${escapedPrompt}" "${outputFile}" "${this.sessionId}"`
-            : `bash "${scriptPath}" "${escapedPrompt}" "${outputFile}" "${this.sessionId}"`;
+            ? `source "${envPath}" && cat "${tempPromptFile}" | ${ccrCommand} > "${outputFile}"`
+            : `cat "${tempPromptFile}" | ${ccrCommand} > "${outputFile}"`;
 
         try {
             const child = spawn('/bin/bash', ['-c', command], {
@@ -102,12 +114,22 @@ export class ClaudeCodeRouterManager {
 
             await this.sleep(500);
 
+            // Clean up temp file
+            if (fs.existsSync(tempPromptFile)) {
+                fs.unlinkSync(tempPromptFile);
+            }
+
             if (!fs.existsSync(outputFile) || fs.statSync(outputFile).size === 0) {
                 throw new Error(`ccr command failed: exit code ${exitCode}\nstderr: ${stderr}`);
             }
 
         } catch (error: any) {
             await this.sleep(1000);
+            
+            // Clean up temp file
+            if (fs.existsSync(tempPromptFile)) {
+                fs.unlinkSync(tempPromptFile);
+            }
             
             if (!fs.existsSync(outputFile)) {
                 throw new Error(`ccr command failed (no output file): ${error.message}`);
