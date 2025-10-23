@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSPRAG — Experiment Reproduction</title>
+    <link rel="stylesheet" href="./assets/simple.css">
+  </head>
+  <body>
+    <header>
+      <h1>Experiment Reproduction</h1>
+      <p>This page outlines the steps and resources for reproducing the LSPRAG experiments.</p>
+      <p><a href="./index.html">Back to Overview</a></p>
+    </header>
+    <main>
+      <section>
+        <h2>Prerequisites</h2>
+        <div class="panel">
+          <ul>
+            <li>Install dependencies as described in README.</li>
+            <li>Prepare datasets for Java, Go, and Python projects.</li>
+            <li>Set up access to LLMs if running full pipeline; otherwise use provided logs.</li>
+          </ul>
+        </div>
+      </section>
+      <section>
+        <h2>Steps</h2>
+        <div class="panel">
+          <ol>
+            <li>Run the LSP-backed retrieval to collect concise contexts.</li>
+            <li>Generate unit tests and capture diagnostics for refinement.</li>
+            <li>Measure line coverage and valid rate; export result CSVs.</li>
+          </ol>
+        </div>
+      </section>
+      <section>
+        <h2>Artifacts</h2>
+        <div class="panel">
+          <ul>
+            <li>Scripts in <code>scripts/</code> and examples in <code>experiments/</code>.</li>
+            <li>Figures referenced in the overview page under <code>docs/assets/</code>.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <p>© <span id="year"></span> LSPRAG</p>
+    </footer>
+    <script>document.getElementById('year').textContent=new Date().getFullYear()</script>
+  </body>
+  </html>
+

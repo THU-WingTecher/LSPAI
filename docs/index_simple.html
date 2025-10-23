@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSPRAG — Simple Page</title>
+    <link rel="stylesheet" href="./assets/simple.css">
+  </head>
+  <body>
+    <header>
+      <h1>LSPRAG — Simple Artifact Page</h1>
+      <p>A minimal page that is easy to edit. You can just change text and image paths.</p>
+      <p>
+        <a href="./index.html">Back to Fancy Page</a> ·
+        <a href="./assets/paper.pdf" target="_blank" rel="noopener">PDF</a>
+      </p>
+    </header>
+    <main>
+      <section>
+        <h2>Abstract</h2>
+        <div class="panel">
+          <p>
+            Replace this paragraph with your abstract. Keep plain text; no classes are required.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Motivation Figure</h2>
+        <div class="panel">
+          <div class="figure">
+            <img src="./assets/introEx2.png" alt="Motivation example figure">
+            <div class="cap">This image scales to fit without internal scroll.</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Overview</h2>
+        <div class="panel">
+          <div class="figure">
+            <img src="./assets/overview-crop.png" alt="Overall workflow">
+            <div class="cap">Overall workflow.</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Results</h2>
+        <div class="panel">
+          <div class="figure">
+            <img src="./assets/7-3-cost-crop.png" alt="Selected results">
+            <div class="cap">Selected results.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>© <span id="year"></span> LSPRAG</p>
+    </footer>
+
+    <script>document.getElementById('year').textContent=new Date().getFullYear()</script>
+  </body>
+  </html>
+

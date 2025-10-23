@@ -1,0 +1,13 @@
+/* Minimal classless CSS for easy editing */
+:root{--bg:#0b0d12;--panel:#111621;--text:#e7eef7;--muted:#a9b3c2;--brand:#7aa8ff}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial}
+main,header,footer,section{max-width:920px;margin:0 auto;padding:16px}
+h1,h2,h3{margin:16px 0 8px}
+p,ul,ol{line-height:1.6}
+a{color:var(--brand)}
+.panel{background:linear-gradient(180deg,#0f1420,#0c101a);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;margin:12px 0}
+.figure{display:block;width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:#0c101a;padding:8px}
+.figure img,.figure object{display:block;width:100%;height:auto;border:none;border-radius:8px}
+.figure object{aspect-ratio:1/1.414}
+.cap{color:var(--muted);font-size:13px;margin-top:6px;text-align:center}
+

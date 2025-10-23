@@ -30,6 +30,8 @@
       .panel .bd{padding:16px}
       .figure{display:block;width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:#0c101a}
       .figure img,.figure object{display:block;width:100%;height:auto;border-radius:12px;border:none}
+      /* Ensure embedded PDFs show fully without internal scroll by reserving portrait space */
+      .figure object{aspect-ratio:1/1.414}
       .figure .cap{color:var(--muted);font-size:13px;margin-top:8px;text-align:center}
       .kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
       .kpi .card{background:linear-gradient(180deg,#121a29,#0e1522);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px;text-align:center}
@@ -37,6 +39,11 @@
       .kpi .lbl{color:var(--muted);font-size:12px;margin-top:4px;letter-spacing:.2px}
       footer{padding:22px 0 40px;color:var(--muted);font-size:13px;border-top:1px solid rgba(255,255,255,.06)}
       .note{color:var(--muted);font-size:13px}
+      /* Simple tags for prettier benchmark listing */
+      .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+      .tag{display:inline-block;padding:6px 10px;border-radius:999px;background:linear-gradient(180deg,#121a29,#0e1522);border:1px solid rgba(255,255,255,.08);font-weight:600;color:var(--text)}
+      /* Explanation text for figures (larger than muted notes) */
+      .explain{margin-top:6px;font-size:16px;color:var(--text);line-height:1.6}
       @media (max-width:860px){.two,.three,.kpi{grid-template-columns:1fr}header.hero{padding:40px 0 18px}.title{font-size:22px}}
     </style>
   </head>
@@ -75,9 +82,42 @@
             <div class="hd">At a Glance</div>
             <div class="bd">
               <div class="kpi">
-                <div class="card"><div class="num">Java +213%</div><div class="lbl">Coverage vs best baseline</div></div>
-                <div class="card"><div class="num">Go +175%</div><div class="lbl">Coverage vs best baseline</div></div>
-                <div class="card"><div class="num">Py +32%</div><div class="lbl">Coverage vs best baseline</div></div>
+                <div class="card"><div class="num">Java +213%</div><div class="lbl">Coverage increase</div></div>
+                <div class="card"><div class="num">Golang +175%</div><div class="lbl">Coverage increase</div></div>
+                <div class="card"><div class="num">Python +32%</div><div class="lbl">Coverage increase</div></div>
+              </div>
+              <div class="kpi" style="margin-top:8px;">
+                <div class="card"><div class="num">Java +251%</div><div class="lbl">Valid rate increase</div></div>
+                <div class="card"><div class="num">Golang +242%</div><div class="lbl">Valid rate increase</div></div>
+                <div class="card"><div class="num">Python +20%</div><div class="lbl">Valid rate increase</div></div>
+              </div>
+              <div class="panel" style="margin-top:12px;">
+                <div class="hd">Benchmarks</div>
+                <div class="bd">
+                  <div class="grid three">
+                    <div>
+                      <strong>Java Projects</strong>
+                      <div class="tags">
+                        <a class="tag" href="https://commons.apache.org/proper/commons-cli/" target="_blank" rel="noopener">Commons-CLI</a>
+                        <a class="tag" href="https://commons.apache.org/proper/commons-csv/" target="_blank" rel="noopener">Commons-CSV</a>
+                      </div>
+                    </div>
+                    <div>
+                      <strong>Golang Projects</strong>
+                      <div class="tags">
+                        <a class="tag" href="https://cobra.dev/" target="_blank" rel="noopener">cobra</a>
+                        <a class="tag" href="https://github.com/sirupsen/logrus" target="_blank" rel="noopener">logrus</a>
+                      </div>
+                    </div>
+                    <div>
+                      <strong>Python Projects</strong>
+                      <div class="tags">
+                        <a class="tag" href="https://black.readthedocs.io/en/stable/" target="_blank" rel="noopener">black</a>
+                        <a class="tag" href="https://www.tornadoweb.org/en/stable/" target="_blank" rel="noopener">tornado</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -90,7 +130,7 @@
             <div class="hd">Motivation Example</div>
             <div class="bd">
               <div class="figure">
-                <object data="./assets/introEx2.pdf" type="application/pdf"></object>
+                <img src="./assets/introEx2.png" alt="Motivation example figure">
                 <div class="cap">To cover the true branch in the focal method, dependent definitions across files are required.</div>
               </div>
             </div>
@@ -108,6 +148,7 @@
       <section id="system-design">
         <div class="container">
           <h2>System Design</h2>
+          <p class="note">if you interested in specific explanation, look further into <a href="" target="_blank" rel="noopener">paper</a>.</p>
           <div class="grid two">
             <div class="panel">
               <div class="hd">Pipeline</div>
@@ -123,39 +164,37 @@
               <div class="hd">Overview</div>
               <div class="bd">
                 <div class="figure">
-                  <object data="./assets/overview-crop.pdf" type="application/pdf"></object>
+                  <img src="./assets/overview-crop.png" alt="Overall LSPRAG workflow">
                   <div class="cap">Overall LSPRAG workflow.</div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="panel" style="margin-top:16px;">
-            <div class="hd">Key Token Extraction</div>
-            <div class="bd">
-              <div class="figure">
-                <object data="./assets/section-1-crop.pdf" type="application/pdf"></object>
-                <div class="cap">Key token selection using LSP + AST and CFG.</div>
-              </div>
-            </div>
-          </div>
+          <h2 style="margin-top:16px;"><a href="./experiment_reproduction.html">See Experiment Reproduction — how to run our pipeline</a></h2>
         </div>
       </section>
 
       <section id="experiments">
         <div class="container">
-          <h2>Selected Experimental Results</h2>
+          <h2>Overall Experiments</h2>
           <div class="panel">
-            <div class="hd">Latency and Token Cost</div>
+            <div class="hd">Coverage, Valid Rate, Tokens, and Latency</div>
             <div class="bd">
               <div class="figure">
-                <object data="./assets/7-3-cost-crop.pdf" type="application/pdf"></object>
-                <div class="cap">Cost distribution per focal method.</div>
+                <img src="./assets/main_experiment_cov_and_val.png" alt="Line coverage and valid rate vs baselines">
+                <div class="cap">Line coverage and valid rate compared with baselines.</div>
               </div>
-              <ul>
-                <li><strong>Average latency:</strong> 28.27s per focal method</li>
-                <li><strong>Tokens:</strong> ~2,732 (gen) + 1,832 (fix)</li>
-                <li><strong>Setup:</strong> GPT-4o/4o-mini and DeepSeek-V3 across Java, Go, Python</li>
-              </ul>
+              <p class="explain">Explanation: This figure compares LSPRAG against baselines on line coverage and valid test rate across Java, Go, and Python benchmarks.</p>
+              <div class="figure" style="margin-top:12px;">
+                <img src="./assets/token_usage.png" alt="Overall token usage including LSPRAG">
+                <div class="cap">Overall token usage across methods including LSPRAG.</div>
+              </div>
+              <p class="explain">Explanation: Token usage includes prompt and generation tokens aggregated across tasks; lower is generally cheaper.</p>
+              <div class="figure" style="margin-top:12px;">
+                <img src="./assets/7-3-cost-crop.png" alt="Overall time cost of LSPRAG's function">
+                <div class="cap">Overall time cost of LSPRAG's function.</div>
+              </div>
+              <p class="explain">Explanation: End-to-end latency per focal method, including retrieval, generation, and refinement loops.</p>
             </div>
           </div>
         </div>
