@@ -26,7 +26,6 @@ tsconfig.tsbuildinfo
 tsconfig.json
 temp/
 **/temp*.test.ts
-*.html
 *.js
 *.zip
 *.jar

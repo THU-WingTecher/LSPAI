@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSPRAG — Concise Context Retrieval for Multi-language Real-time Unit Test Generation</title>
+    <meta name="description" content="LSPRAG artifact page: abstract, motivation, system design, and experiments. Fully local assets.">
+    <style>
+      :root{--bg:#0b0d12;--panel:#111621;--text:#e7eef7;--muted:#a9b3c2;--brand:#7aa8ff;--brand2:#8bd6ff;--accent:#00d28f;--shadow:0 6px 24px rgba(0,0,0,.35),0 2px 8px rgba(0,0,0,.3)}
+      *{box-sizing:border-box}
+      html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+      a{color:var(--brand);text-decoration:none}
+      a:hover{text-decoration:underline}
+      .container{width:100%;max-width:1080px;margin:0 auto;padding:0 20px}
+      header.hero{padding:56px 0 28px;border-bottom:1px solid rgba(255,255,255,.06);background:radial-gradient(1200px 400px at 50% -10%, rgba(122,168,255,.15), transparent 60%)}
+      .title{font-size:28px;line-height:1.2;margin:0 0 12px;font-weight:700;letter-spacing:.2px}
+      .subtitle{color:var(--muted);margin:0 0 18px;font-size:16px}
+      .cta{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
+      .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:linear-gradient(180deg,#1a2333,#121826);color:var(--text);border:1px solid rgba(255,255,255,.08);box-shadow:var(--shadow);font-weight:600;letter-spacing:.2px}
+      .btn:hover{filter:brightness(1.08);text-decoration:none}
+      .btn.primary{background:linear-gradient(180deg,#2a6fff,#1b4ddb);border-color:rgba(0,0,0,.18)}
+      .grid{display:grid;gap:16px}
+      .two{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .three{grid-template-columns:repeat(3,minmax(0,1fr))}
+      section{padding:28px 0}
+      h2{font-size:20px;margin:0 0 12px}
+      p{color:var(--text);opacity:.92;line-height:1.6}
+      .panel{background:linear-gradient(180deg,#0f1420,#0c101a);border:1px solid rgba(255,255,255,.06);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+      .panel .hd{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase;font-size:12px}
+      .panel .bd{padding:16px}
+      .figure{display:block;width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.06);background:#0c101a}
+      .figure img,.figure object{display:block;width:100%;height:auto;border-radius:12px;border:none}
+      .figure .cap{color:var(--muted);font-size:13px;margin-top:8px;text-align:center}
+      .kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+      .kpi .card{background:linear-gradient(180deg,#121a29,#0e1522);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px;text-align:center}
+      .kpi .num{font-size:22px;font-weight:800;color:var(--brand2)}
+      .kpi .lbl{color:var(--muted);font-size:12px;margin-top:4px;letter-spacing:.2px}
+      footer{padding:22px 0 40px;color:var(--muted);font-size:13px;border-top:1px solid rgba(255,255,255,.06)}
+      .note{color:var(--muted);font-size:13px}
+      @media (max-width:860px){.two,.three,.kpi{grid-template-columns:1fr}header.hero{padding:40px 0 18px}.title{font-size:22px}}
+    </style>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="container">
+        <h1 class="title">LSPRAG: Concise Context Retrieval for Multi-language Real-time Unit Test Generation</h1>
+        <p class="subtitle">Artifact overview — abstract, motivation, design, experiments, and citation.</p>
+        <div class="cta">
+          <a class="btn primary" href="./assets/paper.pdf" target="_blank" rel="noopener">PDF</a>
+          <a class="btn" href="#citation">CITE</a>
+          <a class="btn" href="#system-design">System Design</a>
+          <a class="btn" href="#experiments">Experiments</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="abstract">
+        <div class="container grid two">
+          <div class="panel">
+            <div class="hd">Abstract</div>
+            <div class="bd">
+              <p>
+                Automated unit test generation is essential for robust software development, yet existing approaches struggle to generalize across multiple programming languages and operate within real-time development. While Large Language Models (LLMs) offer a promising solution, their ability to generate high coverage test code depends on prompting a concise context of the focal method. Current solutions, such as Retrieval-Augmented Generation, either rely on imprecise similarity-based searches or demand the creation of costly, language-specific static analysis pipelines.
+              </p>
+              <p>
+                To address this gap, we present LSPRAG, a framework for concise-context retrieval tailored for real-time, language-agnostic unit test generation. LSPRAG leverages off-the-shelf Language Server Protocol (LSP) back-ends to supply LLMs with precise symbol definitions and references in real time. By reusing mature LSP servers, LSPRAG provides an LLM with language-aware context retrieval, requiring minimal per-language engineering effort.
+              </p>
+              <p>
+                We evaluated LSPRAG on open-source projects spanning Java, Go, and Python. Compared to the best performance of baselines, LSPRAG increased line coverage by up to 174.55% for Golang, 213.31% for Java, and 31.57% for Python.
+              </p>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="hd">At a Glance</div>
+            <div class="bd">
+              <div class="kpi">
+                <div class="card"><div class="num">Java +213%</div><div class="lbl">Coverage vs best baseline</div></div>
+                <div class="card"><div class="num">Go +175%</div><div class="lbl">Coverage vs best baseline</div></div>
+                <div class="card"><div class="num">Py +32%</div><div class="lbl">Coverage vs best baseline</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="motivation">
+        <div class="container grid two">
+          <div class="panel">
+            <div class="hd">Motivation Example</div>
+            <div class="bd">
+              <div class="figure">
+                <object data="./assets/introEx2.pdf" type="application/pdf"></object>
+                <div class="cap">To cover the true branch in the focal method, dependent definitions across files are required.</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="hd">Problem and Insight</div>
+            <div class="bd">
+              <p><strong>Problem:</strong> Existing RAG and tooling fail to retrieve precise, dependency-aware context in real time across languages.</p>
+              <p><strong>Insight:</strong> Modern IDEs ship mature analyzers exposed through LSP. Querying LSP for definitions and references provides exact, language-aware context without building language-specific analyzers.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="system-design">
+        <div class="container">
+          <h2>System Design</h2>
+          <div class="grid two">
+            <div class="panel">
+              <div class="hd">Pipeline</div>
+              <div class="bd">
+                <ol>
+                  <li><strong>Key Token Extraction:</strong> Identify tokens governing control flow and dependencies via hybrid LSP lexical data and AST structure.</li>
+                  <li><strong>RAG on LSP:</strong> Retrieve precise symbol definitions and enriched usage references via LSP DEF/REF to build focused prompts.</li>
+                  <li><strong>Unit Test Refinement:</strong> Compilation-free loop using LSP diagnostics to detect and fix syntax errors in generated tests.</li>
+                </ol>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="hd">Overview</div>
+              <div class="bd">
+                <div class="figure">
+                  <object data="./assets/overview-crop.pdf" type="application/pdf"></object>
+                  <div class="cap">Overall LSPRAG workflow.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:16px;">
+            <div class="hd">Key Token Extraction</div>
+            <div class="bd">
+              <div class="figure">
+                <object data="./assets/section-1-crop.pdf" type="application/pdf"></object>
+                <div class="cap">Key token selection using LSP + AST and CFG.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="experiments">
+        <div class="container">
+          <h2>Selected Experimental Results</h2>
+          <div class="panel">
+            <div class="hd">Latency and Token Cost</div>
+            <div class="bd">
+              <div class="figure">
+                <object data="./assets/7-3-cost-crop.pdf" type="application/pdf"></object>
+                <div class="cap">Cost distribution per focal method.</div>
+              </div>
+              <ul>
+                <li><strong>Average latency:</strong> 28.27s per focal method</li>
+                <li><strong>Tokens:</strong> ~2,732 (gen) + 1,832 (fix)</li>
+                <li><strong>Setup:</strong> GPT-4o/4o-mini and DeepSeek-V3 across Java, Go, Python</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="citation">
+        <div class="container">
+          <h2>Citation</h2>
+          <div class="panel">
+            <div class="hd">Cite this work</div>
+            <div class="bd">
+              <p>If you use LSPRAG in your research, please cite the paper. The PDF is included above.</p>
+              <pre style="white-space:pre-wrap;background:#0c101a;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px;">@inproceedings{lsprag2025,
+  title={LSPRAG: Concise Context Retrieval for Multi-language Real-time Unit Test Generation},
+  booktitle={ICSE},
+  year={2025}
+}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="container">
+        <div>© <span id="year"></span> LSPRAG Artifact</div>
+        <div class="note">This page is standalone; all assets are local to this folder.</div>
+      </div>
+    </footer>
+
+    <script>document.getElementById('year').textContent=new Date().getFullYear()</script>
+  </body>
+  </html>
+
+
