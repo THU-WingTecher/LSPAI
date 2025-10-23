@@ -8,38 +8,256 @@
   </head>
   <body>
     <header>
-      <h1>Experiment Reproduction</h1>
-      <p>This page outlines the steps and resources for reproducing the LSPRAG experiments.</p>
+      <h1>LSPRAG Experiment Reproduction Guide</h1>
       <p><a href="./index.html">Back to Overview</a></p>
     </header>
     <main>
       <section>
-        <h2>Prerequisites</h2>
+        <h2>🛠️ Setup Guide</h2>
         <div class="panel">
-          <ul>
-            <li>Install dependencies as described in README.</li>
-            <li>Prepare datasets for Java, Go, and Python projects.</li>
-            <li>Set up access to LLMs if running full pipeline; otherwise use provided logs.</li>
-          </ul>
+          <h3>1. Install LSPRAG from Source</h3>
+          <p>Clone and build the project, then compile the extension:</p>
+          <pre><code>cd LSPRAG
+# Install dependencies
+npm install
+
+# Build the extension
+npm run compile</code></pre>
+          <p>After installing the extension, configure your language servers and LLM settings as described in the README.</p>
+          <h4>Known Issues</h4>
+          <pre><code>node_modules/lru-cache/dist/commonjs/index.d.ts:1032:5 - error TS2416: Property 'forEach' in type 'LRUCache&lt;K, V, FC&gt;' is not assignable to the same property in base type 'Map&lt;K, V&gt;'.</code></pre>
+          <p>If encountered, downgrade <code>lru-cache</code>:</p>
+          <pre><code>npm install lru-cache@10.1.0</code></pre>
         </div>
       </section>
+
       <section>
-        <h2>Steps</h2>
+        <h2>Generate Unit Test Codes by LSPRAG</h2>
         <div class="panel">
+          <h3>Language Server Installation</h3>
           <ol>
-            <li>Run the LSP-backed retrieval to collect concise contexts.</li>
-            <li>Generate unit tests and capture diagnostics for refinement.</li>
-            <li>Measure line coverage and valid rate; export result CSVs.</li>
+            <li>Install language servers (Docker image includes these by default):
+              <ul>
+                <li>Java: Oracle Java Extension Pack (<code>oracle.oracle-java</code>)</li>
+                <li>Python: Pylance + Python (<code>ms-python.vscode-pylance</code>, <code>ms-python.python</code>)</li>
+                <li>Go: Go extension (<code>golang.go</code>)</li>
+              </ul>
+            </li>
+            <li>Language-specific setup examples:
+              <p><strong>Go</strong>: enable semantic tokens in <code>settings.json</code>:</p>
+              <pre><code>{
+  "gopls": {
+    "ui.semanticTokens": true
+  }
+}</code></pre>
+              <p><strong>Java</strong>: if the Oracle Java Language Server errors on versions &lt; 17, install Java 17 and set <code>jdk.jdkhome</code> accordingly. Example path on Linux: <code>/usr/lib/jvm/java-17-openjdk-amd64</code>.</p>
+            </li>
+          </ol>
+          <div class="figure">
+            <img src="./assets/python-select-interpreter.png" alt="Select Python interpreter">
+            <div class="cap">Selecting Python interpreter in VS Code.</div>
+          </div>
+          <div class="figure" style="margin-top:8px;">
+            <img src="./assets/interpreter_path_example.png" alt="Interpreter path example">
+            <div class="cap">Example of interpreter path.</div>
+          </div>
+          <div class="figure" style="margin-top:8px;">
+            <img src="./assets/noSymbol.png" alt="No symbols error">
+            <div class="cap">If no symbols are found, install the language server.</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Option A: Download IDE Plugin</h3>
+          <ol>
+            <li>Download from VS Code Marketplace: <a href="https://marketplace.visualstudio.com/items?itemName=LSPRAG.lsprag" target="_blank" rel="noopener">LSPRAG</a>.</li>
+            <li>Install and configure LLM provider in <code>settings.json</code>:</li>
+          </ol>
+          <pre><code>{
+  "LSPRAG": {
+    "provider": "deepseek",    // or: openai, ollama
+    "model": "deepseek-chat",  // e.g., gpt-4o-mini, llama3-70b
+    "openaiApiKey": "your-api-key",
+    "deepseekApiKey": "your-api-key",
+    "localLLMUrl": "http://your-ollama-server:port",
+    "proxyUrl": "your-proxy-server"
+  }
+}</code></pre>
+          <ol start="3">
+            <li>Open target project.</li>
+            <li>[Optional] Compile project to improve diagnostics.</li>
+            <li>Place cursor on a function and run <em>LSPRAG: Generate Unit Test Codes</em>.</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <h3>Option B: Build from Source</h3>
+          <ol>
+            <li>Complete extension installation (see Setup Guide).</li>
+            <li>Launch in Development Mode:
+              <ul>
+                <li>Open <code>/LSPRAG/src/extension.ts</code></li>
+                <li>Press <strong>F5</strong> to launch Extension Development Host</li>
+              </ul>
+            </li>
+            <li>Configure workspace:
+              <ul>
+                <li>Open target project (e.g., <code>experiments/project/black</code>).</li>
+                <li>Select Python interpreter for Python projects.</li>
+              </ul>
+            </li>
           </ol>
         </div>
       </section>
+
       <section>
-        <h2>Artifacts</h2>
+        <h2>Reproduce Experiment Results (Table 3)</h2>
         <div class="panel">
-          <ul>
-            <li>Scripts in <code>scripts/</code> and examples in <code>experiments/</code>.</li>
-            <li>Figures referenced in the overview page under <code>docs/assets/</code>.</li>
-          </ul>
+          <h3>Approach</h3>
+          <p>Two options are available: generate tests manually or use a pre-generated dataset.</p>
+          <h4>Option A: Generate Unit Tests (Manual)</h4>
+          <pre><code>cd /LSPRAG
+npm install
+npm run compile
+
+# Launch development mode
+# Open /LSPRAG/src/extension.ts and press F5
+
+# Run experiment from the command palette
+# LSPRAG::Python-Experiment | LSPRAG::Java-Experiment | LSPRAG::Go-Experiment</code></pre>
+          <h4>Option B: Use Pre-generated Dataset (Recommended)</h4>
+          <p>Download the dataset archive and extract to <code>/LSPRAG/experiments</code>:</p>
+          <pre><code>https://drive.google.com/file/d/1labc05nmta4fhW05RoGuypk4NsoYjHf2/view</code></pre>
+        </div>
+
+        <div class="panel">
+          <h3>Java Projects [Commons-CLI, Commons-CSV]</h3>
+          <h4>Java Setup</h4>
+          <pre><code>cd /LSPRAG/scripts
+wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/efade5fc56a54ee59ed1/?dl=1" -O ../javaLib.tar.gz
+tar xvf ../javaLib.tar.gz
+
+# JARs will be placed under /LSPRAG/experiments/lib</code></pre>
+          <h4>[Optional] Reproduce by Generating New Test Codes</h4>
+          <pre><code># In VS Code: F5 to run, open project, choose model, then
+Ctrl + Shift + P -> LSPRAG::Java-Experiment</code></pre>
+          <p>If running by command-line outside debugging mode, ensure test paths are on the classpath. Example Maven snippet:</p>
+          <pre><code>&lt;build&gt;
+  &lt;testSourceDirectory&gt;src/test/java&lt;/testSourceDirectory&gt;
+  &lt;testResources&gt;
+    &lt;testResource&gt;
+      &lt;directory&gt;src/test/resources&lt;/directory&gt;
+    &lt;/testResource&gt;
+  &lt;/testResources&gt;
+  &lt;plugins&gt;
+    &lt;plugin&gt;
+      &lt;groupId&gt;org.codehaus.mojo&lt;/groupId&gt;
+      &lt;artifactId&gt;build-helper-maven-plugin&lt;/artifactId&gt;
+      &lt;version&gt;3.2.0&lt;/version&gt;
+      &lt;executions&gt;
+        &lt;execution&gt;
+          &lt;id&gt;add-test-source&lt;/id&gt;
+          &lt;phase&gt;generate-test-sources&lt;/phase&gt;
+          &lt;goals&gt;
+            &lt;goal&gt;add-test-source&lt;/goal&gt;
+          &lt;/goals&gt;
+          &lt;configuration&gt;
+            &lt;sources&gt;
+              &lt;source&gt;src/lsprag/test/java&lt;/source&gt;
+            &lt;/sources&gt;
+          &lt;/configuration&gt;
+        &lt;/execution&gt;
+      &lt;/executions&gt;
+    &lt;/plugin&gt;
+  &lt;/plugins&gt;
+&lt;/build&gt;</code></pre>
+          <h4>Commons-CLI Project Setup</h4>
+          <pre><code>mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/apache/commons-cli.git
+cd commons-cli
+mvn install -DskipTests -Drat.skip=true
+mvn dependency:copy-dependencies</code></pre>
+          <h4>Commons-CSV Project Setup</h4>
+          <pre><code>mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/apache/commons-csv.git
+cd commons-csv
+mvn install -DskipTests -Drat.skip=true
+mvn dependency:copy-dependencies</code></pre>
+        </div>
+
+        <div class="panel">
+          <h3>Go Projects [logrus, cobra]</h3>
+          <h4>Logrus Project Setup</h4>
+          <pre><code>mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/sirupsen/logrus.git
+cd logrus
+go env -w GOPROXY=https://goproxy.io,direct
+go mod tidy</code></pre>
+          <h4>Cobra Project Setup</h4>
+          <pre><code>mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/spf13/cobra.git
+cd cobra
+go env -w GOPROXY=https://goproxy.io,direct
+go mod tidy</code></pre>
+        </div>
+
+        <div class="panel">
+          <h3>Python Projects [black, crawl4ai]</h3>
+          <h4>Black Project Setup</h4>
+          <pre><code>mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/psf/black.git
+cd black
+git checkout 8dc912774e322a2cd46f691f19fb91d2237d06e2
+python3 -m venv venv
+source venv/bin/activate
+pip install coverage pytest pytest-json-report
+pip install -r docs/requirements.txt
+pip install -r test_requirements.txt
+pip install click mypy_extensions packaging urllib3 pathspec platformdirs
+echo "version = '00.0.0'" &gt; src/black/_black_version.py
+rm pyproject.toml
+# Copy dataset if using pre-generated data
+cp -r /LSPRAG/experiments/data/black/* .</code></pre>
+          <h4>Crawl4ai Project Setup</h4>
+          <pre><code>mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/unclecode/crawl4ai.git
+cd crawl4ai
+git checkout 8878b3d032fb21ce3567b34db128bfa64687198a
+python3 -m venv venv
+source venv/bin/activate
+pip install coverage pytest selenium pytest-json-report
+pip install -r requirements.txt
+cp -r /LSPRAG/experiments/data/crawl4ai/* .</code></pre>
+        </div>
+      </section>
+
+      <section>
+        <h2>Reproduce Experiment Results (Table 4)</h2>
+        <div class="panel">
+          <p>Analyze tokens and time based on generated logs. Example command (CLI project with gpt-4o-mini):</p>
+          <pre><code>python3 scripts/anal_cost.py \
+  experiments/log-data/commons-cli/results_gpt-4o/logs/gpt-4o \
+  experiments/log-data/commons-csv/results_gpt-4o/logs/gpt-4o</code></pre>
+          <p>Repeat for Go and Python projects by pointing to their respective <code>logs/gpt-4o</code> folders.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Inspect Other Throughput Results</h3>
+          <p>Each dataset folder contains <code>history</code>, <code>logs</code>, and <code>results</code>. Use the <code>logs/gpt-4o</code> paths as inputs to the analysis scripts.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Conclusion</h2>
+        <div class="panel">
+          <p>If you encounter issues, please open an issue or email <a href="mailto:iejw1914@gmail.com">iejw1914@gmail.com</a>.</p>
+          <p><strong>Happy Testing with LSPRAG! 🎉</strong></p>
         </div>
       </section>
     </main>

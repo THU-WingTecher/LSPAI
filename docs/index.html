@@ -184,17 +184,17 @@
                 <img src="./assets/main_experiment_cov_and_val.png" alt="Line coverage and valid rate vs baselines">
                 <div class="cap">Line coverage and valid rate compared with baselines.</div>
               </div>
-              <p class="explain">Explanation: This figure compares LSPRAG against baselines on line coverage and valid test rate across Java, Go, and Python benchmarks.</p>
-              <div class="figure" style="margin-top:12px;">
+              <p class="explain">This overall results show that LSPRAG consistently improves line coverage across all projects, regardless of the programming language or the underlying LLM. LSPRAG's strong performance stems from two primary mechanisms. First, for higher coverage, LSPRAG leverages LSP features like "go to definition" and "find references" to construct a precise semantic dependency graph. This provides the LLM with a complete yet concise context, avoiding the noise of generic RAG and the intra-file blind spots of other methods. Second, to achieve a higher valid rate, LSPRAG utilizes real-time diagnostics on top of LSP to detect and correct syntactic errors in the generated code iteratively. This self-correction loop consistently improves the valid rate of generated test cases, as evidenced by the consistently high valid rates. For detailed explanation, please refer to the paper.</p>
+              <div class="figure" style="margin-top:12px; width:50%; margin-left:auto; margin-right:auto;">
                 <img src="./assets/token_usage.png" alt="Overall token usage including LSPRAG">
                 <div class="cap">Overall token usage across methods including LSPRAG.</div>
               </div>
-              <p class="explain">Explanation: Token usage includes prompt and generation tokens aggregated across tasks; lower is generally cheaper.</p>
+              <p class="explain">LSPRAG averagely uses 2,732 tokens for the initial generation and 1,832 for fixing. While LSPRAG's token consumption is not the lowest in all cases, we consider the gains in coverage justify the trade-off. For instance, compared to CodeQA, LSPRAG uses 39% fewer tokens while achieving a 135% improvement in coverage. When measured against Draco, LSPRAG uses 9.6% more tokens for generation and 24% more for fixing, but these increases yield coverage improvements of 30% and an additional 6%, respectively. Furthermore, LSPRAG demonstrates its efficiency against a RAG approach, delivering a 174% coverage improvement with an 8.9% increase in total tokens used for generation and fixing.</p>
               <div class="figure" style="margin-top:12px;">
                 <img src="./assets/7-3-cost-crop.png" alt="Overall time cost of LSPRAG's function">
                 <div class="cap">Overall time cost of LSPRAG's function.</div>
               </div>
-              <p class="explain">Explanation: End-to-end latency per focal method, including retrieval, generation, and refinement loops.</p>
+              <p class="explain">On average, our tool requires 28.27 seconds and 4,497 tokens per focal method to generate and refine a unit test. As detailed in figure, the majority of this time (approximately 70%) is spent on LLM API querying for generation and refinement. Our retrieval strategy, which includes key token extraction and leveraging the LSP for reference and definition providers, accounts for about 5 seconds of the total time. While the refinement stage constitutes over 30% of the generation time, we consider this a necessary and acceptable trade-off for the improvements it yields in both line coverage and the rate of valid tests.</p>
             </div>
           </div>
         </div>
@@ -207,10 +207,10 @@
             <div class="hd">Cite this work</div>
             <div class="bd">
               <p>If you use LSPRAG in your research, please cite the paper. The PDF is included above.</p>
-              <pre style="white-space:pre-wrap;background:#0c101a;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px;">@inproceedings{lsprag2025,
+              <pre style="white-space:pre-wrap;background:#0c101a;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px;">@inproceedings{lsprag2026,
   title={LSPRAG: Concise Context Retrieval for Multi-language Real-time Unit Test Generation},
   booktitle={ICSE},
-  year={2025}
+  year={2026}
 }</pre>
             </div>
           </div>
