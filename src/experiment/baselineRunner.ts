@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BaselineConfig, BaselineTask, BaselineExperimentResult } from './baselineTypes';
 import { generateTestsSequential, generateTestsParallel } from './baselineTestGenerator';
-
+import { getCost } from './openaiOrgCost';
 /**
  * Options for baseline experiment
  */
@@ -72,7 +72,19 @@ export async function runBaselineExperiment(
     // Generate tests
     const useParallel = options.useParallel !== false; // Default true
     const concurrency = options.concurrency || 4;
-
+    // ========== GET INITIAL COST ==========
+    let beforeCost: number | undefined;
+    let finalCost: number | undefined;
+    let experimentCost: number | undefined;
+    
+    try {
+        console.log('Querying initial cost...');
+        beforeCost = await getCost();
+        console.log(`Initial cost: $${beforeCost.toFixed(4)}\n`);
+    } catch (error) {
+        console.warn('Failed to query initial cost:', error);
+        console.log('Continuing without cost tracking...\n');
+    }
     console.log(`Generating tests (${useParallel ? `parallel, concurrency=${concurrency}` : 'sequential'})...\n`);
 
     const results = useParallel
@@ -98,6 +110,21 @@ export async function runBaselineExperiment(
             }
         );
 
+    // ========== GET FINAL COST ==========
+    try {
+        console.log('\nQuerying final cost...');
+        finalCost = await getCost();
+        console.log(`Final cost: $${finalCost.toFixed(4)}`);
+        
+        if (beforeCost !== undefined) {
+            experimentCost = finalCost - beforeCost;
+            console.log(`Experiment cost: $${experimentCost.toFixed(4)}\n`);
+        }
+    } catch (error) {
+        console.warn('Failed to query final cost:', error);
+    }
+    // ====================================
+
     // Calculate statistics
     const successCount = results.filter(r => r.success).length;
     const failureCount = results.filter(r => !r.success).length;
@@ -113,6 +140,9 @@ export async function runBaselineExperiment(
         warningCount,
         outputDir: config.outputDir,
         totalExecutionTimeMs,
+        beforeCost,           // ← Add
+        finalCost,            // ← Add
+        experimentCost,       // ← Add
         results,
         timestamp: new Date().toISOString()
     };
@@ -154,6 +184,9 @@ export async function runBaselineExperiment(
     console.log(`Failed: ${failureCount}`);
     console.log(`Warnings: ${warningCount}`);
     console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
+    if (experimentCost !== undefined) {
+        console.log(`Experiment Cost: $${experimentCost.toFixed(4)}`);  // ← Add
+    }
     console.log(`Output Directory: ${config.outputDir}`);
     console.log(`Summary: ${summaryPath}`);
     console.log(`Test Mapping: ${mappingPath}\n`);

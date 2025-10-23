@@ -60,6 +60,9 @@ export class Writer {
             detail: v.detail,
             test_file: String(v.testFile),
             log_path: String(v.logPath),
+            focal_module: v.focalModule ?? null,
+            focal_function: v.focalFunction ?? null,
+            source_file: v.sourceFile ?? null,
           },
         ])
       ),

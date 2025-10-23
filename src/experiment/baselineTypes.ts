@@ -49,7 +49,9 @@ export interface BaselineExperimentResult {
     warningCount: number;
     outputDir: string;
     totalExecutionTimeMs: number;
+    beforeCost?: number;        // ← Add
+    finalCost?: number;         // ← Add
+    experimentCost?: number;    // ← Add (final - before)
     results: BaselineTestResult[];
     timestamp: string;
 }
-

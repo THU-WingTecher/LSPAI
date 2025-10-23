@@ -25,6 +25,20 @@ export interface CCRResponse {
 }
 
 /**
+ * Log entry with metadata
+ */
+export interface CCRLogEntry {
+    prompt: string;
+    name: string;
+    response: string;
+    sessionId: string;
+    startTime: string;
+    endTime: string;
+    durationMs: number;
+    timestamp: number;
+}
+
+/**
  * Manager for running claude-code-router programmatically
  * Based on CLI approach: ccr code -p "prompt" --session-id <UUID> --output-format json
  */
@@ -32,13 +46,27 @@ export class ClaudeCodeRouterManager {
     private sessionId: string;
     private outputDir: string;
     private projectDir: string;
+    private currentDateDir: string;
+    private logsDir: string;
+    private codesDir: string;
 
     constructor(config: ClaudeCodeRouterConfig = {}) {
         this.sessionId = config.sessionId || randomUUID();
-        this.outputDir = config.outputDir || path.join(process.cwd(), 'ccr-outputs');
         this.projectDir = config.projectDir || '/LSPRAG';
-        if (!fs.existsSync(this.outputDir)) {
-            fs.mkdirSync(this.outputDir, { recursive: true });
+        
+        // Create date-based directory structure: YYYY-MM-DD/
+        const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        this.currentDateDir = config.outputDir || path.join(process.cwd(), 'ccr-outputs', currentDate);
+        this.logsDir = path.join(this.currentDateDir, 'logs');
+        this.codesDir = path.join(this.currentDateDir, 'codes');
+        this.outputDir = this.logsDir; // Keep compatibility
+        
+        // Create directories
+        if (!fs.existsSync(this.logsDir)) {
+            fs.mkdirSync(this.logsDir, { recursive: true });
+        }
+        if (!fs.existsSync(this.codesDir)) {
+            fs.mkdirSync(this.codesDir, { recursive: true });
         }
     }
 
@@ -66,15 +94,16 @@ export class ClaudeCodeRouterManager {
      * @returns Promise with response content
      */
     public async runPrompt(prompt: string, outputName?: string): Promise<string> {
+        const startTime = new Date();
         const timestamp = Date.now();
         const fileName = outputName || `prompt_${timestamp}`;
-        const outputFile = path.join(this.outputDir, `${fileName}.json`);
+        const outputFile = path.join(this.logsDir, `${fileName}.json`);
 
         console.log(`Running prompt: ${prompt.substring(0, 60)}...`);
         console.log(`Session ID: ${this.sessionId}`);
 
         // Write prompt to a temporary file to avoid bash escaping issues
-        const tempPromptFile = path.join(this.outputDir, `${fileName}_prompt.txt`);
+        const tempPromptFile = path.join(this.logsDir, `${fileName}_prompt.txt`);
         fs.writeFileSync(tempPromptFile, prompt, 'utf-8');
 
         // Build ccr command - read prompt from file via stdin
@@ -141,7 +170,11 @@ export class ClaudeCodeRouterManager {
             }
         }
 
+        const endTime = new Date();
+        const durationMs = endTime.getTime() - startTime.getTime();
+
         console.log(`✓ Saved to: ${outputFile}`);
+        console.log(`✓ Duration: ${durationMs}ms (${(durationMs / 1000).toFixed(2)}s)`);
 
         const fileContent = fs.readFileSync(outputFile, 'utf-8');
         
@@ -153,8 +186,24 @@ export class ClaudeCodeRouterManager {
             content = fileContent;
         }
 
-        const txtFile = outputFile.replace('.json', '.txt');
-        fs.writeFileSync(txtFile, content);
+        // Create enhanced log entry with metadata
+        const logEntry: CCRLogEntry = {
+            prompt: prompt,
+            name: fileName,
+            response: content,
+            sessionId: this.sessionId,
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            durationMs: durationMs,
+            timestamp: timestamp
+        };
+
+        // Save enhanced log file
+        fs.writeFileSync(outputFile, JSON.stringify(logEntry, null, 2));
+
+        // Save text response
+        // const txtFile = outputFile.replace('.json', '.txt');
+        // fs.writeFileSync(txtFile, content);
 
         return content;
     }
@@ -219,10 +268,31 @@ export class ClaudeCodeRouterManager {
     }
 
     /**
-     * Get output directory
+     * Get output directory (logs directory)
      */
     public getOutputDir(): string {
         return this.outputDir;
+    }
+
+    /**
+     * Get logs directory
+     */
+    public getLogsDir(): string {
+        return this.logsDir;
+    }
+
+    /**
+     * Get codes directory for test files
+     */
+    public getCodesDir(): string {
+        return this.codesDir;
+    }
+
+    /**
+     * Get current date directory
+     */
+    public getCurrentDateDir(): string {
+        return this.currentDateDir;
     }
 
     /**

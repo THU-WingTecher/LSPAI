@@ -457,7 +457,238 @@ export class Analyzer {
     };
   }
 
+  private parseGoTestJson(logPath: string): { testName: string; action: string; output?: string }[] {
+    const results: { testName: string; action: string; output?: string }[] = [];
+    const content = fs.readFileSync(logPath, 'utf-8');
+    const lines = content.split('\n');
+    
+    for (const line of lines) {
+      if (!line.trim()) {
+        continue;
+      }
+      
+      // Skip non-JSON lines (headers, etc.)
+      if (line.startsWith('===') || line.startsWith('='.repeat(80))) {
+        continue;
+      }
+      
+      try {
+        const parsed = JSON.parse(line);
+        if (parsed.Test && parsed.Action) {
+          results.push({
+            testName: parsed.Test,
+            action: parsed.Action,
+            output: parsed.Output || ''
+          });
+        }
+      } catch (e) {
+        // Not JSON, skip
+        continue;
+      }
+    }
+    
+    return results;
+  }
+
+  private parseGoTestFileName(fileName: string): { focalModule: string; focalFunction: string; focalRandom: string } | null {
+    // Pattern: {module}_{method}_{randomNumber}_test.go
+    // Examples: command_HasNameOrAliasPrefix_4921_test.go
+    
+    const baseName = fileName.replace('_test.go', '');
+    const parts = baseName.split('_');
+    
+    if (parts.length < 3) {
+      return null; // Invalid pattern
+    }
+    
+    // The last part should be the random number
+    const randomNumber = parts[parts.length - 1];
+    if (!/^\d+$/.test(randomNumber)) {
+      return null; // Last part is not a number
+    }
+    
+    // Remove the random number from consideration
+    const beforeRandom = parts.slice(0, -1);
+    
+    if (beforeRandom.length < 2) {
+      return null; // Need at least module and function
+    }
+    
+    // For Go: first part is module, rest is function name
+    const focalModule = beforeRandom[0];
+    const focalFunction = beforeRandom.slice(1).join('_');
+    
+    return {
+      focalModule,
+      focalFunction,
+      focalRandom: randomNumber
+    };
+  }
+
+  private extractGoTestResults(logPath: string, testFilePath: string): TestCaseResult[] {
+    if (!fs.existsSync(logPath)) {
+      return [];
+    }
+    
+    const testResults = this.parseGoTestJson(logPath);
+    const testFileName = path.basename(testFilePath);
+    
+    // Parse test file name for focal method info
+    const parsed = this.parseGoTestFileName(testFileName);
+    const focalModule = parsed?.focalModule || null;
+    const focalFunction = parsed?.focalFunction || null;
+    const focalRandom = parsed?.focalRandom || null;
+    
+    // Get source file mapping
+    const matchedSource = this.findSourceFileForTest(testFilePath, focalFunction);
+    const sourceFile = matchedSource || null;
+    
+    // Group test results by test name to get final action
+    const testMap = new Map<string, { action: string; outputs: string[] }>();
+    
+    for (const result of testResults) {
+      if (!testMap.has(result.testName)) {
+        testMap.set(result.testName, { action: result.action, outputs: [] });
+      }
+      const entry = testMap.get(result.testName)!;
+      
+      // Update action (pass/fail overrides run/output)
+      if (result.action === 'pass' || result.action === 'fail' || result.action === 'skip') {
+        entry.action = result.action;
+      }
+      
+      // Collect outputs
+      if (result.output && result.output.trim()) {
+        entry.outputs.push(result.output.trim());
+      }
+    }
+    
+    const out: TestCaseResult[] = [];
+    const passed: string[] = [];
+    const failed: Record<string, string> = {};
+    const skipped: string[] = [];
+    
+    for (const [testName, entry] of testMap.entries()) {
+      if (entry.action === 'pass') {
+        passed.push(testName);
+      } else if (entry.action === 'fail') {
+        const errorDetail = entry.outputs.join('\n');
+        failed[testName] = errorDetail;
+      } else if (entry.action === 'skip') {
+        skipped.push(testName);
+      }
+    }
+    
+    // Log the test results with proper formatting
+    console.log(`[ANALYZER] Processing ${testFileName}:`);
+    console.log(`[ANALYZER]   Passed: ${passed.length} tests - ${passed.join(', ')}`);
+    console.log(`[ANALYZER]   Failed: ${Object.keys(failed).length} tests - ${Object.keys(failed).join(', ')}`);
+    console.log(`[ANALYZER]   Skipped: ${skipped.length} tests - ${skipped.join(', ')}`);
+    
+    // If there are failures, print details
+    if (Object.keys(failed).length > 0) {
+      console.log(`[ANALYZER] Failure details for ${testFileName}:`);
+      for (const [testName, errorDetail] of Object.entries(failed)) {
+        console.log(`[ANALYZER]   - ${testName}:`);
+        console.log(`[ANALYZER]     ${errorDetail.substring(0, 200)}...`);
+      }
+    }
+    
+    // Check if no tests were found - indicates build error or other issue
+    if (testMap.size === 0) {
+      console.log(`[ANALYZER] No test results found in log, checking for build errors...`);
+      const content = fs.readFileSync(logPath, 'utf-8');
+      const hasError = content.includes('FAIL') || content.includes('build failed') || content.includes('cannot find');
+      
+      if (hasError) {
+        console.log(`[ANALYZER] Build/compilation error detected`);
+        // Return a single error entry for the file
+        out.push({
+          codeName: `${testFileName}::BuildError`,
+          status: 'Errored',
+          errorType: 'BuildError',
+          detail: 'Test file failed to compile or build',
+          testFile: testFilePath,
+          logPath,
+          focalModule,
+          focalFunction,
+          focalRandom,
+          sourceFile,
+          implementationOrigin: null,
+          importLine: null,
+          modulePath: null
+        });
+        return out;
+      }
+    }
+    
+    // Create TestCaseResult for passed tests
+    for (const testName of passed) {
+      out.push({
+        codeName: testName,
+        status: 'Passed',
+        errorType: null,
+        detail: '',
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      });
+    }
+    
+    // Create TestCaseResult for failed tests
+    for (const [testName, errorDetail] of Object.entries(failed)) {
+      out.push({
+        codeName: testName,
+        status: 'Failed',
+        errorType: 'TestFailure',
+        detail: errorDetail,
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      });
+    }
+    
+    // Create TestCaseResult for skipped tests (optional)
+    for (const testName of skipped) {
+      out.push({
+        codeName: testName,
+        status: 'Skipped',
+        errorType: null,
+        detail: 'Test skipped',
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      });
+    }
+    
+    return out;
+  }
+
   private extractResultsFromLog(logPath: string, testFilePath: string): TestCaseResult[] {
+    // Branch based on language
+    if (this.language === 'go') {
+      return this.extractGoTestResults(logPath, testFilePath);
+    }
+    
+    // Python test parsing (existing logic)
     if (!fs.existsSync(logPath)) {
       return [];
     }

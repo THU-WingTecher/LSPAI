@@ -67,8 +67,11 @@ export function generateTestFileName(params: FileNameParams): string {
     // Use core logic to get base name
     const baseName = generateFileNameCore(params);
     
+    // add random number to the base name
+    const randomNum = Math.floor(Math.random() * 9000) + 1000;
+    const baseNameWithRandom = `${baseName}_${randomNum}`;
     // Add test suffix and file extension
-    return addTestSuffix(baseName, params.languageId);
+    return addTestSuffix(baseNameWithRandom, params.languageId);
 }
 
 /**

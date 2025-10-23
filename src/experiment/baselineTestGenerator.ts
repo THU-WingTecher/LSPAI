@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ClaudeCodeRouterManager } from './claudeCodeRouter';
 import { BaselineTask, BaselineTestResult } from './baselineTypes';
-import { buildTestPrompt, detectLanguage } from './baselineTemplateBuilder';
+import { buildTestPrompt, detectLanguage, generateSystemPrompt } from './baselineTemplateBuilder';
 import { extractCleanCode } from './codeExtractor';
 import { generateTestFileName, FileNameParams } from './fileNameGenerator';
 
@@ -39,13 +39,13 @@ export async function generateTest(
         const languageId = detectLanguage(task.relativeDocumentPath);
         console.log(`   Language: ${languageId}`);
 
-        // Build prompt
+        const systemPrompt = generateSystemPrompt()
         const prompt = buildTestPrompt(task, languageId);
         console.log(`   Prompt length: ${prompt.length} chars`);
 
         // Run through CC
         const outputName = `${task.symbolName}_${Date.now()}`;
-        const response = await ccrManager.runPrompt(prompt, outputName);
+        const response = await ccrManager.runPrompt(systemPrompt + "\n\n" + prompt, outputName);
         console.log(`   Response length: ${response.length} chars`);
         console.log(`   Response: ${response}`);
 
@@ -75,7 +75,7 @@ export async function generateTest(
             relativeFilePath: task.relativeDocumentPath
         };
         const testFileName = generateTestFileName(fileNameParams);
-        const outputPath = path.join(outputDir, testFileName);
+        const outputPath = path.join(ccrManager.getCodesDir(), testFileName);
 
         // Save test code
         await fs.promises.writeFile(outputPath, code, 'utf8');

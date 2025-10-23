@@ -1,9 +1,14 @@
 .env.sh
 new_data
 core
+cc-tests/
 experiments/baselines/rag/embeddings/
 experiments/settings/
 experiments/lsprag_data/
+experiments/projects/
+experiments/venv/
+experiments/data
+
 .env
 *.pyc
 diagnostic*
@@ -19,8 +24,6 @@ node_modules
 package-lock.json
 tsconfig.tsbuildinfo
 tsconfig.json
-experiments/projects/
-experiments/venv/
 temp/
 **/temp*.test.ts
 *.html
@@ -39,5 +42,4 @@ package-lock.json
 *.tar.gz
 venv/
 logs/
-experiments/data
 test-config.json

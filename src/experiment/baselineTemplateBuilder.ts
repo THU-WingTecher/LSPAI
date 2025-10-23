@@ -10,12 +10,12 @@ import * as path from 'path';
  * Generate system prompt (matching Python version)
  */
 export function generateSystemPrompt(): string {
-    return `You are a powerful AI coding assistant, powered by Claude 3.7 Sonnet. You operate exclusively in LSPRAG, the world's best tool for unit test generation. 
-
-<test_generation>
+    return `<test_generation>
 1. Generate DIVERSE test cases so that maximize coverage of the given focal methods.
 2. When generating test cases, you should consider the context of the source code.
-3. After generating code, generate unit test case follow below unit test format. Final Code should be wrapped by \`\`\`.
+3. After generating code, generate unit test case follow below unit test format. 
+4. You should RETURN the test code only, without any additional explanations. The Final Code should be wrapped by \`\`\`.
+5. You can use tool defined for searching relevant context or inspect the potential errors.
 </test_generation>`;
 }
 

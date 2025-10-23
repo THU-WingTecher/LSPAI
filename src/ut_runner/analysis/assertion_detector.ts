@@ -47,14 +47,14 @@ export async function detectRedefinedAssertions(
 
     console.log(`#### Source Symbol: ${symbol.name}`);
     const tree = await buildDefTree(srcDoc, symbol, 5);
-
+    console.log('#### Definition Tree: ', prettyPrintDefTree(tree));
     // Collect all referenced names from the dependency tree
     const referencedNames = collectReferencedNames(tree);
     console.log(`### Referenced Names: ${Array.from(referencedNames).map(n => n.name).join(', ')}`);
 
     // Build symbol map from test file
     const testNameToSymbols = buildTestSymbolMap(testFileSymbols);
-
+    console.log('#### TestNameToSymbols: ', Array.from(testNameToSymbols));
     // Find redefined symbols
     const redefinedSymbols = await findRedefinedSymbols(referencedNames, testNameToSymbols);
 
