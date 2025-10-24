@@ -62,7 +62,7 @@ export async function copilotServer() : Promise<MessageConnection> {
     console.error('Copilot stderr:', data.toString());
   });
 
-  connection.onError((error) => {
+  connection.onError(([error]: [Error, any, any]) => {
     console.error('Connection Error:', error);
   });
 
@@ -71,7 +71,7 @@ export async function copilotServer() : Promise<MessageConnection> {
   });
 
   // You can also listen for server-initiated notifications/logs:
-  connection.onNotification((method, params) => {
+  connection.onNotification((method: string, params: any) => {
     console.log('[Notification] Method:', method, 'Params:', params);
   });
 
