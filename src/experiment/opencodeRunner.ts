@@ -1,7 +1,9 @@
 /**
- * Baseline Experiment Runner (independent of VSCode/LSPRAG)
+ * OpenCode Experiment Runner (independent of VSCode/LSPRAG)
  * 
- * This is a standalone baseline for unit test generation using Claude Code Router.
+ * This is a standalone experiment runner for unit test generation using OpenCode SDK.
+ * It mirrors the baseline experiment structure but uses OpenCode instead of CCR.
+ * 
  * It does NOT depend on:
  * - VSCode API
  * - LSPRAG configuration (generation_type, fix_type, etc.)
@@ -10,37 +12,38 @@
  * It simply:
  * 1. Reads task list JSON
  * 2. Generates prompts from templates
- * 3. Sends to Claude Code Router
+ * 3. Sends to OpenCode
  * 4. Extracts and saves generated tests
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { BaselineConfig, BaselineTask, BaselineExperimentResult } from './baselineTypes';
-import { generateTestsSequential, generateTestsParallel } from './baselineTestGenerator';
+import { generateTestsSequential, generateTestsParallel } from './opencodeTestGenerator';
 import { getCost } from './openaiOrgCost';
+
 /**
- * Options for baseline experiment
+ * Options for OpenCode experiment
  */
-export interface BaselineRunOptions {
+export interface OpencodeRunOptions {
     useParallel?: boolean;
     concurrency?: number;
 }
 
 /**
- * Run baseline unit test generation experiment
+ * Run OpenCode unit test generation experiment
  * 
- * @param config - Baseline configuration
+ * @param config - Baseline configuration (reused for compatibility)
  * @param options - Execution options
  * @returns Experiment results
  */
-export async function runBaselineExperiment(
+export async function runOpencodeExperiment(
     config: BaselineConfig,
-    options: BaselineRunOptions = {}
+    options: OpencodeRunOptions = {}
 ): Promise<BaselineExperimentResult> {
     const startTime = Date.now();
 
-    console.log('=== Baseline CC Unit Test Generation Experiment ===\n');
+    console.log('=== OpenCode Unit Test Generation Experiment ===\n');
     console.log('Configuration:');
     console.log(`  Task List: ${config.taskListPath}`);
     console.log(`  Project Root: ${config.projectRoot}`);
@@ -59,56 +62,88 @@ export async function runBaselineExperiment(
         fs.mkdirSync(config.outputDir, { recursive: true });
     }
 
-    // Setup CCR output directory (each task will get its own session)
-    const ccrOutputDir = path.join(config.outputDir, 'ccr-outputs');
-    if (!fs.existsSync(ccrOutputDir)) {
-        fs.mkdirSync(ccrOutputDir, { recursive: true });
+    // Setup OpenCode output directory (each task will get its own session)
+    const opencodeOutputDir = path.join(config.outputDir, 'opencode-outputs');
+    if (!fs.existsSync(opencodeOutputDir)) {
+        fs.mkdirSync(opencodeOutputDir, { recursive: true });
     }
 
-    console.log('Claude Code Router setup:');
-    console.log(`  CCR Output: ${ccrOutputDir}`);
+    console.log('OpenCode SDK setup:');
+    console.log(`  OpenCode Output: ${opencodeOutputDir}`);
     console.log(`  Note: Each task gets its own unique session ID\n`);
+
+    // Initialize shared OpenCode server/client (to avoid port conflicts)
+    console.log('Initializing shared OpenCode server...');
+    let sharedClient: any = null;
+    let serverCleanup: (() => void) | null = null;
+    
+    try {
+        const sdk = await (eval('import("@opencode-ai/sdk")') as Promise<any>);
+        const result = await sdk.createOpencode({
+            workspaceDir: config.projectRoot
+        });
+        sharedClient = result.client;
+        serverCleanup = result.server.close;
+        console.log('✓ Shared OpenCode server initialized\n');
+    } catch (error: any) {
+        console.error('✗ Failed to initialize shared OpenCode server:', error.message);
+        throw new Error(`Failed to initialize shared OpenCode server: ${error.message}`);
+    }
 
     // Generate tests
     const useParallel = options.useParallel !== false; // Default true
     const concurrency = options.concurrency || 4;
+
     // ========== GET INITIAL COST ==========
     let beforeCost: number | undefined;
     let finalCost: number | undefined;
     let experimentCost: number | undefined;
     
-    try {
-        console.log('Querying initial cost...');
-        beforeCost = await getCost();
-        console.log(`Initial cost: $${beforeCost.toFixed(4)}\n`);
-    } catch (error) {
-        console.warn('Failed to query initial cost:', error);
-        console.log('Continuing without cost tracking...\n');
-    }
+    // try {
+    //     console.log('Querying initial cost...');
+    //     beforeCost = await getCost();
+    //     console.log(`Initial cost: $${beforeCost.toFixed(4)}\n`);
+    // } catch (error) {
+    //     console.warn('Failed to query initial cost:', error);
+    //     console.log('Continuing without cost tracking...\n');
+    // }
+
     console.log(`Generating tests (${useParallel ? `parallel, concurrency=${concurrency}` : 'sequential'})...\n`);
 
-    const results = useParallel
-        ? await generateTestsParallel(
-            tasks,
-            ccrOutputDir,
-            config.projectRoot,
-            config.outputDir,
-            config.model,
-            concurrency,
-            (completed, total, taskName) => {
-                console.log(`[${completed}/${total}] Completed: ${taskName}`);
-            }
-        )
-        : await generateTestsSequential(
-            tasks,
-            ccrOutputDir,
-            config.projectRoot,
-            config.outputDir,
-            config.model,
-            (completed, total, taskName) => {
-                console.log(`[${completed}/${total}] Completed: ${taskName}`);
-            }
-        );
+    let results: any[];
+    try {
+        results = useParallel
+            ? await generateTestsParallel(
+                tasks,
+                opencodeOutputDir,
+                config.projectRoot,
+                config.outputDir,
+                config.model,
+                concurrency,
+                (completed, total, taskName) => {
+                    console.log(`[${completed}/${total}] Completed: ${taskName}`);
+                },
+                sharedClient
+            )
+            : await generateTestsSequential(
+                tasks,
+                opencodeOutputDir,
+                config.projectRoot,
+                config.outputDir,
+                config.model,
+                (completed, total, taskName) => {
+                    console.log(`[${completed}/${total}] Completed: ${taskName}`);
+                },
+                sharedClient
+            );
+    } finally {
+        // Cleanup: close the shared OpenCode server
+        if (serverCleanup) {
+            console.log('\nCleaning up shared OpenCode server...');
+            serverCleanup();
+            console.log('✓ Shared OpenCode server closed\n');
+        }
+    }
 
     // ========== GET FINAL COST ==========
     // try {
@@ -140,9 +175,9 @@ export async function runBaselineExperiment(
         warningCount,
         outputDir: config.outputDir,
         totalExecutionTimeMs,
-        beforeCost,           // ← Add
-        finalCost,            // ← Add
-        experimentCost,       // ← Add
+        beforeCost,
+        finalCost,
+        experimentCost,
         results,
         timestamp: new Date().toISOString()
     };
@@ -185,7 +220,7 @@ export async function runBaselineExperiment(
     console.log(`Warnings: ${warningCount}`);
     console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
     if (experimentCost !== undefined) {
-        console.log(`Experiment Cost: $${experimentCost.toFixed(4)}`);  // ← Add
+        console.log(`Experiment Cost: $${experimentCost.toFixed(4)}`);
     }
     console.log(`Output Directory: ${config.outputDir}`);
     console.log(`Summary: ${summaryPath}`);
@@ -218,20 +253,20 @@ async function loadTaskList(taskListPath: string): Promise<BaselineTask[]> {
 /**
  * Quick helper function to run experiment from CLI-style arguments
  */
-export async function runBaselineFromArgs(
+export async function runOpencodeFromArgs(
     taskListPath: string,
     projectRoot: string,
     model: string,
     provider: string,
     outputDir?: string,
-    options: BaselineRunOptions = {}
+    options: OpencodeRunOptions = {}
 ): Promise<BaselineExperimentResult> {
     // Generate output directory if not provided
     if (!outputDir) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         outputDir = path.join(
             process.cwd(),
-            'cc-tests',
+            'opencode-tests',
             model,
             timestamp
         );
@@ -245,6 +280,6 @@ export async function runBaselineFromArgs(
         provider
     };
 
-    return await runBaselineExperiment(config, options);
+    return await runOpencodeExperiment(config, options);
 }
 
