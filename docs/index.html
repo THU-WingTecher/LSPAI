@@ -50,13 +50,14 @@
   <body>
     <header class="hero">
       <div class="container">
-        <h1 class="title">LSPRAG: Concise Context Retrieval for Multi-language Real-time Unit Test Generation</h1>
-        <p class="subtitle">Artifact overview — abstract, motivation, design, experiments, and citation.</p>
+        <h1 class="title">LSPRAG: LSP-Guided RAG for Language-Agnostic Real-Time Unit Test Generation</h1>
         <div class="cta">
           <a class="btn primary" href="./assets/paper.pdf" target="_blank" rel="noopener">PDF</a>
-          <a class="btn" href="#citation">CITE</a>
+          <a class="btn" href="https://github.com/THU-WingTecher/LSPRAG">Source Code</a>
+          <a class="btn" href="#extension">VSCode Extension</a>
           <a class="btn" href="#system-design">System Design</a>
           <a class="btn" href="#experiments">Experiments</a>
+          <a class="btn" href="#citation">CITE</a>
         </div>
       </div>
     </header>
@@ -170,13 +171,13 @@
               </div>
             </div>
           </div>
-          <h2 style="margin-top:16px;"><a href="./experiment_reproduction.html">See Experiment Reproduction — how to run our pipeline</a></h2>
         </div>
       </section>
 
       <section id="experiments">
         <div class="container">
           <h2>Overall Experiments</h2>
+          <h2 style="margin-top:16px;"><a href="./experiment_reproduction.html">If you want to reproduce our experiment, click here</a></h2>
           <div class="panel">
             <div class="hd">Coverage, Valid Rate, Tokens, and Latency</div>
             <div class="bd">
@@ -200,18 +201,48 @@
         </div>
       </section>
 
+      <section id="extension">
+        <div class="container">
+          <h2>VSCode Extension</h2>
+          <div class="panel">
+            <div class="hd">Installation, Usage & Architecture</div>
+            <div class="bd">
+              <p>LSPRAG is available as a VS Code extension that integrates Language Server Protocol for semantic analysis and leverages LLMs to generate high-quality unit tests.</p>
+              <p style="margin-top:12px;"><strong><a href="./extension.html">→ View Complete Extension Documentation</a></strong></p>
+              <p style="margin-top:8px;">The extension documentation includes:</p>
+              <ul>
+                <li>Step-by-step installation guide</li>
+                <li>Usage instructions with screenshots</li>
+                <li>Detailed system architecture analysis</li>
+                <li>Core module explanations</li>
+                <li>Configuration options reference</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="citation">
         <div class="container">
           <h2>Citation</h2>
           <div class="panel">
             <div class="hd">Cite this work</div>
             <div class="bd">
-              <p>If you use LSPRAG in your research, please cite the paper. The PDF is included above.</p>
-              <pre style="white-space:pre-wrap;background:#0c101a;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px;">@inproceedings{lsprag2026,
-  title={LSPRAG: Concise Context Retrieval for Multi-language Real-time Unit Test Generation},
-  booktitle={ICSE},
-  year={2026}
-}</pre>
+              <p>If you use LSPRAG in your research, please cite the paper.</p>
+              <pre style="white-space:pre-wrap;background:#0c101a;border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px;">
+@inproceedings{GoLSPRAG2026icse,
+  author    = {{Gwihwan Go} and {Quan Zhang} and {Chijin Zhou} and {Zhao Wei} and {Yu Jiang}},
+  title     = {LSPRAG: LSP-Guided RAG for Language-Agnostic Real-Time Unit Test Generation},
+  year      = {2026},
+  isbn      = {979-8-4007-2025-3},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  doi       = {10.1145/3744916.3773189},
+  booktitle = {Proceedings of the 48th International Conference on Software Engineering},
+  location  = {Rio de Janeiro, Brazil},
+  series    = {ICSE '26}
+}
+            </pre>
             </div>
           </div>
         </div>
@@ -221,7 +252,7 @@
     <footer>
       <div class="container">
         <div>© <span id="year"></span> LSPRAG Artifact</div>
-        <div class="note">This page is standalone; all assets are local to this folder.</div>
+        <div class="note">This work is licensed under Apache License.</div>
       </div>
     </footer>
 

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSPRAG — VSCode Extension</title>
+    <link rel="stylesheet" href="./assets/simple.css">
+  </head>
+  <body>
+    <header>
+      <h1>LSPRAG VSCode Extension</h1>
+      <p>Comprehensive guide to installation, usage, and system architecture.</p>
+      <p><a href="./index.html">Back to Overview</a></p>
+    </header>
+    <main>
+      <section>
+        <h2>Installation & Setup</h2>
+        <div class="panel">
+          <h3>Prerequisites</h3>
+          <ul>
+            <li>VS Code: Version 1.95.0 or higher</li>
+            <li>Node.js: Version 20 or higher</li>
+          </ul>
+          <h3>Installation Steps</h3>
+          <ol>
+            <li><strong>Download Source Code:</strong> Use <code>git clone</code> or download the ZIP file directly.</li>
+            <li><strong>Setup Project:</strong>
+              <pre><code>cd LSPRAG
+npm install --force
+npm run compile</code></pre>
+            </li>
+            <li><strong>Install Language Server Extensions:</strong>
+              <ul>
+                <li><strong>Python:</strong> Install "Pylance" and "Python" extensions</li>
+                <li><strong>Java:</strong> Install "Oracle Java Extension Pack"</li>
+                <li><strong>Go:</strong> Install "Go" extension and enable semantic tokens in settings</li>
+              </ul>
+              <div class="figure" style="margin-top:8px; width:50%;">
+                <img src="./assets/language_server.png" alt="Language Server Integration">
+                <div class="cap">Language Server Integration in VS Code.</div>
+              </div>
+            </li>
+            <li><strong>Activate Extension:</strong>
+              <ul>
+                <li>Navigate to <code>src/extension.ts</code></li>
+                <li>Click "Run and Debug" and select "VS Code Extension Development"</li>
+              </ul>
+              <div class="figure" style="margin-top:8px;">
+                <img src="./assets/vscodeExtensionDevlopment.png" alt="Activate Extension">
+                <div class="cap">Activating the extension in VS Code.</div>
+              </div>
+            </li>
+            <li><strong>Configure LLM Settings:</strong> In the newly opened editor, configure your LLM provider in <code>settings.json</code>:
+              <pre><code>{
+  "LSPRAG": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "deepseekApiKey": "your-api-key",
+    "openaiApiKey": "your-openai-key",
+    "localLLMUrl": "http://localhost:11434",
+    "savePath": "lsprag-tests",
+    "promptType": "detailed",
+    "generationType": "original",
+    "maxRound": 3
+  }
+}</code></pre>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section>
+        <h2>Usage</h2>
+        <div class="panel">
+          <h3>Basic Workflow</h3>
+          <ol>
+            <li><strong>Open Your Project:</strong> Navigate to your target project in the new VS Code editor.</li>
+            <li><strong>Generate Tests:</strong>
+              <ul>
+                <li>Navigate to any function or method</li>
+                <li>Right-click within the function definition</li>
+                <li>Select <strong>"LSPRAG: Generate Unit Test"</strong> from the context menu</li>
+              </ul>
+              <div class="figure" style="margin-top:8px;">
+                <img src="./assets/CommandFig.png" alt="Generate Unit Test Command">
+                <div class="cap">Generate Unit Test command in context menu.</div>
+              </div>
+              <div class="figure" style="margin-top:8px;">
+                <img src="./assets/loading.png" alt="Waiting for generation" style="width:50%;">
+                <div class="cap">Waiting for test generation to complete.</div>
+              </div>
+            </li>
+            <li><strong>Review & Deploy:</strong> Generated tests will appear with accept/reject options.
+              <div class="figure" style="margin-top:8px;">
+                <img src="./assets/UnitGenResult.png" alt="Final Result" style="width:50%;">
+                <div class="cap">Final generated unit test result.</div>
+              </div>
+            </li>
+          </ol>
+          <h3>Command Palette Commands</h3>
+          <ul>
+            <li><code>LSPRAG: Generate Unit Test</code> - Generate tests for selected function</li>
+            <li><code>LSPRAG: Show Current Settings</code> - Display current configuration</li>
+            <li><code>LSPRAG: Test LLM</code> - Test LLM connectivity and configuration</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>System Architecture</h2>
+
+        <div class="panel">
+          <h3>Core Modules</h3>
+          <h4>1. Extension Entry Point (<code>extension.ts</code>)</h4>
+          <p>Main activation point for the VS Code extension. Registers commands, initializes configuration, and orchestrates the test generation workflow.</p>
+
+          <h4>2. Generation Pipeline (<code>generate.ts</code>)</h4>
+          <p><strong>Purpose:</strong> Orchestrates the entire test generation process.</p>
+          <ul>
+            <li><code>collectInfo()</code> - Gathers context including dependencies, references, and source code</li>
+            <li><code>generateUnitTestForSelectedRange()</code> - Main entry for generating tests from cursor position</li>
+            <li>Integrates with LSP to extract semantic information</li>
+            <li>Delegates to strategy generators for actual test creation</li>
+          </ul>
+
+          <h4>3. Fix & Refinement (<code>fix.ts</code>)</h4>
+          <p><strong>Purpose:</strong> Iteratively refines generated tests using LSP diagnostics.</p>
+          <ul>
+            <li>Collects diagnostics from generated test code</li>
+            <li>Groups and prioritizes errors</li>
+            <li>Invokes LLM with diagnostic context to fix issues</li>
+            <li>Supports multiple refinement rounds (configurable via <code>maxRound</code>)</li>
+          </ul>
+
+          <h4>4. LLM Integration (<code>invokeLLM.ts</code>)</h4>
+          <p><strong>Purpose:</strong> Unified interface for multiple LLM providers.</p>
+          <ul>
+            <li>Supports OpenAI, DeepSeek, and Ollama</li>
+            <li>Handles API calls, token counting, and error handling</li>
+            <li>Logs all interactions for experiment reproducibility</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h3>LSP Integration (<code>src/lsp/</code>)</h3>
+          <p>The LSP module provides language-agnostic semantic analysis capabilities:</p>
+          <ul>
+            <li><strong>definition.ts</strong> - Resolves symbol definitions, constructs dependency graphs</li>
+            <li><strong>reference.ts</strong> - Finds all references to symbols for usage context</li>
+            <li><strong>diagnostic.ts</strong> - Retrieves and processes compiler/linter diagnostics</li>
+            <li><strong>token.ts</strong> - Extracts semantic tokens and use-def chains</li>
+            <li><strong>symbol.ts</strong> - Queries document symbols (functions, classes, methods)</li>
+            <li><strong>tree.ts</strong> - Navigates symbol hierarchy and parent-child relationships</li>
+            <li><strong>vscodeRequestManager.ts</strong> - Manages LSP requests to VS Code language servers</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h3>Control Flow Analysis (<code>src/cfg/</code>)</h3>
+          <p>Builds control flow graphs to identify key execution paths:</p>
+          <ul>
+            <li><strong>builder.ts</strong> - Abstract CFG builder interface</li>
+            <li><strong>builderFactory.ts</strong> - Factory for language-specific CFG builders</li>
+            <li><strong>python.ts, java.ts, golang.ts</strong> - Language-specific CFG construction</li>
+            <li><strong>path.ts</strong> - Extracts and analyzes CFG paths for coverage</li>
+            <li><strong>languageAgnostic.ts</strong> - Fallback CFG builder using generic AST parsing</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h3>Generation Strategies (<code>src/strategy/</code>)</h3>
+          <p>Multiple test generation strategies for different use cases:</p>
+          <ul>
+            <li><strong>naive.ts</strong> - Basic generation without semantic analysis (baseline)</li>
+            <li><strong>cfg.ts</strong> - CFG-guided generation for path coverage</li>
+            <li><strong>agent.ts</strong> - Multi-step reasoning with iterative refinement</li>
+            <li><strong>symPrompt.ts</strong> - Symbolic execution-inspired prompting</li>
+            <li><strong>experimental.ts</strong> - Latest experimental features</li>
+            <li><strong>factory.ts</strong> - Strategy pattern factory for generator selection</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h3>Prompt Management (<code>src/prompts/</code>)</h3>
+          <p>Constructs and manages prompts for LLM invocation:</p>
+          <ul>
+            <li><strong>promptBuilder.ts</strong> - Assembles prompts from context and templates</li>
+            <li><strong>template.ts</strong> - Prompt templates for generation and fixing</li>
+            <li><strong>languageTemplateManager.ts</strong> - Language-specific prompt customization</li>
+            <li><strong>ChatMessage.ts</strong> - Message format abstraction for different LLM APIs</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>Workflow Diagram</h2>
+        <div class="panel">
+          <h3>End-to-End Test Generation Flow</h3>
+          <ol>
+            <li><strong>User Trigger:</strong> User selects a function and invokes "Generate Unit Test"</li>
+            <li><strong>Symbol Resolution:</strong> LSP queries document symbols to locate the target function</li>
+            <li><strong>Context Collection:</strong>
+              <ul>
+                <li>Extract semantic tokens from function body</li>
+                <li>Resolve definitions via LSP "go to definition"</li>
+                <li>Find references via LSP "find references"</li>
+                <li>Build dependency graph of related symbols</li>
+              </ul>
+            </li>
+            <li><strong>CFG Analysis:</strong> Build control flow graph and extract key paths</li>
+            <li><strong>Prompt Construction:</strong> Assemble context into structured prompt using templates</li>
+            <li><strong>LLM Invocation:</strong> Send prompt to configured LLM provider</li>
+            <li><strong>Code Parsing:</strong> Extract test code from LLM response</li>
+            <li><strong>Diagnostic Collection:</strong> Write test to temporary file and collect LSP diagnostics</li>
+            <li><strong>Iterative Fixing:</strong> If errors exist, invoke LLM with diagnostic context to fix (repeat up to <code>maxRound</code> times)</li>
+            <li><strong>User Review:</strong> Present final test code with diff view for acceptance</li>
+            <li><strong>Deployment:</strong> Save accepted test to configured location</li>
+          </ol>
+        </div>
+      </section>
+
+      <section>
+        <h2>Configuration Options</h2>
+        <div class="panel">
+          <h3>Core Settings</h3>
+          <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+            <tr style="border-bottom:1px solid rgba(255,255,255,.1);">
+              <th style="text-align:left; padding:8px;">Setting</th>
+              <th style="text-align:left; padding:8px;">Type</th>
+              <th style="text-align:left; padding:8px;">Default</th>
+              <th style="text-align:left; padding:8px;">Description</th>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.06);">
+              <td style="padding:8px;"><code>provider</code></td>
+              <td style="padding:8px;">string</td>
+              <td style="padding:8px;">deepseek</td>
+              <td style="padding:8px;">LLM provider (deepseek, openai, ollama)</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.06);">
+              <td style="padding:8px;"><code>model</code></td>
+              <td style="padding:8px;">string</td>
+              <td style="padding:8px;">deepseek-chat</td>
+              <td style="padding:8px;">Model name for generation</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.06);">
+              <td style="padding:8px;"><code>generationType</code></td>
+              <td style="padding:8px;">string</td>
+              <td style="padding:8px;">original</td>
+              <td style="padding:8px;">Strategy: naive, original, agent, cfg, experimental</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.06);">
+              <td style="padding:8px;"><code>promptType</code></td>
+              <td style="padding:8px;">string</td>
+              <td style="padding:8px;">basic</td>
+              <td style="padding:8px;">Prompt style: basic, detailed, concise</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(255,255,255,.06);">
+              <td style="padding:8px;"><code>maxRound</code></td>
+              <td style="padding:8px;">number</td>
+              <td style="padding:8px;">3</td>
+              <td style="padding:8px;">Maximum refinement rounds</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;"><code>savePath</code></td>
+              <td style="padding:8px;">string</td>
+              <td style="padding:8px;">lsprag-tests</td>
+              <td style="padding:8px;">Output directory for generated tests</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <p>© <span id="year"></span> LSPRAG</p>
+    </footer>
+    <script>document.getElementById('year').textContent=new Date().getFullYear()</script>
+  </body>
+  </html>
+
