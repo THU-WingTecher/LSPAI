@@ -1,13 +1,13 @@
 /**
- * Baseline Template Builder (independent of VSCode/LSPRAG)
- * Generates prompts matching the Python LanguageTemplateManager exactly
+ * Prompt templates for test generation
+ * Generates prompts matching the Python LanguageTemplateManager
  */
 
-import { BaselineTask } from './baselineTypes';
 import * as path from 'path';
+import { Task } from '../core/types';
 
 /**
- * Generate system prompt (matching Python version)
+ * Generate system prompt for test generation
  */
 export function generateSystemPrompt(): string {
     return `<test_generation>
@@ -22,7 +22,7 @@ export function generateSystemPrompt(): string {
 /**
  * Build unit test generation prompt for a task
  */
-export function buildTestPrompt(task: BaselineTask, languageId: string): string {
+export function buildTestPrompt(task: Task, languageId: string): string {
     // Get file name without extension and path
     let fileName = task.relativeDocumentPath;
     if (fileName.includes('.')) {
@@ -38,7 +38,7 @@ export function buildTestPrompt(task: BaselineTask, languageId: string): string 
 }
 
 /**
- * Generate full prompt (matching Python version)
+ * Generate full prompt with source code and context
  */
 function generatePrompt(template: string, sourceCode: string, context: string): string {
     return `Source Code:
@@ -52,7 +52,7 @@ ${template}`;
 }
 
 /**
- * Get unit test template based on language (matching Python version exactly)
+ * Get unit test template based on language
  */
 function getUnitTestTemplate(
     languageId: string,
@@ -84,7 +84,7 @@ function getUnitTestTemplate(
 }
 
 /**
- * Get Java template (matching Python version exactly)
+ * Get Java template
  */
 function getJavaTemplate(fileName: string, packageString: string, paths: string[] = []): string {
     let testFunctions = '';
@@ -115,7 +115,7 @@ ${testFunctions}
 }
 
 /**
- * Get Go template (matching Python version exactly)
+ * Get Go template
  */
 function getGoTemplate(fileName: string, packageString: string, paths: string[] = []): string {
     // Capitalize first letter for Go convention
@@ -144,7 +144,7 @@ func Test${testFileName}(t *testing.T) {
 }
 
 /**
- * Get Python template (matching Python version exactly)
+ * Get Python template
  */
 function getPythonTemplate(
     fileName: string,

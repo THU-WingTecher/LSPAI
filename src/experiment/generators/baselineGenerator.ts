@@ -1,26 +1,26 @@
 /**
- * Baseline Test Generator (independent of VSCode/LSPRAG)
- * Generates unit tests using Claude Code Router
+ * Baseline Test Generator
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { ClaudeCodeRouterManager } from './claudeCodeRouter';
-import { BaselineTask, BaselineTestResult } from './baselineTypes';
-import { buildTestPrompt, detectLanguage, generateSystemPrompt } from './baselineTemplateBuilder';
-import { extractCleanCode } from './codeExtractor';
-import { generateTestFileName, FileNameParams } from './fileNameGenerator';
+import { ClaudeCodeRouterManager } from '../runners/claudeCodeRouter';
+import { Task, TestResult } from '../core/types';
+import { buildTestPrompt, detectLanguage, generateSystemPrompt } from '../prompts/templates';
+import { extractCleanCode } from '../utils/codeExtractor';
+import { generateTestFileName } from '../utils/fileNameGenerator';
+import { FileNameParams } from '../core/types';
 
 /**
  * Generate a single unit test
  */
 export async function generateTest(
-    task: BaselineTask,
+    task: Task,
     ccrOutputDir: string,
     projectDir: string,
     outputDir: string,
     model: string
-): Promise<BaselineTestResult> {
+): Promise<TestResult> {
     const startTime = Date.now();
     
     try {
@@ -39,7 +39,7 @@ export async function generateTest(
         const languageId = detectLanguage(task.relativeDocumentPath);
         console.log(`   Language: ${languageId}`);
 
-        const systemPrompt = generateSystemPrompt()
+        const systemPrompt = generateSystemPrompt();
         const prompt = buildTestPrompt(task, languageId);
         console.log(`   Prompt length: ${prompt.length} chars`);
 
@@ -66,12 +66,12 @@ export async function generateTest(
             };
         }
 
-        // Generate test file name using shared logic
+        // Generate test file name
         const fileNameParams: FileNameParams = {
             sourceFileName: path.basename(task.relativeDocumentPath),
             symbolName: task.symbolName,
             languageId: languageId,
-            packageString: '', // Could extract from task if needed
+            packageString: '',
             relativeFilePath: task.relativeDocumentPath
         };
         const testFileName = generateTestFileName(fileNameParams);
@@ -107,14 +107,14 @@ export async function generateTest(
  * Generate tests in batch (sequential)
  */
 export async function generateTestsSequential(
-    tasks: BaselineTask[],
+    tasks: Task[],
     ccrOutputDir: string,
     projectDir: string,
     outputDir: string,
     model: string,
     onProgress?: (completed: number, total: number, taskName: string) => void
-): Promise<BaselineTestResult[]> {
-    const results: BaselineTestResult[] = [];
+): Promise<TestResult[]> {
+    const results: TestResult[] = [];
     const total = tasks.length;
 
     for (let i = 0; i < tasks.length; i++) {
@@ -136,14 +136,14 @@ export async function generateTestsSequential(
  * Generate tests in batch (parallel)
  */
 export async function generateTestsParallel(
-    tasks: BaselineTask[],
+    tasks: Task[],
     ccrOutputDir: string,
     projectDir: string,
     outputDir: string,
     model: string,
     concurrency: number = 4,
     onProgress?: (completed: number, total: number, taskName: string) => void
-): Promise<BaselineTestResult[]> {
+): Promise<TestResult[]> {
     const pLimit = (await import('p-limit')).default;
     const limit = pLimit(concurrency);
     const total = tasks.length;

@@ -1,35 +1,25 @@
+/**
+ * Manager for running OpenCode programmatically
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
+import { LogEntry } from '../core/types';
 
 /**
  * Configuration for OpenCode Manager
  */
 export interface OpencodeConfig {
-    sessionId?: string;  // UUID for session continuity
-    outputDir?: string;  // Directory to save outputs
-    projectDir?: string;  // Project root directory
-    model?: string;      // Model to use (e.g., gpt-4, claude-3-5-sonnet)
-}
-
-/**
- * Log entry with metadata
- */
-export interface OpencodeLogEntry {
-    prompt: string;
-    name: string;
-    response: string;
-    sessionId: string;
-    startTime: string;
-    endTime: string;
-    durationMs: number;
-    timestamp: number;
-    model: string;
+    sessionId?: string;
+    outputDir?: string;
+    projectDir?: string;
+    model?: string;
+    sharedClient?: any;
 }
 
 /**
  * Manager for running OpenCode programmatically
- * This mirrors the ClaudeCodeRouterManager interface
  */
 export class OpencodeManager {
     private sessionId: string;
@@ -40,20 +30,20 @@ export class OpencodeManager {
     private codesDir: string;
     private model: string;
     private client: any;
-    private sharedClient: any; // For reusing an existing client
+    private sharedClient: any;
 
     constructor(config: OpencodeConfig = {}) {
         this.sessionId = config.sessionId || randomUUID();
         this.projectDir = config.projectDir || '/LSPRAG';
-        this.model = config.model || 'gpt-4';
-        this.sharedClient = (config as any).sharedClient; // Accept existing client
+        this.model = config.model || 'o3-mini';
+        this.sharedClient = config.sharedClient;
         
-        // Create date-based directory structure: YYYY-MM-DD/
-        const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        // Create date-based directory structure
+        const currentDate = new Date().toISOString().split('T')[0];
         this.currentDateDir = config.outputDir || path.join(process.cwd(), 'opencode-outputs', currentDate);
         this.logsDir = path.join(this.currentDateDir, 'logs');
         this.codesDir = path.join(this.currentDateDir, 'codes');
-        this.outputDir = this.logsDir; // Keep compatibility
+        this.outputDir = this.logsDir;
         
         // Create directories
         if (!fs.existsSync(this.logsDir)) {
@@ -68,7 +58,6 @@ export class OpencodeManager {
      * Initialize OpenCode client (lazy initialization)
      */
     private async initClient() {
-        // If a shared client was provided, use it
         if (this.sharedClient) {
             this.client = this.sharedClient;
             return this.client;
@@ -76,11 +65,9 @@ export class OpencodeManager {
         
         if (!this.client) {
             try {
-                // OpenCode SDK is ESM-only, use dynamic import
-                // TypeScript will compile this to a proper dynamic import
                 const sdk = await (eval('import("@opencode-ai/sdk")') as Promise<any>);
                 const result = await sdk.createOpencode({
-                    workspaceDir: this.projectDir
+                    directory: this.projectDir,
                 });
                 this.client = result.client;
                 console.log('✓ OpenCode client initialized');
@@ -95,25 +82,16 @@ export class OpencodeManager {
         return this.projectDir;
     }
 
-    /**
-     * Get current session ID
-     */
     public getSessionId(): string {
         return this.sessionId;
     }
 
-    /**
-     * Set a new session ID (must be valid UUID)
-     */
     public setSessionId(sessionId: string): void {
         this.sessionId = sessionId;
     }
 
     /**
      * Run a single prompt and save output
-     * @param prompt The prompt to send
-     * @param outputName Optional custom name for output file
-     * @returns Promise with response content
      */
     public async runPrompt(prompt: string, outputName?: string): Promise<string> {
         const startTime = new Date();
@@ -126,33 +104,42 @@ export class OpencodeManager {
         console.log(`Model: ${this.model}`);
 
         try {
-            // Initialize client if not already done
             const client = await this.initClient();
 
-            // Create a session first (or use existing sessionId)
-            let sessionId = this.sessionId;
-            // Create and manage sessions
-
-            // Create session if it doesn't exist yet
+            // Create session with directory query parameter
             const sessionResponse = await client.session.create({
+                // query: {
+                //     directory: this.projectDir  // This sets the working directory!
+                // },
                 body: {
                     title: fileName
                 }
             });
             
+            let sessionId = this.sessionId;
             if (sessionResponse.data && sessionResponse.data.id) {
                 sessionId = sessionResponse.data.id;
             }
 
-            // Parse model string (e.g., "gpt-4" from "openai" provider)
-            // Default to openai/gpt-4 if not specified correctly
+            // Log explicit mapping between local task session and remote OpenCode session
+            console.log(`   Task Session ID (local): ${this.sessionId}`);
+            console.log(`   OpenCode Session ID (remote): ${sessionId}`);
+            
+            // Parse model string
             const modelParts = this.model.includes('/') ? this.model.split('/') : ['openai', this.model];
             const providerID = modelParts[0];
             const modelID = modelParts[1] || this.model;
             
-            // Now send the prompt to the session
+            console.log(`   Provider ID: ${providerID}, Model ID: ${modelID}`);
+            
+            // Send prompt with directory query parameter
             const response = await client.session.prompt({
-                path: { id: sessionId },
+                path: { 
+                    id: sessionId
+                },
+                // query: {
+                //     directory: this.projectDir  // This sets the working directory!
+                // },
                 body: {
                     model: { 
                         providerID: providerID, 
@@ -165,10 +152,33 @@ export class OpencodeManager {
             const endTime = new Date();
             const durationMs = endTime.getTime() - startTime.getTime();
 
-            // Extract content from response
+            // Check for errors in response
+            if (response && response.error) {
+                const errorMsg = `OpenCode API Error: ${response.error.name} - ${JSON.stringify(response.error.data)}`;
+                console.error(`   ${errorMsg}`);
+                throw new Error(errorMsg);
+            }
+
+            // Debug: Log raw response structure
+            console.log(`   Raw response type: ${typeof response}`);
+            console.log(`   Raw response keys: ${response ? Object.keys(response) : 'null'}`);
+            if (response && response.data) {
+                console.log(`   Response.data keys: ${Object.keys(response.data)}`);
+                if (response.data.parts) {
+                    console.log(`   Response.data.parts length: ${response.data.parts.length}`);
+                    console.log(`   Response.data.parts:`, JSON.stringify(response.data.parts, null, 2));
+                }
+                if (response.data.blocked) {
+                    console.log(`   Response blocked: ${response.data.blocked}`);
+                }
+                if (response.data.info) {
+                    console.log(`   Response info:`, JSON.stringify(response.data.info, null, 2));
+                }
+            }
+
+            // Extract content
             let content = '';
             if (response && response.data) {
-                // Extract text from parts
                 if (response.data.parts && Array.isArray(response.data.parts)) {
                     const textParts = response.data.parts
                         .filter((p: any) => p.type === 'text')
@@ -186,12 +196,23 @@ export class OpencodeManager {
                 content = response.content || response.result || response.text || JSON.stringify(response);
             }
 
-            // Create enhanced log entry with metadata
-            const logEntry: OpencodeLogEntry = {
+            // Check for empty content
+            if (!content || content.trim() === '') {
+                throw new Error(`Empty response from OpenCode: ${JSON.stringify(response, null, 2)}`);
+            }
+
+            // Create log entry
+            const sessionDetails = await client.session.messages({
+                path: { id: sessionId }
+            })
+            
+            const logEntry: LogEntry = {
                 prompt: prompt,
                 name: fileName,
                 response: content,
                 sessionId: this.sessionId,
+                opencodeSessionId: sessionId,
+                opencodeSessionDetails: sessionDetails,
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
                 durationMs: durationMs,
@@ -199,7 +220,6 @@ export class OpencodeManager {
                 model: this.model
             };
 
-            // Save enhanced log file
             fs.writeFileSync(outputFile, JSON.stringify(logEntry, null, 2));
 
             console.log(`✓ Saved to: ${outputFile}`);
@@ -213,12 +233,45 @@ export class OpencodeManager {
             
             const errorMsg = error.message || String(error);
             console.error(`✗ OpenCode error: ${errorMsg}`);
+            
+            // Provide detailed error information
+            if (errorMsg.includes('fetch failed')) {
+                console.error(`
+================================================================================
+FETCH FAILED ERROR - This usually indicates:
 
-            // Save error log
+1. Missing or invalid OpenAI API key
+   - Check if OPENAI_API_KEY environment variable is set
+   - Run: echo $OPENAI_API_KEY
+   - If empty, set it: export OPENAI_API_KEY="your-key-here"
+
+2. Network connectivity issues
+   - Check if you can reach api.openai.com
+   - Run: curl https://api.openai.com/v1/models -H "Authorization: Bearer $OPENAI_API_KEY"
+
+3. OpenCode configuration
+   - OpenCode might need additional configuration
+   - Check OpenCode logs at: ~/.local/share/opencode/log/
+
+4. Model availability
+   - The model "${this.model}" might not be available in your OpenAI account
+   - Try: gpt-4o, gpt-4o-mini, or gpt-3.5-turbo
+
+5. Rate limits or quota
+   - Check if you've exceeded API rate limits
+   - Visit: https://platform.openai.com/account/usage
+
+Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}
+================================================================================
+`);
+            }
+
             const errorLogEntry = {
                 prompt: prompt,
                 name: fileName,
                 error: errorMsg,
+                errorStack: error.stack,
+                errorDetails: JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
                 sessionId: this.sessionId,
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
@@ -232,81 +285,22 @@ export class OpencodeManager {
         }
     }
 
-    /**
-     * Run multiple prompts in sequence with same session
-     * @param prompts Array of prompts to run
-     * @returns Promise with array of responses
-     */
-    public async runPrompts(prompts: string[]): Promise<string[]> {
-        const results: string[] = [];
-        
-        for (let i = 0; i < prompts.length; i++) {
-            console.log(`\n[${i + 1}/${prompts.length}] Processing...`);
-            const result = await this.runPrompt(prompts[i], `step${i + 1}_${Date.now()}`);
-            results.push(result);
-            await this.sleep(1000);
-        }
-        
-        return results;
-    }
-
-    /**
-     * Run batch prompts from array of prompt objects
-     */
-    public async runBatch(batch: Array<{ name: string; prompt: string }>): Promise<string[]> {
-        const results: string[] = [];
-        
-        for (let i = 0; i < batch.length; i++) {
-            const { name, prompt } = batch[i];
-            console.log(`\n[${i + 1}/${batch.length}] Processing: ${name}`);
-            const result = await this.runPrompt(prompt, `${name}_${Date.now()}`);
-            results.push(result);
-            await this.sleep(1000);
-        }
-        
-        return results;
-    }
-
-    /**
-     * Run batch from JSON file
-     */
-    public async runBatchFromFile(filePath: string): Promise<string[]> {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        const batch = JSON.parse(content);
-        return this.runBatch(batch);
-    }
-
-    /**
-     * Get output directory (logs directory)
-     */
     public getOutputDir(): string {
         return this.outputDir;
     }
 
-    /**
-     * Get logs directory
-     */
     public getLogsDir(): string {
         return this.logsDir;
     }
 
-    /**
-     * Get codes directory for test files
-     */
     public getCodesDir(): string {
         return this.codesDir;
     }
 
-    /**
-     * Get current date directory
-     */
     public getCurrentDateDir(): string {
         return this.currentDateDir;
     }
 
-    /**
-     * Sleep utility
-     */
     private sleep(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -317,13 +311,5 @@ export class OpencodeManager {
  */
 export function generateUUID(): string {
     return randomUUID();
-}
-
-/**
- * Helper function to run a single prompt quickly
- */
-export async function quickPrompt(prompt: string, sessionId?: string, model?: string): Promise<string> {
-    const manager = new OpencodeManager({ sessionId, model });
-    return manager.runPrompt(prompt);
 }
 

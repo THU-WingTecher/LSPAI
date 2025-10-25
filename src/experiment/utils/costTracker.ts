@@ -1,4 +1,7 @@
-// Add to src/experiment/costTracker.ts or add to baselineRunner.ts
+/**
+ * Cost tracker for OpenAI API usage
+ */
+
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -29,12 +32,10 @@ interface CostResponse {
 
 /**
  * Get current cost from OpenAI API
- * Converts the bash command to TypeScript
  */
 export async function getCost(): Promise<number> {
-    const envPath = path.join(__dirname, '../.env.sh');
+    const envPath = path.join(__dirname, '../../.env.sh');
     
-    // The bash command converted to a single command string
     const bashCommand = `
         start_time=$(date +%s)
         curl -s "https://api.openai.com/v1/organization/costs?start_time=\${start_time}&limit=1" \\
@@ -73,7 +74,6 @@ export async function getCost(): Promise<number> {
             try {
                 const response: CostResponse = JSON.parse(stdout);
                 
-                // Extract the total cost value from the response
                 if (response.data && response.data.length > 0) {
                     const latestBucket = response.data[0];
                     if (latestBucket.results && latestBucket.results.length > 0) {
@@ -97,3 +97,4 @@ export async function getCost(): Promise<number> {
         child.on('error', reject);
     });
 }
+

@@ -1,28 +1,15 @@
 /**
  * File Name Generator (VSCode-independent)
- * Extracted core logic from fileHandler.ts::genFileNameWithGivenSymbol without VSCode dependencies
- * 
- * This module contains the SINGLE SOURCE OF TRUTH for file name generation logic.
- * Both VSCode-dependent code (fileHandler.ts) and baseline experiments use this.
+ * Single source of truth for test file name generation
  */
 
 import * as path from 'path';
+import { FileNameParams } from '../core/types';
 
-/**
- * Parameters for generating file name (VSCode-independent version)
- */
-export interface FileNameParams {
-    sourceFileName: string;      // e.g., "utils.py"
-    symbolName: string;          // e.g., "add_numbers"
-    languageId: string;          // e.g., "python"
-    packageString?: string;      // For Java: "package com.example;"
-    relativeFilePath?: string;   // For Go: relative path from project root
-}
+export { FileNameParams };
 
 /**
  * Generate core file name WITHOUT test suffix and extension
- * This is the CORE LOGIC extracted from genFileNameWithGivenSymbol
- * 
  * Returns: base name like "utils_add_numbers" or "com/example/Utils_add_numbers"
  */
 export function generateFileNameCore(params: FileNameParams): string {
@@ -31,7 +18,7 @@ export function generateFileNameCore(params: FileNameParams): string {
     // Remove extension from source file name
     const fileNameWithoutExt = sourceFileName.replace(/\.\w+$/, '');
     
-    // Generate base name following original genFileNameWithGivenSymbol logic
+    // Generate base name
     if (languageId === 'java') {
         // Java: use package path structure
         const finalName = `${fileNameWithoutExt}_${symbolName}`;
@@ -61,15 +48,15 @@ export function generateFileNameCore(params: FileNameParams): string {
 
 /**
  * Generate COMPLETE test file name WITH test suffix and extension
- * This builds on generateFileNameCore
  */
 export function generateTestFileName(params: FileNameParams): string {
     // Use core logic to get base name
     const baseName = generateFileNameCore(params);
     
-    // add random number to the base name
+    // Add random number to the base name
     const randomNum = Math.floor(Math.random() * 9000) + 1000;
     const baseNameWithRandom = `${baseName}_${randomNum}`;
+    
     // Add test suffix and file extension
     return addTestSuffix(baseNameWithRandom, params.languageId);
 }
@@ -109,7 +96,6 @@ function getLanguageSuffix(languageId: string): string {
 
 /**
  * Generate unique file name with random number
- * (Similar to getUniqueFileName in fileHandler.ts)
  */
 export function generateUniqueTestFileName(params: FileNameParams): string {
     const baseFileName = generateTestFileName(params);
@@ -121,34 +107,6 @@ export function generateUniqueTestFileName(params: FileNameParams): string {
     // Generate random number
     const randomNum = Math.floor(Math.random() * 9000) + 1000;
     
-    // Return unique name
     return `${nameWithoutExt}_${randomNum}${ext}`;
-}
-
-/**
- * Extract file name parameters from BaselineTask
- */
-export function extractFileNameParamsFromTask(task: {
-    relativeDocumentPath: string;
-    symbolName: string;
-}): { sourceFileName: string; languageId: string } {
-    const sourceFileName = path.basename(task.relativeDocumentPath);
-    const ext = path.extname(task.relativeDocumentPath).toLowerCase();
-    
-    const langMap: { [key: string]: string } = {
-        '.py': 'python',
-        '.java': 'java',
-        '.go': 'go',
-        '.cpp': 'cpp',
-        '.cc': 'cpp',
-        '.cxx': 'cpp',
-        '.c++': 'cpp',
-        '.ts': 'typescript',
-        '.js': 'javascript'
-    };
-    
-    const languageId = langMap[ext] || 'unknown';
-    
-    return { sourceFileName, languageId };
 }
 

@@ -1,29 +1,27 @@
 /**
- * OpenCode Test Generator (independent of VSCode/LSPRAG)
- * Generates unit tests using OpenCode SDK
- * 
- * This is a drop-in replacement for baselineTestGenerator.ts
+ * OpenCode Test Generator
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { OpencodeManager } from './opencodeManager';
-import { BaselineTask, BaselineTestResult } from './baselineTypes';
-import { buildTestPrompt, detectLanguage, generateSystemPrompt } from './baselineTemplateBuilder';
-import { extractCleanCode } from './codeExtractor';
-import { generateTestFileName, FileNameParams } from './fileNameGenerator';
+import { OpencodeManager } from '../runners/opencodeManager';
+import { Task, TestResult } from '../core/types';
+import { buildTestPrompt, detectLanguage, generateSystemPrompt } from '../prompts/templates';
+import { extractCleanCode } from '../utils/codeExtractor';
+import { generateTestFileName } from '../utils/fileNameGenerator';
+import { FileNameParams } from '../core/types';
 
 /**
  * Generate a single unit test using OpenCode
  */
 export async function generateTest(
-    task: BaselineTask,
+    task: Task,
     opencodeOutputDir: string,
     projectDir: string,
     outputDir: string,
     model: string,
     sharedClient?: any
-): Promise<BaselineTestResult> {
+): Promise<TestResult> {
     const startTime = Date.now();
     
     try {
@@ -71,12 +69,12 @@ export async function generateTest(
             };
         }
 
-        // Generate test file name using shared logic
+        // Generate test file name
         const fileNameParams: FileNameParams = {
             sourceFileName: path.basename(task.relativeDocumentPath),
             symbolName: task.symbolName,
             languageId: languageId,
-            packageString: '', // Could extract from task if needed
+            packageString: '',
             relativeFilePath: task.relativeDocumentPath
         };
         const testFileName = generateTestFileName(fileNameParams);
@@ -112,15 +110,15 @@ export async function generateTest(
  * Generate tests in batch (sequential)
  */
 export async function generateTestsSequential(
-    tasks: BaselineTask[],
+    tasks: Task[],
     opencodeOutputDir: string,
     projectDir: string,
     outputDir: string,
     model: string,
     onProgress?: (completed: number, total: number, taskName: string) => void,
     sharedClient?: any
-): Promise<BaselineTestResult[]> {
-    const results: BaselineTestResult[] = [];
+): Promise<TestResult[]> {
+    const results: TestResult[] = [];
     const total = tasks.length;
 
     for (let i = 0; i < tasks.length; i++) {
@@ -142,7 +140,7 @@ export async function generateTestsSequential(
  * Generate tests in batch (parallel)
  */
 export async function generateTestsParallel(
-    tasks: BaselineTask[],
+    tasks: Task[],
     opencodeOutputDir: string,
     projectDir: string,
     outputDir: string,
@@ -150,7 +148,7 @@ export async function generateTestsParallel(
     concurrency: number = 4,
     onProgress?: (completed: number, total: number, taskName: string) => void,
     sharedClient?: any
-): Promise<BaselineTestResult[]> {
+): Promise<TestResult[]> {
     const pLimit = (await import('p-limit')).default;
     const limit = pLimit(concurrency);
     const total = tasks.length;

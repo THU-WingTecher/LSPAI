@@ -1,46 +1,19 @@
 /**
- * OpenCode Experiment Runner (independent of VSCode/LSPRAG)
- * 
- * This is a standalone experiment runner for unit test generation using OpenCode SDK.
- * It mirrors the baseline experiment structure but uses OpenCode instead of CCR.
- * 
- * It does NOT depend on:
- * - VSCode API
- * - LSPRAG configuration (generation_type, fix_type, etc.)
- * - Symbol loading/interpretation
- * 
- * It simply:
- * 1. Reads task list JSON
- * 2. Generates prompts from templates
- * 3. Sends to OpenCode
- * 4. Extracts and saves generated tests
+ * OpenCode Experiment Runner (standalone)
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { BaselineConfig, BaselineTask, BaselineExperimentResult } from './baselineTypes';
-import { generateTestsSequential, generateTestsParallel } from './opencodeTestGenerator';
-import { getCost } from './openaiOrgCost';
-
-/**
- * Options for OpenCode experiment
- */
-export interface OpencodeRunOptions {
-    useParallel?: boolean;
-    concurrency?: number;
-}
+import { Task, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
+import { generateTestsSequential, generateTestsParallel } from '../generators/opencodeGenerator';
 
 /**
  * Run OpenCode unit test generation experiment
- * 
- * @param config - Baseline configuration (reused for compatibility)
- * @param options - Execution options
- * @returns Experiment results
  */
 export async function runOpencodeExperiment(
-    config: BaselineConfig,
-    options: OpencodeRunOptions = {}
-): Promise<BaselineExperimentResult> {
+    config: ExperimentConfig,
+    options: ExperimentOptions = {}
+): Promise<ExperimentResult> {
     const startTime = Date.now();
 
     console.log('=== OpenCode Unit Test Generation Experiment ===\n');
@@ -62,8 +35,8 @@ export async function runOpencodeExperiment(
         fs.mkdirSync(config.outputDir, { recursive: true });
     }
 
-    // Setup OpenCode output directory (each task will get its own session)
-    const opencodeOutputDir = path.join(config.outputDir, 'opencode-outputs');
+    // Setup OpenCode output directory
+    const opencodeOutputDir = path.join(config.outputDir, config.model);
     if (!fs.existsSync(opencodeOutputDir)) {
         fs.mkdirSync(opencodeOutputDir, { recursive: true });
     }
@@ -72,7 +45,7 @@ export async function runOpencodeExperiment(
     console.log(`  OpenCode Output: ${opencodeOutputDir}`);
     console.log(`  Note: Each task gets its own unique session ID\n`);
 
-    // Initialize shared OpenCode server/client (to avoid port conflicts)
+    // Initialize shared OpenCode server/client
     console.log('Initializing shared OpenCode server...');
     let sharedClient: any = null;
     let serverCleanup: (() => void) | null = null;
@@ -91,22 +64,8 @@ export async function runOpencodeExperiment(
     }
 
     // Generate tests
-    const useParallel = options.useParallel !== false; // Default true
+    const useParallel = options.useParallel !== false;
     const concurrency = options.concurrency || 4;
-
-    // ========== GET INITIAL COST ==========
-    let beforeCost: number | undefined;
-    let finalCost: number | undefined;
-    let experimentCost: number | undefined;
-    
-    // try {
-    //     console.log('Querying initial cost...');
-    //     beforeCost = await getCost();
-    //     console.log(`Initial cost: $${beforeCost.toFixed(4)}\n`);
-    // } catch (error) {
-    //     console.warn('Failed to query initial cost:', error);
-    //     console.log('Continuing without cost tracking...\n');
-    // }
 
     console.log(`Generating tests (${useParallel ? `parallel, concurrency=${concurrency}` : 'sequential'})...\n`);
 
@@ -120,7 +79,7 @@ export async function runOpencodeExperiment(
                 config.outputDir,
                 config.model,
                 concurrency,
-                (completed, total, taskName) => {
+                (completed: number, total: number, taskName: string) => {
                     console.log(`[${completed}/${total}] Completed: ${taskName}`);
                 },
                 sharedClient
@@ -131,34 +90,18 @@ export async function runOpencodeExperiment(
                 config.projectRoot,
                 config.outputDir,
                 config.model,
-                (completed, total, taskName) => {
+                (completed: number, total: number, taskName: string) => {
                     console.log(`[${completed}/${total}] Completed: ${taskName}`);
                 },
                 sharedClient
             );
     } finally {
-        // Cleanup: close the shared OpenCode server
         if (serverCleanup) {
             console.log('\nCleaning up shared OpenCode server...');
             serverCleanup();
             console.log('✓ Shared OpenCode server closed\n');
         }
     }
-
-    // ========== GET FINAL COST ==========
-    // try {
-    //     console.log('\nQuerying final cost...');
-    //     finalCost = await getCost();
-    //     console.log(`Final cost: $${finalCost.toFixed(4)}`);
-        
-    //     if (beforeCost !== undefined) {
-    //         experimentCost = finalCost - beforeCost;
-    //         console.log(`Experiment cost: $${experimentCost.toFixed(4)}\n`);
-    //     }
-    // } catch (error) {
-    //     console.warn('Failed to query final cost:', error);
-    // }
-    // ====================================
 
     // Calculate statistics
     const successCount = results.filter(r => r.success).length;
@@ -167,7 +110,7 @@ export async function runOpencodeExperiment(
     const totalExecutionTimeMs = Date.now() - startTime;
 
     // Build experiment result
-    const experimentResult: BaselineExperimentResult = {
+    const experimentResult: ExperimentResult = {
         config,
         totalTasks: tasks.length,
         successCount,
@@ -175,9 +118,6 @@ export async function runOpencodeExperiment(
         warningCount,
         outputDir: config.outputDir,
         totalExecutionTimeMs,
-        beforeCost,
-        finalCost,
-        experimentCost,
         results,
         timestamp: new Date().toISOString()
     };
@@ -219,9 +159,6 @@ export async function runOpencodeExperiment(
     console.log(`Failed: ${failureCount}`);
     console.log(`Warnings: ${warningCount}`);
     console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
-    if (experimentCost !== undefined) {
-        console.log(`Experiment Cost: $${experimentCost.toFixed(4)}`);
-    }
     console.log(`Output Directory: ${config.outputDir}`);
     console.log(`Summary: ${summaryPath}`);
     console.log(`Test Mapping: ${mappingPath}\n`);
@@ -232,13 +169,13 @@ export async function runOpencodeExperiment(
 /**
  * Load task list from JSON file
  */
-async function loadTaskList(taskListPath: string): Promise<BaselineTask[]> {
+async function loadTaskList(taskListPath: string): Promise<Task[]> {
     if (!fs.existsSync(taskListPath)) {
         throw new Error(`Task list file not found: ${taskListPath}`);
     }
 
     const content = await fs.promises.readFile(taskListPath, 'utf8');
-    const tasks = JSON.parse(content) as BaselineTask[];
+    const tasks = JSON.parse(content) as Task[];
 
     // Validate tasks
     for (const task of tasks) {
@@ -251,7 +188,7 @@ async function loadTaskList(taskListPath: string): Promise<BaselineTask[]> {
 }
 
 /**
- * Quick helper function to run experiment from CLI-style arguments
+ * Helper function to run experiment from CLI-style arguments
  */
 export async function runOpencodeFromArgs(
     taskListPath: string,
@@ -259,9 +196,8 @@ export async function runOpencodeFromArgs(
     model: string,
     provider: string,
     outputDir?: string,
-    options: OpencodeRunOptions = {}
-): Promise<BaselineExperimentResult> {
-    // Generate output directory if not provided
+    options: ExperimentOptions = {}
+): Promise<ExperimentResult> {
     if (!outputDir) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         outputDir = path.join(
@@ -272,7 +208,7 @@ export async function runOpencodeFromArgs(
         );
     }
 
-    const config: BaselineConfig = {
+    const config: ExperimentConfig = {
         taskListPath,
         projectRoot,
         outputDir,

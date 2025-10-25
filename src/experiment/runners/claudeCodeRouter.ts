@@ -1,3 +1,7 @@
+/**
+ * Claude Code Router Manager
+ */
+
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -7,9 +11,9 @@ import { randomUUID } from 'crypto';
  * Configuration for Claude Code Router
  */
 export interface ClaudeCodeRouterConfig {
-    sessionId?: string;  // UUID for session continuity
-    outputDir?: string;  // Directory to save outputs
-    projectDir?: string;  // Project root directory
+    sessionId?: string;
+    outputDir?: string;
+    projectDir?: string;
 }
 
 /**
@@ -40,7 +44,6 @@ export interface CCRLogEntry {
 
 /**
  * Manager for running claude-code-router programmatically
- * Based on CLI approach: ccr code -p "prompt" --session-id <UUID> --output-format json
  */
 export class ClaudeCodeRouterManager {
     private sessionId: string;
@@ -54,12 +57,12 @@ export class ClaudeCodeRouterManager {
         this.sessionId = config.sessionId || randomUUID();
         this.projectDir = config.projectDir || '/LSPRAG';
         
-        // Create date-based directory structure: YYYY-MM-DD/
-        const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        // Create date-based directory structure
+        const currentDate = new Date().toISOString().split('T')[0];
         this.currentDateDir = config.outputDir || path.join(process.cwd(), 'ccr-outputs', currentDate);
         this.logsDir = path.join(this.currentDateDir, 'logs');
         this.codesDir = path.join(this.currentDateDir, 'codes');
-        this.outputDir = this.logsDir; // Keep compatibility
+        this.outputDir = this.logsDir;
         
         // Create directories
         if (!fs.existsSync(this.logsDir)) {
@@ -73,25 +76,17 @@ export class ClaudeCodeRouterManager {
     public getProjectDir(): string {
         return this.projectDir;
     }
-    /**
-     * Get current session ID
-     */
+
     public getSessionId(): string {
         return this.sessionId;
     }
 
-    /**
-     * Set a new session ID (must be valid UUID)
-     */
     public setSessionId(sessionId: string): void {
         this.sessionId = sessionId;
     }
 
     /**
      * Run a single prompt and save output
-     * @param prompt The prompt to send
-     * @param outputName Optional custom name for output file
-     * @returns Promise with response content
      */
     public async runPrompt(prompt: string, outputName?: string): Promise<string> {
         const startTime = new Date();
@@ -102,17 +97,13 @@ export class ClaudeCodeRouterManager {
         console.log(`Running prompt: ${prompt.substring(0, 60)}...`);
         console.log(`Session ID: ${this.sessionId}`);
 
-        // Write prompt to a temporary file to avoid bash escaping issues
+        // Write prompt to a temporary file
         const tempPromptFile = path.join(this.logsDir, `${fileName}_prompt.txt`);
         fs.writeFileSync(tempPromptFile, prompt, 'utf-8');
 
-        // Build ccr command - read prompt from file via stdin
-        const envPath = path.join(__dirname, '../.env.sh');
-        const systemPromptPath = "/LSPRAG/templates/lspragSystem_wo_ex.txt"
-        // ccr code -p --output-format json --session-id <UUID>
-        // The prompt is passed via stdin, output is captured and saved to file
+        // Build ccr command
+        const envPath = path.join(__dirname, '../../.env.sh');
         const ccrCommand = `ccr code -p --output-format json --session-id "${this.sessionId}"`;
-        // const ccrCommand = `ccr code -p --system-prompt-file "${systemPromptPath}" --output-format json --session-id "${this.sessionId}"`;
         
         const command = fs.existsSync(envPath)
             ? `source "${envPath}" && cat "${tempPromptFile}" | ${ccrCommand} > "${outputFile}"`
@@ -186,7 +177,7 @@ export class ClaudeCodeRouterManager {
             content = fileContent;
         }
 
-        // Create enhanced log entry with metadata
+        // Create enhanced log entry
         const logEntry: CCRLogEntry = {
             prompt: prompt,
             name: fileName,
@@ -201,17 +192,27 @@ export class ClaudeCodeRouterManager {
         // Save enhanced log file
         fs.writeFileSync(outputFile, JSON.stringify(logEntry, null, 2));
 
-        // Save text response
-        // const txtFile = outputFile.replace('.json', '.txt');
-        // fs.writeFileSync(txtFile, content);
-
         return content;
+    }
+
+    public getOutputDir(): string {
+        return this.outputDir;
+    }
+
+    public getLogsDir(): string {
+        return this.logsDir;
+    }
+
+    public getCodesDir(): string {
+        return this.codesDir;
+    }
+
+    public getCurrentDateDir(): string {
+        return this.currentDateDir;
     }
 
     /**
      * Run multiple prompts in sequence with same session
-     * @param prompts Array of prompts to run
-     * @returns Promise with array of responses
      */
     public async runPrompts(prompts: string[]): Promise<string[]> {
         const results: string[] = [];
@@ -252,52 +253,6 @@ export class ClaudeCodeRouterManager {
         return this.runBatch(batch);
     }
 
-    /**
-     * Extract content from JSON response file
-     */
-    public extractContent(jsonFile: string, txtFile?: string): string {
-        const content = fs.readFileSync(jsonFile, 'utf-8');
-        const response: CCRResponse = JSON.parse(content);
-        const text = response.content || response.response || response.text || '';
-        
-        if (txtFile) {
-            fs.writeFileSync(txtFile, text);
-        }
-        
-        return text;
-    }
-
-    /**
-     * Get output directory (logs directory)
-     */
-    public getOutputDir(): string {
-        return this.outputDir;
-    }
-
-    /**
-     * Get logs directory
-     */
-    public getLogsDir(): string {
-        return this.logsDir;
-    }
-
-    /**
-     * Get codes directory for test files
-     */
-    public getCodesDir(): string {
-        return this.codesDir;
-    }
-
-    /**
-     * Get current date directory
-     */
-    public getCurrentDateDir(): string {
-        return this.currentDateDir;
-    }
-
-    /**
-     * Sleep utility
-     */
     private sleep(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -317,3 +272,4 @@ export async function quickPrompt(prompt: string, sessionId?: string): Promise<s
     const manager = new ClaudeCodeRouterManager({ sessionId });
     return manager.runPrompt(prompt);
 }
+

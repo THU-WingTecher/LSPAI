@@ -1,43 +1,20 @@
 /**
- * Baseline Experiment Runner (independent of VSCode/LSPRAG)
- * 
- * This is a standalone baseline for unit test generation using Claude Code Router.
- * It does NOT depend on:
- * - VSCode API
- * - LSPRAG configuration (generation_type, fix_type, etc.)
- * - Symbol loading/interpretation
- * 
- * It simply:
- * 1. Reads task list JSON
- * 2. Generates prompts from templates
- * 3. Sends to Claude Code Router
- * 4. Extracts and saves generated tests
+ * Baseline Experiment Runner (standalone)
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { BaselineConfig, BaselineTask, BaselineExperimentResult } from './baselineTypes';
-import { generateTestsSequential, generateTestsParallel } from './baselineTestGenerator';
-import { getCost } from './openaiOrgCost';
-/**
- * Options for baseline experiment
- */
-export interface BaselineRunOptions {
-    useParallel?: boolean;
-    concurrency?: number;
-}
+import { Task, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
+import { generateTestsSequential, generateTestsParallel } from '../generators/baselineGenerator';
+import { getCost } from '../utils/costTracker';
 
 /**
  * Run baseline unit test generation experiment
- * 
- * @param config - Baseline configuration
- * @param options - Execution options
- * @returns Experiment results
  */
 export async function runBaselineExperiment(
-    config: BaselineConfig,
-    options: BaselineRunOptions = {}
-): Promise<BaselineExperimentResult> {
+    config: ExperimentConfig,
+    options: ExperimentOptions = {}
+): Promise<ExperimentResult> {
     const startTime = Date.now();
 
     console.log('=== Baseline CC Unit Test Generation Experiment ===\n');
@@ -59,7 +36,7 @@ export async function runBaselineExperiment(
         fs.mkdirSync(config.outputDir, { recursive: true });
     }
 
-    // Setup CCR output directory (each task will get its own session)
+    // Setup CCR output directory
     const ccrOutputDir = path.join(config.outputDir, 'ccr-outputs');
     if (!fs.existsSync(ccrOutputDir)) {
         fs.mkdirSync(ccrOutputDir, { recursive: true });
@@ -70,9 +47,10 @@ export async function runBaselineExperiment(
     console.log(`  Note: Each task gets its own unique session ID\n`);
 
     // Generate tests
-    const useParallel = options.useParallel !== false; // Default true
+    const useParallel = options.useParallel !== false;
     const concurrency = options.concurrency || 4;
-    // ========== GET INITIAL COST ==========
+
+    // Get initial cost
     let beforeCost: number | undefined;
     let finalCost: number | undefined;
     let experimentCost: number | undefined;
@@ -85,6 +63,7 @@ export async function runBaselineExperiment(
         console.warn('Failed to query initial cost:', error);
         console.log('Continuing without cost tracking...\n');
     }
+
     console.log(`Generating tests (${useParallel ? `parallel, concurrency=${concurrency}` : 'sequential'})...\n`);
 
     const results = useParallel
@@ -95,7 +74,7 @@ export async function runBaselineExperiment(
             config.outputDir,
             config.model,
             concurrency,
-            (completed, total, taskName) => {
+            (completed: number, total: number, taskName: string) => {
                 console.log(`[${completed}/${total}] Completed: ${taskName}`);
             }
         )
@@ -105,34 +84,33 @@ export async function runBaselineExperiment(
             config.projectRoot,
             config.outputDir,
             config.model,
-            (completed, total, taskName) => {
+            (completed: number, total: number, taskName: string) => {
                 console.log(`[${completed}/${total}] Completed: ${taskName}`);
             }
         );
 
-    // ========== GET FINAL COST ==========
-    // try {
-    //     console.log('\nQuerying final cost...');
-    //     finalCost = await getCost();
-    //     console.log(`Final cost: $${finalCost.toFixed(4)}`);
+    // Get final cost
+    try {
+        console.log('\nQuerying final cost...');
+        finalCost = await getCost();
+        console.log(`Final cost: $${finalCost.toFixed(4)}`);
         
-    //     if (beforeCost !== undefined) {
-    //         experimentCost = finalCost - beforeCost;
-    //         console.log(`Experiment cost: $${experimentCost.toFixed(4)}\n`);
-    //     }
-    // } catch (error) {
-    //     console.warn('Failed to query final cost:', error);
-    // }
-    // ====================================
+        if (beforeCost !== undefined) {
+            experimentCost = finalCost - beforeCost;
+            console.log(`Experiment cost: $${experimentCost.toFixed(4)}\n`);
+        }
+    } catch (error) {
+        console.warn('Failed to query final cost:', error);
+    }
 
     // Calculate statistics
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
-    const warningCount = results.filter(r => r.success && r.warnings && r.warnings.length > 0).length;
+    const successCount = results.filter((r: any) => r.success).length;
+    const failureCount = results.filter((r: any) => !r.success).length;
+    const warningCount = results.filter((r: any) => r.success && r.warnings && r.warnings.length > 0).length;
     const totalExecutionTimeMs = Date.now() - startTime;
 
     // Build experiment result
-    const experimentResult: BaselineExperimentResult = {
+    const experimentResult: ExperimentResult = {
         config,
         totalTasks: tasks.length,
         successCount,
@@ -140,9 +118,9 @@ export async function runBaselineExperiment(
         warningCount,
         outputDir: config.outputDir,
         totalExecutionTimeMs,
-        beforeCost,           // ← Add
-        finalCost,            // ← Add
-        experimentCost,       // ← Add
+        beforeCost,
+        finalCost,
+        experimentCost,
         results,
         timestamp: new Date().toISOString()
     };
@@ -158,7 +136,7 @@ export async function runBaselineExperiment(
     // Save test file mapping
     const mappingPath = path.join(config.outputDir, 'test_file_map.json');
     const mapping: any = {};
-    results.forEach(result => {
+    results.forEach((result: any) => {
         if (result.success && result.outputFilePath) {
             const testFileName = path.basename(result.outputFilePath);
             const task = tasks.find(t => t.symbolName === result.taskName);
@@ -185,7 +163,7 @@ export async function runBaselineExperiment(
     console.log(`Warnings: ${warningCount}`);
     console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
     if (experimentCost !== undefined) {
-        console.log(`Experiment Cost: $${experimentCost.toFixed(4)}`);  // ← Add
+        console.log(`Experiment Cost: $${experimentCost.toFixed(4)}`);
     }
     console.log(`Output Directory: ${config.outputDir}`);
     console.log(`Summary: ${summaryPath}`);
@@ -197,13 +175,13 @@ export async function runBaselineExperiment(
 /**
  * Load task list from JSON file
  */
-async function loadTaskList(taskListPath: string): Promise<BaselineTask[]> {
+async function loadTaskList(taskListPath: string): Promise<Task[]> {
     if (!fs.existsSync(taskListPath)) {
         throw new Error(`Task list file not found: ${taskListPath}`);
     }
 
     const content = await fs.promises.readFile(taskListPath, 'utf8');
-    const tasks = JSON.parse(content) as BaselineTask[];
+    const tasks = JSON.parse(content) as Task[];
 
     // Validate tasks
     for (const task of tasks) {
@@ -216,7 +194,7 @@ async function loadTaskList(taskListPath: string): Promise<BaselineTask[]> {
 }
 
 /**
- * Quick helper function to run experiment from CLI-style arguments
+ * Helper function to run experiment from CLI-style arguments
  */
 export async function runBaselineFromArgs(
     taskListPath: string,
@@ -224,9 +202,8 @@ export async function runBaselineFromArgs(
     model: string,
     provider: string,
     outputDir?: string,
-    options: BaselineRunOptions = {}
-): Promise<BaselineExperimentResult> {
-    // Generate output directory if not provided
+    options: ExperimentOptions = {}
+): Promise<ExperimentResult> {
     if (!outputDir) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         outputDir = path.join(
@@ -237,7 +214,7 @@ export async function runBaselineFromArgs(
         );
     }
 
-    const config: BaselineConfig = {
+    const config: ExperimentConfig = {
         taskListPath,
         projectRoot,
         outputDir,

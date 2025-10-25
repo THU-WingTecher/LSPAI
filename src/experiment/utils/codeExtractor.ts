@@ -1,13 +1,9 @@
 /**
- * Extract code from Claude Code Router responses
+ * Extract and validate code from LLM responses
  * Handles parsing of triple-backtick code blocks
  */
 
-export interface ExtractedCode {
-    code: string;
-    language: string;
-    blockIndex: number;
-}
+import { ExtractedCode } from '../core/types';
 
 /**
  * Extract all code blocks from response
@@ -62,34 +58,6 @@ function extractCodeForLanguage(response: string, expectedLanguage: string): str
     );
 
     return largestBlock.code;
-}
-
-/**
- * Extract code and validate basic structure
- */
-function extractAndValidateCode(
-    response: string,
-    expectedLanguage: string,
-    expectedSymbolName?: string
-): { code: string; isValid: boolean; warnings: string[] } {
-    const code = extractCodeForLanguage(response, expectedLanguage);
-    const warnings: string[] = [];
-    let isValid = true;
-
-    if (!code) {
-        return {
-            code: '',
-            isValid: false,
-            warnings: ['No code could be extracted from the response']
-        };
-    }
-
-    // Basic validation based on language
-    const validationResult = validateCodeStructure(code, expectedLanguage, expectedSymbolName);
-    warnings.push(...validationResult.warnings);
-    isValid = validationResult.isValid;
-
-    return { code, isValid, warnings };
 }
 
 /**
@@ -182,19 +150,33 @@ export function cleanupCode(code: string): string {
 }
 
 /**
- * Main extraction function with cleanup
+ * Main extraction function with validation and cleanup
  */
 export function extractCleanCode(
     response: string,
     expectedLanguage: string,
     expectedSymbolName?: string
 ): { code: string; isValid: boolean; warnings: string[] } {
-    const result = extractAndValidateCode(response, expectedLanguage, expectedSymbolName);
-    
-    if (result.code) {
-        result.code = cleanupCode(result.code);
+    const code = extractCodeForLanguage(response, expectedLanguage);
+    const warnings: string[] = [];
+    let isValid = true;
+
+    if (!code) {
+        return {
+            code: '',
+            isValid: false,
+            warnings: ['No code could be extracted from the response']
+        };
     }
 
-    return result;
+    // Validate structure
+    const validationResult = validateCodeStructure(code, expectedLanguage, expectedSymbolName);
+    warnings.push(...validationResult.warnings);
+    isValid = validationResult.isValid;
+
+    // Clean up code
+    const cleanedCode = cleanupCode(code);
+
+    return { code: cleanedCode, isValid, warnings };
 }
 
