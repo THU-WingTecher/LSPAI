@@ -5,7 +5,6 @@
   "description": "LSPRAG is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP)",
   "version": "0.1.0",
   "icon": "docs/assets/lsprag_image_v2.jpg",
-
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -146,7 +145,7 @@
     "build": "tsc",
     "test": "npm run compile && node ./out/test/runTest.js $TEST_FILE",
     "test:util": "node ./out/test/runTest.js util",
-    "experiment": "node ./out/test/runExperiment.js $TEST_FILE"
+    "experiment": "npm run compile && node ./out/experiment/cli.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
@@ -174,6 +173,7 @@
     "@github/copilot-language-server": "^1.293.0",
     "@langchain/core": "^0.3.26",
     "@langchain/openai": "^0.3.16",
+    "@opencode-ai/sdk": "^0.15.14",
     "https-proxy-agent": "^7.0.5",
     "ini": "^5.0.0",
     "lru-cache": "^10.1.0",
@@ -184,6 +184,8 @@
     "temp-dir": "^3.0.0",
     "tree-sitter": "^0.22.4",
     "typescript": "^5.7.2",
+    "vscode-jsonrpc": "^8.2.1",
+    "vscode-languageserver-protocol": "^3.17.5",
     "web-tree-sitter": "^0.20.8"
   }
 }

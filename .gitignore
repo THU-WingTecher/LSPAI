@@ -8,7 +8,7 @@ experiments/lsprag_data/
 experiments/projects/
 experiments/venv/
 experiments/data
-
+results/
 .env
 *.pyc
 diagnostic*
