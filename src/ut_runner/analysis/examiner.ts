@@ -12,8 +12,6 @@ import { detectRedefinedAssertions, prettyPrintDefTree } from './assertion_detec
  */
 export async function examineTestCase(
   testCase: TestCaseResult,
-  sourceFile: string | null,
-  symbolName: string | null
 ): Promise<ExaminationResult> {
   const result: ExaminationResult = {
     testCaseName: testCase.codeName,
@@ -25,7 +23,7 @@ export async function examineTestCase(
   };
 
   // Skip if no source file or symbol name
-  if (!sourceFile || !symbolName) {
+  if (!testCase.sourceFile || !testCase.symbolName) {
     result.examinationError = 'Missing source file or symbol name for examination';
     return result;
   }
@@ -33,14 +31,14 @@ export async function examineTestCase(
   try {
     console.log(`[EXAMINER] Examining ${testCase.codeName}`);
     console.log(`[EXAMINER]   Test file: ${testCase.testFile}`);
-    console.log(`[EXAMINER]   Source file: ${sourceFile}`);
-    console.log(`[EXAMINER]   Symbol name: ${symbolName}`);
+    console.log(`[EXAMINER]   Source file: ${testCase.sourceFile}`);
+    console.log(`[EXAMINER]   Symbol name: ${testCase.symbolName}`);
 
     // Run the assertion detection analysis
     const detection = await detectRedefinedAssertions(
       testCase.testFile,
-      sourceFile,
-      symbolName
+      testCase.sourceFile,
+      testCase.symbolName
     );
 
     // Build definition tree summary
@@ -84,9 +82,9 @@ export async function examineTestCasesBatch(
   const inProgress: Promise<void>[] = [];
 
   const processOne = async (tc: TestCaseResult) => {
-    const sourceFile = sourceFileResolver(tc);
-    const symbolName = symbolNameResolver(tc);
-    const result = await examineTestCase(tc, sourceFile, symbolName);
+    tc.sourceFile = sourceFileResolver(tc);
+    tc.symbolName = symbolNameResolver(tc);
+    const result = await examineTestCase(tc);
     results.push(result);
   };
 

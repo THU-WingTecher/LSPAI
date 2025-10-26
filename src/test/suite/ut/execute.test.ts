@@ -5,7 +5,8 @@ import { runPipeline } from '../../../ut_runner/runner';
 import { getConfigInstance } from '../../../config';
 
 suite('EXECUTE - Python (black)', () => {
-  const testsDir = '/LSPRAG/results/openCode-/gpt-5-nano/codes';
+  const testsDir = '/LSPRAG/experiments/projects/old_black/src/lsprag_tests/gpt-4o-1';
+  // const testsDir = '/LSPRAG/results/openCode-/gpt-5-nano/codes';
 
   const pythonInterpreterPath = '/root/miniconda3/envs/black/bin/python';
   const outputDir = testsDir+'-final-report';
@@ -18,7 +19,7 @@ suite('EXECUTE - Python (black)', () => {
     '/LSPRAG/experiments/projects/black/src/',
     '/LSPRAG/experiments/projects/black',
     '/LSPRAG/experiments/projects'
-  ]
+  ];
   getConfigInstance().updateConfig({
     ...currentConfig
   });

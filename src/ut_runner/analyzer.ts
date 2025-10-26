@@ -773,52 +773,6 @@ export class Analyzer {
     return out;
   }
 
-//   analyze(execResults: ExecutionResult[], testsDir: string, outputDir: string): AnalysisReport {
-//     // Discover source files from the workspace
-//     const workspacePath = path.dirname(testsDir);
-//     this.discoverSourceFiles(workspacePath).then(() => {
-//       console.log('Source file discovery completed');
-//     }).catch(error => {
-//       console.warn('Source file discovery failed:', error);
-//     });
-
-//     const tests: Record<string, TestCaseResult> = {};
-//     const files: Record<string, FileAnalysis> = {};
-
-//     for (const res of execResults) {
-//       const fkey = res.testFile.path;
-//       files[fkey] = makeEmptyFileAnalysis();
-
-//       if (!res.logPath || !fs.existsSync(res.logPath)) {
-//         files[fkey].note = 'No log file found (timeout, execution error, or missing file).';
-//         continue;
-//       }
-
-//       const tcrs = this.extractResultsFromLog(res.logPath, res.testFile.path);
-//       if (!tcrs.length) {
-//         files[fkey].note = 'No test results found in log file.';
-//         continue;
-//       }
-
-//       for (const tcr of tcrs) {
-//         tests[tcr.codeName] = tcr;
-//         files[fkey].testcases.push(tcr);
-//         const prev = files[fkey].counts[tcr.status] ?? 0;
-//         files[fkey].counts[tcr.status] = prev + 1;
-//       }
-//     }
-
-//     return {
-//       tests,
-//       files,
-//       meta: {
-//         language: this.language,
-//         tests_dir: testsDir,
-//         output_dir: outputDir,
-//       },
-//     };
-//   }
-// }
   // Minimal analysis for unit-test to source mapping bootstrap
   async analyze(execResults: ExecutionResult[], testsDir: string, outputDir: string, testFileMapPath: string): Promise<AnalysisReport> {
     const tests: Record<string, TestCaseResult> = {};
@@ -876,7 +830,28 @@ export class Analyzer {
           }
         }
 
+        const redefinedErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && tc.examination.hasRedefinedSymbols);
         console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+        console.log(`[ANALYZER] REDEFINE error cases: ${redefinedErrorCases.length} test cases examined`);
+        for ( const tc of redefinedErrorCases) {
+          console.log(`[ANALYZER] REDEFINE error case: ${tc.codeName}`);
+          console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
+          console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
+          console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
+          console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
+        }
+
+
+        const unknownErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && !tc.examination.hasRedefinedSymbols);
+        console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+        console.log(`[ANALYZER] Still unknown error cases: ${unknownErrorCases.length} test cases examined`);
+        for ( const tc of unknownErrorCases) {
+          console.log(`[ANALYZER] Unknown error case: ${tc.codeName}`);
+          console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
+          console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
+          console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
+          console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
+        }
       } else {
         console.log('[ANALYZER] No assertion errors to examine');
       }

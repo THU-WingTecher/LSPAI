@@ -36,7 +36,8 @@ export interface TestFile {
     detail: string;
     testFile: string;
     logPath: string;
-  
+    
+    symbolName?: string | null;
     focalModule?: string | null;
     focalFunction?: string | null;
     focalRandom?: string | null;
