@@ -23,7 +23,8 @@ export async function generateTest(
     sharedClient?: any
 ): Promise<TestResult> {
     const startTime = Date.now();
-    
+
+
     try {
         console.log(`#### Generating test for ${task.symbolName}`);
 
@@ -36,10 +37,20 @@ export async function generateTest(
             model: model,
             sharedClient: sharedClient
         } as any);
+        const languageId = detectLanguage(task.relativeDocumentPath);
+        // Generate test file name
+        const fileNameParams: FileNameParams = {
+            sourceFileName: path.basename(task.relativeDocumentPath),
+            symbolName: task.symbolName,
+            languageId: languageId,
+            packageString: '',
+            relativeFilePath: task.relativeDocumentPath
+        };
+        const testFileName = generateTestFileName(fileNameParams);
+
         console.log(`   Session ID: ${sessionId}`);
 
         // Detect language
-        const languageId = detectLanguage(task.relativeDocumentPath);
         console.log(`   Language: ${languageId}`);
 
         const systemPrompt = generateSystemPrompt();
@@ -47,8 +58,9 @@ export async function generateTest(
         console.log(`   Prompt length: ${prompt.length} chars`);
 
         // Run through OpenCode
-        const outputName = `${task.symbolName}_${Date.now()}`;
-        const response = await opencodeManager.runPrompt(systemPrompt + "\n\n" + prompt, outputName);
+
+        const logfileName = `${testFileName}.log`;
+        const response = await opencodeManager.runPrompt(systemPrompt + "\n\n" + prompt, logfileName);
         console.log(`   Response length: ${response.length} chars`);
         console.log(`   Response: ${response}`);
 
@@ -69,18 +81,8 @@ export async function generateTest(
             };
         }
 
-        // Generate test file name
-        const fileNameParams: FileNameParams = {
-            sourceFileName: path.basename(task.relativeDocumentPath),
-            symbolName: task.symbolName,
-            languageId: languageId,
-            packageString: '',
-            relativeFilePath: task.relativeDocumentPath
-        };
-        const testFileName = generateTestFileName(fileNameParams);
-        const outputPath = path.join(opencodeManager.getCodesDir(), testFileName);
-
         // Save test code
+        const outputPath = path.join(opencodeManager.getCodesDir(), testFileName);
         await fs.promises.writeFile(outputPath, code, 'utf8');
         console.log(`   Saved to: ${outputPath}`);
 
