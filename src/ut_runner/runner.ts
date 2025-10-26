@@ -402,7 +402,7 @@ export async function runPipeline(testsDir: string, outputDir: string, test_file
   
   try {
     const analyzer = new Analyzer(language);
-    console.log("Exec Results", execResults);
+    // console.log("Exec Results", execResults);
     report = await analyzer.analyze(execResults, path.resolve(testsDir), path.resolve(outputDir), path.resolve(test_file_map_path));
     const analysisDuration = new Date().getTime() - analysisStartTime.getTime();
     

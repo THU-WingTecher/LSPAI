@@ -1,4 +1,4 @@
-import { ClaudeCodeRouterManager, generateUUID } from '../../experiment/claudeCodeRouter';
+import { ClaudeCodeRouterManager, generateUUID } from '../../experiment/runners/claudeCodeRouter';
 import * as path from 'path';
 
 /**

@@ -204,7 +204,7 @@ export class OpencodeManager {
             // Create log entry
             const sessionDetails = await client.session.messages({
                 path: { id: sessionId }
-            })
+            });
             
             const logEntry: LogEntry = {
                 prompt: prompt,

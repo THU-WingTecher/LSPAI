@@ -10,7 +10,7 @@ import { goSpecificEnvGen, sleep } from './helper';
 import { ExpLogs } from './log';
 import * as path from 'path';
 import { generateTimestampString } from './config';
-import { generateFileNameCore } from './experiment/fileNameGenerator';
+import { generateFileNameCore } from './experiment/utils/fileNameGenerator';
 
 // Re-export VSCode-independent utilities for backward compatibility
 export { findFiles, readTxtFile, saveContextTerms } from './fileUtils';

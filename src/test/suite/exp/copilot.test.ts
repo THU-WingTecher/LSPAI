@@ -51,13 +51,13 @@ suite('copilot Test Suite', () => {
 
         // 3. Test basic message handling
         let notificationReceived = false;
-        connection.onNotification((method: string, params: any) => {
+        connection.onNotification((method, params) => {
             console.log('Received notification:', method, params);
             notificationReceived = true;
         });
 
         // 4. Test error handling
-        connection.onError(([error]: [Error, any, any]) => {
+        connection.onError((error) => {
             console.error('Connection error:', error);
             assert.fail('Connection error occurred');
         });
