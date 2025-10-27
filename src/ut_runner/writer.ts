@@ -137,6 +137,9 @@ export class Writer {
       tests: examinedTests.map(tc => ({
         test_case: tc.codeName,
         test_file: tc.testFile,
+        symbol_name: tc.symbolName ?? null,
+        source_file: tc.sourceFile ?? null,
+        focal_function: tc.focalFunction ?? null,
         status: tc.status,
         examination: tc.examination,
       })),
