@@ -139,7 +139,7 @@ export class Analyzer {
     return fs.existsSync(abs) ? abs : null;
   }
 
-  private extractPassedFromSession(logContent: string): Set<string> {
+  extractPassedFromSession(logContent: string): Set<string> {
     const passed = new Set<string>();
     const lines = logContent.split('\n');
     const re = /(\S+\.py)::([\w_]+)::(test_[\w_]+)\s+PASSED\s+\[/;
@@ -153,7 +153,7 @@ export class Analyzer {
     return passed;
   }
 
-  private extractFailedFromSummary(logContent: string): Record<string, string> {
+  extractFailedFromSummary(logContent: string): Record<string, string> {
     const failed: Record<string, string> = {};
     const lines = logContent.split('\n');
     let inSummary = false;
@@ -176,7 +176,7 @@ export class Analyzer {
     return failed;
   }
 
-  private extractErrorFromSummary(logContent: string): Record<string, string> {
+  extractErrorFromSummary(logContent: string): Record<string, string> {
     const errors: Record<string, string> = {};
     const lines = logContent.split('\n');
     let inSummary = false;

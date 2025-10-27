@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, execSync } from 'child_process';
 import { ExecutionResult, TestFile } from './types';
+import { buildEnv } from './runner';
 
 export interface BaseExecutor {
   executeMany(testFiles: TestFile[], jobs: number): Promise<ExecutionResult[]>;
@@ -502,7 +503,7 @@ export class PytestExecutor implements BaseExecutor {
     this.logsDir = path.resolve(opts.logsDir);
     this.junitDir = path.resolve(opts.junitDir);
     this.timeoutSec = Math.max(0, opts.timeout ?? 0);
-    this.env = { ...process.env, ...(opts.env || {}) };
+    this.env = opts.env!;
     ensureDir(this.logsDir);
     ensureDir(this.junitDir);
   }

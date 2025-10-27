@@ -140,6 +140,7 @@ export class Writer {
         symbol_name: tc.symbolName ?? null,
         source_file: tc.sourceFile ?? null,
         focal_function: tc.focalFunction ?? null,
+        detailError: tc.detail ?? null,
         status: tc.status,
         examination: tc.examination,
       })),
