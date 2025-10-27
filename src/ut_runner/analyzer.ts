@@ -843,7 +843,7 @@ export class Analyzer {
 
 
         const unknownErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && !tc.examination.hasRedefinedSymbols);
-        console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+        console.log(`\n=====================================================\n`);
         console.log(`[ANALYZER] Still unknown error cases: ${unknownErrorCases.length} test cases examined`);
         for ( const tc of unknownErrorCases) {
           console.log(`[ANALYZER] Unknown error case: ${tc.codeName}`);
