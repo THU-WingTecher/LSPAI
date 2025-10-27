@@ -279,48 +279,18 @@ export class Configuration {
         return process.env.NODE_ENV === 'test' || process.env.TESTING_MODE === 'true';
     }
 
-    public static isExperimentEnvironment(): boolean {
-        // console.log('config::isExperimentEnvironment', process.env.NODE_ENV);
-        return process.env.NODE_ENV === 'experiment' || process.env.EXPERIMENT_MODE === 'true';
-    }
-
-    private validateTestConfig(envVar: string | undefined, paramName: string): void {
-        if (!envVar) {
-            throw new Error(`Testing environment requires ${paramName} to be set`);
-        }
-    }
-
     private loadConfiguration() {
-        if (Configuration.isExperimentEnvironment()) {
-            // Validate test environment variables
-            this.validateTestConfig(process.env.TEST_EXP_PROB, 'TEST_EXP_PROB');
-            this.validateTestConfig(process.env.TEST_MODEL, 'TEST_MODEL');
-            this.validateTestConfig(process.env.TEST_PROVIDER, 'TEST_PROVIDER');
-            this.validateTestConfig(process.env.TEST_PROMPT_TYPE, 'TEST_PROMPT_TYPE');
-            this.validateTestConfig(process.env.TEST_GENERATION_TYPE, 'TEST_GENERATION_TYPE');
-            this.validateTestConfig(process.env.TEST_TIMEOUT, 'TEST_TIMEOUT');
-            this.validateTestConfig(process.env.TEST_PARALLEL_COUNT, 'TEST_PARALLEL_COUNT');
-            this.validateTestConfig(process.env.TEST_MAX_ROUND, 'TEST_MAX_ROUND');
-            this.validateTestConfig(process.env.TEST_OPENAI_API_KEY, 'TEST_OPENAI_API_KEY');
-            this.validateTestConfig(process.env.TEST_DEEPSEEK_API_KEY, 'TEST_DEEPSEEK_API_KEY');
-            this.validateTestConfig(process.env.TEST_LOCAL_LLM_URL, 'TEST_LOCAL_LLM_URL');
-
-            return {
-                expProb: parseFloat(process.env.TEST_EXP_PROB!),
-                model: process.env.TEST_MODEL!,
-                provider: process.env.TEST_PROVIDER! as Provider,
-                promptType: process.env.TEST_PROMPT_TYPE! as PromptType,
-                timeoutMs: parseInt(process.env.TEST_TIMEOUT!),
-                parallelCount: parseInt(process.env.TEST_PARALLEL_COUNT!),
-                maxRound: parseInt(process.env.TEST_MAX_ROUND!),
-                openaiApiKey: process.env.TEST_OPENAI_API_KEY,
-                deepseekApiKey: process.env.TEST_DEEPSEEK_API_KEY,
-                localLLMUrl: process.env.TEST_LOCAL_LLM_URL,
-            };
-        } else if (Configuration.isTestingEnvironment()) {
+        const configFromEnv = {
+            openaiApiKey: process.env.OPENAI_API_KEY,
+            deepseekApiKey: process.env.DEEPSEEK_API_KEY,
+            localLLMUrl: process.env.LOCAL_LLM_URL,
+            proxyUrl: process.env.HTTP_PROXY || process.env.HTTPS_PROXY || ''
+        }
+        if (Configuration.isTestingEnvironment()) {
             // Validate test environment variables
             // this.validateTestConfig(process.env.TEST_SRC_PATH, 'TEST_SRC_PATH');
             return {
+                ...configFromEnv,
                 workspace: process.env.TEST_SRC_PATH!,
                 model: DEFAULT_CONFIG.model,
                 provider: DEFAULT_CONFIG.provider,

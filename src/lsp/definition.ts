@@ -193,11 +193,8 @@ export function isBetweenFocalMethod(
 
 export function isInWorkspace(uriString: string): boolean {
     if (uriString) {
-        if (Configuration.isTestingEnvironment() || Configuration.isExperimentEnvironment()) {
+        if (Configuration.isTestingEnvironment()) {
             const srcPath = vscode.Uri.parse(getConfigInstance().workspace);
-            // console.log('collectinfo::isInWorkspace', uriString, getConfigInstance().srcPath);
-            // console.log(vscode.Uri.parse(getConfigInstance().srcPath).fsPath);
-            // console.log(vscode.Uri.parse(getConfigInstance().srcPath));
             return uriString.startsWith(srcPath.fsPath);
         } else {
             const workspaceFolders = vscode.workspace.workspaceFolders || [];
