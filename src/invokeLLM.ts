@@ -42,7 +42,7 @@ export function getModelConfigError(): string | undefined {
 	const provider = getConfigInstance().provider;
 	switch (provider) {
 		case 'openai':
-			if (!getConfigInstance().openaiApiKey) {
+			if (!getConfigInstance().openaiApiKey && !process.env.OPENAI_API_KEY) {
 				return 'OpenAI API key is not configured. Please set LSPRAG.openaiApiKey in settings.';
 			}
 			break;
@@ -52,7 +52,7 @@ export function getModelConfigError(): string | undefined {
 			}
 			break;
 		case 'deepseek':
-			if (!getConfigInstance().deepseekApiKey) {
+			if (!getConfigInstance().deepseekApiKey && !process.env.DEEPSEEK_API_KEY) {
 				return 'Deepseek API key is not configured. Please set LSPRAG.deepseekApiKey in settings.';
 			}
 			break;
