@@ -137,13 +137,13 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
    - Navigate to any function or method
    - Right-click within the function definition
    - Select **"LSPRAG: Generate Unit Test"** from the context menu
-   ![Generate Unit test](doc/assets/CommandFig.png)
+   ![Generate Unit test](docs/assets/CommandFig.png)
    - Wait for generation to complete
-   ![Waiting](doc/assets/loading.png)
+   ![Waiting](docs/assets/loading.png)
 
 3. **Review & Deploy**
    - Generated tests will appear with accept/reject options
-   ![Final Result](doc/assets/UnitGenResult.png)
+   ![Final Result](docs/assets/UnitGenResult.png)
 
 ### Command Palette Commands
 
@@ -222,5 +222,5 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 - **GPU**: Optional but recommended for local LLM inference
 
 ---
-
 **Ready to generate unit tests with LSPRAG!** 🎉
+**This project is active. If you encounter any errors or have suggestions, feel free to open an issue.**
