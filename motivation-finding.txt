@@ -186,6 +186,7 @@
 [ANALYZER]   Symbol name: mark
 [ANALYZER]   Error detail: AssertionError: 139999639931200 not found in {}
 delimiters does not have the id ==> 复杂逻辑
+==> 前置条件没满足，，，
 
 
 [ANALYZER] Unknown error case: brackets_mark_7026_test.py::Testbrackets_mark_7026::test_invisible_leaf
@@ -198,21 +199,30 @@ delimiters does not have the id ==> 复杂逻辑
 [ANALYZER]   Source file: /LSPRAG/experiments/projects/black/src/black/brackets.py
 [ANALYZER]   Symbol name: mark
 [ANALYZER]   Error detail: AssertionError: BracketMatchError not raised
+
+看起来也是逻辑错
+
 [ANALYZER] Unknown error case: cache_get_cache_dir_9043_test.py::TestCacheGetCacheDir::test_get_cache_dir_with_env_var
 [ANALYZER]   Test file: /LSPRAG/experiments/projects/old_black/src/lsprag_tests/gpt-4o-1/cache_get_cache_dir_9043_test.py
 [ANALYZER]   Source file: /LSPRAG/experiments/projects/black/src/black/cache.py
 [ANALYZER]   Symbol name: get_cache_dir
 [ANALYZER]   Error detail: AssertionError: Expected 'user_cache_dir' to not have been called. Called 1 times.
+不理解
+
 [ANALYZER] Unknown error case: cache_is_changed_3260_test.py::TestCacheIsChanged::test_cache_is_changed_3260_test_3
 [ANALYZER]   Test file: /LSPRAG/experiments/projects/old_black/src/lsprag_tests/gpt-4o-1/cache_is_changed_3260_test.py
 [ANALYZER]   Source file: /LSPRAG/experiments/projects/black/src/black/cache.py
 [ANALYZER]   Symbol name: is_changed
 [ANALYZER]   Error detail: AssertionError: False is not true
+逻辑错误（if）
+
 [ANALYZER] Unknown error case: comments_generate_comments_3617_test.py::TestCommentsGenerateComments::test_standalone_comment
 [ANALYZER]   Test file: /LSPRAG/experiments/projects/old_black/src/lsprag_tests/gpt-4o-1/comments_generate_comments_3617_test.py
 [ANALYZER]   Source file: /LSPRAG/experiments/projects/black/src/black/comments.py
 [ANALYZER]   Symbol name: generate_comments
 [ANALYZER]   Error detail: AssertionError: 53 != 153
+语义错误 - comments[0].type is wrongly setted to not standalone.
+
 [ANALYZER] Unknown error case: comments_list_comments_1463_test.py::Testcomments_list_comments::test_escaped_newline_before_comment
 [ANALYZER]   Test file: /LSPRAG/experiments/projects/old_black/src/lsprag_tests/gpt-4o-1/comments_list_comments_1463_test.py
 [ANALYZER]   Source file: /LSPRAG/experiments/projects/black/src/black/comments.py
@@ -228,11 +238,14 @@ delimiters does not have the id ==> 复杂逻辑
 [ANALYZER]   Source file: /LSPRAG/experiments/projects/black/src/black/comments.py
 [ANALYZER]   Symbol name: list_comments
 [ANALYZER]   Error detail: AssertionError: '# Trailing?' != ' # Trailing?'
+语义错误
+
 [ANALYZER] Unknown error case: comments_make_comment_3730_test.py::Testcomments_make_comment_3730_test::test_comments_make_comment_with_type_comment
 [ANALYZER]   Test file: /LSPRAG/experiments/projects/old_black/src/lsprag_tests/gpt-4o-1/comments_make_comment_3730_test.py
 [ANALYZER]   Source file: /LSPRAG/experiments/projects/black/src/black/comments.py
 [ANALYZER]   Symbol name: make_comment
 [ANALYZER]   Error detail: AssertionError: '# \xa0type: ignore' != '# type: ignore'
+
 [ANALYZER] Unknown error case: comments_normalize_trailing_prefix_2210_test.py::TestCommentsNormalizeTrailingPrefix::test_comments_normalize_trailing_prefix_2210_test_0
 [ANALYZER]   Test file: /LSPRAG/experiments/projects/old_black/src/lsprag_tests/gpt-4o-1/comments_normalize_trailing_prefix_2210_test.py
 [ANALYZER]   Source file: /LSPRAG/experiments/projects/black/src/black/comments.py
