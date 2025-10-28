@@ -63,7 +63,6 @@ export class LLMFixWorkflow {
   private readonly outputDir: string;
   private readonly options: Required<LLMFixOptions>;
   private fixHistory: Map<string, FixAttempt[]> = new Map();
-  private sourceDocument: vscode.TextDocument | null = null;
   private analyzer: Analyzer;
   
   constructor(
@@ -102,15 +101,13 @@ export class LLMFixWorkflow {
   /**
    * Extract source code from examination data
    */
-  private async extractSourceCode(testEntry: any): Promise<string> {
-    if (!this.sourceDocument) {
-      throw new Error('Source document not found');
-    }
-    const symbol = await getSymbolFromDocument(this.sourceDocument, testEntry.symbol_name);
+  private async extractSourceCode(testEntry: any, sourceDocument: vscode.TextDocument): Promise<string> {
+
+    const symbol = await getSymbolFromDocument(sourceDocument, testEntry.symbol_name);
     if (!symbol) {
-      throw new Error(`Symbol ${testEntry.symbol_name} not found in ${testEntry.sourceCode}`);
+      throw new Error(`Symbol ${testEntry.symbol_name} not found in ${testEntry.source_file}`);
     }
-    return this.sourceDocument.getText(symbol.range);
+    return sourceDocument.getText(symbol.range);
   }
 
   /**
@@ -508,12 +505,6 @@ console.log("userPrompt: ", userPrompt);
     return content.substring(Math.max(0, content.length - 500));
   }
 
-  private async openSourceDocument(sourceFile: string): Promise<vscode.TextDocument> {
-    if (!this.sourceDocument) {
-      this.sourceDocument = await vscode.workspace.openTextDocument(sourceFile);
-    }
-    return this.sourceDocument;
-  }
   /**
    * Process a single test case
    */
@@ -522,7 +513,6 @@ console.log("userPrompt: ", userPrompt);
     console.log("testCaseName: ", testEntry.test_case);
     console.log("testEntry: ", testEntry);
     const testFile = testEntry.test_file;
-    await this.openSourceDocument(testEntry.source_file);
     console.log(`\n[LLM_FIX] Processing: ${testCaseName}`);
     
     // Skip if already examined with redefined symbols
@@ -532,7 +522,8 @@ console.log("userPrompt: ", userPrompt);
     }
     
     // Get required data
-    const sourceCode = await this.extractSourceCode(testEntry);
+    const sourceDocument = await vscode.workspace.openTextDocument(testEntry.source_file);
+    const sourceCode = await this.extractSourceCode(testEntry, sourceDocument);
     let testCode = await this.getPythonTestCode(testFile, testCaseName);
     let assertionErrors = this.getAssertionErrors(testEntry);
     const symbolName = testEntry.symbolName || testEntry.symbol_name || 'unknown';
@@ -627,12 +618,16 @@ console.log("userPrompt: ", userPrompt);
         skipped++;
         continue;
       }
-      
+      try {
       const result = await this.processTestCase(testEntry);
-      
-      if (result) {
-        fixed++;
-      } else {
+        
+        if (result) {
+          fixed++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`[LLM_FIX] Failed to process test case:`, error);
         failed++;
       }
     }
