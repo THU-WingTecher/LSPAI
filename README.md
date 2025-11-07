@@ -1,5 +1,7 @@
 # LSPRAG - Language-Agnostic Real-Time Unit Test Generation
 
+**This project is active. If you encounter any errors or have suggestions, feel free to open an issue!**
+
 <div align="center">
 
 <!-- ![LSPRAG Logo](doc/assets/lsprag_image_v2.jpg) -->
@@ -223,4 +225,4 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 
 ---
 **Ready to generate unit tests with LSPRAG!** 🎉
-**This project is active. If you encounter any errors or have suggestions, feel free to open an issue.**
+
