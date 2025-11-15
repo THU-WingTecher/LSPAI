@@ -37,6 +37,7 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 1. Download the extension named `LSPRAG` 
 
 2. Setup LLM in vscode settings
+
 **Option A: VS Code Settings UI**
 - Open Settings (`Ctrl/Cmd + ,`)
 - Search for "LSPRAG"
