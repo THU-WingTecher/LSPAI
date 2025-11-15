@@ -32,27 +32,6 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 - **Go**: Native Go testing framework support
 - **Extensible**: Easy to add support for additional languages
 
-## 📖 Getting Started & Contributing
-
-New to LSPRAG? Want to contribute? We've got you covered!
-
-- **[Quick Start Guide](./QUICKSTART.md)** - Get up and running in 5 minutes. Perfect for first-time contributors!
-- **[Contributing Guide](./CONTRIBUTING.md)** - Comprehensive guide explaining the codebase, architecture, and how to contribute
-
-**Recommended path for new contributors:**
-1. Start with [Quick Start Guide](./QUICKSTART.md) to run your first test
-2. Explore test files in `src/test/suite/` (ast, lsp, llm)
-3. Modify and experiment with existing tests
-4. Read [Contributing Guide](./CONTRIBUTING.md) for deep dive into architecture
-
-## 🎯 Project Status
-
-| Language | Status | Framework | Features |
-|----------|--------|-----------|----------|
-| **Java** | ✅ Production Ready | JUnit 4/5 | Full semantic analysis, mock generation |
-| **Python** | ✅ Production Ready | pytest | Type hints, async support, fixtures |
-| **Go** | ✅ Production Ready | Go testing | Package management, benchmarks |
-
 ## 🛠️ Installation & Setup
 
 1. Download the extension named `LSPRAG` 
@@ -109,6 +88,28 @@ Add to `settings.json`:
 - `LSPRAG: Show Current Settings` - Display current configuration
 - `LSPRAG: Test LLM` - Test LLM connectivity and configuration
 
+## 📖 Getting Started & Contributing
+
+New to LSPRAG? Want to contribute? We've got you covered!
+
+- **[Quick Start Guide](./QUICKSTART.md)** - Get up and running in 5 minutes. Perfect for first-time contributors!
+- **[Contributing Guide](./CONTRIBUTING.md)** - Comprehensive guide explaining the codebase, architecture, and how to contribute
+
+**Recommended path for new contributors:**
+1. Start with [Quick Start Guide](./QUICKSTART.md) to run your first test
+2. Explore test files in `src/test/suite/` (ast, lsp, llm)
+3. Modify and experiment with existing tests
+4. Read [Contributing Guide](./CONTRIBUTING.md) for deep dive into architecture
+
+## 🎯 Project Status
+
+| Language | Status | Framework | Features |
+|----------|--------|-----------|----------|
+| **Java** | ✅ Production Ready | JUnit 4/5 | Full semantic analysis, mock generation |
+| **Python** | ✅ Production Ready | pytest | Type hints, async support, fixtures |
+| **Go** | ✅ Production Ready | Go testing | Package management, benchmarks |
+
+
 ## ⚙️ Configuration
 
 ### Core Settings
@@ -150,34 +151,6 @@ Add to `settings.json`:
   "LSPRAG.localLLMUrl": "http://localhost:11434"
 }
 ```
-
-### Advanced Features
-
-#### Generation Strategies
-
-- **`naive`**: Basic test generation without semantic analysis
-- **`original`**: Standard LSP-aware generation (recommended)
-- **`agent`**: Multi-step reasoning with iterative refinement
-- **`cfg`**: Control flow graph-based generation
-- **`experimental`**: Latest experimental features
-- **`fastest`**: Optimized for speed
-- **`best`**: Highest quality generation
-
-#### Prompt Types
-
-- **`basic`**: Minimal context, fast generation
-- **`detailed`**: Comprehensive context analysis
-- **`concise`**: Balanced approach
-- **`fastest`**: Speed-optimized prompts
-- **`best`**: Quality-optimized prompts
-
-## 💻 System Requirements
-
-### Hardware Requirements
-
-- **Minimum**: 8GB RAM, 4 CPU cores
-- **Recommended**: 16GB RAM, 8 CPU cores
-- **GPU**: Optional but recommended for local LLM inference
 
 ---
 **Ready to generate unit tests with LSPRAG!** 🎉
