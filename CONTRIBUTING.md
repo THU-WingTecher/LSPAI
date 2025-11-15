@@ -5,7 +5,6 @@ Welcome to LSPRAG! This guide will help you understand the codebase and get star
 ## Table of Contents
 
 - [Understanding the Project](#understanding-the-project)
-- [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
 - [Getting Started with Tests](#getting-started-with-tests)
 - [Development Workflow](#development-workflow)
@@ -23,50 +22,7 @@ LSPRAG (Language Server Protocol-based AI Generation) is a VS Code extension tha
 - **Large Language Models (LLMs)**: For intelligent test generation
 
 The extension supports multiple languages (Python, Java, Go, C++) and multiple LLM providers (OpenAI, DeepSeek, Ollama).
-
-## Quick Start
-
-### Prerequisites
-
-- **Node.js**: Version 20 or higher
-- **VS Code**: Version 1.95.0 or higher
-- **Git**: For version control
-
-### Initial Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd LSPRAG
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install --force
-   ```
-
-3. **Compile the project**
-   ```bash
-   npm run compile
-   ```
-
-4. **Install language server extensions** (for testing)
-   - Python: Install "Pylance" and "Python" extensions
-   - Java: Install "Oracle Java Extension Pack"
-   - Go: Install "Go" extension
-
-5. **Set up test environment variables** (optional, for running tests)
-   Create a `.env.sh` file or set environment variables:
-   ```bash
-   export DEEPSEEK_API_KEY="your-api-key"
-   export OPENAI_API_KEY="your-api-key"
-   export LOCAL_LLM_URL="http://localhost:11434"
-   ```
-
-6. **Run a simple test to verify setup**
-   ```bash
-   npm run test --testfile=ast.ast
-   ```
+For quick start, please refer [Quick Start Guide](./QUICKSTART.md).
 
 ## Project Structure
 
