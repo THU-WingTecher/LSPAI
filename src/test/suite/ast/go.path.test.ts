@@ -1,11 +1,7 @@
 import * as assert from 'assert';
 import { GolangCFGBuilder } from '../../../cfg/golang';
 import { PathCollector } from '../../../cfg/path';
-import { CFGNodeType } from '../../../cfg/types';
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 
-import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders } from '../../../helper';
-import { collectPathforSymbols } from '../../../experiment';
 // Known issues : we cannot detect the break / continue condition in the loop
 // Basic path tests
 test('Golang CFG Path - Simple If-Else', async function() {

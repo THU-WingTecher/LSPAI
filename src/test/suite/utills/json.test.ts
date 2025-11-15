@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import { extractArrayFromJSON, formatToJSON } from '../../../lsp/utils';
-import { loadAllTargetSymbolsFromWorkspace, randomlySelectOneFileFromWorkspace, setWorkspaceFolders } from '../../../helper';
+import { randomlySelectOneFileFromWorkspace, setWorkspaceFolders } from '../../../helper';
+import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
 import { getConfigInstance } from '../../../config';
 import path from 'path';
 suite('Utils Test Suite', () => {

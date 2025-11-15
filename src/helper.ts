@@ -1,23 +1,20 @@
 import path from "path";
 import vscode from "vscode";
 import fs from "fs";
-import { MIN_FUNCTION_LINES, SRC_PATHS } from "./config";
+import { SRC_PATHS } from "./config";
 import { ProjectName } from "./config";
 import { generateFileNameForDiffLanguage, findFiles } from "./fileHandler";
 import { getLanguageSuffix } from "./language";
-import { activate } from "./lsp/helper";
-import { getAllSymbols } from './lsp/symbol';
-import { getSymbolFromDocument } from './lsp/symbol';
 import { getConfigInstance } from "./config";
 import { generateUnitTestForAFunction } from "./generate";
 import assert from "assert";
 
 // Add these constants near the top with other constants
-const SEED = 12345; // Fixed seed for reproducibility
-let seededRandom: () => number;
+export const SEED = 12345; // Fixed seed for reproducibility
+export let seededRandom: () => number;
 
 // Add this function near other utility functions
-function initializeSeededRandom(seed: number) {
+export function initializeSeededRandom(seed: number) {
     seededRandom = function() {
         seed = (seed * 16807) % 2147483647;
         return (seed - 1) / 2147483646;
@@ -268,13 +265,6 @@ export function sleep(ms: number): Promise<void> {
 }
 
 
-export function isSymbolLessThanLines(symbol: vscode.DocumentSymbol): boolean {
-    // if (MIN_FUNCTION_LINES === -1) {
-    //     return false;
-    // }
-    return symbol.range.end.line - symbol.range.start.line < MIN_FUNCTION_LINES;
-}
-
 export function goSpecificEnvGen(folderName: string, language: string, srcPath: string): void {
     // Create the new folder path
     const newFolder = folderName;
@@ -339,21 +329,6 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
     return Files[randomIndex];
 }
 
-export async function selectOneSymbolFileFromWorkspace(fileName:string, symbolName:string, language:string) : Promise<{symbol: vscode.DocumentSymbol, document: vscode.TextDocument}> {
-    const filePath = findAFileFromWorkspace(fileName, language);
-    console.log("filePATH :: ", filePath);
-    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-    await activate(document.uri);
-    const symbol = await getSymbolFromDocument(document, symbolName);
-    if (!symbol) {
-        throw new Error(`Symbol ${symbolName} not found in file ${filePath}`);
-    }
-    return {
-        symbol,
-        document
-    };
-}
-
 export function findAFileFromWorkspace(targetFile: string, language: string) {
     if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {
         throw new Error("No workspace folders found");
@@ -372,52 +347,4 @@ export function findAFileFromWorkspace(targetFile: string, language: string) {
     return Files.filter(f => f.endsWith(targetFile))[0];
 }   
  
-export async function loadAllTargetSymbolsFromWorkspace(language: string, minLineNumber: number = MIN_FUNCTION_LINES) : 
-            Promise<{ symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[]> {
-    if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {
-        throw new Error("No workspace folders found");
-    }
-    let testFilesPath: string;
-    console.log('all workspace folders', vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath));
-    console.log('current workspace', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
-    const workspace = getConfigInstance().workspace;
-    const Files: string[] = [];
-    const projectName = path.basename(workspace);
-    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
-        testFilesPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
-    } else {
-        testFilesPath = path.join(workspace, SRC_PATHS.DEFAULT);
-    }
-    const suffix = getLanguageSuffix(language); 
-    findFiles(testFilesPath, Files, language, suffix);
-    initializeSeededRandom(SEED); // Initialize the seeded random generator
-    const symbolDocumentMap: { symbol: vscode.DocumentSymbol, document: vscode.TextDocument }[] = [];
-    // if (language === "go") {
-    //     await goSpecificEnvGen(getConfigInstance().savePath, language, testFilesPath);
-    // }
-	for (const filePath of Files) {
-        console.log('filePath', filePath);
-		const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));	
-		console.log(`#### Preparing symbols under file: ${filePath}`);
-		const symbols = await getAllSymbols(document.uri);
-        console.log(`#### Symbols: ${symbols.length}`);
-		if (symbols) {
-			for (const symbol of symbols) {
-				if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-					// if (language === 'java' && !isPublic(symbol, document)) {
-					// 	continue;
-					// }
-					if (isSymbolLessThanLines(symbol)){
-						continue;
-					}
-					if (seededRandom() < getConfigInstance().expProb) { 
-						symbolDocumentMap.push({ symbol, document });
-					}
-				}
-			}
-		}
-		console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
-	}
-    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${MIN_FUNCTION_LINES} lines`);
-    return symbolDocumentMap;
-}
+

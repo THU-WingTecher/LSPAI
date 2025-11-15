@@ -1,12 +1,7 @@
 import * as assert from 'assert';
 import { PythonCFGBuilder } from '../../../cfg/python';
 import { PathCollector } from '../../../cfg/path';
-import { JavaCFGBuilder } from '../../../cfg/java';
-import { CFGNodeType } from '../../../cfg/types';
-import { loadAllTargetSymbolsFromWorkspace } from '../../../helper';
-import { setWorkspaceFolders } from '../../../helper';
-import { activate } from '../../../lsp/helper';
-import { collectPathforSymbols } from '../../../experiment';
+
 // Known issues : we cannot detect the break / continue condition in the loop
 // Basic path tests
 test('Python CFG Path - should not have path', async function() {
