@@ -39,6 +39,19 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 - **Multiple LLM Providers**: Support for OpenAI, DeepSeek, and Ollama
 - **Customizable Prompts**: Multiple generation strategies available
 
+## 📖 Getting Started & Contributing
+
+New to LSPRAG? Want to contribute? We've got you covered!
+
+- **[Quick Start Guide](./QUICKSTART.md)** - Get up and running in 5 minutes. Perfect for first-time contributors!
+- **[Contributing Guide](./CONTRIBUTING.md)** - Comprehensive guide explaining the codebase, architecture, and how to contribute
+
+**Recommended path for new contributors:**
+1. Start with [Quick Start Guide](./QUICKSTART.md) to run your first test
+2. Explore test files in `src/test/suite/` (ast, lsp, llm)
+3. Modify and experiment with existing tests
+4. Read [Contributing Guide](./CONTRIBUTING.md) for deep dive into architecture
+
 ## 🎯 Project Status
 
 | Language | Status | Framework | Features |
