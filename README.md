@@ -32,13 +32,6 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 - **Go**: Native Go testing framework support
 - **Extensible**: Easy to add support for additional languages
 
-### 🎯 **Advanced Capabilities**
-- **Semantic Analysis**: Deep code understanding through LSP
-- **Dependency Resolution**: Automatic import and mock generation
-- **Coverage Optimization**: Generate tests for maximum code coverage
-- **Multiple LLM Providers**: Support for OpenAI, DeepSeek, and Ollama
-- **Customizable Prompts**: Multiple generation strategies available
-
 ## 📖 Getting Started & Contributing
 
 New to LSPRAG? Want to contribute? We've got you covered!
@@ -62,84 +55,34 @@ New to LSPRAG? Want to contribute? We've got you covered!
 
 ## 🛠️ Installation & Setup
 
-### Prerequisites
+1. Download the extension named `LSPRAG` 
 
-- **VS Code**: Version 1.95.0 or higher
-- **Node.js**: Version 20 or higher
+2. Setup LLM in vscode settings
+**Option A: VS Code Settings UI**
+- Open Settings (`Ctrl/Cmd + ,`)
+- Search for "LSPRAG"
+- Configure provider, model, and API keys
+- for example, you can set provider as deepseek, and model as deepseek-chat, and you can also set provider as openai and model as gpt-4o-mini, or gpt-5.
 
-### Installation Steps
-**Note**: Currently, LSPRAG is available only as source code. While we plan to publish it as a one-click extension in the future, we're maintaining source-only distribution to preserve anonymity. Please follow the steps below to set up the application.
+**Option B: Direct JSON Configuration**
+Add to `settings.json`:
+```json
+{
+  "LSPRAG": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "deepseekApiKey": "your-api-key",
+    "openaiApiKey": "your-openai-key",
+    "localLLMUrl": "http://localhost:11434",
+    "savePath": "lsprag-tests",
+    "promptType": "detailed",
+    "generationType": "original",
+    "maxRound": 3
+  }
+}
+```
 
-
-1. **Download Source Code**
-   - Use `git clone` or download the ZIP file directly
-
-2. **Setup Project**
-   - Navigate to the project's root directory `LSPRAG`
-   - Install dependencies: `npm install --force`
-   - Compile the project: `npm run compile`
-
-3. **Install Language Server Extensions**
-   
-   **For Python:**
-   - Install "Pylance" and "Python" extensions
-   ![Language Server Integration](doc/assets/language_server.png)
-   
-   **For Java:**
-   - Install "Oracle Java Extension Pack" from VS Code Marketplace
-   
-   **For Go:**
-   - Install "Go" extension
-   - Enable semantic tokens in settings:
-   ```json
-   {
-     "gopls": {
-       "ui.semanticTokens": true
-     }
-   }
-   ```
-
-4. **Download Baseline Python Project**
-   - Navigate to experiments directory: `cd experiments`
-   - Create projects folder: `mkdir projects`
-   - Clone a sample project: `git clone https://github.com/psf/black.git`
-
-5. **Activate Extension**
-   - Navigate to `src/extension.ts`
-   - Click "Run and Debug" and select "VS Code Extension Development"
-   ![Method to activate the app](doc/assets/vscodeExtensionDevlopment.png)
-   - A new VS Code editor will open - use this for subsequent actions
-6. **⚠️ IMPORTANT: Configure LLM Settings in the NEW Editor**
-   
-   **Critical**: You must configure your LLM settings in the newly opened VS Code editor (not the original one) for LSPRAG to work properly.
-   
-   
-   **Option A: VS Code Settings UI**
-   - Open VS Code Settings (`Ctrl/Cmd + ,`)
-   - Search for "LSPRAG" settings
-   - Configure provider, model, and API keys
-   
-   **Option B: Direct JSON Configuration**
-   Add to your `settings.json`:
-   ```json
-   {
-     "LSPRAG": {
-       "provider": "deepseek",
-       "model": "deepseek-chat",
-       "deepseekApiKey": "your-api-key",
-       "openaiApiKey": "your-openai-key",
-       "localLLMUrl": "http://localhost:11434",
-       "savePath": "lsprag-tests",
-       "promptType": "detailed",
-       "generationType": "original",
-       "maxRound": 3
-     }
-   }
-   ```
-
-   Test your configuration with `Ctrl+Shift+P` → `LSPRAG: Show Current Settings`
-
-## 🚀 Usage
+3. You are ready!
 
 ### Basic Workflow
 

@@ -1,0 +1,152 @@
+// A launch configuration that compiles the extension and then opens it inside a new window
+// Use IntelliSense to learn about possible attributes.
+// Hover to view descriptions of existing attributes.
+// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+{
+	"version": "0.2.0",
+	"configurations": [
+		
+		{
+			"name": "Run Extension",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+			"outFiles": ["${workspaceFolder}/out/**/*.js"],
+			"preLaunchTask": "npm: compile"
+		},
+		{
+			"name": "Run Extension Tests",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				// "--disable-extensions",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index",
+				// set process.env.NODE_ENV to test 
+				// "--env.process.env.NODE_ENV=test",
+				// "--env.node=${workspaceFolder}/node_modules/vscode/bin/remote-cli.js",
+				// "--install-extension=ms-python.python",
+                // "--install-extension=redhat.java",
+			],
+			"env": {
+				"NODE_ENV": "test",
+				"NODE_DEBUG": "true",
+				"npm_config_testfile": "contextSelector"
+			},
+			"outFiles": ["${workspaceFolder}/out/**/*.js"],
+			// "sourceMaps": true,
+			// "resolveSourceMapLocations": ["${workspaceFolder}/src/**/*.ts"],
+			"preLaunchTask": "npm: compile"
+		},
+		{
+			"name": "Run Extension Tests - temp",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				// "--disable-extensions",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index",
+				// set process.env.NODE_ENV to test 
+				// "--env.process.env.NODE_ENV=test",
+				// "--env.node=${workspaceFolder}/node_modules/vscode/bin/remote-cli.js",
+				// "--install-extension=ms-python.python",
+                // "--install-extension=redhat.java",
+			],
+			"env": {
+				"NODE_ENV": "test",
+				"NODE_DEBUG": "true",
+				"npm_config_testfile": "temp"
+			},
+			"outFiles": ["${workspaceFolder}/out/**/*.js"],
+			// "sourceMaps": true,
+			// "resolveSourceMapLocations": ["${workspaceFolder}/src/**/*.ts"],
+			"preLaunchTask": "npm: compile"
+		},
+		{
+			"name": "Run Extension Tests - cfgPython",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				// "--disable-extensions",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index",
+				// set process.env.NODE_ENV to test 
+				// "--env.process.env.NODE_ENV=test",
+				// "--env.node=${workspaceFolder}/node_modules/vscode/bin/remote-cli.js",
+				// "--install-extension=ms-python.python",
+                // "--install-extension=redhat.java",
+			],
+			"env": {
+				"NODE_ENV": "test",
+				"NODE_DEBUG": "true",
+				"npm_config_testfile": "cfgPython"
+			},
+			"outFiles": ["${workspaceFolder}/out/**/*.js"],
+			// "sourceMaps": true,
+			// "resolveSourceMapLocations": ["${workspaceFolder}/src/**/*.ts"],
+			"preLaunchTask": "npm: compile"
+		},
+		{
+			"name": "Run Extension Tests - exp.python",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				// "--disable-extensions",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index",
+				// set process.env.NODE_ENV to test 
+				// "--env.process.env.NODE_ENV=test",
+				// "--env.node=${workspaceFolder}/node_modules/vscode/bin/remote-cli.js",
+				// "--install-extension=ms-python.python",
+                // "--install-extension=redhat.java",
+			],
+			"env": {
+				"NODE_ENV": "test",
+				"NODE_DEBUG": "true",
+				"npm_config_testfile": "exp.python"
+			},
+			"outFiles": ["${workspaceFolder}/out/**/*.js"],
+			// "sourceMaps": true,
+			// "resolveSourceMapLocations": ["${workspaceFolder}/src/**/*.ts"],
+			"preLaunchTask": "npm: compile"
+		},
+		{
+			"name": "Run Extension Tests - ut.redefine",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index",
+				"${workspaceFolder}/experiments/projects/black"
+			],
+			"env": {
+				"NODE_ENV": "test",
+				"NODE_DEBUG": "true",
+				"npm_config_testfile": "ut.redefine"
+			},
+			"outFiles": ["${workspaceFolder}/out/**/*.js"],
+			"preLaunchTask": "npm: compile"
+		},
+		{
+			"name": "Run Experiment",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				// "--disable-extensions",
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/test/exps/index",
+			],
+			"outFiles": ["${workspaceFolder}/out/**/*.js"],
+			// "sourceMaps": true,
+			// "resolveSourceMapLocations": ["${workspaceFolder}/src/**/*.ts"],
+			"preLaunchTask": "npm: compile"
+		}
+	]
+}

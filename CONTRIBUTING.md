@@ -214,19 +214,43 @@ test('Python - Custom Feature Test', async function() {
 
 ### Step 4: Debug Your Changes
 
-Use VS Code's debugger:
+#### Launch Debugger
 
-1. Set breakpoints in your test file
-2. Open `src/test/runTest.ts`
-3. Press F5 or use "Run and Debug"
-4. Select "Debug Tests" configuration
+We provide sample debugger configurations to help you debug the extension and tests. The sample file is located at `docs/sample_debugger_settings.json`.
 
-Or use console logging:
+**Setting up the debugger:**
 
-```typescript
-console.log('Debug info:', yourVariable);
-```
+1. **Copy the sample configuration** to your VS Code settings:
+   - Create or open `.vscode/launch.json` in the project root
+   - Copy the contents from `docs/sample_debugger_settings.json`
+   - Adjust configurations as needed
 
+2. **Available debug configurations:**
+
+   - **"Run Extension"**: Launches the extension in a new VS Code window for debugging the extension itself
+     - Useful for debugging extension commands and features
+     - Automatically compiles before launching
+   
+   - **"Run Extension Tests"**: Runs the test suite with debugging support
+     - Set `npm_config_testfile` in the `env` section to specify which tests to run
+     - Example: `"npm_config_testfile": "lsp.symbol"` runs only symbol tests
+     - Enables breakpoints in test files
+
+3. **Using the debugger:**
+
+   ```bash
+   # Method 1: Use VS Code Debug Panel
+   # 1. Set breakpoints in your test file or source code
+   # 2. Open Run and Debug panel (Ctrl+Shift+D / Cmd+Shift+D)
+   # 3. Select a configuration from the dropdown
+   # 4. Press F5 or click the green play button
+   
+   # Method 2: Quick Debug
+   # 1. Set breakpoints
+   # 2. Press F5
+   # 3. Select the appropriate configuration
+   ```
+   
 ## Code Architecture
 
 ### Core Components

@@ -1,27 +1,112 @@
-# Quick Start Guide
+# Quick Start Guide with Source Code
 
 Welcome! This guide will get you up and running with LSPRAG in minutes.
 
 ## 🚀 5-Minute Setup
 
+### 0. Clone the Repo
+
+```bash
+git clone https://github.com/THU-WingTecher/LSPRAG.git
+cd LSPRAG
+```
+
 ### 1. Install Dependencies
+
+If npm is not installed, install it first.
 
 ```bash
 npm install --force
 npm run compile
 ```
 
-### 2. Run Your First Test
+### 2. Install Language Server Extensions
 
-```bash
-# Test AST parsing
-npm run test --testfile=ast.ast
+**For Python:**
+- Install "Pylance" and "Python" extensions
+![Language Server Integration](docs/assets/language_server.png)
 
-# Test LSP symbol discovery
-npm run test --testfile=lsp.symbol
+**For Java:**
+- Install "Oracle Java Extension Pack" from VS Code Marketplace
+
+**For Go:**
+- Install "Go" extension
+- Enable semantic tokens in settings:
+```json
+{
+  "gopls": {
+    "ui.semanticTokens": true
+  }
+}
 ```
 
-If tests pass, you're ready to go! ✅
+### 3. Download Baseline Project
+
+```bash
+cd experiments
+mkdir projects
+cd projects
+git clone https://github.com/psf/black.git
+```
+
+### 4. Activate Extension
+
+- Navigate to `src/extension.ts`
+- Click "Run and Debug" and select "VS Code Extension Development"
+![Method to activate the app](docs/assets/vscodeExtensionDevlopment.png)
+- A new VS Code editor will open - use this for subsequent actions
+
+### 5. Configure LLM Settings
+
+**Critical**: Configure LLM settings in the newly opened VS Code editor (not the original one).
+
+**Option A: VS Code Settings UI**
+- Open Settings (`Ctrl/Cmd + ,`)
+- Search for "LSPRAG"
+- Configure provider, model, and API keys
+
+**Option B: Direct JSON Configuration**
+Add to `settings.json`:
+```json
+{
+  "LSPRAG": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "deepseekApiKey": "your-api-key",
+    "openaiApiKey": "your-openai-key",
+    "localLLMUrl": "http://localhost:11434",
+    "savePath": "lsprag-tests",
+    "promptType": "detailed",
+    "generationType": "original",
+    "maxRound": 3
+  }
+}
+```
+
+**Option C: Environment Variables** (for tests)
+```bash
+export DEEPSEEK_API_KEY="your-key"
+export OPENAI_API_KEY="your-key"
+export LOCAL_LLM_URL="http://localhost:11434"
+```
+
+Verify configuration: `Ctrl+Shift+P` → `LSPRAG: Show Current Settings`
+
+### 6. Generate Tests
+
+1. **Open Your Project**
+   - Open workspace in the new VS Code editor
+   - Navigate to: `LSPRAG/experiments/projects/black`
+   - Ensure language servers are active
+
+2. **Generate Unit Test**
+   - Navigate to any function or method
+   - Right-click within the function definition
+   - Select **"LSPRAG: Generate Unit Test"** from the context menu
+   ![Generate Unit test](docs/assets/CommandFig.png)
+   - Wait for generation to complete
+   ![Waiting](docs/assets/loading.png)
+
 
 ## 📚 Learning Path
 
@@ -167,35 +252,9 @@ npm run lint
 3. **`src/lsp/symbol.ts`** - How symbol discovery works
 4. **`src/generate.ts`** - Main generation logic
 
-## 🐛 Debugging
-
-### Use VS Code Debugger
-
-1. Open `src/test/runTest.ts`
-2. Set breakpoints in your test
-3. Press F5
-4. Select "Debug Tests"
-
-### Use Console Logging
-
-```typescript
-console.log('Debug:', yourVariable);
-console.log('Symbols:', symbols.map(s => s.name));
-```
-
 ## ⚙️ Environment Setup (Optional)
 
-For tests that use LLMs, set environment variables:
-
-```bash
-# Create .env.sh
-export DEEPSEEK_API_KEY="your-key"
-export OPENAI_API_KEY="your-key"
-export LOCAL_LLM_URL="http://localhost:11434"
-
-# Source it
-source .env.sh
-```
+For tests that use LLMs, see **Option C** in step 5 above.
 
 ## 🎓 Next Steps
 
