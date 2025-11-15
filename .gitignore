@@ -1,6 +1,5 @@
 .env.sh
 new_data
-core
 cc-tests/
 experiments/baselines/rag/embeddings/
 experiments/settings/
