@@ -33,22 +33,26 @@ Before you begin, ensure you have the following installed:
    cd LSPRAG
    ```
 
-2. **Install dependencies**
+2. **Choose your branch**
+   - **For stable code**: `git checkout main` (recommended for most users)
+   - **For latest features**: `git checkout nightly` (may contain experimental code)
+
+3. **Install dependencies**
    ```bash
    npm install --force
    ```
 
-3. **Compile the project**
+4. **Compile the project**
    ```bash
    npm run compile
    ```
 
-4. **Open in VS Code**
+5. **Open in VS Code**
    ```bash
    code .
    ```
 
-5. **Run the extension**
+6. **Run the extension**
    - Press `F5` or go to Run → Start Debugging
    - Select "VS Code Extension Development"
    - A new VS Code window will open with the extension loaded
@@ -148,29 +152,54 @@ LSPRAG/
 
 ## Development Workflow
 
+### Branch Structure
+
+LSPRAG uses a two-branch development model:
+
+- **`main`**: Stable, production-ready code. This branch is tested and safe for production use.
+- **`nightly`**: Latest development code with newest features and commits. May contain experimental or untested features.
+
+**Development workflow:**
+- All new development happens on `nightly` branch
+- When `nightly` is stable and tested, it gets merged to `main`
+- Contributors should base their work on `nightly` for latest features
+
 ### Making Changes
 
-1. **Create a feature branch**
+1. **Start from nightly branch**
+   ```bash
+   git checkout nightly
+   git pull origin nightly
+   ```
+
+2. **Create a feature branch**
    ```bash
    git checkout -b feature/your-feature-name
    ```
 
-2. **Make your changes**
+3. **Make your changes**
    - Write code following the [Code Style](#code-style) guidelines
    - Add tests for new functionality
    - Update documentation if needed
 
-3. **Test your changes**
+4. **Test your changes**
    ```bash
    npm run compile
    npm run lint
    npm run test
    ```
 
-4. **Commit your changes**
+5. **Commit your changes**
    ```bash
    git add .
    git commit -m "Description of your changes"
+   ```
+
+6. **Push to nightly (or your feature branch)**
+   ```bash
+   git push origin nightly
+   # or for feature branch
+   git push origin feature/your-feature-name
    ```
 
 ### Testing Your Changes

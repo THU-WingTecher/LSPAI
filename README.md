@@ -22,15 +22,19 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
 ## 📦 Version Information
 
 - **Current Version**: 0.1.0
-- **Stable Branch**: `stable` - Production-ready code
-- **Stable Tag**: `v0.1.0-stable` - Tagged stable release
-- **Main Branch**: `main` - Latest development code
+- **Main Branch**: `main` - **Stable production-ready code**
+- **Nightly Branch**: `nightly` - Latest development code with newest features
 
-To use the stable version:
+**Which branch should you use?**
+- **For production use**: Checkout `main` branch (stable, tested code)
+- **For latest features**: Checkout `nightly` branch (may contain experimental features)
+
 ```bash
-git checkout stable
-# or
-git checkout v0.1.0-stable
+# Use stable version
+git checkout main
+
+# Use latest development version
+git checkout nightly
 ```
 
 ## ✨ Key Features
