@@ -2,11 +2,11 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
 import { 
-    loadAllTargetSymbolsFromWorkspace, 
     setWorkspaceFolders, 
     updateWorkspaceFolders,
     extractSymbolDocumentMapFromTaskList
 } from '../../../helper';
+import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 import { 
     getConfigInstance, 
