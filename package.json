@@ -3,8 +3,16 @@
   "publisher": "LSPRAG",
   "displayName": "LSPRAG",
   "description": "LSPRAG is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP)",
-  "version": "0.2.0",
+  "version": "0.2.3",
   "icon": "docs/assets/lsprag-logo-v1.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/THU-WingTecher/LSPRAG.git"
+  },
+  "homepage": "https://github.com/THU-WingTecher/LSPRAG#readme",
+  "bugs": {
+    "url": "https://github.com/THU-WingTecher/LSPRAG/issues"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },

@@ -43,7 +43,6 @@ export class JavaCFGBuilder extends CFGBuilder {
                 
             case 'integral_type':
             case 'identifier':
-            case 'formal_parameters':
             case 'local_variable_declaration':
             case 'expression_statement':
                 return this.processExpressionStatement(node, current);

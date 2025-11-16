@@ -44,7 +44,6 @@ export class GolangCFGBuilder extends CFGBuilder {
                 return this.processReturnStatement(node, current);
 
             case 'identifier':
-            case 'parameter_list':
             case 'type_identifier':
             case 'expression_statement':
             case 'short_var_declaration':
