@@ -19,7 +19,11 @@
     "commands": [
       {
         "command": "extension.testLLM",
-        "title": "Test LLM"
+        "title": "LSPRAG: Test LLM"
+      },
+      {
+        "command": "extension.testLSP",
+        "title": "LSPRAG: Test Language Server"
       },
       {
         "command": "extension.generateUnitTest",
@@ -28,30 +32,6 @@
       {
         "command": "LSPRAG.showSettings",
         "title": "LSPRAG: Show Current Settings"
-      },
-      {
-        "command": "LSPRAG.PythonBlackExperiment",
-        "title": "LSPRAG: Python Black Experiment"
-      },
-      {
-        "command": "LSPRAG.PythonTornadoExperiment",
-        "title": "LSPRAG: Python Tornado Experiment"
-      },
-      {
-        "command": "LSPRAG.javaCliExperiment",
-        "title": "LSPRAG: Java Commons-cli Experiment"
-      },
-      {
-        "command": "LSPRAG.javaCsvExperiment",
-        "title": "LSPRAG: Java Commons-csv Experiment"
-      },
-      {
-        "command": "LSPRAG.goLogrusExperiment",
-        "title": "LSPRAG: Go Logrus Experiment"
-      },
-      {
-        "command": "LSPRAG.goCobraExperiment",
-        "title": "LSPRAG: Go Cobra Experiment"
       }
     ],
     "menus": {

@@ -243,8 +243,8 @@ export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
 		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
-		// console.log('Generated test code:', result);
-		// console.log('Token usage:', tokenUsage);
+		console.log('Generated test code:', result);
+		console.log('Token usage:', tokenUsage);
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);

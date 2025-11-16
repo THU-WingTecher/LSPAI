@@ -19,24 +19,6 @@
 
 LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code extension that leverages Language Server Protocol (LSP) integration and Large Language Models (LLMs) to automatically generate high-quality unit tests in real-time. By combining semantic code analysis with AI-powered generation, LSPRAG delivers contextually accurate and comprehensive test suites across multiple programming languages.
 
-## 📦 Version Information
-
-- **Current Version**: 0.1.0
-- **Main Branch**: `main` - **Stable production-ready code**
-- **Nightly Branch**: `nightly` - Latest development code with newest features
-
-**Which branch should you use?**
-- **For production use**: Checkout `main` branch (stable, tested code)
-- **For latest features**: Checkout `nightly` branch (may contain experimental features)
-
-```bash
-# Use stable version
-git checkout main
-
-# Use latest development version
-git checkout nightly
-```
-
 ## ✨ Key Features
 
 ### 🚀 **Real-Time Generation**
@@ -86,8 +68,14 @@ Add to `settings.json`:
 
 1. **Open Your Project**
    - Open your workspace in the new VS Code editor
-   - Navigate to the black project: `LSPRAG/experiments/projects/black`
-   - Ensure language servers are active for your target language
+   - Or you can directly clone our project and move to its demo files
+   - `git clone https://github.com/THU-WingTecher/LSPRAG.git`
+   - Navigate to the demo test files: `LSPRAG/src/test/fixtures/python`
+   - At Editor, click left-up `File` -> `Open Folder` -> Select workspace to `LSPRAG/src/test/fixtures/python`
+   - [Optional] Test core utilities
+      - You can check out your current setting by calling `Cmd/Cntrl + Shift + P => LSPRAG: Show Current Settings`
+      - You can test your LLM avaialbility by calling `Cmd/Cntrl + Shift + P => LSPRAG: Test LLM`
+      - You can test your Language Server avaialbility by calling `Cmd/Cntrl + Shift + P => LSPRAG: Test Language Server`
 
 2. **Generate Tests**
    - Navigate to any function or method
@@ -100,6 +88,11 @@ Add to `settings.json`:
 3. **Review & Deploy**
    - Generated tests will appear with accept/reject options
    ![Final Result](docs/assets/UnitGenResult.png)
+
+4. **Final Result** 
+   - All logs including LLM prompt and specific cfg, and diagnositc-fix histories will be saved under `{your-workspace}/lsprag-workspace/`
+   - If you click [Accept] the test file, the test file will be saved at `{your-workspace}/lsprag-tests`
+   - You can change the save path by chaning default value of save path. You can change it through VS Code Extension settings at the same interface with set up LLM.
 
 ### Command Palette Commands
 
