@@ -23,7 +23,6 @@ tsconfig.tsbuildinfo
 tsconfig.json
 temp/
 **/temp*.test.ts
-*.js
 *.zip
 *.jar
 .npmrc
