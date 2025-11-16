@@ -81,10 +81,6 @@ export async function buildDefTree(
                     const key = `${childToken.document.uri.toString()}#${childToken.word}`;
                     console.log(`#### Key: ${key}, tok.word: ${childToken.word}`);
 
-                    if (childToken.word.includes("DFA")) {
-                        console.log(`${childToken.word}`);
-                    }
-
                     if (visited.has(key)) {
                         console.log(`#### Skip visited: ${key}`);
                         continue;

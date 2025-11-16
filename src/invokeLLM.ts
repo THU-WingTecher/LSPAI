@@ -93,6 +93,21 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 		return "";
 	}
 
+	// Validate promptObj structure
+	if (!Array.isArray(promptObj) || promptObj.length < 2) {
+		const errorMsg = 'Invalid promptObj: must be an array with at least 2 elements';
+		console.error('invokeLLM::error', errorMsg);
+		vscode.window.showErrorMessage(errorMsg);
+		return "";
+	}
+
+	if (!promptObj[0]?.content || !promptObj[1]?.content) {
+		const errorMsg = 'Invalid promptObj: elements must have content property';
+		console.error('invokeLLM::error', errorMsg);
+		vscode.window.showErrorMessage(errorMsg);
+		return "";
+	}
+
 	// console.log('invokeLLM::promptObj', promptObj);
 	console.log('invokeLLM::promptObj_system', promptObj[0].content);
 	console.log('invokeLLM::promptObj_user', promptObj[1].content);
@@ -124,7 +139,7 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 			}
 			
 			// Log the prompt and response
-			if (fs.existsSync(getConfigInstance().logSavePath)) {
+			if (fs.existsSync(getConfigInstance().logSavePath) && promptObj[1]?.content) {
 				const logData = {
 					prompt: promptObj[1].content,
 					response: response,
@@ -162,7 +177,7 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 	
 	// const modelName = getModelName(method);
 	const modelName = getModelName();
-	logObj.prompt = promptObj[1].content;
+	logObj.prompt = promptObj[1]?.content || '';
 	
 	const apiKey = getConfigInstance().deepseekApiKey;
 	
@@ -214,7 +229,7 @@ export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
 		process.env.OPENAI_PROXY_URL = proxy;
 	}
 	
-	logObj.prompt = promptObj[1].content;
+	logObj.prompt = promptObj[1]?.content || '';
 	const openai = new OpenAI({
 		apiKey: apiKey,
 		...(proxy && { httpAgent: new HttpsProxyAgent(proxy) })

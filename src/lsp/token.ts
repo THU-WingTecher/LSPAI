@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getAllSymbols, getFunctionSymbol, getSymbolWithNeighborBoundedRange, getSymbolDetail, getSymbolRange, getSymbolByLocation } from './symbol';
-import { classifyTokenByUri, DpendenceAnalysisResult, getMethodOrFunctionsParamTokens, getReturnTokens, processAndGenerateHierarchy, retrieveDefs } from './definition';
+import { classifyTokenByUri, DpendenceAnalysisResult, getMethodOrFunctionsParamTokens, getReturnTokens, processAndGenerateHierarchy, retrieveDef, retrieveDefs } from './definition';
 import { VscodeRequestManager } from './vscodeRequestManager';
 import { DecodedToken } from './types';
 
@@ -367,34 +367,6 @@ function getLineContextFromToken(editor: vscode.TextEditor, token: DecodedToken)
     return correctBrackets(lineText);
 }
 
-
-export async function getSourceFromDefinition(token: DecodedToken): Promise<string | null> {
-    const definitions = token.definition;
-
-    if (definitions && definitions.length > 0) {
-        const definition = definitions[0];
-        const definitionDocument = await vscode.workspace.openTextDocument(definition.uri); // Await the promise
-        const symbols = await VscodeRequestManager.documentSymbols(definition.uri);
-        const functionSymbol = getFunctionSymbol(symbols, definition.range.start);
-		if (!functionSymbol) {
-            console.log(`No overlapping symbol found for token: ${token.word}`);
-        } else {
-            const text = definitionDocument.getText(functionSymbol.range);
-            return text;
-            }
-    } else {
-        console.log(`No definition found for token: ${token.word}`);
-    }
-
-    return null;
-}
-// export function getTokensByContext(tokens: DecodedToken[], type: string): DecodedToken[] {
-    
-//     return tokens
-//         .map(token => token.type === type ? token : null)
-//         .filter((token): token is DecodedToken => token !== null);
-// }
-
 export function getTokensByType(tokens: DecodedToken[], type: string): DecodedToken[] {
     return tokens
         .map(token => token.type === type ? token : null)
@@ -420,4 +392,36 @@ export function filterTokens(tokens: DecodedToken[]): DecodedToken[] {
         }
         return isValid;
     });
+}
+
+export async function getSourceFromDefinition(token: DecodedToken): Promise<string | null> {
+    const definitions = token.definition;
+
+    if (definitions && definitions.length > 0) {
+        const definition = definitions[0];
+        const definitionDocument = await vscode.workspace.openTextDocument(definition.uri); // Await the promise
+        const symbols = await VscodeRequestManager.documentSymbols(definition.uri);
+        const functionSymbol = getFunctionSymbol(symbols, definition.range.start);
+		if (!functionSymbol) {
+            console.log(`No overlapping symbol found for token: ${token.word}`);
+        } else {
+            const text = definitionDocument.getText(functionSymbol.range);
+            return text;
+            }
+    } else {
+        console.log(`No definition found for token: ${token.word}`);
+    }
+
+    return null;
+}
+
+export async function loadDefAndSaveToDefSymbol(token: DecodedToken) {
+    if (!token.definition || token.definition.length === 0) {
+        await retrieveDef(token.document, token);
+    }
+    
+    if (token.definition && token.definition[0] && token.definition[0].range && token.definition.length > 0) {
+        const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
+        token.defSymbol = await getSymbolByLocation(defSymbolDoc, token.definition[0].range.start);
+    }
 }

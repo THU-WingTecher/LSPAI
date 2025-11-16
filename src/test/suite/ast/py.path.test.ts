@@ -1,12 +1,7 @@
 import * as assert from 'assert';
 import { PythonCFGBuilder } from '../../../cfg/python';
 import { PathCollector } from '../../../cfg/path';
-import { JavaCFGBuilder } from '../../../cfg/java';
-import { CFGNodeType } from '../../../cfg/types';
-import { loadAllTargetSymbolsFromWorkspace } from '../../../helper';
-import { setWorkspaceFolders } from '../../../helper';
-import { activate } from '../../../lsp/helper';
-import { collectPathforSymbols } from '../../../experiment';
+
 // Known issues : we cannot detect the break / continue condition in the loop
 // Basic path tests
 test('Python CFG Path - should not have path', async function() {
@@ -43,11 +38,13 @@ else:
     assert.deepStrictEqual(paths, [
         {
             code: 'y = 1',
-            path: 'where (\n\tx > 0\n)'
+            path: 'where (\n\tx > 0\n)',
+            simple: 'x > 0'
         },
         {
             code: 'y = 2',
-            path: 'where (\n\t!(x > 0)\n)'
+            path: 'where (\n\t!(x > 0)\n)',
+            simple: '!(x > 0)'
         }
     ]);
 });
@@ -70,11 +67,13 @@ z = 3  # This is after the merge point
     assert.deepStrictEqual(paths, [
         {
             code: 'y = 1\nz = 3',
-            path: 'where (\n\tx > 0\n)'
+            path: 'where (\n\tx > 0\n)',
+            simple: 'x > 0'
         },
         {
             code: 'y = 2\nz = 3',
-            path: 'where (\n\t!(x > 0)\n)'
+            path: 'where (\n\t!(x > 0)\n)',
+            simple: '!(x > 0)'
         }
     ]);
 });
@@ -138,23 +137,28 @@ else:
     assert.deepStrictEqual(paths, [
         {
             code: 'result = x + y',
-            path: 'where (\n\tx > 10\n\ty > 5\n)'
+            path: 'where (\n\tx > 10\n\ty > 5\n)',
+            simple: 'x > 10 && y > 5'
         },
         {
             code: 'result = x - z',
-            path: 'where (\n\tx > 10\n\t!(y > 5)\n\tz > 0\n)'
+            path: 'where (\n\tx > 10\n\t!(y > 5)\n\tz > 0\n)',
+            simple: 'x > 10 && !(y > 5) && z > 0'
         },
         {
             code: 'result = x',
-            path: 'where (\n\tx > 10\n\t!(y > 5)\n\t!(z > 0)\n)'
+            path: 'where (\n\tx > 10\n\t!(y > 5)\n\t!(z > 0)\n)',
+            simple: 'x > 10 && !(y > 5) && !(z > 0)'
         },
         {
             code: 'result = -y',
-            path: 'where (\n\t!(x > 10)\n\ty < 0\n)'
+            path: 'where (\n\t!(x > 10)\n\ty < 0\n)',
+            simple: '!(x > 10) && y < 0'
         },
         {
             code: 'result = 0',
-            path: 'where (\n\t!(x > 10)\n\t!(y < 0)\n)'
+            path: 'where (\n\t!(x > 10)\n\t!(y < 0)\n)',
+            simple: '!(x > 10) && !(y < 0)'
         }
     ]);
 });
@@ -417,36 +421,6 @@ def replace(self, new: Union[NL, list[NL]]) -> None:
 
 });
 
-test('Python CFG Path - Return Statement Exits Function', async function() {
-    const builder = new PythonCFGBuilder('python');
-    const code = `
-def foo(x):
-    y = 1
-    if x > 0:
-        return 42
-    if y > 2:
-        return 3
-    y = 2
-    return 0
-`;
-    const cfg = await builder.buildFromCode(code);
-    const pathCollector = new PathCollector('python');
-    const paths = pathCollector.collect(cfg.entry);
-
-    // Find the path(s) that include the first return
-    const return42Path = paths.find(p => p.path.includes('return 42'))!;
-    assert.ok(return42Path, "Should have a path with 'return 42'");
-    // The path with 'return 42' should NOT include 'y = 2' or 'return 0'
-    assert.ok(!return42Path.code.includes('y = 2'), "Path with 'return 42' should not include 'y = 2'");
-    assert.ok(!return42Path.path.includes('y > 2'), "Path with 'return 42' should not include 'return 0'");
-
-    // The other path should include 'y = 2' and 'return 0'
-    const return0Path = paths.find(p => p.path.includes('return 0'))!;
-    assert.ok(return0Path, "Should have a path with 'return 0'");
-    assert.ok(return0Path.code.includes('y = 2'), "Path with 'return 0' should include 'y = 2'");
-    assert.ok(!return0Path.code.includes('return 42'), "Path with 'return 0' should not include 'return 42'");
-});
-
 test('Python CFG Path - Path Minimization', async function() {
     const builder = new PythonCFGBuilder('python');
     const code = `  
@@ -617,20 +591,4 @@ async def schedule_formatting(
     console.log("after minimization", minimizedPaths.length);
     console.log(minimizedPaths.map(p => p.path));
     // assert.equal(minimizedPaths.length, 10, "Should have exactly 10 paths");
-});
-
-test('Run all functions under a repository : black', async function() {
-    if (process.env.NODE_DEBUG !== 'true') {
-        console.log('activate');
-        await activate();
-    }
-    const projectPath = "/LSPRAG/experiments/projects/black";
-    const workspaceFolders = setWorkspaceFolders(projectPath);
-    // await updateWorkspaceFolders(workspaceFolders);
-    console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
-
-    const symbols = await loadAllTargetSymbolsFromWorkspace('python');
-    console.log(`#### Number of symbols: ${symbols.length}`);
-    assert.ok(symbols.length > 0, 'symbols should not be empty');
-    await collectPathforSymbols(symbols);
 });

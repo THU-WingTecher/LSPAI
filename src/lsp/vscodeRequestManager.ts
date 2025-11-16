@@ -34,7 +34,7 @@ export class VscodeRequestManager {
       const newSymbols = res ?? [];
   
       if (newSymbols && newSymbols.length) {
-        console.log(`found ${newSymbols.length} symbols for ${uri.path}`);
+        // console.log(`found ${newSymbols.length} symbols for ${uri.path}`);
         symbols = newSymbols;
         break;
       }
