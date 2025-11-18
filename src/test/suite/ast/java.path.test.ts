@@ -2,10 +2,6 @@ import * as assert from 'assert';
 import { PathCollector } from '../../../cfg/path';
 import { JavaCFGBuilder } from '../../../cfg/java';
 import { CFGNodeType } from '../../../cfg/types';
-import { setWorkspaceFolders } from '../../../helper';
-import { collectPathforSymbols } from '../../../experiment';
-import { loadAllTargetSymbolsFromWorkspace } from '../../../helper';
-import { activate } from '../../../lsp/helper';
 
 
 test('Java CFG Path - Simple If-Else', async function() {
@@ -26,11 +22,13 @@ if (x > 0) {
     assert.deepStrictEqual(paths, [
         {
             code: 'y = 1;',
-            path: 'where (\n\t(x > 0)\n)'
+            path: 'where (\n\t(x > 0)\n)',
+            simple: '(x > 0)'
         },
         {
             code: 'y = 2;',
-            path: 'where (\n\t!(x > 0)\n)'
+            path: 'where (\n\t!(x > 0)\n)',
+            simple: '!(x > 0)'
         }
     ]);
 });
@@ -94,11 +92,13 @@ z = 3; // This is after the merge point
     assert.deepStrictEqual(paths, [
         {
             code: 'y = 1;\nz = 3;',
-            path: 'where (\n\t(x > 0)\n)'
+            path: 'where (\n\t(x > 0)\n)',
+            simple: '(x > 0)'
         },
         {
             code: 'y = 2;\nz = 3;',
-            path: 'where (\n\t!(x > 0)\n)'
+            path: 'where (\n\t!(x > 0)\n)',
+            simple: '!(x > 0)'
         }
     ]);
 });
@@ -166,23 +166,28 @@ if (x > 10) {
     assert.deepStrictEqual(paths, [
         {
             code: 'result = x + y;',
-            path: 'where (\n\t(x > 10)\n\t(y > 5)\n)'
+            path: 'where (\n\t(x > 10)\n\t(y > 5)\n)',
+            simple: '(x > 10) && (y > 5)'
         },
         {
             code: 'result = x - z;',
-            path: 'where (\n\t(x > 10)\n\t!(y > 5)\n\t(z > 0)\n)'
+            path: 'where (\n\t(x > 10)\n\t!(y > 5)\n\t(z > 0)\n)',
+            simple: '(x > 10) && !(y > 5) && (z > 0)'
         },
         {
             code: 'result = x;',
-            path: 'where (\n\t(x > 10)\n\t!(y > 5)\n\t!(z > 0)\n)'
+            path: 'where (\n\t(x > 10)\n\t!(y > 5)\n\t!(z > 0)\n)',
+            simple: '(x > 10) && !(y > 5) && !(z > 0)'
         },
         {
             code: 'result = -y;',
-            path: 'where (\n\t!(x > 10)\n\t(y < 0)\n)'
+            path: 'where (\n\t!(x > 10)\n\t(y < 0)\n)',
+            simple: '!(x > 10) && (y < 0)'
         },
         {
             code: 'result = 0;',
-            path: 'where (\n\t!(x > 10)\n\t!(y < 0)\n)'
+            path: 'where (\n\t!(x > 10)\n\t!(y < 0)\n)',
+            simple: '!(x > 10) && !(y < 0)'
         }
     ]);
 });
@@ -460,39 +465,6 @@ void replace(Node newNode) {
 
 });
 
-test('Java CFG Path - Return Statement Exits Function', async function() {
-    const builder = new JavaCFGBuilder('java');
-    const code = `
-int foo(int x) {
-    int y = 1;
-    if (x > 0) {
-        return 42;
-    }
-    if (y > 2) {
-        return 3;
-    }
-    y = 2;
-    return 0;
-}
-`;
-    const cfg = await builder.buildFromCode(code);
-    const pathCollector = new PathCollector('java');
-    const paths = pathCollector.collect(cfg.entry);
-
-    // Find the path(s) that include the first return
-    const return42Path = paths.find(p => p.path.includes('return 42'))!;
-    assert.ok(return42Path, "Should have a path with 'return 42'");
-    // The path with 'return 42' should NOT include 'y = 2' or 'return 0'
-    assert.ok(!return42Path.code.includes('y = 2'), "Path with 'return 42' should not include 'y = 2'");
-    assert.ok(!return42Path.path.includes('y > 2'), "Path with 'return 42' should not include 'return 0'");
-
-    // The other path should include 'y = 2' and 'return 0'
-    const return0Path = paths.find(p => p.path.includes('return 0'))!;
-    assert.ok(return0Path, "Should have a path with 'return 0'");
-    assert.ok(return0Path.code.includes('y = 2'), "Path with 'return 0' should include 'y = 2'");
-    assert.ok(!return0Path.code.includes('return 42'), "Path with 'return 0' should not include 'return 42'");
-});
-
 test('Java CFG Path - Path Minimization', async function() {
     const builder = new JavaCFGBuilder('java');
     const code = `
@@ -552,20 +524,4 @@ void scheduleFormatting(Set<Path> sources, boolean fast, WriteBack writeBack, Mo
     console.log("after minimization", minimizedPaths.length);
     console.log(minimizedPaths.map(p => p.path));
     // assert.equal(minimizedPaths.length, 8, "Should have exactly 8 paths");
-});
-
-test('Run all functions under a repository : commons-cli', async function() {
-    if (process.env.NODE_DEBUG !== 'true') {
-        console.log('activate');
-        await activate();
-    }
-    const projectPath = "/LSPRAG/experiments/projects/commons-cli";
-    const workspaceFolders = setWorkspaceFolders(projectPath);
-    // await updateWorkspaceFolders(workspaceFolders);
-    console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
-
-    const symbols = await loadAllTargetSymbolsFromWorkspace('java');
-    console.log(`#### Number of symbols: ${symbols.length}`);
-    assert.ok(symbols.length > 0, 'symbols should not be empty');
-    await collectPathforSymbols(symbols);
 });

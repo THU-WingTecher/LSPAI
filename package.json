@@ -3,8 +3,16 @@
   "publisher": "LSPRAG",
   "displayName": "LSPRAG",
   "description": "LSPRAG is a powerful VS Code extension that revolutionizes unit test creation through Language Server Protocol (LSP)",
-  "version": "0.1.0",
-  "icon": "docs/assets/lsprag_image_v2.jpg",
+  "version": "0.2.3",
+  "icon": "docs/assets/lsprag-logo-v1.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/THU-WingTecher/LSPRAG.git"
+  },
+  "homepage": "https://github.com/THU-WingTecher/LSPRAG#readme",
+  "bugs": {
+    "url": "https://github.com/THU-WingTecher/LSPRAG/issues"
+  },
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -19,7 +27,11 @@
     "commands": [
       {
         "command": "extension.testLLM",
-        "title": "Test LLM"
+        "title": "LSPRAG: Test LLM"
+      },
+      {
+        "command": "extension.testLSP",
+        "title": "LSPRAG: Test Language Server"
       },
       {
         "command": "extension.generateUnitTest",
@@ -28,30 +40,6 @@
       {
         "command": "LSPRAG.showSettings",
         "title": "LSPRAG: Show Current Settings"
-      },
-      {
-        "command": "LSPRAG.PythonBlackExperiment",
-        "title": "LSPRAG: Python Black Experiment"
-      },
-      {
-        "command": "LSPRAG.PythonTornadoExperiment",
-        "title": "LSPRAG: Python Tornado Experiment"
-      },
-      {
-        "command": "LSPRAG.javaCliExperiment",
-        "title": "LSPRAG: Java Commons-cli Experiment"
-      },
-      {
-        "command": "LSPRAG.javaCsvExperiment",
-        "title": "LSPRAG: Java Commons-csv Experiment"
-      },
-      {
-        "command": "LSPRAG.goLogrusExperiment",
-        "title": "LSPRAG: Go Logrus Experiment"
-      },
-      {
-        "command": "LSPRAG.goCobraExperiment",
-        "title": "LSPRAG: Go Cobra Experiment"
       }
     ],
     "menus": {
@@ -145,7 +133,9 @@
     "build": "tsc",
     "test": "npm run compile && node ./out/test/runTest.js $TEST_FILE",
     "test:util": "node ./out/test/runTest.js util",
-    "experiment": "npm run compile && node ./out/experiment/cli.js"
+    "experiment": "npm run compile && node ./out/experiment/cli.js",
+    "package": "vsce package",
+    "publish:vsce": "vsce publish"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
@@ -156,6 +146,7 @@
     "@types/node": "^20",
     "@types/vscode": "^1.73.0",
     "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^2.32.0",
     "esbuild": "^0.25.2",
     "eslint": "^9.13.0",
     "glob": "^7.1.4",

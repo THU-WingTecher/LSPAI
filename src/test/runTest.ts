@@ -36,21 +36,37 @@ const DEFAULT_TEST_CONFIG = {
 };
 
 // Function to load private configuration strictly from environment variables
-export function loadPrivateConfig(): PrivateConfig {
+export function loadPrivateConfig(provider?: Provider): PrivateConfig {
   const openaiApiKey = process.env.OPENAI_API_KEY || process.env.TEST_OPENAI_API_KEY;
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY || process.env.TEST_DEEPSEEK_API_KEY;
   const localLLMUrl = process.env.LOCAL_LLM_URL || process.env.TEST_LOCAL_LLM_URL;
   const proxyUrl = process.env.PROXY_URL || process.env.TEST_PROXY_URL;
-  if (!openaiApiKey || !deepseekApiKey || !localLLMUrl) {
-    throw new Error(
-      'Missing required environment variables: OPENAI_API_KEY, DEEPSEEK_API_KEY, LOCAL_LLM_URL (or their TEST_ variants). Ensure you have sourced your .env.sh.'
+  // const defaultAPIKEY = "1234567890"
+  // Only validate the API key needed for the selected provider
+  const selectedProvider = provider || validateProvider(process.env.TEST_PROVIDER || DEFAULT_TEST_CONFIG.PROVIDER);
+  
+  if (selectedProvider === 'openai' && !openaiApiKey) {
+    console.warn(
+      'Missing required environment variable: OPENAI_API_KEY (or TEST_OPENAI_API_KEY). Ensure you have sourced your .env.sh, or set it through vscode settings.'
+    );
+  }
+  
+  if (selectedProvider === 'deepseek' && !deepseekApiKey) {
+    console.warn(
+      'Missing required environment variable: DEEPSEEK_API_KEY (or TEST_DEEPSEEK_API_KEY). Ensure you have sourced your .env.sh, or set it through vscode settings.'
+    );
+  }
+  
+  if (selectedProvider === 'local' && !localLLMUrl) {
+    console.warn(
+      'Missing required environment variable: LOCAL_LLM_URL (or TEST_LOCAL_LLM_URL). Ensure you have sourced your .env.sh, or set it through vscode settings.'
     );
   }
 
   return {
-    openaiApiKey,
-    deepseekApiKey,
-    localLLMUrl,
+    openaiApiKey: openaiApiKey || '',
+    deepseekApiKey: deepseekApiKey || '',
+    localLLMUrl: localLLMUrl || '',
     proxyUrl
   };
 }

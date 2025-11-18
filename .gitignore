@@ -1,6 +1,5 @@
 .env.sh
 new_data
-core
 cc-tests/
 experiments/baselines/rag/embeddings/
 experiments/settings/
@@ -12,7 +11,6 @@ results/
 .env
 *.pyc
 test-results/
-target/
 out
 dist
 node_modules
@@ -25,7 +23,6 @@ tsconfig.tsbuildinfo
 tsconfig.json
 temp/
 **/temp*.test.ts
-*.js
 *.zip
 *.jar
 .npmrc

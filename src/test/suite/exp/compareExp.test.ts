@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { loadAllTargetSymbolsFromWorkspace, setWorkspaceFolders } from '../../../helper';
+import { setWorkspaceFolders } from '../../../helper';
+import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
 import { FixType, SRC_PATHS } from '../../../config';
 import { activate } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider } from '../../../config';

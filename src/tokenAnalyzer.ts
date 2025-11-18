@@ -1,11 +1,10 @@
 // ... existing code ...
 
 import { ContextTerm } from "./agents/contextSelector";
-import { retrieveDef } from "./lsp/definition";
 import { DecodedToken } from './lsp/types';
-import { getSymbolByLocation } from './lsp/symbol';
 import * as vscode from 'vscode';
 import { ConditionAnalysis } from "./cfg/path";
+import { loadDefAndSaveToDefSymbol } from "./lsp/token";
 // 1. Define the type for the algorithm
 type HelpfulnessAlgorithm = 'default' | 'alternative1' | 'cfg';
 const ASSIGNMENT_OPERATOR = "=";
@@ -101,13 +100,6 @@ export function isReturnTypeVoid(symbol: vscode.DocumentSymbol): boolean {
     return symbol.detail.includes("void");
 }
 
-async function loadDefAndSaveToDefSymbol(token: DecodedToken) {
-    await retrieveDef(token.document, token);
-    if (token.definition && token.definition[0] && token.definition[0].range && token.definition.length > 0) {
-        const defSymbolDoc = await vscode.workspace.openTextDocument(token.definition[0].uri);
-        token.defSymbol = await getSymbolByLocation(defSymbolDoc, token.definition[0].range.start);
-    }
-}
 // --- Alternative Algorithm Example ---
 async function cfgBasedIsDefinitionHelpful(token: DecodedToken): Promise<boolean> {
     // Example: Only functions are helpful

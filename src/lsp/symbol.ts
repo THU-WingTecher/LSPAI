@@ -1,9 +1,14 @@
 import * as vscode from 'vscode';
 import { activate } from './helper';
+import path from 'path';
 import { getConstructorDetail, getFieldDetail, removeComments } from './utils';
 import { getPackageStatement } from './definition';
 import { VscodeRequestManager } from './vscodeRequestManager';
-
+import { initializeSeededRandom, SEED, seededRandom } from '../helper';
+import { MIN_FUNCTION_LINES, getConfigInstance, SRC_PATHS, ProjectName } from '../config';
+import { findFiles } from '../fileHandler';
+import { getLanguageSuffix } from '../language';
+import {findAFileFromWorkspace} from '../helper';
 
 export function getSymbolRange(symbol: vscode.DocumentSymbol): vscode.Range {
     
@@ -100,6 +105,7 @@ export async function getOuterSymbols(uri: vscode.Uri, retries = 10, delayMs = 5
     }
     return syms;
 }
+
 export async function getAllSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
 
     // console.log(`uri = ${uri}, symbols = ${symbols}`);
@@ -119,6 +125,7 @@ export async function getAllSymbols(uri: vscode.Uri, retries = 10, delayMs = 500
     }
     return flat;
 }
+
 export function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscode.Range): vscode.DocumentSymbol | null {
     return symbols[getShortestSymbolIdx(symbols, range)];
     // let shortestSymbol: vscode.DocumentSymbol | null = null;
@@ -131,6 +138,7 @@ export function getShortestSymbol(symbols: vscode.DocumentSymbol[], range: vscod
     // }
     // return shortestSymbol;
 }
+
 export function getShortestSymbolIdx(symbols: vscode.DocumentSymbol[], range: vscode.Range): number {
     let shortestSymbolIdx: number = -1;
     for (let idx = 0; idx < symbols.length; idx++) {
@@ -283,5 +291,73 @@ export function isFunctionSymbol(symbol: vscode.DocumentSymbol): boolean {
 export function generateSymbolKey(symbol: vscode.DocumentSymbol): string {
     const { start, end } = symbol.selectionRange;
     return `${symbol.name}-${start.line}:${start.character}-${end.line}:${end.character}`;
+}
+
+export async function selectOneSymbolFileFromWorkspace(fileName: string, symbolName: string, language: string): Promise<{ symbol: vscode.DocumentSymbol; document: vscode.TextDocument; }> {
+    const filePath = findAFileFromWorkspace(fileName, language);
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+    const symbol = await getSymbolFromDocument(document, symbolName);
+    if (!symbol) {
+        throw new Error(`Symbol ${symbolName} not found in file ${filePath}`);
+    }
+    return {
+        symbol,
+        document
+    };
+}
+
+export async function loadAllTargetSymbolsFromWorkspace(language: string, minLineNumber: number = MIN_FUNCTION_LINES): Promise<{ symbol: vscode.DocumentSymbol; document: vscode.TextDocument; }[]> {
+    if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {
+        throw new Error("No workspace folders found");
+    }
+    let testFilesPath: string;
+    console.log('all workspace folders', vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath));
+    console.log('current workspace', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
+    const workspace = getConfigInstance().workspace;
+    const Files: string[] = [];
+    const projectName = path.basename(workspace);
+    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
+        testFilesPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
+    } else {
+        testFilesPath = path.join(workspace, SRC_PATHS.DEFAULT);
+    }
+    const suffix = getLanguageSuffix(language);
+    findFiles(testFilesPath, Files, language, suffix);
+    initializeSeededRandom(SEED); // Initialize the seeded random generator
+    const symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument; }[] = [];
+    // if (language === "go") {
+    //     await goSpecificEnvGen(getConfigInstance().savePath, language, testFilesPath);
+    // }
+    for (const filePath of Files) {
+        console.log('filePath', filePath);
+        const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
+        console.log(`#### Preparing symbols under file: ${filePath}`);
+        const symbols = await getAllSymbols(document.uri);
+        console.log(`#### Symbols: ${symbols.length}`);
+        if (symbols) {
+            for (const symbol of symbols) {
+                if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
+                    // if (language === 'java' && !isPublic(symbol, document)) {
+                    // 	continue;
+                    // }
+                    if (isSymbolLessThanLines(symbol)) {
+                        continue;
+                    }
+                    if (seededRandom() < getConfigInstance().expProb) {
+                        symbolDocumentMap.push({ symbol, document });
+                    }
+                }
+            }
+        }
+        console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
+    }
+    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${MIN_FUNCTION_LINES} lines`);
+    return symbolDocumentMap;
+}
+export function isSymbolLessThanLines(symbol: vscode.DocumentSymbol): boolean {
+    // if (MIN_FUNCTION_LINES === -1) {
+    //     return false;
+    // }
+    return symbol.range.end.line - symbol.range.start.line < MIN_FUNCTION_LINES;
 }
 

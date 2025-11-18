@@ -1,7 +1,8 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
-import { loadAllTargetSymbolsFromWorkspace, experiment, sleep, setWorkspaceFolders } from '../../../helper';
+import { experiment, sleep, setWorkspaceFolders } from '../../../helper';
+import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
 import { activate } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, SRC_PATHS, ProjectName } from '../../../config';
 import { experimentWithCopilot, init, signIn, copilotServer, generateUnitTestsForFocalMethod } from '../../../experiment/copilot';

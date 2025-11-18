@@ -359,7 +359,7 @@ export class Configuration {
             "lsprag-workspace",
             this.startTimestamp,
             this.projectName,
-            this.generationType + "_" + this.promptType + "_" + this.fixType,
+            this.generationType + "_" + this.promptType + "_",
             this.config.model,
         );
     }
@@ -507,9 +507,6 @@ export class Configuration {
         return this.config.testNumber;
     }
 
-    public get methodsForExperiment(): string[] {
-        return [this.model];
-    }
 }
 
 // Export singleton instance
@@ -537,4 +534,3 @@ export const SRC_PATHS = {
 // export const currentParallelCount = configInstance.parallelCount;
 // export const maxRound = configInstance.maxRound;
 // export const currentTimeout = configInstance.timeoutMs;
-// export const methodsForExperiment = configInstance.methodsForExperiment;
