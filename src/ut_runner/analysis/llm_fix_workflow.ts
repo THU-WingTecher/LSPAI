@@ -9,6 +9,17 @@ import { buildEnv } from '../runner';
 import { TestCaseResult, ExaminationResult } from '../types';
 import { LLMLogs } from '../../log';
 import { getSymbolFromDocument } from '../../lsp/symbol';
+import { 
+  categorizeAssertionError, 
+  loadCategoryStructure, 
+  saveCategoryStructure, 
+  updateCategoryStructure,
+  CategoryStructure,
+  CategorizationRequest
+} from './categorizer';
+import { 
+  logCategorizationDiff
+} from './category_diff_logger';
 
 interface ExaminationResults {
   summary: {
@@ -64,6 +75,9 @@ export class LLMFixWorkflow {
   private readonly options: Required<LLMFixOptions>;
   private fixHistory: Map<string, FixAttempt[]> = new Map();
   private analyzer: Analyzer;
+  private categoryStructure: CategoryStructure;
+  private readonly categoryStructurePath: string;
+  private readonly diffLogPath: string;
   
   constructor(
     inputJsonPath: string,
@@ -88,6 +102,13 @@ export class LLMFixWorkflow {
 
     // Ensure output directory exists
     fs.mkdirSync(outputDir, { recursive: true });
+
+    // Initialize category structure paths
+    this.categoryStructurePath = path.join(outputDir, 'category_structure.json');
+    this.diffLogPath = path.join(outputDir, 'category_diff_log.json');
+    
+    // Load existing category structure or initialize with defaults
+    this.categoryStructure = loadCategoryStructure(this.categoryStructurePath);
   }
 
   /**
@@ -506,6 +527,59 @@ console.log("userPrompt: ", userPrompt);
   }
 
   /**
+   * Check if a test case has already been successfully fixed (cache check)
+   */
+  private checkCache(testCaseName: string): FixAttempt | null {
+    const historyFile = path.join(this.outputDir, 'fix_history.json');
+    if (!fs.existsSync(historyFile)) {
+      return null;
+    }
+
+    try {
+      const historyData = JSON.parse(fs.readFileSync(historyFile, 'utf-8'));
+      const attempts: FixAttempt[] = historyData[testCaseName];
+      
+      if (!attempts || !Array.isArray(attempts)) {
+        return null;
+      }
+
+      // Find the first successful fix attempt
+      for (const attempt of attempts) {
+        if (attempt.testResult === 'pass') {
+          console.log(`[LLM_FIX] Found cached successful fix for ${testCaseName}`);
+          return attempt;
+        }
+      }
+    } catch (error) {
+      console.warn(`[LLM_FIX] Failed to read cache for ${testCaseName}:`, error);
+    }
+
+    return null;
+  }
+
+  /**
+   * Load fix history from cache
+   */
+  private loadFixHistoryFromCache(): void {
+    const historyFile = path.join(this.outputDir, 'fix_history.json');
+    if (!fs.existsSync(historyFile)) {
+      return;
+    }
+
+    try {
+      const historyData = JSON.parse(fs.readFileSync(historyFile, 'utf-8'));
+      for (const [testCaseName, attempts] of Object.entries(historyData)) {
+        if (Array.isArray(attempts)) {
+          this.fixHistory.set(testCaseName, attempts as FixAttempt[]);
+        }
+      }
+      console.log(`[LLM_FIX] Loaded ${this.fixHistory.size} test cases from cache`);
+    } catch (error) {
+      console.warn(`[LLM_FIX] Failed to load fix history from cache:`, error);
+    }
+  }
+
+  /**
    * Process a single test case
    */
   private async processTestCase(testEntry: any): Promise<boolean> {
@@ -524,7 +598,8 @@ console.log("userPrompt: ", userPrompt);
     // Get required data
     const sourceDocument = await vscode.workspace.openTextDocument(testEntry.source_file);
     const sourceCode = await this.extractSourceCode(testEntry, sourceDocument);
-    let testCode = await this.getPythonTestCode(testFile, testCaseName);
+    const originalTestCode = await this.getPythonTestCode(testFile, testCaseName);
+    let testCode = originalTestCode;
     let assertionErrors = this.getAssertionErrors(testEntry);
     const symbolName = testEntry.symbolName || testEntry.symbol_name || 'unknown';
     
@@ -536,62 +611,104 @@ console.log("userPrompt: ", userPrompt);
     let attempt = 1;
     const maxAttempts = 3;
     let fixedCode: string | null = null;
-    
-    while (attempt <= maxAttempts) {
-      console.log(`\n[LLM_FIX] Attempt ${attempt}/${maxAttempts}`);
-      
-      // Get fixed code from LLM
-      fixedCode = await this.fixTestWithLLM(sourceCode, testCode, assertionErrors, symbolName, attempt);
-      
-      if (!fixedCode) {
-        console.log(`[LLM_FIX] Failed to get fixed code from LLM`);
-        attempt++;
-        continue;
-      }
-      
-      // Add test function
-      try {
-        await this.addTestFunction(testFile, fixedCode);
-      } catch (error) {
-        console.error(`[LLM_FIX] Failed to add test function:`, error);
-        attempt++;
-        continue;
-      }
-      
-      // Run test and check
-      const result = await this.runTestAndCheck(testFile, testCaseName);
-      
-      // Record attempt
-      const attemptRecord: FixAttempt = {
-        round: attempt,
-        prompt: JSON.stringify({ sourceCode, testCode, assertionErrors, symbolName }),
-        response: fixedCode,
-        fixedCode,
-        testResult: result.passed ? 'pass' : 'fail',
-        errorMessage: result.error
-      };
-      
-      if (!this.fixHistory.has(testCaseName)) {
-        this.fixHistory.set(testCaseName, []);
-      }
-      this.fixHistory.get(testCaseName)!.push(attemptRecord);
-      
-      if (result.passed) {
-        console.log(`[LLM_FIX] Successfully fixed after ${attempt} attempt(s)!`);
-        return true;
-      }
-      
-      console.log(`[LLM_FIX] Fix attempt ${attempt} failed: ${result.error}`);
-      
-      // Update testCode for next attempt
-      testCode = fixedCode;
-      assertionErrors = result.error || 'Unknown error';
-      
-      attempt++;
+    let lastFixAttempt: FixAttempt | undefined = undefined;
+    const fixHistory = this.fixHistory.get(testCaseName) || [];
+    if (fixHistory.length > 0) {
+      lastFixAttempt = fixHistory.at(-1);
     }
-    
-    console.log(`[LLM_FIX] Failed to fix after ${maxAttempts} attempts`);
+    if (!lastFixAttempt) {
+      while (attempt <= maxAttempts) {
+        console.log(`\n[LLM_FIX] Attempt ${attempt}/${maxAttempts}`);
+        
+        // Get fixed code from LLM
+        fixedCode = await this.fixTestWithLLM(sourceCode, testCode, assertionErrors, symbolName, attempt);
+        
+        if (!fixedCode) {
+          console.log(`[LLM_FIX] Failed to get fixed code from LLM`);
+          attempt++;
+          continue;
+        }
+        
+        // Add test function
+        try {
+          await this.addTestFunction(testFile, fixedCode);
+        } catch (error) {
+          console.error(`[LLM_FIX] Failed to add test function:`, error);
+          attempt++;
+          continue;
+        }
+        
+        // Run test and check
+        const result = await this.runTestAndCheck(testFile, testCaseName);
+        
+        // Record attempt
+        const attemptRecord: FixAttempt = {
+          round: attempt,
+          prompt: JSON.stringify({ sourceCode, testCode, assertionErrors, symbolName }),
+          response: fixedCode,
+          fixedCode,
+          testResult: result.passed ? 'pass' : 'fail',
+          errorMessage: result.error
+        };
+        lastFixAttempt = attemptRecord;
+        if (!this.fixHistory.has(testCaseName)) {
+          this.fixHistory.set(testCaseName, []);
+        }
+        this.fixHistory.get(testCaseName)!.push(attemptRecord);
+        // Update testCode for next attempt
+        testCode = lastFixAttempt.fixedCode;
+        assertionErrors = lastFixAttempt.errorMessage || 'Unknown error';
+        
+        if (lastFixAttempt.testResult === 'pass') {
+          console.log(`[LLM_FIX] Successfully fixed after ${attempt} attempt(s)!`);
+          break;
+        }
+        attempt++;
+      }
+    }
+
+    if (lastFixAttempt && lastFixAttempt.testResult === 'pass') {
+      // Categorize the assertion error (use original test code, not modified one)
+      try {
+        await this.categorizeFixedTestCase(testCaseName, originalTestCode, lastFixAttempt.fixedCode);
+      } catch (error) {
+        console.error(`[LLM_FIX] Failed to categorize ${testCaseName}:`, error);
+        // Continue even if categorization fails
+      }
+      return true;
+    }
+
     return false;
+  }
+
+  /**
+   * Categorize a successfully fixed test case
+   */
+  private async categorizeFixedTestCase(
+    testCaseName: string,
+    wrongTestCode: string,
+    fixedTestCode: string
+  ): Promise<void> {
+    console.log(`[CATEGORIZATION] Categorizing ${testCaseName}`);
+    
+    const request: CategorizationRequest = {
+      testCaseName,
+      wrongTestCode,
+      fixedTestCode,
+      existingCategories: this.categoryStructure
+    };
+
+    const previousCategories = { ...this.categoryStructure };
+    const result = await categorizeAssertionError(request);
+    
+    // Update category structure
+    this.categoryStructure = updateCategoryStructure(this.categoryStructure, result);
+    saveCategoryStructure(this.categoryStructurePath, this.categoryStructure);
+    
+    // Log categorization diff
+    logCategorizationDiff(result, previousCategories, this.categoryStructure, this.diffLogPath);
+    
+    console.log(`[CATEGORIZATION] Categorized ${testCaseName} as ${result.bigCategory} → ${result.smallCategory}`);
   }
 
   /**
@@ -606,20 +723,40 @@ console.log("userPrompt: ", userPrompt);
     console.log(`[LLM_FIX] Timeout: ${this.options.timeoutSec}s`);
     console.log(`[LLM_FIX] Jobs: ${this.options.jobs}`);
     
+    // Load existing fix history from cache
+    this.loadFixHistoryFromCache();
+    
     const data = this.loadExaminationResults();
     console.log(`[LLM_FIX] Loaded ${data.tests.length} test cases`);
     
     let fixed = 0;
     let skipped = 0;
     let failed = 0;
+    let cached = 0;
     
     for (const testEntry of data.tests) {
       if (testEntry.examination?.hasRedefinedSymbols === true) {
         skipped++;
         continue;
       }
+      
+      const testCaseName = testEntry.test_case.split('::').at(-1);
+      
+      // Check cache first
+      const cachedAttempt = this.checkCache(testCaseName!);
+      if (cachedAttempt) {
+        console.log(`[LLM_FIX] Using cached fix for ${testCaseName}`);
+        cached++;
+        
+        // Ensure it's in fixHistory
+        if (!this.fixHistory.has(testCaseName!)) {
+          this.fixHistory.set(testCaseName!, [cachedAttempt]);
+        }
+        continue;
+      }
+      
       try {
-      const result = await this.processTestCase(testEntry);
+        const result = await this.processTestCase(testEntry);
         
         if (result) {
           fixed++;
@@ -639,9 +776,12 @@ console.log("userPrompt: ", userPrompt);
     
     console.log(`\n[LLM_FIX] Workflow complete:`);
     console.log(`[LLM_FIX]   Fixed: ${fixed}`);
+    console.log(`[LLM_FIX]   Cached: ${cached}`);
     console.log(`[LLM_FIX]   Failed: ${failed}`);
     console.log(`[LLM_FIX]   Skipped: ${skipped}`);
     console.log(`[LLM_FIX]   History saved to: ${historyFile}`);
+    console.log(`[LLM_FIX]   Category structure saved to: ${this.categoryStructurePath}`);
+    console.log(`[LLM_FIX]   Category diff log saved to: ${this.diffLogPath}`);
   }
 }
 
