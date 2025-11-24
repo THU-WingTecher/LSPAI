@@ -7,7 +7,7 @@ import { getConfigInstance } from '../../../config';
 import { runLLMFixWorkflow, LLMFixWorkflow } from '../../../ut_runner/analysis/llm_fix_workflow';
 
 suite('EXECUTE - Python (black)', () => {
-  const testsDir = '/LSPRAG/experiments/projects/old_black/src/lsprag_tests/gpt-4o-1';
+  const testsDir = '/LSPRAG/experiments/motiv/assertion/gpt-4o/results/final';
 
   const final_report_path = testsDir+'-final-report';
   const pythonInterpreterPath = '/root/miniconda3/envs/black/bin/python';
@@ -38,7 +38,7 @@ suite('EXECUTE - Python (black)', () => {
     await runLLMFixWorkflow(inputJsonPath, outputDir, {
       language: 'python',
       pythonExe: pythonInterpreterPath,
-      jobs: 16,
+      jobs: 1,
       timeoutSec: 30,
       pythonpath: pythonExtraPaths
     });

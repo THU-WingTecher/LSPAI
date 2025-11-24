@@ -51,25 +51,51 @@ export function getSeverityString(severity: vscode.DiagnosticSeverity): string {
     }
 } 
 
-export async function applyCodeActions(targetUri: vscode.Uri, codeActions: vscode.CodeAction[]) {
+export async function applyCodeActions(targetUri: vscode.Uri, codeActions: vscode.CodeAction[], document: vscode.TextDocument): Promise<string> {
     // Filter for quick fix actions only
     const quickFixes = codeActions.filter(action => 
-        action.kind && action.kind.contains(vscode.CodeActionKind.QuickFix)
+        action.kind && 
+        action.kind.contains(vscode.CodeActionKind.QuickFix) &&
+        action.command?.command.includes('addImport') &&
+        !action.title.includes("type: ignore")
     );
-    console.log('quickFixes', quickFixes);
-    // Apply each quick fix
+    console.log(`[applyCodeActions] Applying ${quickFixes.length} code actions...`);
+
+    const allTextEdits: Array<{range: vscode.Range, newText: string}> = [];
+    
     for (const fix of quickFixes) {
-        console.log('fix', fix);
+        console.log(`[applyCodeActions] Code action title: "${fix.title}"`);
+        console.log(`[applyCodeActions] Has edit: ${!!fix.edit}, Has command: ${!!fix.command}`);
+        
+        // Handle code actions with edits
         if (fix.edit) {
             // Double check we're only modifying the target file
             const edits = fix.edit.entries();
             const isTargetFileOnly = edits.every(([uri]) => uri.fsPath === targetUri.fsPath);
-            
             if (isTargetFileOnly) {
-                await vscode.workspace.applyEdit(fix.edit);
+                // Collect edits for this code action
+                for (const [uri, textEdits] of fix.edit.entries()) {
+                    if (uri.fsPath === targetUri.fsPath) {
+                        console.log(`[applyCodeActions] Found ${textEdits.length} text edits for ${fix.title}`);
+                        for (const edit of textEdits) {
+                            console.log(`[applyCodeActions] Edit: range=${edit.range.start.line}:${edit.range.start.character}-${edit.range.end.line}:${edit.range.end.character}, newText="${edit.newText.substring(0, 100)}"`);
+                            allTextEdits.push({ range: edit.range, newText: edit.newText });
+                        }
+                    }
+                }
+            } else {
+                console.log(`[applyCodeActions] Skipping edit for "${fix.title}" - modifies files other than target`);
             }
+        } 
+        else if (fix.command) {
+            let commandExecResult = await vscode.commands.executeCommand(fix.command.command, ...(fix.command.arguments || []));
+            console.log(`[applyCodeActions] Command executed: "${fix.command.command}" with result:`, commandExecResult);
         }
+        console.log("[applyCodeActions] After fixing:::\n", document.getText())
+            
     }
+
+    return document.getText();
 }
 
 export function markTestCodeWithDiagnostic(document: vscode.TextDocument, groupedDiagnostics: Map<string, vscode.Diagnostic[]>): string {
@@ -254,7 +280,7 @@ export async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diag
                 if (attempts >= maxAttempts) {
                     console.log('Max attempts reached, returning current diagnostics');
                     cleanup();
-                    return resolve(diagnostics);
+                    return resolve(removeDuplicateDiagnostics(diagnostics));
                 }
             };
 
@@ -265,7 +291,7 @@ export async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diag
                     diagnostics = vscode.languages.getDiagnostics(uri);
                     console.log('Updated diagnostics:', diagnostics);
                     cleanup();
-                    resolve(diagnostics);
+                    resolve(removeDuplicateDiagnostics(diagnostics));
                 }
             });
 
@@ -280,13 +306,28 @@ export async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diag
             setTimeout(() => {
                 console.log('Final timeout reached');
                 cleanup();
-                resolve(diagnostics);
+                resolve(removeDuplicateDiagnostics(diagnostics));
             }, 10000); // 10 seconds total timeout
 
         } catch (error) {
             reject(new Error(`Error while fetching diagnostics: ${error}`));
         }
     });
+}
+
+function removeDuplicateDiagnostics(diagnostics: vscode.Diagnostic[]): vscode.Diagnostic[] {
+    const seen = new Set<string>();
+    const uniqueDiagnostics: vscode.Diagnostic[] = [];
+
+    for (const diag of diagnostics) {
+        const key = `${diag.message}|${diag.range.start.line}:${diag.range.start.character}-${diag.range.end.line}:${diag.range.end.character}|${diag.severity}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            uniqueDiagnostics.push(diag);
+        }
+    }
+
+    return uniqueDiagnostics;
 }
 
 export function getLinesTexts(startLine: number, endLine: number, document: vscode.TextDocument): string {

@@ -140,5 +140,96 @@ suite('LSP-Features: CodeAction Test', () => {
             console.log(`Cleaned up test file: ${tempTestFile}`);
         }
     });
+
+    test('Python - test code action for missing local library import', async function() {
+        this.timeout(30000);
+
+        // Setup workspace
+        getConfigInstance().updateConfig({
+            workspace: pythonProjectPath
+        });
+        const workspaceFolders = setWorkspaceFolders(pythonProjectPath);
+        console.log(`Python workspace path: ${workspaceFolders[0].uri.fsPath}`);
+
+        // Read the original calculator.py file
+        const originalCalculatorPath = path.join(pythonProjectPath, 'calculator.py');
+        const originalContent = await fs.promises.readFile(originalCalculatorPath, 'utf8');
+        console.log('Original calculator.py content:', originalContent);
+
+        // Remove the import statement from math_utils
+        // The import line is: "from math_utils import add, multiply, calculate_sum"
+        const lines = originalContent.split('\n');
+        const modifiedLines = lines.filter(line => !line.trim().startsWith('from math_utils import'));
+        const modifiedContent = modifiedLines.join('\n');
+        console.log('Modified content (without import):', modifiedContent);
+
+        // Create a temporary test file with the modified content
+        tempTestFile = path.join(pythonProjectPath, 'calculator_no_import.py');
+        await fs.promises.writeFile(tempTestFile, modifiedContent, 'utf8');
+        console.log(`Created test file without import: ${tempTestFile}`);
+
+        // Open the document and activate language server
+        const fileUri = vscode.Uri.file(tempTestFile);
+        await activate(fileUri);
+        const document = await vscode.workspace.openTextDocument(fileUri);
+
+        // Wait a bit for diagnostics to be available
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Get diagnostics for the file
+        const diagnostics = await getDiagnosticsForFilePath(tempTestFile);
+        console.log('Diagnostics:', diagnostics.map(d => d.message));
+
+        // Filter diagnostics related to missing imports or undefined names
+        // Should find errors for 'add', 'multiply', 'calculate_sum' being undefined
+        const importDiagnostics = diagnostics.filter(d => 
+            d.message.includes('undefined') || 
+            d.message.includes('not defined') ||
+            d.message.includes('import') ||
+            d.message.includes('name') ||
+            d.message.includes('add') ||
+            d.message.includes('multiply') ||
+            d.message.includes('calculate_sum')
+        );
+
+        assert.ok(importDiagnostics.length > 0, 'Should find diagnostics for missing local library import');
+
+        // Get code actions for the first diagnostic related to math_utils functions
+        const mathUtilsDiagnostic = importDiagnostics.find(d => 
+            d.message.includes('add') || 
+            d.message.includes('multiply') || 
+            d.message.includes('calculate_sum')
+        ) || importDiagnostics[0];
+
+        console.log(`Getting code actions for diagnostic: ${mathUtilsDiagnostic.message} at range ${mathUtilsDiagnostic.range.start.line}:${mathUtilsDiagnostic.range.start.character}`);
+
+        const codeActions = await getCodeAction(fileUri, mathUtilsDiagnostic);
+        console.log('Code actions:', codeActions.map(a => a.title));
+
+        // Verify that code actions are returned
+        assert.ok(codeActions.length > 0, 'Should return code actions for missing local library import diagnostic');
+
+        // Verify that at least one code action is a QuickFix
+        const quickFixes = codeActions.filter(action => 
+            action.kind && action.kind.contains(vscode.CodeActionKind.QuickFix)
+        );
+        assert.ok(quickFixes.length > 0, 'Should have at least one QuickFix code action for local library import');
+
+        // Verify that code actions suggest importing from math_utils
+        const importActions = codeActions.filter(action => 
+            action.title.includes('math_utils') || 
+            action.title.includes('import') ||
+            (action.edit && action.edit.entries().some(([uri, edits]) => 
+                edits.some(edit => edit.newText.includes('math_utils'))
+            ))
+        );
+        console.log('Import-related code actions:', importActions.map(a => a.title));
+        
+        // Clean up
+        if (tempTestFile && fs.existsSync(tempTestFile)) {
+            await fs.promises.unlink(tempTestFile);
+            console.log(`Cleaned up test file: ${tempTestFile}`);
+        }
+    });
 });
 

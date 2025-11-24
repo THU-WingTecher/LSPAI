@@ -20,6 +20,7 @@ import {
 import { 
   logCategorizationDiff
 } from './category_diff_logger';
+import { fixImportErrors } from '../../agents/assertionFixers';
 
 interface ExaminationResults {
   summary: {
@@ -257,8 +258,27 @@ console.log("userPrompt: ", userPrompt);
   }
 
   /**
+   * Save fixed code to output directory preserving the original filename
+   * This preserves the original test file and saves the fixed version to outputDir
+   */
+  private saveFixedCodeToOutputDir(testFile: string, fixedCode: string): string {
+    const testFileName = path.basename(testFile);
+    const outputPath = path.join(this.outputDir, testFileName);
+    
+    // Ensure output directory exists
+    fs.mkdirSync(this.outputDir, { recursive: true });
+    
+    // Write fixed code to output directory
+    fs.writeFileSync(outputPath, fixedCode, 'utf-8');
+    
+    console.log(`[LLM_FIX] Saved fixed code to ${outputPath}`);
+    return outputPath;
+  }
+
+  /**
    * Insert test function into test file
    * Handles both standalone test functions and class-based unittest structures
+   * Now saves to outputDir instead of modifying original file
    */
   async addTestFunction(
     testFile: string,
@@ -360,19 +380,15 @@ console.log("userPrompt: ", userPrompt);
     ];
     
     const newContent = newLines.join('\n');
-    const backupPath = testFile + '.backup';
     
-    // Create backup
-    fs.writeFileSync(backupPath, testContent);
+    // Save to outputDir instead of modifying original file
+    const outputPath = this.saveFixedCodeToOutputDir(testFile, newContent);
     
-    // Write with inserted code
-    fs.writeFileSync(testFile, newContent);
-    
-    console.log(`[LLM_FIX] Added test function to ${testFile}`);
+    console.log(`[LLM_FIX] Added test function to ${outputPath}`);
     console.log(`[LLM_FIX] Inserted at line ${insertIdx + 1}`);
-    console.log(`[LLM_FIX] Backup created at ${backupPath}`);
+    console.log(`[LLM_FIX] Original file preserved: ${testFile}`);
     
-    return testFile;
+    return outputPath;
   }
   
   /**
@@ -584,6 +600,9 @@ console.log("userPrompt: ", userPrompt);
    */
   private async processTestCase(testEntry: any): Promise<boolean> {
     const testCaseName = testEntry.test_case.split('::').at(-1);
+    let fixedCode: string | null = null;
+    let lastFixAttempt: FixAttempt | undefined = undefined;
+    const fixHistory = this.fixHistory.get(testCaseName) || [];
     console.log("testCaseName: ", testEntry.test_case);
     console.log("testEntry: ", testEntry);
     const testFile = testEntry.test_file;
@@ -591,10 +610,25 @@ console.log("userPrompt: ", userPrompt);
     
     // Skip if already examined with redefined symbols
     if (testEntry.examination?.hasRedefinedSymbols === true) {
-      console.log(`[LLM_FIX] Skipping (already examined with redefined symbols)`);
-      return false;
+      console.log(`[LLM_FIX] fixImportErrors (already examined with redefined symbols)`);
+      const testFileName = path.basename(testEntry.test_file);
+      const outputPath = path.join(this.outputDir, testFileName);
+      fixedCode = await fixImportErrors(testEntry.source_file, testEntry.test_file, testEntry.examination, outputPath);
+      const result = await this.runTestAndCheck(outputPath, testCaseName);
+      const attemptRecord: FixAttempt = {
+        round: -1,
+        prompt: JSON.stringify({ sourceCode: testEntry.source_file, testCode: testEntry.test_file, assertionErrors: this.getAssertionErrors(testEntry), symbolName: testEntry.symbolName }),
+        response: fixedCode,
+        fixedCode,
+        testResult: result.passed ? 'pass' : 'fail',
+        errorMessage: result.error
+      };
+      if (result.passed) {
+        return true;
+      } else {
+        return false
+      }
     }
-    
     // Get required data
     const sourceDocument = await vscode.workspace.openTextDocument(testEntry.source_file);
     const sourceCode = await this.extractSourceCode(testEntry, sourceDocument);
@@ -610,9 +644,6 @@ console.log("userPrompt: ", userPrompt);
     
     let attempt = 1;
     const maxAttempts = 3;
-    let fixedCode: string | null = null;
-    let lastFixAttempt: FixAttempt | undefined = undefined;
-    const fixHistory = this.fixHistory.get(testCaseName) || [];
     if (fixHistory.length > 0) {
       lastFixAttempt = fixHistory.at(-1);
     }
@@ -629,17 +660,18 @@ console.log("userPrompt: ", userPrompt);
           continue;
         }
         
-        // Add test function
+        // Add test function (saves to outputDir)
+        let outputTestFile: string;
         try {
-          await this.addTestFunction(testFile, fixedCode);
+          outputTestFile = await this.addTestFunction(testFile, fixedCode);
         } catch (error) {
           console.error(`[LLM_FIX] Failed to add test function:`, error);
           attempt++;
           continue;
         }
         
-        // Run test and check
-        const result = await this.runTestAndCheck(testFile, testCaseName);
+        // Run test and check using the output file
+        const result = await this.runTestAndCheck(outputTestFile, testCaseName);
         
         // Record attempt
         const attemptRecord: FixAttempt = {
@@ -735,7 +767,7 @@ console.log("userPrompt: ", userPrompt);
     let cached = 0;
     
     for (const testEntry of data.tests) {
-      if (testEntry.examination?.hasRedefinedSymbols === true) {
+      if (testEntry.examination?.hasRedefinedSymbols !== true) {
         skipped++;
         continue;
       }
@@ -743,17 +775,17 @@ console.log("userPrompt: ", userPrompt);
       const testCaseName = testEntry.test_case.split('::').at(-1);
       
       // Check cache first
-      const cachedAttempt = this.checkCache(testCaseName!);
-      if (cachedAttempt) {
-        console.log(`[LLM_FIX] Using cached fix for ${testCaseName}`);
-        cached++;
+      // const cachedAttempt = this.checkCache(testCaseName!);
+      // if (cachedAttempt) {
+      //   console.log(`[LLM_FIX] Using cached fix for ${testCaseName}`);
+      //   cached++;
         
-        // Ensure it's in fixHistory
-        if (!this.fixHistory.has(testCaseName!)) {
-          this.fixHistory.set(testCaseName!, [cachedAttempt]);
-        }
-        continue;
-      }
+      //   // Ensure it's in fixHistory
+      //   if (!this.fixHistory.has(testCaseName!)) {
+      //     this.fixHistory.set(testCaseName!, [cachedAttempt]);
+      //   }
+      //   continue;
+      // }
       
       try {
         const result = await this.processTestCase(testEntry);
