@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
-import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions } from '../../../../lsp/diagnostic';
+import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, applyCodeActions } from '../../../../lsp/diagnostic';
 import { randomlySelectOneFileFromWorkspace, setWorkspaceFolders } from '../../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../../lsp/symbol";
 import { selectOneSymbolFileFromWorkspace } from "../../../../lsp/symbol";

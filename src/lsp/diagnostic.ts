@@ -10,7 +10,6 @@ import { activate } from './helper';
 import { GenerationType } from '../config';
 import { getConfigInstance } from '../config';
 import { wrapWithComment } from '../languageAgnostic';
-import { VscodeRequestManager } from './vscodeRequestManager';
 export enum DiagnosticTag {
     Unnecessary = 1,
     Deprecated
@@ -51,11 +50,6 @@ export function getSeverityString(severity: vscode.DiagnosticSeverity): string {
             return "Unknown";
     }
 } 
-
-export async function getCodeAction(uri: vscode.Uri, diag: vscode.Diagnostic): Promise<vscode.CodeAction[]> {
-    const codeActions = await VscodeRequestManager.codeActions(uri, diag.range);
-    return codeActions as vscode.CodeAction[];
-}
 
 export async function applyCodeActions(targetUri: vscode.Uri, codeActions: vscode.CodeAction[]) {
     // Filter for quick fix actions only

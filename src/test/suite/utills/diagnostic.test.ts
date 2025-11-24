@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, getCodeAction, applyCodeActions, markTestCodeWithDiagnostic } from '../../../lsp/diagnostic';
+import { getDiagnosticsForFilePath, groupDiagnosticsByMessage, groupedDiagnosticsToString, applyCodeActions, markTestCodeWithDiagnostic } from '../../../lsp/diagnostic';
+import { getCodeAction } from '../../../lsp/codeaction';
 import { activate, addJavaTestPath, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 import { getAllSymbols } from '../../../lsp/symbol';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../helper';
