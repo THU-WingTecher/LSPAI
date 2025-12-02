@@ -225,7 +225,7 @@ suite('Experiment Test Suite', () => {
     
     // test('CFG - experimental - 4o-mini', async () => {
     //     await runGenerateTestCodeSuite(
-    //         GenerationType.EXPERIMENTAL,
+    //         GenerationType.LSPRAG,
     //         FixType.ORIGINAL,
     //         PromptType.WITHCONTEXT,
     //         'gpt-4o-mini',
@@ -249,7 +249,7 @@ suite('Experiment Test Suite', () => {
 
     // test('CFG - experimental - 4o', async () => {
     //     await runGenerateTestCodeSuite(
-    //         GenerationType.EXPERIMENTAL,
+    //         GenerationType.LSPRAG,
     //         FixType.ORIGINAL,
     //         PromptType.WITHCONTEXT,
     //         'gpt-4o',

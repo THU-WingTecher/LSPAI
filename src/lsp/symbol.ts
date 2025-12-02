@@ -306,7 +306,7 @@ export async function selectOneSymbolFileFromWorkspace(fileName: string, symbolN
     };
 }
 
-export async function loadAllTargetSymbolsFromWorkspace(language: string, minLineNumber: number = MIN_FUNCTION_LINES): Promise<{ symbol: vscode.DocumentSymbol; document: vscode.TextDocument; }[]> {
+export async function loadAllTargetSymbolsFromWorkspace(language: string, minLineNumber: number = MIN_FUNCTION_LINES, maxSymbolNumber: number = -1): Promise<{ symbol: vscode.DocumentSymbol; document: vscode.TextDocument; }[]> {
     if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {
         throw new Error("No workspace folders found");
     }
@@ -336,11 +336,15 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
         console.log(`#### Symbols: ${symbols.length}`);
         if (symbols) {
             for (const symbol of symbols) {
+                if (maxSymbolNumber > 0 && symbolDocumentMap.length >= maxSymbolNumber) {
+                    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${MIN_FUNCTION_LINES} lines`);
+                    return symbolDocumentMap;
+                }
                 if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
                     // if (language === 'java' && !isPublic(symbol, document)) {
                     // 	continue;
                     // }
-                    if (isSymbolLessThanLines(symbol)) {
+                    if (isSymbolLessThanLines(symbol, minLineNumber)) {
                         continue;
                     }
                     if (seededRandom() < getConfigInstance().expProb) {
@@ -354,10 +358,11 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
     console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${MIN_FUNCTION_LINES} lines`);
     return symbolDocumentMap;
 }
-export function isSymbolLessThanLines(symbol: vscode.DocumentSymbol): boolean {
+
+export function isSymbolLessThanLines(symbol: vscode.DocumentSymbol, minLineNumber: number): boolean {
     // if (MIN_FUNCTION_LINES === -1) {
     //     return false;
     // }
-    return symbol.range.end.line - symbol.range.start.line < MIN_FUNCTION_LINES;
+    return symbol.range.end.line - symbol.range.start.line < minLineNumber;
 }
 

@@ -89,7 +89,7 @@ suite('Experiment Test Suite - c', () => {
 
     test('CFG - experimental - deepseek-coder', async () => {
         await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
+            GenerationType.LSPRAG,
             FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
             'deepseek-coder',
@@ -113,7 +113,7 @@ suite('Experiment Test Suite - c', () => {
 
     // test('CFG - experimental - 4o', async () => {
     //     await runGenerateTestCodeSuite(
-    //         GenerationType.EXPERIMENTAL,
+    //         GenerationType.LSPRAG,
     //         FixType.ORIGINAL,
     //         PromptType.WITHCONTEXT,
     //         'gpt-4o',

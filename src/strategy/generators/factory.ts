@@ -6,7 +6,7 @@ import { AgentTestGenerator } from './agent';
 import { SymPromptTestGenerator } from './symPrompt';
 import { NaiveTestGenerator } from './naive';
 import { CFGTestGenerator } from './cfg';
-import { ExperimentalTestGenerator } from './experimental';
+import { LSPRAGTestGenerator } from './lsprag';
 
 // Factory to create the appropriate generator
 export function createTestGenerator(
@@ -30,8 +30,8 @@ export function createTestGenerator(
 			return new AgentTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
 		case GenerationType.CFG:
 			return new CFGTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
-		case GenerationType.EXPERIMENTAL:
-			return new ExperimentalTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
+		case GenerationType.LSPRAG:
+			return new LSPRAGTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
 		default:
 			throw new Error(`Invalid generation type: ${generationType}`);
 	}

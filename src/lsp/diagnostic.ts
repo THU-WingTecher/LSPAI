@@ -251,7 +251,7 @@ export async function getDiagnosticsForFilePath(filePath: string): Promise<vscod
 }
 
 export async function getDiagnosticsForUri(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
-    console.log('Initial diagnostics:', await vscode.languages.getDiagnostics(uri));
+    // console.log('Initial diagnostics:', await vscode.languages.getDiagnostics(uri));
     await activate(uri);
     return new Promise((resolve, reject) => {
         try {

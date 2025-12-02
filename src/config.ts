@@ -34,6 +34,7 @@ export enum PromptType {
 export enum GenerationType {
     NAIVE = 'naive', // without context, only template
     ORIGINAL = 'original', // with context, naive context, only template
+    LSPRAG = 'lsprag',
     AGENT = 'agent',
     EXPERIMENTAL = 'experimental',
     FASTEST = 'fastest',
@@ -130,7 +131,7 @@ const DEFAULT_CONFIG = {
     timeoutMs: 600 * 1000,
     promptType: PromptType.BASIC,
     fixType: FixType.ORIGINAL,
-    generationType: GenerationType.ORIGINAL,
+    generationType: GenerationType.LSPRAG,
     maxRound: 5,
     savePath: 'lsprag-tests'
 };
@@ -520,7 +521,7 @@ export function getConfigInstance() {
 export const SRC_PATHS = {
     "commons-cli": 'src/main/java/',
     "commons-csv": 'src/main/java/',
-    "black": '/src',
+    "black": '/src/black',
     "crawl4ai": '/crawl4ai',
     "tornado": '/tornado',
     DEFAULT: '/'

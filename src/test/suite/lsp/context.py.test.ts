@@ -123,7 +123,7 @@
 
 //     test('CFG - experimental - gpt-4o-mini', async () => {
 //         await runGenerateTestCodeSuite(
-//             GenerationType.EXPERIMENTAL,
+//             GenerationType.LSPRAG,
 //             FixType.NOFIX,
 //             PromptType.WITHCONTEXT,
 //             'gpt-4o-mini',
@@ -147,7 +147,7 @@
     
 //     // test('CFG - experimental - 4o-mini', async () => {
 //     //     await runGenerateTestCodeSuite(
-//     //         GenerationType.EXPERIMENTAL,
+//     //         GenerationType.LSPRAG,
 //     //         FixType.ORIGINAL,
 //     //         PromptType.WITHCONTEXT,
 //     //         'gpt-4o-mini',
@@ -171,7 +171,7 @@
 
 //     // test('CFG - experimental - 4o', async () => {
 //     //     await runGenerateTestCodeSuite(
-//     //         GenerationType.EXPERIMENTAL,
+//     //         GenerationType.LSPRAG,
 //     //         FixType.ORIGINAL,
 //     //         PromptType.WITHCONTEXT,
 //     //         'gpt-4o',

@@ -121,7 +121,7 @@ export async function generateTestWithContextWithCFG(
 //     return result.join('\n');
 // }
 
-export class ExperimentalTestGenerator extends BaseTestGenerator {
+export class LSPRAGTestGenerator extends BaseTestGenerator {
 
 	protected async collectInfo(conditions : ConditionAnalysis[] = [], functionInfo: Map<string, string> = new Map()): Promise<ContextTerm[] | null> {
 		let enrichedTerms: ContextTerm[] = [];
