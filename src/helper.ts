@@ -22,6 +22,10 @@ export function initializeSeededRandom(seed: number) {
 }
 
 export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceFolder[]): Promise<vscode.WorkspaceFolder[]> {
+    if (process.env.NODE_DEBUG === 'true') {
+        console.log('In debug mode, workspace cannot be updated in programmatically');
+        return workspaceFolders;
+    }
     return new Promise((resolve, reject) => {
         const currentWorkspaceCount = vscode.workspace.workspaceFolders?.length || 0;
         
