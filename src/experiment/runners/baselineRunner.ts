@@ -55,14 +55,14 @@ export async function runBaselineExperiment(
     let finalCost: number | undefined;
     let experimentCost: number | undefined;
     
-    try {
-        console.log('Querying initial cost...');
-        beforeCost = await getCost();
-        console.log(`Initial cost: $${beforeCost.toFixed(4)}\n`);
-    } catch (error) {
-        console.warn('Failed to query initial cost:', error);
-        console.log('Continuing without cost tracking...\n');
-    }
+    // try {
+    //     console.log('Querying initial cost...');
+    //     beforeCost = await getCost();
+    //     console.log(`Initial cost: $${beforeCost.toFixed(4)}\n`);
+    // } catch (error) {
+    //     console.warn('Failed to query initial cost:', error);
+    //     console.log('Continuing without cost tracking...\n');
+    // }
 
     console.log(`Generating tests (${useParallel ? `parallel, concurrency=${concurrency}` : 'sequential'})...\n`);
 
@@ -90,18 +90,18 @@ export async function runBaselineExperiment(
         );
 
     // Get final cost
-    try {
-        console.log('\nQuerying final cost...');
-        finalCost = await getCost();
-        console.log(`Final cost: $${finalCost.toFixed(4)}`);
+    // try {
+    //     console.log('\nQuerying final cost...');
+    //     finalCost = await getCost();
+    //     console.log(`Final cost: $${finalCost.toFixed(4)}`);
         
-        if (beforeCost !== undefined) {
-            experimentCost = finalCost - beforeCost;
-            console.log(`Experiment cost: $${experimentCost.toFixed(4)}\n`);
-        }
-    } catch (error) {
-        console.warn('Failed to query final cost:', error);
-    }
+    //     if (beforeCost !== undefined) {
+    //         experimentCost = finalCost - beforeCost;
+    //         console.log(`Experiment cost: $${experimentCost.toFixed(4)}\n`);
+    //     }
+    // } catch (error) {
+    //     console.warn('Failed to query final cost:', error);
+    // }
 
     // Calculate statistics
     const successCount = results.filter((r: any) => r.success).length;

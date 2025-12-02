@@ -69,7 +69,6 @@ export async function setPythonExtraPaths(pythonExtraPaths: string[]) {
 
 }
 
-
 export async function setupPythonLSP(extraPaths: string[], interpreterPath: string) {
     await setPythonExtraPaths(extraPaths);
     const currentPythonExtraPaths = await getPythonExtraPaths();

@@ -1,21 +1,77 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
-import { getDiagnosticsForFilePath } from '../../../../lsp/diagnostic';
-import { randomlySelectOneFileFromWorkspace, setWorkspaceFolders } from '../../../../helper';
+import * as fs from 'fs';
+import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../../lsp/symbol";
-import { selectOneSymbolFileFromWorkspace } from "../../../../lsp/symbol";
-import { SRC_PATHS } from '../../../../config';
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../../lsp/helper';
+import { activate, setupPythonLSP } from '../../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../../config';
 
 import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from '../../../../experiment';
+
+
+function customFilterTaskList(taskList: any[]): any[] {
+    return taskList.filter((item: any) => {
+        // Remove functions that start with "_"
+        if (item.symbolName && item.symbolName.startsWith('_')) {
+            return false;
+        }
+        
+        // Remove functions with more than 200 lines of code
+        let lineCount = 0;
+        if (item.sourceCode) {
+            lineCount = item.sourceCode.split('\n').length;
+        } else if (item.lineNum !== undefined) {
+            // Use lineNum if sourceCode is not available
+            lineCount = item.lineNum;
+        }
+        
+        if (lineCount > 200) {
+            return false;
+        }
+        
+        return true;
+    });
+}
+
+async function readSliceAndSaveTaskList(
+    taskListPath: string,
+    sampleNumber: number
+): Promise<string> {
+    // Read the task list
+    const taskListContent = fs.readFileSync(taskListPath, 'utf-8');
+    const taskList = JSON.parse(taskListContent);
+    
+    // Apply custom filtering
+    const filteredTaskList = customFilterTaskList(taskList);
+    console.log(`Filtered ${taskList.length - filteredTaskList.length} items (removed functions starting with "_" or >200 lines)`);
+    
+    // Sort by robustness score (descending - highest first)
+    filteredTaskList.sort((a: any, b: any) => b.robustnessScore - a.robustnessScore);
+    
+    // Slice to sample number if needed
+    let slicedTaskList = filteredTaskList;
+    if (sampleNumber > 0 && sampleNumber < filteredTaskList.length) {
+        slicedTaskList = filteredTaskList.slice(0, sampleNumber);
+    }
+    
+    // Generate output path
+    const dir = path.dirname(taskListPath);
+    const basename = path.basename(taskListPath, path.extname(taskListPath));
+    const outputPath = path.join(dir, `${basename}-sample${sampleNumber > 0 ? sampleNumber : 'all'}.json`);
+    
+    // Save to JSON file
+    fs.writeFileSync(outputPath, JSON.stringify(slicedTaskList, null, 2), 'utf-8');
+    console.log(`Task list sliced and saved to: ${outputPath}`);
+    
+    return outputPath;
+}
 
 suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/black/bin/python";
     const projectPath = "/LSPRAG/experiments/projects/black";
     const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src")];
-    const sampleNumber = -1;
+    const sampleNumber = 100;
     const languageId = "python";
     const blackImportTestPath = "../../../resources/black_module_import_test.py";
     const currentConfig = {
@@ -31,131 +87,66 @@ suite('Experiment Test Suite', () => {
     });
     let symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[] = [];
 
-    test('set python interpreter path', async () => {
-        await setPythonInterpreterPath(pythonInterpreterPath);
-        const currentPythonInterpreterPath = await getPythonInterpreterPath();
-        assert.ok(currentPythonInterpreterPath === pythonInterpreterPath, 'python interpreter path should be set as expected');
-
+    test('Setup for experiment', async () => {
+        const workspaceFolders = setWorkspaceFolders(projectPath);
+        try {
+            await updateWorkspaceFolders(workspaceFolders);
+            console.log('Workspace folders updated to:', vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath));
+        } catch (error) {
+            console.error('Error updating workspace folders:', error);
+        }
+        assert.ok(vscode.workspace.workspaceFolders, 'Workspace folders should be set');
+        assert.strictEqual(vscode.workspace.workspaceFolders[0].uri.fsPath, projectPath, 'Workspace folder should match project path');
+        await setupPythonLSP(blackModuleImportPath, pythonInterpreterPath);
     });
 
-    test('Language server recognizes installed environment libraries', async () => {
-        // Set the desired Python interpreter path (update as needed)
+    // test('Prepare FUT original black-task list ( same with the ICSE-26 paper Table 3, and Table 5 )', async () => {
+    //     if (process.env.NODE_DEBUG !== 'true') {
+    //         console.log('activate');
+    //         await activate();
+    //     }
+    //     const taskListPath = '/LSPRAG/experiments/config/black-taskList.json';
+    //     const workspaceFolders = setWorkspaceFolders(projectPath);
+    //     // await updateWorkspaceFolders(workspaceFolders);
+    //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
-        // Activate the Python extension and log the interpreter in use
-        console.log('Python interpreter used by extension:', await getPythonInterpreterPath());
+    //     symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+    //     if (sampleNumber > 0) {
+    //         const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
+    //         symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
+    //     }
 
-        // Open the test file and collect diagnostics
-        const fileUri = vscode.Uri.file(blackImportTestPath);
-        await vscode.workspace.openTextDocument(fileUri);
-        await setPythonExtraPaths([]);
-        const oldPythonExtraPaths = await getPythonExtraPaths();
-        console.log('oldPythonExtraPaths:', oldPythonExtraPaths);
-        const oldDiagnostics = await getDiagnosticsForFilePath(blackImportTestPath);
-        const oldImportErrors = oldDiagnostics.filter(d =>
-            d.message.includes('No module named') ||
-            d.message.includes('unresolved import') ||
-            d.message.includes('not found') ||
-            d.message.includes('Import')
-        );  
-        assert.ok(oldImportErrors.length > 0, 'should have import errors');
-        await setPythonExtraPaths(blackModuleImportPath);
-        const currentPythonExtraPaths = await getPythonExtraPaths();
-        console.log('currentPythonExtraPaths:', currentPythonExtraPaths);
-        assert.ok(currentPythonExtraPaths.length === blackModuleImportPath.length, 'python extra paths should be set as expected');
-        assert.ok(currentPythonExtraPaths.every((path, index) => path === blackModuleImportPath[index]), 'python extra paths should be set as expected');
-        // Log diagnostics for debugging
-        const newDiagnostics = await getDiagnosticsForFilePath(blackImportTestPath);
-        console.log('newDiagnostics:', newDiagnostics);
+    //     symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
+    //     if (sampleNumber > 0) {
+    //         const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
+    //         symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
+    //     }
+    //     // // ==== LOAD SYMBOLS FROM TASK LIST ====
+    //     assert.ok(symbols.length > 0, 'symbols should not be empty');
+    //     console.log(`#### Number of symbols: ${symbols.length}`);
+    // });
 
-        // Assert: No diagnostic about missing pandas or import errors
-        const importErrors = newDiagnostics.filter(d =>
-            d.message.includes('No module named') ||
-            d.message.includes('unresolved import') ||
-            d.message.includes('not found') ||
-            d.message.includes('Import')
-        );
-        assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
-    });
-
-    test('experiment helper functions', async () => {
+    test('Prepare FUT with robustness scores for assertion generation analysis', async () => {
         if (process.env.NODE_DEBUG !== 'true') {
             console.log('activate');
             await activate();
         }
-        const taskListPath = '/LSPRAG/experiments/config/black-taskList.json';
+
+        const taskListPath = '/LSPRAG/experiments/projects/black/symbol_robustness_results.json';
+        const sampledTaskListPath = await readSliceAndSaveTaskList(taskListPath, sampleNumber);
+        
         const workspaceFolders = setWorkspaceFolders(projectPath);
         // await updateWorkspaceFolders(workspaceFolders);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
-        // const oneFile = randomlySelectOneFileFromWorkspace(languageId);
-        // console.log(`#### One file: ${oneFile}`);
-        
-        // ==== LOAD TARGET SYMBOL ====
-        // const fileName = "tokenize.py";
-        // const symbolName = "detect_encoding";
-        // const symbolDocumentMap = await selectOneSymbolFileFromWorkspace(fileName, symbolName, languageId);
-        // console.log(`#### One file: ${symbolDocumentMap}`);
-        // symbols.push(symbolDocumentMap);
-        
-        // ==== LOAD TARGET SYMBOL ====
-        // ==== LOAD TARGET SYMBOL ====
-        // const fileName2 = "tokenize.py";
-        // const symbolName2 = "find_cookie";
-        // const symbolDocumentMap2 = await selectOneSymbolFileFromWorkspace(fileName2, symbolName2, languageId);
-        // console.log(`#### One file: ${symbolDocumentMap2}`);
-        // symbols.push(symbolDocumentMap2);
-        // ==== LOAD TARGET SYMBOL ====
-        // ==== LOAD ALL SYMBOLS ====
-        symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
-        if (sampleNumber > 0) {
-            const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
-            symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
-        }
-        // symbols.unshift(symbolDocumentMap);
-        // // ==== LOAD ALL SYMBOLS ====
 
-        // // ==== LOAD SYMBOLS FROM TASK LIST ====
-        symbols = await findMatchedSymbolsFromTaskList(taskListPath, symbols, projectPath);
-        if (sampleNumber > 0) {
-            const randomIndex = Math.floor(Math.random() * (symbols.length - sampleNumber));
-            symbols = symbols.slice(randomIndex, randomIndex + sampleNumber);
-        }
+        symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+        symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
+
         // // ==== LOAD SYMBOLS FROM TASK LIST ====
         assert.ok(symbols.length > 0, 'symbols should not be empty');
         console.log(`#### Number of symbols: ${symbols.length}`);
     });
 
-    // test('Context Gathering for Terms - PYTHON', async () => {
-    //     // Create some test terms
-    //     const sourceCode = getSourcCodes(symbols[0]!.document, symbols[0]!.symbol);
-    //     console.log("sourceCode", sourceCode);
-    //     const builder = createCFGBuilder(languageId as SupportedLanguage);
-    //     const cfg = await builder.buildFromCode(sourceCode);
-    //     builder.printCFGGraph(cfg.entry);
-    //     const pathCollector = new PathCollector(languageId);
-    //     pathCollector.collect(cfg.entry);
-    //     const functionInfo = builder.getFunctionInfo();
-    //     const conditionAnalyses = pathCollector.getUniqueConditions();
-    //     const contextSelector = await getContextSelectorInstance(
-    //         symbols[0]!.document, 
-    //         symbols[0]!.symbol);
-    //     const tokens = await contextSelector!.loadTokens();
-    //     // const tokens = contextSelector!.getTokens();
-    //     console.log("tokens", tokens.map((t : DecodedToken) => t.word));
-    //     // console.log("conditionAnalyses", conditionAnalyses.map((c : ConditionAnalysis) => c.condition));
-    //     // console.log("conditionAnalyses.length", conditionAnalyses.length);
-    //     // const identifiedTerms = await getContextTermsFromTokens(
-    //     //     symbols[0]!.document, 
-    //     //     symbols[0]!.symbol,
-    //     //   tokens,
-    //     //   conditionAnalyses, 
-    //     //   functionInfo);
-    //     // const enrichedTerms = await contextSelector!.gatherContext(identifiedTerms, symbolDocumentMap!.symbol);
-    //     // console.log(`enrichedTerms: ${enrichedTerms.map((term: ContextTerm) => ("\nname: " + term.name + "\ncontext: " + term.context +"\nexample: " + term.example))}`);
-    //     // console.log(`enrichedTerms: ${enrichedTerms.map((term: ContextTerm) => JSON.stringify(term, null, 2))}`);
-    //     // assert.ok(enrichedTerms.length > 0, 'Should identify at least one context term');
-    //     // const promptObj = await generateTestWithContextWithCFG(symbolDocumentMap!.document, symbolDocumentMap!.symbol, sourceCode, enrichedTerms!, conditionAnalyses, "testing")
-    //     // console.log("promptObj:", promptObj[1].content);
-    //     })
 
     // test('Naive - gpt-4o-mini - continueing', async () => {
     //     await runGenerateTestCodeSuite(
@@ -183,12 +174,12 @@ suite('Experiment Test Suite', () => {
     //     );
     // });
 
-    test('LSPRAG - gpt-4o-mini ', async () => {
+    test('LSPRAG - gpt-5 ', async () => {
         await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
+            GenerationType.LSPRAG,
             FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
-            'gpt-4o-mini',
+            'gpt-5',
             'openai' as Provider,
             symbols,
             languageId,
@@ -256,7 +247,7 @@ suite('Experiment Test Suite', () => {
     
     // test('CFG - experimental - 4o-mini', async () => {
     //     await runGenerateTestCodeSuite(
-    //         GenerationType.EXPERIMENTAL,
+    //         GenerationType.LSPRAG,
     //         FixType.ORIGINAL,
     //         PromptType.WITHCONTEXT,
     //         'gpt-4o-mini',
@@ -280,7 +271,7 @@ suite('Experiment Test Suite', () => {
 
     // test('CFG - experimental - 4o', async () => {
     //     await runGenerateTestCodeSuite(
-    //         GenerationType.EXPERIMENTAL,
+    //         GenerationType.LSPRAG,
     //         FixType.ORIGINAL,
     //         PromptType.WITHCONTEXT,
     //         'gpt-4o',
