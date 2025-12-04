@@ -208,6 +208,11 @@ async function processReference(
     
     if (!refSymbol) {
         console.log(`[processReference] No matching symbol found in ${ref.uri.fsPath}`);
+        console.log(`  Reference range: ${ref.range.start.line}:${ref.range.start.character} - ${ref.range.end.line}:${ref.range.end.character}`);
+        console.log(`  Total symbols in file: ${symbols.length}`);
+        if (symbols.length > 0) {
+            console.log(`  First few symbols: ${symbols.slice(0, 3).map(s => `${s.name} (${s.range.start.line}-${s.range.end.line})`).join(', ')}`);
+        }
         return null;
     }
 

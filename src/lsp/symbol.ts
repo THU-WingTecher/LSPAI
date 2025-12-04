@@ -143,7 +143,17 @@ export function getShortestSymbolIdx(symbols: vscode.DocumentSymbol[], range: vs
     let shortestSymbolIdx: number = -1;
     for (let idx = 0; idx < symbols.length; idx++) {
         const symbol = symbols[idx];
-        if (symbol.selectionRange.contains(range)) {
+        // Check if the range is contained within the symbol's full range (the function/class body)
+        // This is the primary check since references are typically within the symbol's body
+        const isContainedInFullRange = symbol.range.contains(range);
+        // Also check selectionRange (symbol name) in case the reference points to the name itself
+        const isContainedInSelectionRange = symbol.selectionRange.contains(range);
+        // Check if the range start position is within the symbol's range (for cases where range extends beyond)
+        const rangeStartInSymbol = symbol.range.contains(range.start);
+        // Check if ranges intersect (for edge cases)
+        const intersectsWithRange = range.intersection(symbol.range) !== undefined;
+        
+        if (isContainedInFullRange || isContainedInSelectionRange || rangeStartInSymbol || intersectsWithRange) {
             // console.log(`shortestSymbolIdx: ${shortestSymbolIdx}, symbol: ${symbols[shortestSymbolIdx]}`);
             if (shortestSymbolIdx === -1 || 
                 (symbol.range.end.line - symbol.range.start.line) < (symbols[shortestSymbolIdx].range.end.line - symbols[shortestSymbolIdx].range.start.line)) {
