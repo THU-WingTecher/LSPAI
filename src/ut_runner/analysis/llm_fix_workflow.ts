@@ -20,7 +20,9 @@ import {
 import { 
   logCategorizationDiff
 } from './category_diff_logger';
-import { fixImportErrors } from '../../agents/assertionFixers';
+import { logFixDiff, exportFixDiffSummary, exportDetailedFixReport, generateSimpleDiffReport } from './fix_diff_reporter';
+import { getPythonExtraPaths } from '../../lsp/helper';
+import { assert } from 'console';
 
 interface ExaminationResults {
   summary: {
@@ -79,7 +81,8 @@ export class LLMFixWorkflow {
   private categoryStructure: CategoryStructure;
   private readonly categoryStructurePath: string;
   private readonly diffLogPath: string;
-  
+  private readonly fixDiffReportPath: string;
+  private readonly surgenDir: string;
   constructor(
     inputJsonPath: string,
     outputDir: string,
@@ -87,7 +90,7 @@ export class LLMFixWorkflow {
   ) {
     this.inputJsonPath = inputJsonPath;
     this.outputDir = outputDir;
-    
+    this.surgenDir = path.join(outputDir, 'surgen');
     // Set defaults similar to runPipeline
     this.options = {
       language: options.language || 'python',
@@ -97,7 +100,7 @@ export class LLMFixWorkflow {
       pythonpath: options.pythonpath || [],
       env: buildEnv(options.pythonpath || [])
     };
-
+    // console.log("options: ", this.options);
     // Create analyzer instance to reuse its methods
     this.analyzer = new Analyzer(this.options.language);
 
@@ -107,11 +110,26 @@ export class LLMFixWorkflow {
     // Initialize category structure paths
     this.categoryStructurePath = path.join(outputDir, 'category_structure.json');
     this.diffLogPath = path.join(outputDir, 'category_diff_log.json');
+    this.fixDiffReportPath = path.join(outputDir, 'fix_diff_report.json');
     
     // Load existing category structure or initialize with defaults
     this.categoryStructure = loadCategoryStructure(this.categoryStructurePath);
   }
 
+  private copyTestFileToSurgenDir(testFile: string): string {
+    const testFileName = path.basename(testFile);
+    const surgenPath = path.join(this.surgenDir, testFileName);
+    fs.mkdirSync(this.surgenDir, { recursive: true });
+    fs.copyFileSync(testFile, surgenPath);
+    return surgenPath;
+  }
+
+  private removeTestFileFromSurgenDir(testFile: string): string {
+    const surgenFileName = path.basename(testFile);
+    const originalPath = path.join(this.outputDir, surgenFileName);
+    fs.rmSync(testFile, { recursive: true });
+    return originalPath;
+  }
   /**
    * Load examination results from JSON file
    */
@@ -174,11 +192,83 @@ export class LLMFixWorkflow {
   /**
    * Create LLM prompt for fixing test code
    */
+  private createRedeclaredErrorFixPrompt(
+    sourceCode: string,
+    testCode: string,
+    assertionErrors: string,
+    symbolName: string,
+    examinationResult: ExaminationResult,
+    previousAttempts: FixAttempt[] = []
+  ): any[] {
+    if (!sourceCode || !testCode) {
+      throw new Error('Source code and test code are required');
+    }
+
+      const systemPrompt = `
+  You are an expert in finding problematic code implementation in unit test. 
+  Currently, we have an assertion error in the test code that we know is wrong assertion error.
+  Your task is to fix ONLY import errors in the test code.
+  Focus on:
+  - Unnecessary redeclared constant / functions / class 
+  - All refered variables that is related to redeclared constant / functions / class
+  
+  Do NOT change:
+  - Test logic or assertions
+  - Non-import related code
+  - Test structure
+  
+  Return the complete fixed test code wrapped in \`\`\` code blocks.`;
+  
+      // Build fix history section
+      let fixHistorySection = '';
+      if (previousAttempts.length > 0) {
+        fixHistorySection = '\n\nPrevious Fix Attempts:\n';
+        for (let i = 0; i < previousAttempts.length; i++) {
+          const prevAttempt = previousAttempts[i];
+          const prevTestCode = i === 0 ? JSON.parse(prevAttempt.prompt).testCode : previousAttempts[i - 1].fixedCode;
+          const diff = generateSimpleDiffReport(prevTestCode, prevAttempt.fixedCode);
+          
+          fixHistorySection += `\nAttempt ${prevAttempt.round}:\n`;
+          fixHistorySection += `Result: ${prevAttempt.testResult}\n`;
+          if (prevAttempt.errorMessage) {
+            fixHistorySection += `Error: ${prevAttempt.errorMessage.substring(0, 200)}${prevAttempt.errorMessage.length > 200 ? '...' : ''}\n`;
+          }
+          fixHistorySection += `\nCode Changes:\n\`\`\`\n${diff}\n\`\`\`\n`;
+        }
+        fixHistorySection += '\nPlease learn from these previous attempts and provide a better fix.\n';
+      }
+  
+      const userPrompt = `Fix and Find problematic code implementation in the following test code.
+  
+  Test Case: ${examinationResult.testCaseName}
+  
+  ${sourceCode ? `Source Code:
+  \`\`\`
+  ${sourceCode}
+  \`\`\`
+  
+  ` : ''}Test Code (fix import errors only):
+  \`\`\`
+  ${testCode}
+  \`\`\`
+  ${fixHistorySection}
+  Please fix ONLY import errors and return the complete fixed test code.`;
+  
+      return [
+          { role: 'system' as const, content: systemPrompt },
+          { role: 'user' as const, content: userPrompt }
+      ];
+  }
+
+  /**
+   * Create LLM prompt for fixing test code
+   */
   private createAssertionErrorFixPrompt(
     sourceCode: string,
     testCode: string,
     assertionErrors: string,
-    symbolName: string
+    symbolName: string,
+    previousAttempts: FixAttempt[] = []
   ): any[] {
     const systemPrompt = `You are an expert software testing assistant. Your task is to analyze assertion errors in unit tests and suggest fixes.
 
@@ -195,6 +285,25 @@ You first explain the root cause of assertion errors.
 After that, you suggest the fixed test code.
 Test code should be wrapped in \`\`\` code blocks.
 `
+    // Build fix history section
+    let fixHistorySection = '';
+    if (previousAttempts.length > 0) {
+      fixHistorySection = '\n\nPrevious Fix Attempts:\n';
+      for (let i = 0; i < previousAttempts.length; i++) {
+        const prevAttempt = previousAttempts[i];
+        const prevTestCode = i === 0 ? JSON.parse(prevAttempt.prompt).testCode : previousAttempts[i - 1].fixedCode;
+        const diff = generateSimpleDiffReport(prevTestCode, prevAttempt.fixedCode);
+        
+        fixHistorySection += `\nAttempt ${prevAttempt.round}:\n`;
+        fixHistorySection += `Result: ${prevAttempt.testResult}\n`;
+        if (prevAttempt.errorMessage) {
+          fixHistorySection += `Error: ${prevAttempt.errorMessage.substring(0, 200)}${prevAttempt.errorMessage.length > 200 ? '...' : ''}\n`;
+        }
+        fixHistorySection += `\nCode Changes:\n\`\`\`\n${diff}\n\`\`\`\n`;
+      }
+      fixHistorySection += '\nPlease learn from these previous attempts and provide a better fix.\n';
+    }
+
     const userPrompt = `Given the following source code and test code with assertion errors, suggest a fixed version of the test.
 
 Focal Symbol: ${symbolName}
@@ -213,7 +322,7 @@ Assertion Errors:
 \`\`\`
 ${assertionErrors}
 \`\`\`
-
+${fixHistorySection}
 Please analyze why the assertion error occurred and provide the fixed test code.
 you should only return the test function which startswith "def" and code should be wrapped in \`\`\` code blocks.
 For example, 
@@ -237,11 +346,27 @@ console.log("userPrompt: ", userPrompt);
     testCode: string,
     assertionErrors: string,
     symbolName: string,
-    attempt: number
+    attempt: number,
+    examinationResult: ExaminationResult,
+    testCaseName: string,
+    cate: string = "general"
   ): Promise<string | null> {
     console.log(`[LLM_FIX] Round ${attempt}: Invoking LLM for ${symbolName}`);
 
-    const prompt = this.createAssertionErrorFixPrompt(sourceCode, testCode, assertionErrors, symbolName);
+    // Get previous attempts from fix history
+    const allAttempts = this.fixHistory.get(testCaseName) || [];
+    const previousAttempts = allAttempts.filter(a => 
+      a.prompt.includes(`"category":"${cate}"`)
+    );
+
+    let prompt: any[] = [];
+    if (cate === "general") {
+      prompt = this.createAssertionErrorFixPrompt(sourceCode, testCode, assertionErrors, symbolName, previousAttempts);
+    } else if (cate === "redefined") {
+      prompt = this.createRedeclaredErrorFixPrompt(sourceCode, testCode, assertionErrors, symbolName, examinationResult, previousAttempts);
+    } else {
+      throw new Error(`Invalid category: ${cate}`);
+    }
     const logObj: LLMLogs = { tokenUsage: '', result: '', prompt: prompt[1].content, model: '' };
 
     try {
@@ -483,6 +608,14 @@ console.log("userPrompt: ", userPrompt);
       
       const result = results[0];
       const logPath = result.logPath;
+      if (fs.existsSync(logPath)) {
+        const logContent = fs.readFileSync(logPath, 'utf-8');
+        console.log(`\n[LLM_FIX][TRACE] ---- Begin log for ${testCaseName} (${testFile}) ----`);
+        console.log(logContent);
+        console.log(`[LLM_FIX][TRACE] ---- End log for ${testCaseName} (${testFile}) ----\n`);
+      } else {
+        console.log(`[LLM_FIX][TRACE] Log file missing for ${testCaseName}: ${logPath}`);
+      }
       
       // Check if the specific test function passed using analyzer methods
       const passed = this.checkTestFunctionPassed(logPath, testCaseName, testFile);
@@ -595,73 +728,146 @@ console.log("userPrompt: ", userPrompt);
     }
   }
 
+
   /**
    * Process a single test case
+   * 
+   * Workflow:
+   * 1. If testEntry has redefined symbols -> try fixTestWithLLM(cate="redefined")
+   * 2. If not fixed -> try fixTestWithLLM(cate="general")
    */
   private async processTestCase(testEntry: any): Promise<boolean> {
     const testCaseName = testEntry.test_case.split('::').at(-1);
-    let fixedCode: string | null = null;
-    let lastFixAttempt: FixAttempt | undefined = undefined;
-    const fixHistory = this.fixHistory.get(testCaseName) || [];
-    console.log("testCaseName: ", testEntry.test_case);
-    console.log("testEntry: ", testEntry);
     const testFile = testEntry.test_file;
-    console.log(`\n[LLM_FIX] Processing: ${testCaseName}`);
     
-    // Skip if already examined with redefined symbols
-    if (testEntry.examination?.hasRedefinedSymbols === true) {
-      console.log(`[LLM_FIX] fixImportErrors (already examined with redefined symbols)`);
-      const testFileName = path.basename(testEntry.test_file);
-      const outputPath = path.join(this.outputDir, testFileName);
-      fixedCode = await fixImportErrors(testEntry.source_file, testEntry.test_file, testEntry.examination, outputPath);
-      const result = await this.runTestAndCheck(outputPath, testCaseName);
-      const attemptRecord: FixAttempt = {
-        round: -1,
-        prompt: JSON.stringify({ sourceCode: testEntry.source_file, testCode: testEntry.test_file, assertionErrors: this.getAssertionErrors(testEntry), symbolName: testEntry.symbolName }),
-        response: fixedCode,
-        fixedCode,
-        testResult: result.passed ? 'pass' : 'fail',
-        errorMessage: result.error
-      };
-      if (result.passed) {
-        return true;
-      } else {
-        return false
-      }
-    }
+    console.log(`\n[LLM_FIX] Processing: ${testCaseName}`);
+    console.log("testEntry: ", testEntry);
+    
     // Get required data
     const sourceDocument = await vscode.workspace.openTextDocument(testEntry.source_file);
     const sourceCode = await this.extractSourceCode(testEntry, sourceDocument);
     const originalTestCode = await this.getPythonTestCode(testFile, testCaseName);
-    let testCode = originalTestCode;
-    let assertionErrors = this.getAssertionErrors(testEntry);
     const symbolName = testEntry.symbolName || testEntry.symbol_name || 'unknown';
     
-    if (!sourceCode || !testCode) {
+    if (!sourceCode || !originalTestCode) {
       console.log(`[LLM_FIX] Missing source or test code`);
       return false;
     }
     
-    let attempt = 1;
-    const maxAttempts = 3;
-    if (fixHistory.length > 0) {
-      lastFixAttempt = fixHistory.at(-1);
+    // const hasRedefinedSymbols = testEntry.examination?.hasRedefinedSymbols === true;
+    
+    // // Step 1: Try redefined subagent if applicable
+    // if (hasRedefinedSymbols) {
+    //   console.log(`[LLM_FIX] Detected redefined symbols, invoking redefined subagent`);
+    //   const redefinedSuccess = await this.tryFixWithSubagent(
+    //     testEntry, 
+    //     testCaseName, 
+    //     testFile, 
+    //     sourceCode, 
+    //     originalTestCode, 
+    //     symbolName, 
+    //     "redefined"
+    //   );
+      
+    //   if (redefinedSuccess) {
+    //     console.log(`[LLM_FIX] Successfully fixed with redefined subagent`);
+    //     return true;
+    //   }
+      
+    //   console.log(`[LLM_FIX] Redefined subagent failed, falling back to general subagent`);
+    // }
+    
+    // Step 2: Try general subagent
+    console.log(`[LLM_FIX] Invoking general subagent`);
+    const generalSuccess = await this.tryFixWithSubagent(
+      testEntry,
+      testCaseName,
+      testFile,
+      sourceCode,
+      originalTestCode,
+      symbolName,
+      "general"
+    );
+    
+    if (generalSuccess) {
+      console.log(`[LLM_FIX] Successfully fixed with general subagent`);
+      return true;
     }
-    if (!lastFixAttempt) {
-      while (attempt <= maxAttempts) {
-        console.log(`\n[LLM_FIX] Attempt ${attempt}/${maxAttempts}`);
-        
-        // Get fixed code from LLM
-        fixedCode = await this.fixTestWithLLM(sourceCode, testCode, assertionErrors, symbolName, attempt);
-        
-        if (!fixedCode) {
-          console.log(`[LLM_FIX] Failed to get fixed code from LLM`);
+    
+    console.log(`[LLM_FIX] All subagents failed for ${testCaseName}`);
+    return false;
+  }
+
+  /**
+   * Try fixing with a specific subagent category
+   */
+  private async tryFixWithSubagent(
+    testEntry: any,
+    testCaseName: string,
+    testFile: string,
+    sourceCode: string,
+    originalTestCode: string,
+    symbolName: string,
+    category: "redefined" | "general"
+  ): Promise<boolean> {
+    // Specific tasks (redefined) get 1 chance, general tasks get multiple chances
+    const maxAttempts = category === "redefined" ? 1 : 3;
+    console.log(`[LLM_FIX] Starting ${category} subagent (max attempts: ${maxAttempts})`);
+    
+    let testCode = originalTestCode;
+    let assertionErrors = this.getAssertionErrors(testEntry);
+    
+    // Check if we've already tried this category
+    const fixHistory = this.fixHistory.get(testCaseName) || [];
+    const categoryHistory = fixHistory.filter(attempt => 
+      attempt.prompt.includes(`"category":"${category}"`)
+    );
+    
+    if (categoryHistory.length >= maxAttempts) {
+      console.log(`[LLM_FIX] Already exhausted attempts for category: ${category}`);
+      return false;
+    }
+    
+    let attempt = categoryHistory.length + 1;
+    
+    while (attempt <= maxAttempts) {
+      console.log(`[LLM_FIX] ${category} subagent - Attempt ${attempt}/${maxAttempts}`);
+      
+      // Get fixed code from LLM
+      const fixedCode = await this.fixTestWithLLM(
+        sourceCode, 
+        testCode, 
+        assertionErrors, 
+        symbolName, 
+        attempt, 
+        testEntry.examination,
+        testCaseName, 
+        category
+      );
+      
+      if (!fixedCode) {
+        console.log(`[LLM_FIX] Failed to get fixed code from LLM`);
+        attempt++;
+        continue;
+      }
+      
+      // Add test function (saves to outputDir)
+      let outputTestFile: string;
+      if (category === "redefined") {
+        // For "redefined", LLM generates the whole test file code
+        // Save directly to output directory
+        try {
+          const testFileName = path.basename(testFile);
+          outputTestFile = path.join(this.outputDir, testFileName);
+          fs.writeFileSync(outputTestFile, fixedCode, 'utf-8');
+          console.log(`[LLM_FIX] Saved complete test file to ${outputTestFile}`);
+        } catch (error) {
+          console.error(`[LLM_FIX] Failed to save test file:`, error);
           attempt++;
           continue;
         }
-        
-        // Add test function (saves to outputDir)
-        let outputTestFile: string;
+      } else {
+        // For "general", fixedCode is just the test function, insert it into the file
         try {
           outputTestFile = await this.addTestFunction(testFile, fixedCode);
         } catch (error) {
@@ -669,47 +875,64 @@ console.log("userPrompt: ", userPrompt);
           attempt++;
           continue;
         }
-        
-        // Run test and check using the output file
-        const result = await this.runTestAndCheck(outputTestFile, testCaseName);
-        
-        // Record attempt
-        const attemptRecord: FixAttempt = {
-          round: attempt,
-          prompt: JSON.stringify({ sourceCode, testCode, assertionErrors, symbolName }),
-          response: fixedCode,
-          fixedCode,
-          testResult: result.passed ? 'pass' : 'fail',
-          errorMessage: result.error
-        };
-        lastFixAttempt = attemptRecord;
-        if (!this.fixHistory.has(testCaseName)) {
-          this.fixHistory.set(testCaseName, []);
-        }
-        this.fixHistory.get(testCaseName)!.push(attemptRecord);
-        // Update testCode for next attempt
-        testCode = lastFixAttempt.fixedCode;
-        assertionErrors = lastFixAttempt.errorMessage || 'Unknown error';
-        
-        if (lastFixAttempt.testResult === 'pass') {
-          console.log(`[LLM_FIX] Successfully fixed after ${attempt} attempt(s)!`);
-          break;
-        }
-        attempt++;
       }
-    }
-
-    if (lastFixAttempt && lastFixAttempt.testResult === 'pass') {
-      // Categorize the assertion error (use original test code, not modified one)
-      try {
-        await this.categorizeFixedTestCase(testCaseName, originalTestCode, lastFixAttempt.fixedCode);
-      } catch (error) {
-        console.error(`[LLM_FIX] Failed to categorize ${testCaseName}:`, error);
-        // Continue even if categorization fails
+      
+      // Run test and check
+      const result = await this.runTestAndCheck(outputTestFile, testCaseName);
+      
+      // Record attempt
+      const attemptRecord: FixAttempt = {
+        round: attempt,
+        prompt: JSON.stringify({ 
+          category, 
+          sourceCode, 
+          testCode, 
+          assertionErrors, 
+          symbolName 
+        }),
+        response: fixedCode,
+        fixedCode,
+        testResult: result.passed ? 'pass' : 'fail',
+        errorMessage: result.error
+      };
+      
+      if (!this.fixHistory.has(testCaseName)) {
+        this.fixHistory.set(testCaseName, []);
       }
-      return true;
+      this.fixHistory.get(testCaseName)!.push(attemptRecord);
+      
+      // Log fix diff for reporting
+      logFixDiff(
+        testCaseName,
+        originalTestCode,
+        fixedCode,
+        category,
+        attempt,
+        maxAttempts,
+        result.passed,
+        result.error,
+        this.fixDiffReportPath
+      );
+      
+      if (result.passed) {
+        console.log(`[LLM_FIX] Successfully fixed with ${category} subagent after ${attempt} attempt(s)!`);
+        
+        // Categorize the assertion error (use original test code)
+        try {
+          await this.categorizeFixedTestCase(testCaseName, originalTestCode, fixedCode);
+        } catch (error) {
+          console.error(`[LLM_FIX] Failed to categorize ${testCaseName}:`, error);
+        }
+        
+        return true;
+      }
+      
+      // Update for next attempt
+      testCode = fixedCode;
+      assertionErrors = result.error || 'Unknown error';
+      attempt++;
     }
-
+    
     return false;
   }
 
@@ -731,7 +954,16 @@ console.log("userPrompt: ", userPrompt);
     };
 
     const previousCategories = { ...this.categoryStructure };
-    const result = await categorizeAssertionError(request);
+    
+    // Create log object for LLM invocation
+    const logObj: LLMLogs = { 
+      tokenUsage: '', 
+      result: '', 
+      prompt: '', 
+      model: '' 
+    };
+    
+    const result = await categorizeAssertionError(request, logObj);
     
     // Update category structure
     this.categoryStructure = updateCategoryStructure(this.categoryStructure, result);
@@ -760,17 +992,17 @@ console.log("userPrompt: ", userPrompt);
     
     const data = this.loadExaminationResults();
     console.log(`[LLM_FIX] Loaded ${data.tests.length} test cases`);
-    
+  
     let fixed = 0;
     let skipped = 0;
     let failed = 0;
     let cached = 0;
     
     for (const testEntry of data.tests) {
-      if (testEntry.examination?.hasRedefinedSymbols !== true) {
-        skipped++;
-        continue;
-      }
+      // if (testEntry.examination?.hasRedefinedSymbols !== true) {
+      //   skipped++;
+      //   continue;
+      // }
       
       const testCaseName = testEntry.test_case.split('::').at(-1);
       
@@ -806,6 +1038,9 @@ console.log("userPrompt: ", userPrompt);
     const historyData = Object.fromEntries(this.fixHistory);
     fs.writeFileSync(historyFile, JSON.stringify(historyData, null, 2));
     
+    // Generate fix diff reports
+    this.generateFixDiffReports();
+    
     console.log(`\n[LLM_FIX] Workflow complete:`);
     console.log(`[LLM_FIX]   Fixed: ${fixed}`);
     console.log(`[LLM_FIX]   Cached: ${cached}`);
@@ -814,6 +1049,26 @@ console.log("userPrompt: ", userPrompt);
     console.log(`[LLM_FIX]   History saved to: ${historyFile}`);
     console.log(`[LLM_FIX]   Category structure saved to: ${this.categoryStructurePath}`);
     console.log(`[LLM_FIX]   Category diff log saved to: ${this.diffLogPath}`);
+    console.log(`[LLM_FIX]   Fix diff report saved to: ${this.fixDiffReportPath}`);
+  }
+
+  /**
+   * Generate fix diff reports (summary and detailed)
+   */
+  private generateFixDiffReports(): void {
+    try {
+      // Generate summary report
+      const summaryPath = path.join(this.outputDir, 'fix_diff_summary.txt');
+      exportFixDiffSummary(this.fixDiffReportPath, summaryPath);
+      console.log(`[LLM_FIX] Fix diff summary saved to: ${summaryPath}`);
+      
+      // Generate detailed markdown report
+      const detailedPath = path.join(this.outputDir, 'fix_diff_detailed.md');
+      exportDetailedFixReport(this.fixDiffReportPath, detailedPath);
+      console.log(`[LLM_FIX] Detailed fix diff report saved to: ${detailedPath}`);
+    } catch (error) {
+      console.error(`[LLM_FIX] Failed to generate fix diff reports:`, error);
+    }
   }
 }
 

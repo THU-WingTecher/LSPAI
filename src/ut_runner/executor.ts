@@ -763,6 +763,7 @@ async function readExitCodeFromLogTail(logPath: string): Promise<number> {
     const logContent = fs.readFileSync(logPath, 'utf8');
     
     console.log(`[EXECUTOR] Analyzing log file: ${logPath}`);
+    console.log(`[EXECUTOR] Log file content: ${logContent}`);
     console.log(`[EXECUTOR] Log file size: ${st.size} bytes`);
     
     // Look for pytest exit patterns in the log

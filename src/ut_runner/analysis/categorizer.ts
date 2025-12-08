@@ -165,6 +165,7 @@ ${existingCategoriesJson}
 \`\`\`
 
 Please analyze the difference between the wrong and fixed versions, infer the root cause, and categorize it according to the instructions above.
+Categorization should be done based on the difference between the wrong and fixed versions, not the whole test code.
 You should output JSON format like this:
 {
   "rootCauseSummary": "string",
