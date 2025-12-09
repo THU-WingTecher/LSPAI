@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AnalysisReport, ExecutionResult, FileAnalysis, TestCaseResult, makeEmptyFileAnalysis } from './types';
 import { findFiles } from '../fileUtils';
-import { getConfigInstance, getProjectSrcPath, ProjectConfigName } from '../config';
+import { getConfigInstance, getProjectSrcPath, getProjectConfig, ProjectConfigName } from '../config';
 import { getLanguageSuffix } from '../language';
 
 // Optional examiner import - requires VSCode extension API
@@ -69,10 +69,13 @@ export class Analyzer {
   }
 
   private findMatchingTestKeyWithMethod(testBasename: string, methodUnderTest?: string | null): string | null {
+    console.log(`[ANALYZER] Finding matching test key with method: ${testBasename} ${methodUnderTest}`);
+    console.log(`[ANALYZER]   Test file map: ${JSON.stringify(this.testFileMap)}`);
     if (!this.testFileMap || !Object.keys(this.testFileMap).length) {
       return null;
     }
     const cleanedName = this.removeRandomNumbers(testBasename);
+    console.log(`[ANALYZER]   Cleaned name: ${cleanedName}`);
     const matches: string[] = [];
     for (const key of Object.keys(this.testFileMap)) {
       const cleanedKey = this.removeRandomNumbers(key);
@@ -120,19 +123,71 @@ export class Analyzer {
   public findSourceFileForTest(testFilePath: string, methodUnderTest?: string | null): string | null {
     const ws = getConfigInstance().workspace;
     const base = path.basename(testFilePath);
+    console.log(`[ANALYZER] Finding source file for test file: ${testFilePath}`);
+    console.log(`[ANALYZER]   Base: ${base}`);
+    console.log(`[ANALYZER]   Workspace: ${ws}`);
     if (!this.testFileMap || !Object.keys(this.testFileMap).length) {
+      console.log(`[ANALYZER]   Test file map is empty`);
       return null;
     }
     const key = this.findMatchingTestKeyWithMethod(base, methodUnderTest ?? null) || this.findMatchingTestKey(base);
+    console.log(`[ANALYZER] Found key: ${key}`);
     if (!key) {
       return null;
     }
     const rel = this.testFileMap[key]?.file_name;
     if (!rel) {
+      console.log(`[ANALYZER]   No file_name in test file map entry`);
       return null;
     }
-    const abs = path.isAbsolute(rel) ? rel : path.join(ws, rel);
-    return fs.existsSync(abs) ? abs : null;
+    console.log(`[ANALYZER]   File name from map: ${rel}`);
+    
+    // Try multiple path resolution strategies:
+    // 1. If absolute path, use as-is
+    if (path.isAbsolute(rel)) {
+      const abs = rel;
+      if (fs.existsSync(abs)) {
+        console.log(`[ANALYZER]   Found at absolute path: ${abs}`);
+        return abs;
+      }
+    }
+    
+    // 2. Try relative to workspace root
+    let abs = path.join(ws, rel);
+    if (fs.existsSync(abs)) {
+      console.log(`[ANALYZER]   Found at workspace-relative path: ${abs}`);
+      return abs;
+    }
+    
+    // 3. Try relative to workspace + srcPath (for projects like tornado where source is in subdirectory)
+    // Get project name from workspace basename and try to get srcPath
+    try {
+      const projectName = path.basename(ws) as ProjectConfigName;
+      const srcPath = getProjectSrcPath(projectName);
+      // srcPath already includes workspace, so we need to check if rel is relative to srcPath
+      // If srcPath ends with the directory that contains the source, try joining srcPath with rel
+      abs = path.join(srcPath, rel);
+      if (fs.existsSync(abs)) {
+        console.log(`[ANALYZER]   Found at srcPath-relative path: ${abs}`);
+        return abs;
+      }
+      
+      // 4. Alternative: try workspace + srcPath config + rel
+      const projectConfig = getProjectConfig(projectName);
+      if (projectConfig.srcPath && projectConfig.srcPath !== '/') {
+        abs = path.join(ws, projectConfig.srcPath, rel);
+        if (fs.existsSync(abs)) {
+          console.log(`[ANALYZER]   Found at workspace+srcPath-relative path: ${abs}`);
+          return abs;
+        }
+      }
+    } catch (e) {
+      // If project config lookup fails, continue to return null
+      console.log(`[ANALYZER]   Could not resolve project config: ${e}`);
+    }
+    
+    console.log(`[ANALYZER]   File not found at any attempted path`);
+    return null;
   }
 
   extractPassedFromSession(logContent: string): Set<string> {
@@ -785,8 +840,10 @@ export class Analyzer {
       const matchedSource = this.findSourceFileForTest(res.testFile.path, null);
       if (matchedSource) {
         files[fkey].note = `Matched source: ${path.relative(workspaceRoot, matchedSource)}`;
+        console.log(`[ANALYZER] Matched source: ${path.relative(workspaceRoot, matchedSource)}`);
       } else {
         files[fkey].note = 'No source mapping found for this test file';
+        console.log(`[ANALYZER] No source mapping found for this test file: ${res.testFile.path}`);
       }
 
       const tcrs = this.extractResultsFromLog(res.logPath, res.testFile.path);
