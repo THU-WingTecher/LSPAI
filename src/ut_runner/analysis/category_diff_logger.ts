@@ -46,8 +46,8 @@ function calculateCategoryStats(categories: CategoryStructure): {
   const categoryDistribution: Record<string, number> = {};
 
   for (const [bigCategory, smallCategories] of Object.entries(categories)) {
-    totalSmallCategories += smallCategories.length;
-    categoryDistribution[bigCategory] = smallCategories.length;
+    totalSmallCategories += (smallCategories as string[]).length;
+    categoryDistribution[bigCategory] = (smallCategories as string[]).length;
   }
 
   return {

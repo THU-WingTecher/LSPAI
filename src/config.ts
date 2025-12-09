@@ -554,19 +554,19 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
             ],
             pythonExe: "/root/miniconda3/envs/black/bin/python"
         },
-        tasklist: '/LSPRAG/experiments/config/black-taskList.json'
     },
     "tornado": {
         workspace: "/LSPRAG/experiments/projects/tornado",
         srcPath: "/tornado",
         language: 'python',
         python: {
+            // Only include parent directory, not the package directory itself
+            // This prevents name collision with standard library modules like 'concurrent'
             pythonpath: [
-                "/LSPRAG/experiments/projects/tornado/tornado"
+                "/LSPRAG/experiments/projects/tornado"
             ],
-            pythonExe: "/root/miniconda3/envs/lsprag/bin/python"
+            pythonExe: "/root/miniconda3/envs/tornado/bin/python"
         },
-        tasklist: '/LSPRAG/experiments/config/tornado-taskList.json'
     },
     "crawl4ai": {
         workspace: "/LSPRAG/experiments/projects/crawl4ai",
@@ -577,25 +577,21 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
         workspace: "/LSPRAG/experiments/projects/commons-cli",
         srcPath: "src/main/java/",
         language: 'java',
-        tasklist: '/LSPRAG/experiments/config/commons-cli-taskList.json'
     },
     "commons-csv": {
         workspace: "/LSPRAG/experiments/projects/commons-csv",
         srcPath: "src/main/java/",
         language: 'java',
-        tasklist: '/LSPRAG/experiments/config/commons-csv-taskList.json'
     },
     "logrus": {
         workspace: "/LSPRAG/experiments/projects/logrus",
         srcPath: "/",
         language: 'go',
-        tasklist: '/LSPRAG/experiments/config/logrus-taskList.json'
     },
     "cobra": {
         workspace: "/LSPRAG/experiments/projects/cobra",
         srcPath: "/",
         language: 'go',
-        tasklist: '/LSPRAG/experiments/config/cobra-taskList.json'
     },
     "DEFAULT": {
         workspace: "/",

@@ -3,7 +3,11 @@ import * as path from 'path';
 import { invokeLLM } from '../../invokeLLM';
 
 export interface CategoryStructure {
-  [bigCategory: string]: string[]; // big category -> array of small categories
+  [bigCategory: string]: string[] | CategoryWithTestCases; // big category -> array of small categories OR enhanced structure with test cases
+}
+
+export interface CategoryWithTestCases {
+  [smallCategory: string]: string[]; // small category -> array of test case names
 }
 
 export interface CategorizationResult {
@@ -53,23 +57,41 @@ export function getDefaultCategories(): CategoryStructure {
 
   // Fallback to hardcoded defaults if file not found or invalid
   console.warn('Default categories file not found, using hardcoded defaults');
+  // Return in new format with test cases
   return {
-    'Wrong Environment': [
-      'workspace error',
-      'platform/file generation error'
-    ],
-    'Mock error': [],
-    'Symbol Misusing': [
-      're-declare already declared symbol'
-    ],
-    'Object Property Error': [],
-    'Logic Error': []
+    'Wrong Environment': {
+      'workspace error': [],
+      'platform/file generation error': []
+    },
+    'Mock error': {},
+    'Symbol Misusing': {
+      're-declare already declared symbol': []
+    },
+    'Object Property Error': {},
+    'Logic Error': {}
   };
+}
+
+/**
+ * Converts old format (string[]) to new format (CategoryWithTestCases)
+ */
+function normalizeCategoryValue(value: string[] | CategoryWithTestCases): CategoryWithTestCases {
+  if (Array.isArray(value)) {
+    // Old format: convert to new format
+    const normalized: CategoryWithTestCases = {};
+    for (const smallCategory of value) {
+      normalized[smallCategory] = [];
+    }
+    return normalized;
+  }
+  // Already in new format
+  return value;
 }
 
 /**
  * Loads existing category structure from JSON file
  * If file doesn't exist, returns default categories
+ * Supports both old format (string[]) and new format (CategoryWithTestCases)
  */
 export function loadCategoryStructure(filePath: string): CategoryStructure {
   if (!fs.existsSync(filePath)) {
@@ -80,21 +102,36 @@ export function loadCategoryStructure(filePath: string): CategoryStructure {
   
   // Merge with defaults to ensure all default categories exist
   const defaults = getDefaultCategories();
-  const merged: CategoryStructure = { ...defaults };
+  const merged: CategoryStructure = {};
+  
+  // Convert defaults to new format
+  for (const [bigCategory, value] of Object.entries(defaults)) {
+    merged[bigCategory] = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
+  }
   
   // Add any categories from loaded file
-  for (const [bigCategory, smallCategories] of Object.entries(loaded)) {
+  for (const [bigCategory, value] of Object.entries(loaded)) {
     if (merged[bigCategory]) {
-      // Merge small categories, avoiding duplicates
-      const existing = new Set(merged[bigCategory]);
-      for (const small of smallCategories as string[]) {
-        if (!existing.has(small)) {
-          merged[bigCategory].push(small);
+      // Merge with existing
+      const existing = merged[bigCategory] as CategoryWithTestCases;
+      const loadedValue = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
+      
+      // Merge small categories and their test cases
+      for (const [smallCategory, testCases] of Object.entries(loadedValue)) {
+        if (!existing[smallCategory]) {
+          existing[smallCategory] = [];
+        }
+        // Merge test cases, avoiding duplicates
+        const existingTestCases = new Set(existing[smallCategory]);
+        for (const testCase of testCases) {
+          if (!existingTestCases.has(testCase)) {
+            existing[smallCategory].push(testCase);
+          }
         }
       }
     } else {
-      // New big category not in defaults
-      merged[bigCategory] = [...(smallCategories as string[])];
+      // New big category not in defaults - normalize to new format
+      merged[bigCategory] = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
     }
   }
   
@@ -110,6 +147,52 @@ export function saveCategoryStructure(filePath: string, categories: CategoryStru
     fs.mkdirSync(dir, { recursive: true });
   }
   fs.writeFileSync(filePath, JSON.stringify(categories, null, 2), { encoding: 'utf-8' });
+}
+
+/**
+ * Generates a readable summary of the category structure with test case counts
+ */
+export function generateCategoryStructureSummary(categories: CategoryStructure): string {
+  const lines: string[] = [];
+  lines.push('=== Category Structure Summary ===\n');
+  
+  let totalBigCategories = 0;
+  let totalSmallCategories = 0;
+  let totalTestCases = 0;
+  
+  for (const [bigCategory, value] of Object.entries(categories)) {
+    totalBigCategories++;
+    const normalized = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
+    
+    lines.push(`## ${bigCategory}`);
+    const smallCategories = Object.keys(normalized);
+    
+    if (smallCategories.length === 0) {
+      lines.push('  (No small categories yet)');
+    } else {
+      for (const smallCategory of smallCategories) {
+        totalSmallCategories++;
+        const testCases = normalized[smallCategory] || [];
+        totalTestCases += testCases.length;
+        
+        lines.push(`  - ${smallCategory} (${testCases.length} test case${testCases.length !== 1 ? 's' : ''})`);
+        
+        if (testCases.length > 0) {
+          for (const testCase of testCases) {
+            lines.push(`    * ${testCase}`);
+          }
+        }
+      }
+    }
+    lines.push('');
+  }
+  
+  lines.unshift(`Total Big Categories: ${totalBigCategories}`);
+  lines.unshift(`Total Small Categories: ${totalSmallCategories}`);
+  lines.unshift(`Total Test Cases: ${totalTestCases}`);
+  lines.unshift('');
+  
+  return lines.join('\n');
 }
 
 /**
@@ -224,19 +307,36 @@ function parseCategorizationResponse(response: string): CategorizationResult | n
 
 /**
  * Updates category structure based on categorization result
+ * Now tracks which test cases belong to each category
  */
 export function updateCategoryStructure(
   categories: CategoryStructure,
   result: CategorizationResult
 ): CategoryStructure {
-  const updated = { ...categories };
+  const updated: CategoryStructure = {};
 
-  if (!updated[result.bigCategory]) {
-    updated[result.bigCategory] = [];
+  // Convert all existing categories to new format
+  for (const [bigCategory, value] of Object.entries(categories)) {
+    updated[bigCategory] = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
   }
 
-  if (!updated[result.bigCategory].includes(result.smallCategory)) {
-    updated[result.bigCategory].push(result.smallCategory);
+  // Ensure big category exists
+  if (!updated[result.bigCategory]) {
+    updated[result.bigCategory] = {};
+  }
+
+  // Normalize the big category value
+  const bigCategoryValue = normalizeCategoryValue(updated[result.bigCategory] as string[] | CategoryWithTestCases);
+  updated[result.bigCategory] = bigCategoryValue;
+
+  // Ensure small category exists
+  if (!bigCategoryValue[result.smallCategory]) {
+    bigCategoryValue[result.smallCategory] = [];
+  }
+
+  // Add test case if not already present
+  if (!bigCategoryValue[result.smallCategory].includes(result.testCaseName)) {
+    bigCategoryValue[result.smallCategory].push(result.testCaseName);
   }
 
   return updated;

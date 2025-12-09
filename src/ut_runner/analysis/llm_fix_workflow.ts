@@ -14,6 +14,7 @@ import {
   loadCategoryStructure, 
   saveCategoryStructure, 
   updateCategoryStructure,
+  generateCategoryStructureSummary,
   CategoryStructure,
   CategorizationRequest
 } from './categorizer';
@@ -1061,6 +1062,12 @@ console.log("userPrompt: ", userPrompt);
       const summaryPath = path.join(this.outputDir, 'fix_diff_summary.txt');
       exportFixDiffSummary(this.fixDiffReportPath, summaryPath);
       console.log(`[LLM_FIX] Fix diff summary saved to: ${summaryPath}`);
+      
+      // Generate category structure summary
+      const categorySummaryPath = path.join(this.outputDir, 'category_structure_summary.txt');
+      const categorySummary = generateCategoryStructureSummary(this.categoryStructure);
+      fs.writeFileSync(categorySummaryPath, categorySummary, { encoding: 'utf-8' });
+      console.log(`[LLM_FIX] Category structure summary saved to: ${categorySummaryPath}`);
       
       // Generate detailed markdown report
       const detailedPath = path.join(this.outputDir, 'fix_diff_detailed.md');

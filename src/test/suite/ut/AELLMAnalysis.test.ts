@@ -3,54 +3,82 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { runPipeline } from '../../../ut_runner/runner';
-import { getConfigInstance } from '../../../config';
+import { getConfigInstance, getProjectPythonExe, getProjectPythonPath, Provider, getProjectWorkspace, ProjectConfigName } from '../../../config';
 import { runLLMFixWorkflow, LLMFixWorkflow } from '../../../ut_runner/analysis/llm_fix_workflow';
 
-suite('EXECUTE - Python (black)', () => {
-  const testsDir = '/LSPRAG/experiments/motiv/assertion/opencode/gpt-5/codes';
-  const testFileMapPath = '/LSPRAG/experiments/motiv/assertion/opencode/test_file_map.json'
-  const final_report_path = testsDir+'-final-report';
-  const pythonInterpreterPath = '/root/miniconda3/envs/black/bin/python';
-  const pythonExtraPaths = [
-    '/LSPRAG/experiments/projects/black/src/',
-    '/LSPRAG/experiments/projects/black',
-    '/LSPRAG/experiments/projects'
+
+interface AELLMAnalysisTestConfig {
+  projectName: string;
+  testsDir: string;
+  testFileMapPath: string;
+}
+
+suite('EXECUTE - Python', () => {
+  /////////////////////////////////////
+  const configs: AELLMAnalysisTestConfig[] = [
+    { projectName: "tornado",
+    testsDir: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/gpt-5/codes',
+    testFileMapPath: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/test_file_map.json'
+    },
+    { projectName: "tornado",
+    testsDir: '/LSPRAG/experiments/projects/tornado/lsprag-workspace/20251203_145746/tornado/lsprag_withcontext_/gpt-5/results/final',
+    testFileMapPath: '/LSPRAG/experiments/projects/tornado/lsprag-workspace/20251203_145746/tornado/lsprag_withcontext_/gpt-5/results/test_file_map.json'
+    },
+    { projectName: "black",
+    testsDir: '/LSPRAG/experiments/motiv/assertion/opencode/gpt-5/codes',
+    testFileMapPath: '/LSPRAG/experiments/motiv/assertion/opencode/test_file_map.json'
+    },
+    { projectName: "black",
+    testsDir: '/LSPRAG/experiments/projects/black/lsprag-workspace/20251203_114956/black/lsprag_withcontext_/gpt-5/results/final',
+    testFileMapPath: '/LSPRAG/experiments/projects/black/lsprag-workspace/20251203_114956/black/lsprag_withcontext_/gpt-5/results/test_file_map.json'
+    },
   ];
-  
-  // Default paths - adjust as needed
 
-  const outputDir = path.join(final_report_path, 'fix-output');
-  const inputJsonPath = path.join(
-    outputDir,
-    'examination_results.json'
-  );
+  // const projectPath = getProjectWorkspace(projectName);
+  // const pythonInterpreterPath = getProjectPythonExe(projectName);
+  // const pythonExtraPaths = getProjectPythonPath(projectName);
   
-  const projectPath = "/LSPRAG/experiments/projects/black";
-  const currentConfig = {
-      workspace: projectPath,
-  };
 
-  getConfigInstance().updateConfig({
-    ...currentConfig
-  });
 
   test('execute all python files and produce reports', async () => {
-    if (!fs.existsSync(inputJsonPath)) {
-      await runPipeline(testsDir, outputDir, testFileMapPath, {
+    for (const config of configs) {
+      const projectName = config.projectName as ProjectConfigName
+      const projectPath = getProjectWorkspace(projectName);
+      const pythonInterpreterPath = getProjectPythonExe(projectName);
+      const pythonExtraPaths = getProjectPythonPath(projectName);
+      const testsDir = config.testsDir;
+      const testFileMapPath = config.testFileMapPath;
+      const final_report_path = testsDir+'-final-report';
+      const outputDir = path.join(final_report_path, 'fix-output');
+      const inputJsonPath = path.join(
+        final_report_path,
+        'examination_results.json'
+      );
+      const currentConfig = {
+        workspace: projectPath,
+        model: 'gpt-5',
+        provider: 'openai' as Provider,
+      };
+      getConfigInstance().updateConfig({
+        ...currentConfig
+      });
+      if (!fs.existsSync(inputJsonPath)) {
+        await runPipeline(testsDir, final_report_path, testFileMapPath, {
+          language: 'python',
+          pythonExe: pythonInterpreterPath,
+          jobs: 20,
+          timeoutSec: 30,
+          pythonpath: pythonExtraPaths
+        });
+      }
+      await runLLMFixWorkflow(inputJsonPath, outputDir, {
         language: 'python',
         pythonExe: pythonInterpreterPath,
-        jobs: 20,
+        jobs: 30,
         timeoutSec: 30,
         pythonpath: pythonExtraPaths
       });
     }
-    await runLLMFixWorkflow(inputJsonPath, outputDir, {
-      language: 'python',
-      pythonExe: pythonInterpreterPath,
-      jobs: 1,
-      timeoutSec: 30,
-      pythonpath: pythonExtraPaths
-    });
   });
 });
 

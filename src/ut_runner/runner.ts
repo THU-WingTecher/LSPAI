@@ -210,22 +210,18 @@ export function buildEnv(pythonpathList: string[]): NodeJS.ProcessEnv {
   const env = { ...process.env };
   
   // Default PYTHONPATH for the black project
-  const defaultPythonPaths = [
-    '/LSPRAG/experiments/projects/black/src/',
-    '/LSPRAG/experiments/projects/black',
-    '/LSPRAG/experiments/projects'
-  ];
+  // const defaultPythonPaths = [
+    // '/LSPRAG/experiments/projects/black/src/',
+    // '/LSPRAG/experiments/projects/black',
+    // '/LSPRAG/experiments/projects'
+  // ];
   
   const existing = env.PYTHONPATH || '';
-  const allPaths = [...defaultPythonPaths, ...(pythonpathList || [])];
+  const allPaths = [...(pythonpathList || [])];
   const filtered = allPaths.filter(Boolean);
   const merged = filtered.join(':');
   
   console.log(`[RUNNER]   Existing PYTHONPATH: ${existing || 'not set'}`);
-  console.log(`[RUNNER]   Default paths: ${defaultPythonPaths.length}`);
-  defaultPythonPaths.forEach((path, i) => {
-    console.log(`[RUNNER]     ${i + 1}. ${path}`);
-  });
   console.log(`[RUNNER]   Additional paths: ${pythonpathList ? pythonpathList.length : 0}`);
   if (pythonpathList && pythonpathList.length) {
     pythonpathList.forEach((path, i) => {
