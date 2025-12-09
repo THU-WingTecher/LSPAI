@@ -112,7 +112,7 @@ export const NAIVE_PREFIX = "naive_";
 const TIME_ZONE = 'CST';
 export const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
     
-export type ProjectName = keyof typeof SRC_PATHS;
+// export type ProjectName = keyof typeof SRC_PATHS;
 
 // Add these constants near the top with other constants
 const SEED = 12345; // Fixed seed for reproducibility
@@ -516,17 +516,131 @@ export class Configuration {
 export function getConfigInstance() {
     return Configuration.getInstance();
 }
-// Constants for specific project paths
+// Project configuration types
+export interface PythonProjectConfig {
+    pythonpath?: string[];
+    pythonExe?: string;
+}
 
-export const SRC_PATHS = {
-    "commons-cli": 'src/main/java/',
-    "commons-csv": 'src/main/java/',
-    "black": '/src/black',
-    "crawl4ai": '/crawl4ai',
-    "tornado": '/tornado',
-    DEFAULT: '/'
+export interface ProjectConfig {
+    workspace: string;
+    srcPath: string;
+    language: 'python' | 'java' | 'go' | 'cpp';
+    python?: PythonProjectConfig;
+    tasklist?: string;
+}
+
+export type ProjectConfigName = 
+    | 'black' 
+    | 'tornado' 
+    | 'crawl4ai'
+    | 'commons-cli' 
+    | 'commons-csv'
+    | 'logrus'
+    | 'cobra'
+    | 'DEFAULT';
+
+// Unified project configurations
+export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
+    "black": {
+        workspace: "/LSPRAG/experiments/projects/black",
+        srcPath: "/src/black", // where source code is located
+        language: 'python',
+        python: {
+            pythonpath: [ // Python extra paths
+                "/LSPRAG/experiments/projects/black/src/",
+                "/LSPRAG/experiments/projects/black",
+                "/LSPRAG/experiments/projects"
+            ],
+            pythonExe: "/root/miniconda3/envs/black/bin/python"
+        },
+        tasklist: '/LSPRAG/experiments/config/black-taskList.json'
+    },
+    "tornado": {
+        workspace: "/LSPRAG/experiments/projects/tornado",
+        srcPath: "/tornado",
+        language: 'python',
+        python: {
+            pythonpath: [
+                "/LSPRAG/experiments/projects/tornado/tornado"
+            ],
+            pythonExe: "/root/miniconda3/envs/lsprag/bin/python"
+        },
+        tasklist: '/LSPRAG/experiments/config/tornado-taskList.json'
+    },
+    "crawl4ai": {
+        workspace: "/LSPRAG/experiments/projects/crawl4ai",
+        srcPath: "/crawl4ai",
+        language: 'python'
+    },
+    "commons-cli": {
+        workspace: "/LSPRAG/experiments/projects/commons-cli",
+        srcPath: "src/main/java/",
+        language: 'java',
+        tasklist: '/LSPRAG/experiments/config/commons-cli-taskList.json'
+    },
+    "commons-csv": {
+        workspace: "/LSPRAG/experiments/projects/commons-csv",
+        srcPath: "src/main/java/",
+        language: 'java',
+        tasklist: '/LSPRAG/experiments/config/commons-csv-taskList.json'
+    },
+    "logrus": {
+        workspace: "/LSPRAG/experiments/projects/logrus",
+        srcPath: "/",
+        language: 'go',
+        tasklist: '/LSPRAG/experiments/config/logrus-taskList.json'
+    },
+    "cobra": {
+        workspace: "/LSPRAG/experiments/projects/cobra",
+        srcPath: "/",
+        language: 'go',
+        tasklist: '/LSPRAG/experiments/config/cobra-taskList.json'
+    },
+    "DEFAULT": {
+        workspace: "/",
+        srcPath: "/",
+        language: 'python'
+    }
 } as const;
 
+// Helper functions for easy project switching
+export function getProjectConfig(projectName: ProjectConfigName): ProjectConfig {
+    return PROJECT_CONFIGS[projectName] || PROJECT_CONFIGS.DEFAULT;
+}
+
+export function getProjectPythonPath(projectName: ProjectConfigName): string[] {
+    const config = getProjectConfig(projectName);
+    return config.python?.pythonpath || [];
+}
+
+export function getProjectPythonExe(projectName: ProjectConfigName): string | undefined {
+    const config = getProjectConfig(projectName);
+    return config.python?.pythonExe;
+}
+
+export function getProjectWorkspace(projectName: ProjectConfigName): string {
+    return getProjectConfig(projectName).workspace;
+}
+
+export function getProjectLanguage(projectName: ProjectConfigName): string {
+    return getProjectConfig(projectName).language;
+}
+
+export function getProjectSrcPath(projectName: ProjectConfigName): string {
+    return path.join(getProjectWorkspace(projectName), getProjectConfig(projectName).srcPath);
+}
+
+export const LANGUAGE_IDS = {
+    "commons-cli": 'java',
+    "commons-csv": 'java',
+    "black": 'python',
+    "crawl4ai": 'python',
+    "tornado": 'python',
+    "logrus": 'go',
+    "cobra": 'go',
+    DEFAULT: 'default'
+} as const;
 // For backward compatibility, export individual values
 // export const currentExpProb = configInstance.expProb;
 // export const currentModel = configInstance.model;

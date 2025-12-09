@@ -1,11 +1,9 @@
 import path from "path";
 import vscode from "vscode";
 import fs from "fs";
-import { SRC_PATHS } from "./config";
-import { ProjectName } from "./config";
 import { generateFileNameForDiffLanguage, findFiles } from "./fileHandler";
 import { getLanguageSuffix } from "./language";
-import { getConfigInstance } from "./config";
+import { getConfigInstance, getProjectSrcPath, ProjectConfigName } from "./config";
 import { generateUnitTestForAFunction } from "./generate";
 import assert from "assert";
 
@@ -263,11 +261,7 @@ export function goSpecificEnvGen(folderName: string, language: string, srcPath: 
 export function setTestFilesPath(projectPath: string) {
     let testFilesPath = "/LSPRAG/experiments/projects/commons-cli/src/main/java/org/apache/commons/cli";
     const projectName = path.basename(projectPath);
-    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
-        testFilesPath = path.join(projectPath, SRC_PATHS[projectName as ProjectName]);
-    } else {
-        testFilesPath = path.join(projectPath, SRC_PATHS.DEFAULT);
-    }
+    testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
     return testFilesPath;
 }
 
@@ -280,11 +274,7 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
     const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
     const projectName = path.basename(workspace);
-    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
-        testFilesPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
-    } else {
-        testFilesPath = path.join(workspace, SRC_PATHS.DEFAULT);
-    }
+    testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
     const suffix = getLanguageSuffix(language); 
     findFiles(testFilesPath, Files, language, suffix);	
     initializeSeededRandom(SEED); // Initialize the seeded random generator
@@ -300,11 +290,7 @@ export function findAFileFromWorkspace(targetFile: string, language: string) {
     const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
     const projectName = path.basename(workspace);
-    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
-        testFilesPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
-    } else {
-        testFilesPath = path.join(workspace, SRC_PATHS.DEFAULT);
-    }
+    testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
     const suffix = getLanguageSuffix(language); 
     findFiles(testFilesPath, Files, language, suffix);	
     return Files.filter(f => f.endsWith(targetFile))[0];

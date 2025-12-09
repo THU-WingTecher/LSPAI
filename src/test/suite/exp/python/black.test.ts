@@ -1,71 +1,12 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
-import * as fs from 'fs';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../../lsp/symbol";
 import { activate, setupPythonLSP } from '../../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../../config';
-
+import { readSliceAndSaveTaskList } from '../../../../experiment/utils/helper';
 import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from '../../../../experiment';
-
-
-function customFilterTaskList(taskList: any[]): any[] {
-    return taskList.filter((item: any) => {
-        // Remove functions that start with "_"
-        if (item.symbolName && item.symbolName.startsWith('_')) {
-            return false;
-        }
-        
-        // Remove functions with more than 200 lines of code
-        let lineCount = 0;
-        if (item.sourceCode) {
-            lineCount = item.sourceCode.split('\n').length;
-        } else if (item.lineNum !== undefined) {
-            // Use lineNum if sourceCode is not available
-            lineCount = item.lineNum;
-        }
-        
-        if (lineCount > 200) {
-            return false;
-        }
-        
-        return true;
-    });
-}
-
-async function readSliceAndSaveTaskList(
-    taskListPath: string,
-    sampleNumber: number
-): Promise<string> {
-    // Read the task list
-    const taskListContent = fs.readFileSync(taskListPath, 'utf-8');
-    const taskList = JSON.parse(taskListContent);
-    
-    // Apply custom filtering
-    const filteredTaskList = customFilterTaskList(taskList);
-    console.log(`Filtered ${taskList.length - filteredTaskList.length} items (removed functions starting with "_" or >200 lines)`);
-    
-    // Sort by robustness score (descending - highest first)
-    filteredTaskList.sort((a: any, b: any) => b.robustnessScore - a.robustnessScore);
-    
-    // Slice to sample number if needed
-    let slicedTaskList = filteredTaskList;
-    if (sampleNumber > 0 && sampleNumber < filteredTaskList.length) {
-        slicedTaskList = filteredTaskList.slice(0, sampleNumber);
-    }
-    
-    // Generate output path
-    const dir = path.dirname(taskListPath);
-    const basename = path.basename(taskListPath, path.extname(taskListPath));
-    const outputPath = path.join(dir, `${basename}-sample${sampleNumber > 0 ? sampleNumber : 'all'}.json`);
-    
-    // Save to JSON file
-    fs.writeFileSync(outputPath, JSON.stringify(slicedTaskList, null, 2), 'utf-8');
-    console.log(`Task list sliced and saved to: ${outputPath}`);
-    
-    return outputPath;
-}
 
 suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/black/bin/python";
@@ -139,13 +80,25 @@ suite('Experiment Test Suite', () => {
         // await updateWorkspaceFolders(workspaceFolders);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
-        symbols = await loadAllTargetSymbolsFromWorkspace(languageId);
+        symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
         symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
 
         // // ==== LOAD SYMBOLS FROM TASK LIST ====
         assert.ok(symbols.length > 0, 'symbols should not be empty');
         console.log(`#### Number of symbols: ${symbols.length}`);
     });
+    
+        test('LSPRAG - gpt-5 ', async () => {
+            await runGenerateTestCodeSuite(
+                GenerationType.LSPRAG,
+                FixType.ORIGINAL,
+                PromptType.WITHCONTEXT,
+                'gpt-5',
+                'openai' as Provider,
+                symbols,
+                languageId,
+            );
+        });
 
 
     // test('Naive - gpt-4o-mini - continueing', async () => {
@@ -173,18 +126,6 @@ suite('Experiment Test Suite', () => {
     //         "/LSPRAG/experiments/projects/black/lsprag-workspace/5_31_2025__15_37_29/black/symprompt_detailed_nofix/gpt-4o-mini/results"
     //     );
     // });
-
-    test('LSPRAG - gpt-5 ', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.LSPRAG,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            'gpt-5',
-            'openai' as Provider,
-            symbols,
-            languageId,
-        );
-    });
     // test('Naive - gpt-4o ', async () => {
     //     await runGenerateTestCodeSuite(
     //         GenerationType.NAIVE,

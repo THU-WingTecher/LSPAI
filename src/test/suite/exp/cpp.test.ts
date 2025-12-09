@@ -5,12 +5,10 @@ import fs from 'fs';
 import { setWorkspaceFolders } from '../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
 import { selectOneSymbolFileFromWorkspace } from "../../../lsp/symbol";
-import { SRC_PATHS } from '../../../config';
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../config';
 import { generateFileNameForDiffLanguage } from '../../../fileHandler';
 import { generateUnitTestForAFunction } from '../../../generate';
-import { ProjectName } from '../../../config';
 import { runGenerateTestCodeSuite } from '../../../experiment';
 
 suite('Experiment Test Suite - c', () => {

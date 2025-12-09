@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AnalysisReport, ExecutionResult, FileAnalysis, TestCaseResult, makeEmptyFileAnalysis } from './types';
 import { findFiles } from '../fileUtils';
-import { SRC_PATHS, ProjectName, getConfigInstance } from '../config';
+import { getConfigInstance, getProjectSrcPath, ProjectConfigName } from '../config';
 import { getLanguageSuffix } from '../language';
 
 // Optional examiner import - requires VSCode extension API
@@ -32,11 +32,7 @@ export class Analyzer {
     try {
       const projectName = path.basename(workspaceRoot);
       let srcPath: string;
-      if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
-        srcPath = path.join(workspaceRoot, SRC_PATHS[projectName as ProjectName]);
-      } else {
-        srcPath = path.join(workspaceRoot, SRC_PATHS.DEFAULT);
-      }
+      srcPath = getProjectSrcPath(projectName as ProjectConfigName);
       const suffix = getLanguageSuffix(this.language);
       const files: string[] = [];
       findFiles(srcPath, files, this.language, suffix);

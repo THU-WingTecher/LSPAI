@@ -2,14 +2,13 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
 import * as fs from 'fs';
-import { getDiagnosticsForFilePath } from '../../../lsp/diagnostic';
 import { randomlySelectOneFileFromWorkspace, setWorkspaceFolders, updateWorkspaceFolders, genPythonicSrcImportStatement } from '../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
-import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../config';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath, setPythonAnalysisInclude, setPythonAnalysisExclude, setupPythonLSP } from '../../../lsp/helper';
+import { getConfigInstance, GenerationType, PromptType, Provider, FixType, LANGUAGE_IDS, getProjectLanguage, ProjectConfigName, getProjectSrcPath, getProjectWorkspace } from '../../../config';
 import { VscodeRequestManager } from '../../../lsp/vscodeRequestManager';
 import { isTestFile } from '../../../lsp/reference';
-
+import { setupJavaTestEnvironment } from '../../../lsp/helper';
 export interface SymbolRobustnessResult {
     symbolName: string;
     totalReferences: number;
@@ -23,6 +22,13 @@ export interface SymbolRobustnessResult {
 
 // comment, number of cross-file dependencies, number of unique CFG   
 
+function isInProjectPath(uri: vscode.Uri, projectPath: string): boolean {
+    const refPath = uri.fsPath;
+    const normalizedProjectPath = path.normalize(projectPath);
+    const normalizedRefPath = path.normalize(refPath);
+    return normalizedRefPath.startsWith(normalizedProjectPath);
+}
+
 export async function measureSymbolRobustness(
     symbol: vscode.DocumentSymbol, 
     document: vscode.TextDocument,
@@ -32,12 +38,22 @@ export async function measureSymbolRobustness(
     const position = symbol.selectionRange.start;
     
     // 1. Load all references to the symbol
-    const references = await VscodeRequestManager.references(document.uri, position);
+    const allReferences = await VscodeRequestManager.references(document.uri, position);
     
-    // 2. Count total references
+    // 2. Filter references to only include those within the project path
+    const references = allReferences.filter(ref => isInProjectPath(ref.uri, workspacePath));
+    
+    // Log references outside project for debugging
+    const outsideProject = allReferences.filter(ref => !isInProjectPath(ref.uri, workspacePath));
+    if (outsideProject.length > 0) {
+        console.log(`  Filtered out ${outsideProject.length} references outside project path:`);
+        outsideProject.forEach(ref => console.log(`    - ${ref.uri.fsPath}`));
+    }
+    
+    // 3. Count total references (only within project)
     const totalReferences = references.length;
     
-    // 3. Filter and count references from test files
+    // 4. Filter and count references from test files
     let testReferences = 0;
     for (const ref of references) {
         const refDocument = await vscode.workspace.openTextDocument(ref.uri);
@@ -46,7 +62,7 @@ export async function measureSymbolRobustness(
         }
     }
     
-    // Calculate robustness score (ratio of test references to total references)
+    // 5. Calculate robustness score (ratio of test references to total references)
     const robustnessScore = totalReferences > 0 ? testReferences * 10 + totalReferences : 0;
     
     // Get additional symbol information
@@ -77,14 +93,13 @@ export async function measureSymbolRobustness(
     };
 }
 
-
-
 suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/black/bin/python";
-    const blackImportTestPath = "/LSPRAG/src/test/resources/black_module_import_test.py";
-    const projectPath = "/LSPRAG/experiments/projects/tornado";
+    const projectName = "commons-csv";
+    
+    const languageId = getProjectLanguage(projectName as ProjectConfigName);
+    const projectPath = getProjectWorkspace(projectName as ProjectConfigName);
     const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src"), path.join(projectPath, "tests")];
-    const languageId = "python";
     const currentConfig = {
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
@@ -103,58 +118,17 @@ suite('Experiment Test Suite', () => {
         const workspaceFolders = setWorkspaceFolders(projectPath);
         await updateWorkspaceFolders(workspaceFolders);
         console.log('Workspace folders updated to:', vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath));
+        if (languageId === "python") {  
+            await setupPythonLSP(blackModuleImportPath, pythonInterpreterPath);
+        } else if (languageId === "java") {
+            await setupJavaTestEnvironment(projectPath);
+        } else {
+            throw new Error(`Unsupported language: ${languageId}`);
+        }
         assert.ok(vscode.workspace.workspaceFolders, 'Workspace folders should be set');
         assert.strictEqual(vscode.workspace.workspaceFolders[0].uri.fsPath, projectPath, 'Workspace folder should match project path');
     });
 
-    test('Language server recognizes installed environment libraries', async () => {
-        // Set the desired Python interpreter path (update as needed)
-
-        // Activate the Python extension and log the interpreter in use
-        console.log('Python interpreter used by extension:', await getPythonInterpreterPath());
-
-        // Open the test file and collect diagnostics
-        const fileUri = vscode.Uri.file(blackImportTestPath);
-        await vscode.workspace.openTextDocument(fileUri);
-        await setPythonExtraPaths([]);
-        const oldPythonExtraPaths = await getPythonExtraPaths();
-        console.log('oldPythonExtraPaths:', oldPythonExtraPaths);
-        
-        // Wait for LSP server to process the configuration change and re-analyze
-        console.log('Waiting for LSP server to re-analyze with empty paths...');
-        await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second wait
-        
-        const oldDiagnostics = await getDiagnosticsForFilePath(blackImportTestPath);
-        const oldImportErrors = oldDiagnostics.filter(d =>
-            d.message.includes('No module named') ||
-            d.message.includes('unresolved import') ||
-            d.message.includes('not found') ||
-            d.message.includes('Import')
-        );  
-        assert.ok(oldImportErrors.length > 0, 'should have import errors');
-        await setPythonExtraPaths(blackModuleImportPath);
-        const currentPythonExtraPaths = await getPythonExtraPaths();
-        console.log('currentPythonExtraPaths:', currentPythonExtraPaths);
-        assert.ok(currentPythonExtraPaths.length === blackModuleImportPath.length, 'python extra paths should be set as expected');
-        assert.ok(currentPythonExtraPaths.every((path, index) => path === blackModuleImportPath[index]), 'python extra paths should be set as expected');
-        
-        // Wait for LSP server to process the configuration change and re-analyze
-        console.log('Waiting for LSP server to re-analyze with correct paths...');
-        await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second wait
-        
-        // Log diagnostics for debugging
-        const newDiagnostics = await getDiagnosticsForFilePath(blackImportTestPath);
-        console.log('newDiagnostics:', newDiagnostics);
-
-        // Assert: No diagnostic about missing pandas or import errors
-        const importErrors = newDiagnostics.filter(d =>
-            d.message.includes('No module named') ||
-            d.message.includes('unresolved import') ||
-            d.message.includes('not found') ||
-            d.message.includes('Import')
-        );
-        assert.strictEqual(importErrors.length, 0, 'Should not report missing pandas or import errors');
-    });
 
     test('measureSymbolRobustness', async () => {
         if (process.env.NODE_DEBUG !== 'true') {

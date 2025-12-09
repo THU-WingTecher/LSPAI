@@ -5,7 +5,7 @@ import { getConstructorDetail, getFieldDetail, removeComments } from './utils';
 import { getPackageStatement } from './definition';
 import { VscodeRequestManager } from './vscodeRequestManager';
 import { initializeSeededRandom, SEED, seededRandom } from '../helper';
-import { MIN_FUNCTION_LINES, getConfigInstance, SRC_PATHS, ProjectName } from '../config';
+import { MIN_FUNCTION_LINES, getConfigInstance, getProjectSrcPath, ProjectConfigName } from '../config';
 import { findFiles } from '../fileHandler';
 import { getLanguageSuffix } from '../language';
 import {findAFileFromWorkspace} from '../helper';
@@ -326,11 +326,7 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
     const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
     const projectName = path.basename(workspace);
-    if (Object.prototype.hasOwnProperty.call(SRC_PATHS, projectName)) {
-        testFilesPath = path.join(workspace, SRC_PATHS[projectName as ProjectName]);
-    } else {
-        testFilesPath = path.join(workspace, SRC_PATHS.DEFAULT);
-    }
+    testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
     const suffix = getLanguageSuffix(language);
     findFiles(testFilesPath, Files, language, suffix);
     initializeSeededRandom(SEED); // Initialize the seeded random generator
