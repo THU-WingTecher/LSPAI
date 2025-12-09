@@ -9,8 +9,11 @@ import { getLanguageSuffix } from '../language';
 // Optional examiner import - requires VSCode extension API
 let examineTestCasesBatch: any = null;
 let filterTestCasesForExamination: any = null;
+let mutAnalyzer: any = null;
 try {
   const examinerModule = require('./analysis/examiner');
+  const mutAnalyzerModule = require('./analysis/mut_analyzer');
+  mutAnalyzer = mutAnalyzerModule.analyzeFocalMethod;
   examineTestCasesBatch = examinerModule.examineTestCasesBatch;
   filterTestCasesForExamination = examinerModule.filterTestCasesForExamination;
 } catch (e) {
@@ -839,11 +842,11 @@ export class Analyzer {
 
       const matchedSource = this.findSourceFileForTest(res.testFile.path, null);
       if (matchedSource) {
+        files[fkey].sourceFile = matchedSource;
         files[fkey].note = `Matched source: ${path.relative(workspaceRoot, matchedSource)}`;
         console.log(`[ANALYZER] Matched source: ${path.relative(workspaceRoot, matchedSource)}`);
       } else {
-        files[fkey].note = 'No source mapping found for this test file';
-        console.log(`[ANALYZER] No source mapping found for this test file: ${res.testFile.path}`);
+        throw new Error(`No source mapping found for this test file: ${res.testFile.path}`);
       }
 
       const tcrs = this.extractResultsFromLog(res.logPath, res.testFile.path);
@@ -852,6 +855,20 @@ export class Analyzer {
         continue;
       }
 
+      // if all tcr.status is Passed, then files[fkey].status = 'Passed'
+      if (tcrs.every(tcr => tcr.status === 'Passed')) {
+        files[fkey].status = 'Passed';
+      } else {
+        files[fkey].status = 'Failed';
+      }
+      files[fkey].symbolName = tcrs[0].focalFunction || '';
+      console.log(`[ANALYZER] Symbol name: ${files[fkey].symbolName}`);
+      console.log(`[ANALYZER] Source file: ${files[fkey].sourceFile}`);
+      if (files[fkey].mutAnalysis === null) {
+        console.log(`[ANALYZER] Analyzing MUT for ${files[fkey].symbolName} in ${files[fkey].sourceFile}`);
+        files[fkey].mutAnalysis = await mutAnalyzer(files[fkey].sourceFile, files[fkey].symbolName);
+      }
+      console.log(`[ANALYZER] MUT analysis: ${JSON.stringify(files[fkey].mutAnalysis)}`);
       for (const tcr of tcrs) {
         tests[tcr.codeName] = tcr;
         files[fkey].testcases.push(tcr);
@@ -910,6 +927,15 @@ export class Analyzer {
       }
     } else {
       console.log('[ANALYZER] Examination phase skipped (requires VSCode extension API)');
+    }
+
+    // Save file analysis to JSON for further analysis
+    const fileAnalysisPath = path.join(outputDir, 'file_analysis.json');
+    try {
+      fs.writeFileSync(fileAnalysisPath, JSON.stringify(files, null, 2), 'utf-8');
+      console.log(`[ANALYZER] File analysis saved to: ${fileAnalysisPath}`);
+    } catch (e) {
+      console.warn(`[ANALYZER] Failed to save file analysis to JSON: ${e}`);
     }
 
     return {

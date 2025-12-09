@@ -24,7 +24,7 @@ suite('MUT Analyzer Test Suite', () => {
         assert.ok(functionSymbol, 'Function symbol should be found');
         
         // Analyze the function
-        const result = await analyzeFocalMethod(document, functionSymbol!, 'python');
+        const result = await analyzeFocalMethod(testUri, 'compute');
         
         // Verify results
         assert.ok(result.totalTokens > 0, 'Should have tokens');

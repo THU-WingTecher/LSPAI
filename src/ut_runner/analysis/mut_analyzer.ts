@@ -6,6 +6,7 @@ import { PathCollector } from '../../cfg/path';
 import { SupportedLanguage } from '../../ast';
 import { DecodedToken } from '../../lsp/types';
 import { getHover, extractHoverText, countCommentsFromHover } from '../../lsp/hover';
+import { getSymbolFromDocument } from '../../lsp/symbol';
 
 export interface MUTAnalysisResult {
     totalTokens: number;
@@ -24,13 +25,19 @@ export interface MUTAnalysisResult {
  * @returns Analysis results including token count, path count, external dependencies, and comment count
  */
 export async function analyzeFocalMethod(
-    document: vscode.TextDocument,
-    functionSymbol: vscode.DocumentSymbol,
-    languageId: string
+    sourceFile: string,
+    symbolName: string,
 ): Promise<MUTAnalysisResult> {
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.file(sourceFile));
+    const symbol = await getSymbolFromDocument(document, symbolName);
+    const languageId = document.languageId;
+    
+    if (!symbol) {
+        throw new Error(`Symbol ${symbolName} not found in ${sourceFile}`);
+    }
     
     // 1. Analyze tokens using LSP
-    const tokens = await getDecodedTokensFromSymbol(document, functionSymbol);
+    const tokens = await getDecodedTokensFromSymbol(document, symbol);
     const totalTokens = tokens.length;
     
     // 2. Analyze external dependencies using LSP
@@ -49,7 +56,7 @@ export async function analyzeFocalMethod(
             // Check if definition is in the same file
             if (firstDef.uri.toString() === document.uri.toString()) {
                 // Same file - check if outside function range
-                if (!functionSymbol.range.contains(firstDef.range)) {
+                if (!symbol.range.contains(firstDef.range)) {
                     tokensInFileOutsideFunction.push(token);
                 }
             } else {
@@ -91,7 +98,7 @@ export async function analyzeFocalMethod(
     );
     
     // 3. Analyze unique paths using CFG analyzer
-    const functionText = document.getText(functionSymbol.range);
+    const functionText = document.getText(symbol.range);
     let uniquePaths = 0;
     
     try {
@@ -108,7 +115,7 @@ export async function analyzeFocalMethod(
     
     // 4. Count comments from hover information
     // Hover information may contain documentation strings (docstrings) which are comments
-    const hoverResults = await getHover(document, functionSymbol);
+    const hoverResults = await getHover(document, symbol);
     const hoverText = extractHoverText(hoverResults);
     const comments = countCommentsFromHover(hoverText, languageId);
     

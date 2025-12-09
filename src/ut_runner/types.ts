@@ -1,4 +1,5 @@
 // src/ut_runner/types.ts
+
 export interface TestFile {
     path: string;
     language: string; // e.g., "python"
@@ -52,10 +53,14 @@ export interface TestFile {
     // Examination results
     examination?: ExaminationResult | null;
   }
-  
+
   export interface FileAnalysis {
     counts: Record<string, number>;
     testcases: TestCaseResult[];
+    sourceFile: string | null;
+    status: string;
+    symbolName: string; 
+    mutAnalysis?: any;
     note?: string | null;
   }
   
@@ -69,6 +74,10 @@ export interface TestFile {
     return {
       counts: { Passed: 0, 'Assertion Errors': 0, Error: 0 },
       testcases: [],
+      sourceFile: null,
       note: null,
+      status: 'Passed',
+      symbolName: '',
+      mutAnalysis: null,
     };
   }
