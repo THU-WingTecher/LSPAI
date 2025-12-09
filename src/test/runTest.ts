@@ -89,11 +89,22 @@ async function main() {
     const extensionTestsPath = path.resolve(__dirname, './suite/index');
     // const specificTest = process.env.npm_config_testfile || undefined;
     // Add after installation
-  const installedExtensions = cp.execSync(
-    `${cliPath} ${args.join(' ')} --list-extensions`,
-    { encoding: 'utf-8' }
-  );
-  console.log('installedExtensions', installedExtensions);
+  // Skip listing extensions in WSL to avoid prompt that causes hanging
+  try {
+    const installedExtensions = cp.execSync(
+      `${cliPath} ${args.join(' ')} --list-extensions`,
+      { 
+        encoding: 'utf-8', 
+        timeout: 5000, 
+        stdio: 'pipe',
+        env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
+      }
+    );
+    console.log('installedExtensions', installedExtensions);
+  } catch (err: any) {
+    // Ignore errors when listing extensions (common in WSL environments)
+    console.log('Skipping extension list check (this is normal in WSL)');
+  }
     // Use cp.spawn / cp.exec for custom setup
 	// const installExtensions = ['ms-python.python', 'oracle.oracle-java', 'golang.go'];
     cp.spawnSync(
@@ -101,7 +112,8 @@ async function main() {
 		[...args, '--install-extension', 'ms-python.python', '--install-extension', 'redhat.java', '--install-extension', 'golang.go', '--install-extension', 'ms-vscode.cpptools'],
 		{
         encoding: 'utf-8',
-        stdio: 'inherit'
+        stdio: 'inherit',
+        env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
       }
     );
     const privateConfig = loadPrivateConfig();
