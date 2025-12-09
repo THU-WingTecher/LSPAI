@@ -138,10 +138,10 @@ export class VscodeRequestManager {
     return references;
   }
 
-  static async hover(uri: vscode.Uri, position: vscode.Position): Promise<vscode.Hover[]> {
+  static async hover(uri: vscode.Uri, position: vscode.Position, retries = 10, delayMs = 500): Promise<vscode.Hover[]> {
     const uriString = uri.toString();
     const positionKey = `${position.line}:${position.character}`;
-
+    let hoverResult: vscode.Hover[] = [];
     // Check cache first
     if (VscodeRequestManager.cache.hover.has(uriString)) {
       const uriCache = VscodeRequestManager.cache.hover.get(uriString)!;
@@ -149,20 +149,26 @@ export class VscodeRequestManager {
         return uriCache.get(positionKey)!;
       }
     }
-
-    const res = await vscode.commands.executeCommand<vscode.Hover[]>(
-      'vscode.executeHoverProvider',
-      uri,
-      position
-    );
-    const hover = res ?? [];
-
+    for (let i = 0; i < retries; i++) {
+      console.log("hover",uri, position);
+      const res = await vscode.commands.executeCommand<vscode.Hover[]>(
+        'vscode.executeHoverProvider',
+        uri,
+        position
+      );
+      hoverResult = res ?? [];
+      if (hoverResult && hoverResult.length > 0) {
+        break;
+      }
+      console.log(`waiting for hover... ${i + 1}th attempt`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
     // Cache the result
     if (!VscodeRequestManager.cache.hover.has(uriString)) {
       VscodeRequestManager.cache.hover.set(uriString, new Map());
     }
-    VscodeRequestManager.cache.hover.get(uriString)!.set(positionKey, hover);
-    return hover;
+    VscodeRequestManager.cache.hover.get(uriString)!.set(positionKey, hoverResult);
+    return hoverResult;
   }
 
   static async semanticTokens(uri: vscode.Uri): Promise<vscode.SemanticTokens | undefined> {
