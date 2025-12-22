@@ -5,90 +5,12 @@ import fs from 'fs';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
 import { selectOneSymbolFileFromWorkspace } from "../../../lsp/symbol";
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, reloadJavaLanguageServer, setPythonExtraPaths, setPythonInterpreterPath } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../config';
 import { generateFileNameForDiffLanguage } from '../../../fileHandler';
 import { generateUnitTestForAFunction } from '../../../generate';
 import { runGenerateTestCodeSuite } from '../../../experiment';
 import { getDiagnosticsForFilePath, getDiagnosticsForUri } from '../../../lsp/diagnostic';
-
-export async function getJavaConfiguration(): Promise<{[key: string]: any}> {
-    const config = vscode.workspace.getConfiguration('java');
-    
-    // Get common Java settings
-    const settings = {
-        // Project settings
-        "project.referencedLibraries": config.get('project.referencedLibraries'),
-        "project.sourcePaths": config.get('project.sourcePaths'),
-        "project.outputPath": config.get('project.outputPath'),
-        "project.explorer.showNonJavaResources": config.get('project.explorer.showNonJavaResources'),
-        
-        // JDK settings
-        "jdk.home": config.get('jdk.home'),
-        "java.home": config.get('home'),
-        
-        // Import settings
-        "imports.gradle.wrapper.enabled": config.get('imports.gradle.wrapper.enabled'),
-        "imports.maven.enabled": config.get('imports.maven.enabled'),
-        "imports.exclusions": config.get('imports.exclusions'),
-        
-        // Completion settings
-        "completion.enabled": config.get('completion.enabled'),
-        "completion.guessMethodArguments": config.get('completion.guessMethodArguments'),
-        
-        // Format settings
-        "format.enabled": config.get('format.enabled'),
-        "format.settings.url": config.get('format.settings.url'),
-        
-        // Debug settings
-        "debug.settings.hotCodeReplace": config.get('debug.settings.hotCodeReplace'),
-        
-        // Compiler settings
-        "compiler.nullAnalysis.mode": config.get('compiler.nullAnalysis.mode'),
-        
-        // Configuration status
-        "configuration.updateBuildConfiguration": config.get('configuration.updateBuildConfiguration'),
-        "configuration.maven.userSettings": config.get('configuration.maven.userSettings')
-    };
-
-    return settings;
-}
-
-
-async function setupJavaTestEnvironment(projectPath: string) {
-
-    // 3. Configure Java source paths to include both main and test paths
-    const javaConfig = vscode.workspace.getConfiguration('java');
-    await javaConfig.update('project.sourcePaths', [
-        "src/main/java",
-        "src/lsprag/test/java"  // Add your test directory
-    ], vscode.ConfigurationTarget.Workspace);
-
-    // 4. Wait for the language server to initialize
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 5. Instead of clean workspace, just update project configuration
-    try {
-        console.log('executing java.projectConfiguration.update');
-        // await vscode.commands.executeCommand('java.projectConfiguration.update');
-        // Add a shorter timeout
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Optionally, you can also try to force a compilation
-        // console.log('executing java.workspace.compile');
-    } catch (error) {
-        console.error('Error updating Java configuration:', error);
-    }
-
-    // // 4. Wait for the language server to initialize
-    // console.log('waiting for the language server to initialize');
-    // await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // // 5. Reload Java language server
-    // console.log('executing java.clean.workspace');
-    // await new Promise(resolve => setTimeout(resolve, 2000));
-    // console.log('executing java.projectConfiguration.update');
-}
 
 suite('Experiment Test Suite - JAVA', () => {
     const projectPath = "/LSPRAG/experiments/projects/commons-cli";
@@ -113,8 +35,8 @@ suite('Experiment Test Suite - JAVA', () => {
         await updateWorkspaceFolders(workspaceFolders);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
         // await setupJavaTestEnvironment(projectPath);
-        const config = await getJavaConfiguration();
-        console.log('config', config);
+        await reloadJavaLanguageServer();
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for Maven import to complete
         const result = await getDiagnosticsForFilePath(testjavaPath);
         console.log('result', result);
         assert.ok(result.length > 0);

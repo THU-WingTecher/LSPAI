@@ -4,11 +4,10 @@ import path from 'path';
 import * as fs from 'fs';
 import { randomlySelectOneFileFromWorkspace, setWorkspaceFolders, updateWorkspaceFolders, genPythonicSrcImportStatement } from '../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
-import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath, setPythonAnalysisInclude, setPythonAnalysisExclude, setupPythonLSP } from '../../../lsp/helper';
+import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath, setPythonAnalysisInclude, setPythonAnalysisExclude, setupPythonLSP, reloadJavaLanguageServer } from '../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType, LANGUAGE_IDS, getProjectLanguage, ProjectConfigName, getProjectSrcPath, getProjectWorkspace } from '../../../config';
 import { VscodeRequestManager } from '../../../lsp/vscodeRequestManager';
 import { isTestFile } from '../../../lsp/reference';
-import { setupJavaTestEnvironment } from '../../../lsp/helper';
 export interface SymbolRobustnessResult {
     symbolName: string;
     totalReferences: number;
@@ -121,7 +120,8 @@ suite('Experiment Test Suite', () => {
         if (languageId === "python") {  
             await setupPythonLSP(blackModuleImportPath, pythonInterpreterPath);
         } else if (languageId === "java") {
-            await setupJavaTestEnvironment(projectPath);
+            await reloadJavaLanguageServer();
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for Maven import to complete
         } else {
             throw new Error(`Unsupported language: ${languageId}`);
         }
