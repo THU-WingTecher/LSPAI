@@ -4,6 +4,7 @@ import * as path from 'path';
 import { spawn, execSync } from 'child_process';
 import { ExecutionResult, TestFile } from './types';
 import { buildEnv } from './runner';
+import { getConfigInstance } from '../config';
 
 export interface BaseExecutor {
   executeMany(testFiles: TestFile[], jobs: number): Promise<ExecutionResult[]>;
@@ -26,6 +27,14 @@ export interface GoExecutorOptions {
   verbose?: boolean; // Extra logging
   coverageDir?: string; // Optional coverage output
   buildFlags?: string[]; // Additional go test flags
+}
+
+export interface JavaExecutorOptions {
+  logsDir: string;
+  junitDir: string;
+  timeout?: number; // seconds, 0 = no timeout
+  env?: NodeJS.ProcessEnv;
+  verbose?: boolean; // Extra logging
 }
 
 function ensureDir(p: string) {
@@ -825,12 +834,335 @@ function formatDate(d: Date): string {
   )}:${pad(d.getSeconds())}`;
 }
 
+const JAVA_TEST_SOURCE_PATH = 'src/lsprag/test/java';
+class JavaExecutor implements BaseExecutor {
+  private logsDir: string;
+  private junitDir: string;
+  private timeoutSec: number;
+  private env: NodeJS.ProcessEnv;
+  private verbose: boolean;
+
+  constructor(opts: JavaExecutorOptions) {
+    this.logsDir = path.resolve(opts.logsDir);
+    this.junitDir = path.resolve(opts.junitDir);
+    this.timeoutSec = Math.max(0, opts.timeout ?? 0);
+    this.env = { ...process.env, ...(opts.env || {}) };
+    this.verbose = opts.verbose ?? false;
+
+    ensureDir(this.logsDir);
+    ensureDir(this.junitDir);
+
+    // Validate Java toolchain early
+    try {
+      const v = execSync('java -version 2>&1', { encoding: 'utf8', timeout: 5000 });
+      console.log(`[EXECUTOR][JAVA] ${v.trim()}`);
+    } catch (e) {
+      console.warn('[EXECUTOR][JAVA] Java toolchain validation warning:', e);
+    }
+  }
+
+  private findProjectRoot(): string {
+    const projectPath = getConfigInstance().workspace;
+    if (!projectPath) {
+      throw new Error('Project path not found');
+    }
+    return projectPath;
+  }
+
+  private extractTestClassName(filePath: string): string | null {
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      
+      // Match: public class ClassName
+      const classMatch = content.match(/public\s+class\s+(\w+)/);
+      if (classMatch) {
+        return classMatch[1];
+      }
+
+      // Fallback to filename without extension
+      return path.basename(filePath, '.java');
+    } catch (error) {
+      console.error(`[EXECUTOR][JAVA] Failed to extract class name from ${filePath}:`, error);
+      return path.basename(filePath, '.java');
+    }
+  }
+
+  private extractPackageName(filePath: string): string | null {
+    try {
+      const content = fs.readFileSync(filePath, 'utf8');
+      
+      // Match: package com.example.test;
+      const packageMatch = content.match(/package\s+([\w.]+)\s*;/);
+      if (packageMatch) {
+        return packageMatch[1];
+      }
+
+      return null;
+    } catch (error) {
+      console.error(`[EXECUTOR][JAVA] Failed to extract package name from ${filePath}:`, error);
+      return null;
+    }
+  }
+
+  private buildTestCommand(tf: TestFile, projectRoot: string): { command: string; args: string[] } {
+    const className = this.extractTestClassName(tf.path);
+    const packageName = this.extractPackageName(tf.path);
+    const fullClassName = packageName ? `${packageName}.${className}` : className;
+
+    // Detect Maven or Gradle
+    const hasMaven = fs.existsSync(path.join(projectRoot, 'pom.xml'));
+    const hasGradle = fs.existsSync(path.join(projectRoot, 'build.gradle')) || 
+                      fs.existsSync(path.join(projectRoot, 'build.gradle.kts'));
+
+    let command: string;
+    let args: string[];
+
+    if (hasMaven) {
+      command = 'mvn';
+      args = [
+        'clean',
+        'test',
+        `-Dtest=${fullClassName}`,
+        '-B', // Batch mode (non-interactive)
+        '--fail-at-end',
+        '-Drat.skip=true', // Skip Apache RAT license check
+        '-Dcheckstyle.skip=true', // Skip checkstyle
+        '-Dmaven.javadoc.skip=true' // Skip javadoc
+      ];
+    } else if (hasGradle) {
+      command = 'gradle';
+      args = [
+        'test',
+        `--tests`,
+        fullClassName || '*',
+        '--no-daemon'
+      ];
+    } else {
+      throw new Error(`[EXECUTOR][JAVA] No Maven or Gradle project found at ${projectRoot}`);
+    }
+
+    console.log(`[EXECUTOR][JAVA] Command: ${command} ${args.join(' ')}`);
+    console.log(`[EXECUTOR][JAVA] Working directory: ${projectRoot}`);
+    console.log(`[EXECUTOR][JAVA] Test class: ${fullClassName}`);
+
+    return { command, args };
+  }
+
+  private writeLogHeader(ws: fs.WriteStream, tf: TestFile, started: Date, command: string, args: string[], projectRoot: string): void {
+    ws.write(`${'='.repeat(80)}\n`);
+    ws.write(`JAVA TEST EXECUTION LOG\n`);
+    ws.write(`${'='.repeat(80)}\n`);
+    ws.write(`Test File:        ${tf.path}\n`);
+    ws.write(`Language:         ${tf.language}\n`);
+    ws.write(`Project Root:     ${projectRoot}\n`);
+    ws.write(`Started:          ${formatDate(started)}\n`);
+    ws.write(`Timeout:          ${this.timeoutSec > 0 ? this.timeoutSec + 's' : 'none'}\n`);
+    ws.write(`Command:          ${command} ${args.join(' ')}\n`);
+    ws.write(`${'='.repeat(80)}\n\n`);
+  }
+
+  private writeLogFooter(ws: fs.WriteStream, exitCode: number, started: Date, ended: Date, timeoutHit: boolean): void {
+    const duration = ended.getTime() - started.getTime();
+
+    ws.write(`\n${'='.repeat(80)}\n`);
+    ws.write(`EXECUTION SUMMARY\n`);
+    ws.write(`${'='.repeat(80)}\n`);
+    ws.write(`Exit Code:        ${exitCode}\n`);
+    ws.write(`Duration:         ${duration}ms (${(duration / 1000).toFixed(2)}s)\n`);
+    ws.write(`Ended:            ${formatDate(ended)}\n`);
+    ws.write(`Status:           ${timeoutHit ? 'TIMEOUT' : exitCode === 0 ? 'SUCCESS' : 'FAILED'}\n`);
+    ws.write(`${'='.repeat(80)}\n`);
+  }
+
+  private copyTestFileToProject(tf: TestFile, projectRoot: string): string {
+    const packageName = this.extractPackageName(tf.path);
+    const className = this.extractTestClassName(tf.path);
+    
+    // Determine target path in project's test directory
+    const testSrcDir = path.join(projectRoot, JAVA_TEST_SOURCE_PATH);
+    let targetDir: string;
+    
+    if (packageName) {
+      // Convert package name to directory path: com.example -> com/example
+      const packagePath = packageName.replace(/\./g, path.sep);
+      targetDir = path.join(testSrcDir, packagePath);
+    } else {
+      targetDir = testSrcDir;
+    }
+    
+    // Create directory if it doesn't exist
+    fs.mkdirSync(targetDir, { recursive: true });
+    
+    // Target file path
+    const targetPath = path.join(targetDir, `${className}.java`);
+    
+    // Copy the test file
+    fs.copyFileSync(tf.path, targetPath);
+    
+    if (this.verbose) {
+      console.log(`[EXECUTOR][JAVA] Copied test file to: ${targetPath}`);
+    }
+    
+    return targetPath;
+  }
+
+  private copyJunitXmlReport(projectRoot: string, fullClassName: string, junitPath: string): boolean {
+    // Maven Surefire generates XML reports at: target/surefire-reports/TEST-{FullClassName}.xml
+    // Gradle generates at: build/test-results/test/TEST-{FullClassName}.xml
+    
+    const possiblePaths = [
+      path.join(projectRoot, 'target', 'surefire-reports', `TEST-${fullClassName}.xml`),
+      path.join(projectRoot, 'build', 'test-results', 'test', `TEST-${fullClassName}.xml`)
+    ];
+    
+    for (const xmlPath of possiblePaths) {
+      if (fs.existsSync(xmlPath)) {
+        try {
+          fs.copyFileSync(xmlPath, junitPath);
+          console.log(`[EXECUTOR][JAVA] Copied JUnit XML report: ${xmlPath} -> ${junitPath}`);
+          return true;
+        } catch (error) {
+          console.warn(`[EXECUTOR][JAVA] Failed to copy XML report from ${xmlPath}:`, error);
+        }
+      }
+    }
+    
+    console.warn(`[EXECUTOR][JAVA] JUnit XML report not found at any expected location`);
+    console.warn(`[EXECUTOR][JAVA] Searched paths: ${possiblePaths.join(', ')}`);
+    return false;
+  }
+
+  private async runOne(tf: TestFile): Promise<ExecutionResult> {
+    const started = new Date();
+    const logPath = path.join(this.logsDir, path.basename(tf.path) + '.log');
+    const junitPath = path.join(this.junitDir, path.basename(tf.path) + '.xml');
+    const projectRoot = this.findProjectRoot();
+
+    console.log(`[EXECUTOR][JAVA] Executing test file: ${path.basename(tf.path)}`);
+    console.log(`[EXECUTOR][JAVA] Project root: ${projectRoot}`);
+
+    let timeoutHit = false;
+    let exitCode = 1;
+    let copiedTestPath: string | null = null;
+    let fullClassName: string | null = null;
+
+    try {
+      // Copy test file to project's test directory
+      copiedTestPath = this.copyTestFileToProject(tf, projectRoot);
+      console.log(`[EXECUTOR][JAVA] Test file copied to project`);
+      
+      const { command, args } = this.buildTestCommand(tf, projectRoot);
+      
+      // Store full class name for XML report lookup
+      const className = this.extractTestClassName(tf.path);
+      const packageName = this.extractPackageName(tf.path);
+      fullClassName = packageName ? `${packageName}.${className}` : className;
+
+      await new Promise<void>((resolve) => {
+        const ws = fs.createWriteStream(logPath, { flags: 'w' });
+
+        this.writeLogHeader(ws, tf, started, command, args, projectRoot);
+
+        const child = spawn(command, args, {
+          cwd: projectRoot,
+          env: this.env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        const timer =
+          this.timeoutSec > 0
+            ? setTimeout(() => {
+                timeoutHit = true;
+                console.log(`[EXECUTOR][JAVA] TIMEOUT for ${path.basename(tf.path)} after ${this.timeoutSec}s`);
+                ws.write(`\n*** TIMEOUT DETECTED AFTER ${this.timeoutSec}s ***\n\n`);
+                try {
+                  child.kill('SIGKILL');
+                  console.log(`[EXECUTOR][JAVA] Process killed due to timeout`);
+                } catch (err) {
+                  console.error(`[EXECUTOR][JAVA] Failed to kill process:`, err);
+                }
+              }, this.timeoutSec * 1000)
+            : null;
+
+        child.stdout.on('data', (d) => ws.write(d));
+        child.stderr.on('data', (d) => ws.write(d));
+
+        child.on('error', (error) => {
+          console.error(`[EXECUTOR][JAVA] Process error for ${path.basename(tf.path)}:`, error);
+          ws.write(`\n*** PROCESS ERROR ***\n`);
+          ws.write(`${error.message}\n`);
+          if (error.stack) {
+            ws.write(`${error.stack}\n`);
+          }
+        });
+
+        child.on('close', (code) => {
+          if (timer) {
+            clearTimeout(timer);
+          }
+          exitCode = timeoutHit ? 124 : Number(code ?? 1);
+          const ended = new Date();
+
+          this.writeLogFooter(ws, exitCode, started, ended, timeoutHit);
+          ws.end();
+          resolve();
+        });
+      });
+      
+      // Copy JUnit XML report after test execution
+      if (fullClassName) {
+        this.copyJunitXmlReport(projectRoot, fullClassName, junitPath);
+      }
+      
+    } catch (error) {
+      console.error(`[EXECUTOR][JAVA] Error executing test:`, error);
+      exitCode = 1;
+    } finally {
+      // Clean up copied test file
+      if (copiedTestPath && fs.existsSync(copiedTestPath)) {
+        try {
+          fs.unlinkSync(copiedTestPath);
+          if (this.verbose) {
+            console.log(`[EXECUTOR][JAVA] Cleaned up copied test file: ${copiedTestPath}`);
+          }
+        } catch (cleanupError) {
+          console.warn(`[EXECUTOR][JAVA] Failed to clean up test file:`, cleanupError);
+        }
+      }
+    }
+
+    const ended = new Date();
+    const duration = ended.getTime() - started.getTime();
+
+    console.log(`[EXECUTOR][JAVA] Completed ${path.basename(tf.path)} - Exit: ${exitCode}, Duration: ${duration}ms, Timeout: ${timeoutHit}`);
+
+    return {
+      testFile: tf,
+      exitCode,
+      logPath,
+      junitPath,
+      startedAt: formatDate(started),
+      endedAt: formatDate(ended),
+      timeout: timeoutHit,
+    };
+  }
+
+  async executeMany(testFiles: TestFile[], jobs: number): Promise<ExecutionResult[]> {
+    const maxJobs = Math.max(1, Number(jobs || 1));
+    console.log(`[EXECUTOR][JAVA] Starting batch execution with ${maxJobs} concurrent jobs`);
+    return (await runWithLimit(maxJobs, testFiles, (tf) => this.runOne(tf))) as ExecutionResult[];
+  }
+}
+
 export function makeExecutor(language: string, opts: any): BaseExecutor {
   if (language === 'python') {
     return new PytestExecutor(opts as PytestExecutorOptions);
   }
   if (language === 'go' || language === 'golang') {
     return new GoExecutor(opts as GoExecutorOptions);
+  }
+  if (language === 'java') {
+    return new JavaExecutor(opts as JavaExecutorOptions);
   }
   throw new Error(`Executor for language '${language}' is not implemented yet.`);
 }

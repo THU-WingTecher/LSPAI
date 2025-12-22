@@ -34,6 +34,8 @@ export class Collector {
         ? ['*_test.py', 'test_*.py']
         : language === 'go'
         ? ['*_test.go']
+        : language === 'java'
+        ? ['*Test.java', '*Tests.java']
         : [];
   }
 

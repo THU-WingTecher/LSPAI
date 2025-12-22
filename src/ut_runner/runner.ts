@@ -368,6 +368,13 @@ export async function runPipeline(testsDir: string, outputDir: string, test_file
               timeout,
               env,
             })
+          : language === 'java'
+          ? makeExecutor(language, {
+              logsDir,
+              junitDir,
+              timeout,
+              env,
+            })
           : makeExecutor(language, {
               logsDir,
               junitDir,

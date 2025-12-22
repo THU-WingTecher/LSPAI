@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { TestCaseResult, ExaminationResult } from '../types';
+import { TestCaseResult, ExaminationResult, FileAnalysis } from '../types';
 import { detectRedefinedAssertions, prettyPrintDefTree } from './assertion_detector';
 
 /**
@@ -11,7 +11,7 @@ import { detectRedefinedAssertions, prettyPrintDefTree } from './assertion_detec
  * @returns Examination result with redefined symbols
  */
 export async function examineTestCase(
-  testCase: TestCaseResult,
+  testCase: TestCaseResult
 ): Promise<ExaminationResult> {
   const result: ExaminationResult = {
     testCaseName: testCase.codeName,

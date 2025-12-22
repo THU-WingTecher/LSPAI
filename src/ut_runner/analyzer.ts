@@ -579,6 +579,41 @@ export class Analyzer {
     };
   }
 
+  private parseJavaTestFileName(fileName: string): { focalModule: string; focalFunction: string; focalRandom: string } | null {
+    // Pattern: {ClassName}_{methodName}_{randomNumber}Test.java
+    // Examples: OptionBuilder_withType_5438Test.java
+    
+    const baseName = fileName.replace('Test.java', '');
+    const parts = baseName.split('_');
+    
+    if (parts.length < 3) {
+      return null; // Invalid pattern
+    }
+    
+    // The last part should be the random number
+    const randomNumber = parts[parts.length - 1];
+    if (!/^\d+$/.test(randomNumber)) {
+      return null; // Last part is not a number
+    }
+    
+    // Remove the random number from consideration
+    const beforeRandom = parts.slice(0, -1);
+    
+    if (beforeRandom.length < 2) {
+      return null; // Need at least class and method
+    }
+    
+    // For Java: first part is class name, rest is method name
+    const focalModule = beforeRandom[0];
+    const focalFunction = beforeRandom.slice(1).join('_');
+    
+    return {
+      focalModule,
+      focalFunction,
+      focalRandom: randomNumber
+    };
+  }
+
   private extractGoTestResults(logPath: string, testFilePath: string): TestCaseResult[] {
     if (!fs.existsSync(logPath)) {
       return [];
@@ -736,12 +771,313 @@ export class Analyzer {
     return out;
   }
 
+  private parseJavaSurefireSummaryFromLog(logContent: string): { testsRun: number; failures: number; errors: number; skipped: number; classFqn: string | null } | null {
+    const m = logContent.match(/Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+),\s*Skipped:\s*(\d+)(?:.*?\bin\s+([A-Za-z0-9_.$]+))?/i);
+    if (!m) {
+      return null;
+    }
+    return {
+      testsRun: Number(m[1]),
+      failures: Number(m[2]),
+      errors: Number(m[3]),
+      skipped: Number(m[4]),
+      classFqn: m[5] ?? null,
+    };
+  }
+
+  private shortJavaClassNameFromFqnOrFile(classFqn: string | null, testFilePath: string): string {
+    if (classFqn) {
+      const parts = classFqn.split('.');
+      return parts[parts.length - 1] || classFqn;
+    }
+    const base = path.basename(testFilePath);
+    if (base.endsWith('.java')) {
+      return base.slice(0, -'.java'.length);
+    }
+    return base;
+  }
+
+  private parseJavaSurefireFailureBlocks(logContent: string, preferredClassName: string): Array<{ methodName: string; detail: string; errorType: string }> {
+    const lines = logContent.split(/\r?\n/);
+    const blocks: Array<{ start: number; end: number; methodName: string | null; errorType: string }> = [];
+
+    const isHeaderStart = (line: string): RegExpMatchArray | null => {
+      // Example: [ERROR]   PosixParser_burstToken_6314Test.testStopAtNonOption:46 ... ==> ...
+      return line.match(/^\[ERROR\]\s+(?:\d+\)\s+)?([A-Za-z0-9_.$]+)\.([A-Za-z0-9_$]+)(?::\d+)?\b/);
+    };
+
+    const isAssertionStart = (line: string): boolean => {
+      return line.includes('org.opentest4j.AssertionFailedError') || line.includes('java.lang.AssertionError');
+    };
+
+    let currentStart: number | null = null;
+    let currentMethod: string | null = null;
+    let currentErrorType: string = 'TestFailure';
+
+    const closeCurrent = (endIdxExclusive: number) => {
+      if (currentStart === null) {
+        return;
+      }
+      blocks.push({
+        start: currentStart,
+        end: Math.max(currentStart, endIdxExclusive - 1),
+        methodName: currentMethod,
+        errorType: currentErrorType,
+      });
+      currentStart = null;
+      currentMethod = null;
+      currentErrorType = 'TestFailure';
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const header = isHeaderStart(line);
+      if (header) {
+        closeCurrent(i);
+        const cls = header[1].split('.').pop() || header[1];
+        const method = header[2];
+        currentStart = i;
+        currentMethod = method;
+        currentErrorType = line.includes('Assertion') ? 'AssertionError' : 'TestFailure';
+        continue;
+      }
+
+      if (currentStart === null && isAssertionStart(line)) {
+        currentStart = i;
+        currentMethod = null;
+        currentErrorType = line.includes('AssertionFailedError') ? 'AssertionFailedError' : 'AssertionError';
+        continue;
+      }
+
+      // Multiple failures sometimes appear as repeated AssertionFailedError blocks (without a header line).
+      // Treat each new assertion start as a new block boundary.
+      if (currentStart !== null && isAssertionStart(line) && i !== currentStart) {
+        closeCurrent(i);
+        currentStart = i;
+        currentMethod = null;
+        currentErrorType = line.includes('AssertionFailedError') ? 'AssertionFailedError' : 'AssertionError';
+        continue;
+      }
+
+      if (currentStart !== null) {
+        // Try to discover method name from stack trace lines:
+        // Example: at org.apache.commons.csv.CSVPrinter_printRecord_1126Test.testPrintMultipleRecords(CSVPrinter_printRecord_1126Test.java:54)
+        const stackM = line.match(/\bat\s+[A-Za-z0-9_.$]+\.(\w+)\.(\w+)\(/);
+        if (stackM) {
+          const cls = stackM[1];
+          const method = stackM[2];
+          if (!currentMethod) {
+            if (cls === preferredClassName || cls.endsWith('Test')) {
+              currentMethod = method;
+            }
+          }
+        }
+      }
+    }
+
+    closeCurrent(lines.length);
+
+    // Materialize blocks, ensure methodName exists, and trim noise.
+    const out: Array<{ methodName: string; detail: string; errorType: string }> = [];
+    let unknownIdx = 1;
+    for (const b of blocks) {
+      const raw = lines.slice(b.start, b.end + 1).join('\n').trim();
+      if (!raw) {
+        continue;
+      }
+      const methodName = (b.methodName && b.methodName.trim()) ? b.methodName.trim() : `UnknownFailure-${unknownIdx++}`;
+      out.push({ methodName, detail: raw, errorType: b.errorType });
+    }
+    return out;
+  }
+
+  private extractJavaTestResults(logPath: string, testFilePath: string): TestCaseResult[] {
+    const testFileName = path.basename(testFilePath);
+    
+    // Parse test file name for focal method info
+    const parsed = this.parseJavaTestFileName(testFileName);
+    const focalModule = parsed?.focalModule || null;
+    const focalFunction = parsed?.focalFunction || null;
+    const focalRandom = parsed?.focalRandom || null;
+    
+    // Get source file mapping
+    const matchedSource = this.findSourceFileForTest(testFilePath, focalFunction);
+    const sourceFile = matchedSource || null;
+    
+    // Determine JUnit XML path from log path
+    // logPath: /path/to/logs/OptionBuilder_withType_5438Test.java.log
+    // junitPath: /path/to/junit/OptionBuilder_withType_5438Test.java.xml
+    const logsDir = path.dirname(logPath);
+    const junitDir = path.join(path.dirname(logsDir), 'junit');
+    const junitPath = path.join(junitDir, testFileName + '.xml');
+    
+    console.log(`[ANALYZER] Processing Java test: ${testFileName}`);
+    console.log(`[ANALYZER]   Log path: ${logPath}`);
+    console.log(`[ANALYZER]   JUnit XML path: ${junitPath}`);
+
+    if (!fs.existsSync(logPath)) {
+      return [];
+    }
+    const logContent = fs.readFileSync(logPath, 'utf-8');
+    if (!logContent) {
+      return [];
+    }
+
+    const summary = this.parseJavaSurefireSummaryFromLog(logContent);
+    const testCasesOfSummary = (summary?.testsRun ?? 0) + (summary?.failures ?? 0) + (summary?.errors ?? 0) + (summary?.skipped ?? 0);
+    const isSummaryInvalid = !summary || testCasesOfSummary === 0;
+    const className = this.shortJavaClassNameFromFqnOrFile(summary?.classFqn ?? null, testFilePath);
+    const hasErrorSign = logContent.includes('COMPILATION ERROR')
+
+    // Second case: No "Tests run:" / "Failures:" summary => treat as one errored testcase.
+    if (isSummaryInvalid || hasErrorSign) {
+      return [{
+        codeName: `${className}-1`,
+        status: 'Errored',
+        errorType: hasErrorSign ? 'COMPILATION ERROR' : 'TestError',
+        detail: logContent.trim(),
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      }];
+    }
+
+    const failureBlocks = this.parseJavaSurefireFailureBlocks(logContent, className);
+
+    // Build testcase list:
+    // - failed tests: use method names discovered in log
+    // - passed/skipped/error tests: synthesize placeholder names (className-1, className-2, ...)
+    const out: TestCaseResult[] = [];
+
+    // Failed tests with assertion logs
+    const failedByMethod = new Map<string, { detail: string; errorType: string }>();
+    for (const b of failureBlocks) {
+      // Keep first block per method, append if duplicates
+      const prev = failedByMethod.get(b.methodName);
+      if (!prev) {
+        failedByMethod.set(b.methodName, { detail: b.detail, errorType: b.errorType });
+      } else if (prev.detail !== b.detail) {
+        failedByMethod.set(b.methodName, { detail: `${prev.detail}\n\n${b.detail}`.trim(), errorType: prev.errorType || b.errorType });
+      }
+    }
+
+    const failedNames = Array.from(failedByMethod.keys());
+    for (const methodName of failedNames) {
+      const payload = failedByMethod.get(methodName)!;
+      out.push({
+        codeName: methodName,
+        status: 'Failed',
+        errorType: payload.errorType || 'TestFailure',
+        detail: payload.detail,
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      });
+    }
+
+    // If we couldn't discover all failed methods, synthesize remaining failures.
+    const missingFailures = Math.max(0, summary.failures - failedNames.length);
+    for (let i = 1; i <= missingFailures; i++) {
+      out.push({
+        codeName: `UnknownFailure-${i}`,
+        status: 'Failed',
+        errorType: 'TestFailure',
+        detail: '',
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      });
+    }
+
+    // Placeholders for passed tests
+    const passedCount = Math.max(0, summary.testsRun - summary.failures - summary.errors - summary.skipped);
+    for (let i = 1; i <= passedCount; i++) {
+      out.push({
+        codeName: `${className}-${i}`,
+        status: 'Passed',
+        errorType: null,
+        detail: '',
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      });
+    }
+
+    // Placeholders for skipped tests (rare; we don't know method names)
+    for (let i = 1; i <= Math.max(0, summary.skipped); i++) {
+      out.push({
+        codeName: `${className}-skipped-${i}`,
+        status: 'Skipped',
+        errorType: null,
+        detail: 'Test skipped',
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      });
+    }
+
+    // Placeholders for errored tests (we don't know method names reliably from logs)
+    for (let i = 1; i <= Math.max(0, summary.errors); i++) {
+      out.push({
+        codeName: `${className}-error-${i}`,
+        status: 'Errored',
+        errorType: 'TestError',
+        detail: '',
+        testFile: testFilePath,
+        logPath,
+        focalModule,
+        focalFunction,
+        focalRandom,
+        sourceFile,
+        implementationOrigin: null,
+        importLine: null,
+        modulePath: null
+      });
+    }
+
+    return out;
+  }
+  
   private extractResultsFromLog(logPath: string, testFilePath: string): TestCaseResult[] {
     // Branch based on language
     if (this.language === 'go') {
       return this.extractGoTestResults(logPath, testFilePath);
     }
-    
+
+    if (this.language === 'java') {
+      return this.extractJavaTestResults(logPath, testFilePath);
+    }
+
     // Python test parsing (existing logic)
     if (!fs.existsSync(logPath)) {
       return [];
@@ -879,55 +1215,55 @@ export class Analyzer {
 
     // Examination phase: analyze assertion errors for redefined symbols
     // Only available when running in VSCode extension context
-    if (examineTestCasesBatch && filterTestCasesForExamination) {
-      console.log('[ANALYZER] Starting examination phase for assertion errors...');
-      const allTestCases = Object.values(tests);
-      const testCasesToExamine = filterTestCasesForExamination(allTestCases);
+    // if (examineTestCasesBatch && filterTestCasesForExamination) {
+    //   console.log('[ANALYZER] Starting examination phase for assertion errors...');
+    //   const allTestCases = Object.values(tests);
+    //   const testCasesToExamine = filterTestCasesForExamination(allTestCases);
 
-      if (testCasesToExamine.length > 0) {
-        const examinations = await examineTestCasesBatch(
-          testCasesToExamine,
-          (tc: TestCaseResult) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
-          (tc: TestCaseResult) => tc.focalFunction || null,
-          5 // concurrency
-        );
+    //   if (testCasesToExamine.length > 0) {
+    //     const examinations = await examineTestCasesBatch(
+    //       testCasesToExamine,
+    //       (tc: TestCaseResult) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
+    //       (tc: TestCaseResult) => tc.focalFunction || null,
+    //       5 // concurrency
+    //     );
 
-        // Attach examination results back to test cases
-        for (const exam of examinations) {
-          const testCase = tests[exam.testCaseName];
-          if (testCase) {
-            testCase.examination = exam;
-          }
-        }
+    //     // Attach examination results back to test cases
+    //     for (const exam of examinations) {
+    //       const testCase = tests[exam.testCaseName];
+    //       if (testCase) {
+    //         testCase.examination = exam;
+    //       }
+    //     }
 
-        const redefinedErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && tc.examination.hasRedefinedSymbols);
-        console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
-        console.log(`[ANALYZER] REDEFINE error cases: ${redefinedErrorCases.length} test cases examined`);
-        for ( const tc of redefinedErrorCases) {
-          console.log(`[ANALYZER] REDEFINE error case: ${tc.codeName}`);
-          console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
-          console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
-          console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
-          console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
-        }
+    //     const redefinedErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && tc.examination.hasRedefinedSymbols);
+    //     console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+    //     console.log(`[ANALYZER] REDEFINE error cases: ${redefinedErrorCases.length} test cases examined`);
+    //     for ( const tc of redefinedErrorCases) {
+    //       console.log(`[ANALYZER] REDEFINE error case: ${tc.codeName}`);
+    //       console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
+    //       console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
+    //       console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
+    //       console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
+    //     }
 
 
-        const unknownErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && !tc.examination.hasRedefinedSymbols);
-        console.log(`\n=====================================================\n`);
-        console.log(`[ANALYZER] Still unknown error cases: ${unknownErrorCases.length} test cases examined`);
-        for ( const tc of unknownErrorCases) {
-          console.log(`[ANALYZER] Unknown error case: ${tc.codeName}`);
-          console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
-          console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
-          console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
-          console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
-        }
-      } else {
-        console.log('[ANALYZER] No assertion errors to examine');
-      }
-    } else {
-      console.log('[ANALYZER] Examination phase skipped (requires VSCode extension API)');
-    }
+    //     const unknownErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && !tc.examination.hasRedefinedSymbols);
+    //     console.log(`\n=====================================================\n`);
+    //     console.log(`[ANALYZER] Still unknown error cases: ${unknownErrorCases.length} test cases examined`);
+    //     for ( const tc of unknownErrorCases) {
+    //       console.log(`[ANALYZER] Unknown error case: ${tc.codeName}`);
+    //       console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
+    //       console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
+    //       console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
+    //       console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
+    //     }
+    //   } else {
+    //     console.log('[ANALYZER] No assertion errors to examine');
+    //   }
+    // } else {
+    //   console.log('[ANALYZER] Examination phase skipped (requires VSCode extension API)');
+    // }
 
     // Save file analysis to JSON for further analysis
     const fileAnalysisPath = path.join(outputDir, 'file_analysis.json');
