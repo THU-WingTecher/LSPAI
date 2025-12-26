@@ -10,6 +10,7 @@ import { activate } from './helper';
 import { GenerationType } from '../config';
 import { getConfigInstance } from '../config';
 import { wrapWithComment } from '../languageAgnostic';
+import { TIMEOUT } from 'dns';
 export enum DiagnosticTag {
     Unnecessary = 1,
     Deprecated
@@ -245,7 +246,11 @@ export async function getDiagnosticsForFilePath(filePath: string): Promise<vscod
     // console.log(text)
     await activate(uri);
     // const diagnostics = await getDiagnosticsForUri(uri);
-    const diagnostics = await vscode.languages.getDiagnostics(uri);
+    let diagnostics: vscode.Diagnostic[] = await vscode.languages.getDiagnostics(uri);
+    if (diagnostics.length === 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        diagnostics = await vscode.languages.getDiagnostics(uri);
+    }
     console.log('initial diagnostics', diagnostics.map(diag => diag.message));
     return diagnostics;
 }

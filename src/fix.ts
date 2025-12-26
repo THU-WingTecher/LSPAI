@@ -242,7 +242,7 @@ export async function fixDiagnostics(
 	if (diagnostics.some(diag => diag.message.includes("only syntax errors are reported"))) {
 		// This means the Language Server is not working, we need to stop the fixing process
 		vscode.window.showWarningMessage("Only syntax errors are reported, please check the code again.");
-		console.log("Only syntax errors are reported, please check the code again.");
+		console.error("Only syntax errors are reported, please check the code again.");
 		return defaultReturn(finalCode);
 	}
 	let filteredDiagnostics = diagnostics.filter(diagnostic => chooseDiagnostic(diagnostic, languageId));
