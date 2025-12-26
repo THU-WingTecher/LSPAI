@@ -785,6 +785,190 @@ export class Analyzer {
     };
   }
 
+  private stripAnsiAndControl(input: string): string {
+    // Strip ANSI escape sequences (colors), then drop most control chars except \n, \r, \t.
+    // Example ANSI: \u001b[36m ... \u001b[0m
+    const noAnsi = input.replace(/\u001b\[[0-9;]*m/g, '');
+    // Keep unicode drawing chars (like "│", "├─"), only remove ASCII control characters.
+    return noAnsi.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+  }
+
+  private parseJavaExecutorSelectedClassFqn(logContent: string): string | null {
+    const cleaned = this.stripAnsiAndControl(logContent);
+    const m = cleaned.match(/--select-class\s+([A-Za-z0-9_.$]+)/);
+    return m?.[1] ?? null;
+  }
+
+  private parseJUnitConsoleTestsFound(logContent: string): number | null {
+    const cleaned = this.stripAnsiAndControl(logContent);
+    const m = cleaned.match(/\[\s*(\d+)\s+tests\s+found\s*\]/i);
+    return m ? Number(m[1]) : null;
+  }
+
+  private extractJavaTestMethodNamesFromSource(testFilePath: string): string[] {
+    try {
+      if (!fs.existsSync(testFilePath)) {
+        return [];
+      }
+      const raw = fs.readFileSync(testFilePath, 'utf-8');
+      if (!raw) {
+        return [];
+      }
+      // Best-effort extraction for JUnit4/5 style: @Test ... void methodName(...)
+      const names = new Set<string>();
+      const re = /@(?:org\.(?:junit|junit\.jupiter)\.[A-Za-z0-9_.]+\.|)Test\b[\s\S]{0,300}?\bvoid\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(raw)) !== null) {
+        if (m[1]) {
+          names.add(m[1]);
+        }
+      }
+
+      // Generated "plain Java" tests fallback:
+      // 1) detect `t.someMethod()` calls inside main()
+      // 2) fall back to public void methods (exclude main)
+      if (names.size === 0) {
+        const mainM = raw.match(/\bstatic\s+void\s+main\s*\([^)]*\)\s*(?:throws\s+[^{]+)?\{([\s\S]*?)\n\s*\}/);
+        if (mainM?.[1]) {
+          const mainBody = mainM[1];
+          const callRe = /\bt\.(\w+)\s*\(/g;
+          while ((m = callRe.exec(mainBody)) !== null) {
+            const method = m[1];
+            if (method && method !== 'main') {
+              names.add(method);
+            }
+          }
+        }
+
+        if (names.size === 0) {
+          const publicVoidRe = /\bpublic\s+void\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
+          while ((m = publicVoidRe.exec(raw)) !== null) {
+            const method = m[1];
+            if (method && method !== 'main') {
+              names.add(method);
+            }
+          }
+        }
+
+        // JUnit3 fallback: methods starting with "test" (very rough).
+        if (names.size === 0) {
+          const re3 = /\bvoid\s+(test[A-Za-z0-9_]*)\s*\(/g;
+          while ((m = re3.exec(raw)) !== null) {
+            if (m[1]) {
+              names.add(m[1]);
+            }
+          }
+        }
+      }
+      return Array.from(names);
+    } catch {
+      return [];
+    }
+  }
+
+  private parseJUnitConsoleTreeTests(logContent: string, className: string): Array<{ testName: string; icon: string; inlineMsg: string }> {
+    // Revised parsing:
+    // - `tests found` is the authoritative indicator of whether there are testcases.
+    // - when tests exist, collect leaf-ish nodes that have ✔/✘ and are not engine/container labels.
+    const cleaned = this.stripAnsiAndControl(logContent);
+    const lines = cleaned.split(/\r?\n/);
+
+    const out: Array<{ testName: string; icon: string; inlineMsg: string }> = [];
+
+    // Note: do NOT use word-boundary after ✔/✘ (they are not "word" chars).
+    const lineRe = /^\s*[├└]─\s+(.*?)\s+(✔|✘)(?:\s+(.*))?$/;
+
+    const isContainerName = (name: string) => {
+      return name === 'JUnit Jupiter' || name === 'JUnit Vintage' || name === className;
+    };
+
+    for (const rawLine of lines) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) {
+        continue;
+      }
+      if (trimmed.startsWith('Failures (') || trimmed.startsWith('Test run finished')) {
+        break;
+      }
+
+      const m = rawLine.match(lineRe);
+      if (!m) {
+        // Continuation line (e.g. "│   <message>") should be appended to the most recent test entry.
+        if (out.length > 0 && /^[│|]/.test(trimmed)) {
+          const cont = trimmed.replace(/^[│|]\s*/, '').trim();
+          if (cont) {
+            out[out.length - 1].inlineMsg = (out[out.length - 1].inlineMsg ? `${out[out.length - 1].inlineMsg}\n` : '') + cont;
+          }
+        }
+        continue;
+      }
+
+      const name = (m[1] ?? '').trim();
+      const icon = m[2];
+      const inlineMsg = (m[3] ?? '').trim();
+      if (!name || isContainerName(name)) {
+        continue;
+      }
+      out.push({ testName: name, icon, inlineMsg });
+    }
+
+    return out;
+  }
+
+  private parseJUnitConsoleFailureBlocks(logContent: string): Map<string, { detail: string; errorType: string }> {
+    const cleaned = this.stripAnsiAndControl(logContent);
+    const lines = cleaned.split(/\r?\n/);
+
+    const startIdx = lines.findIndex(l => l.trim().match(/^Failures\s*\(\d+\):/));
+    if (startIdx < 0) {
+      return new Map();
+    }
+    const failuresHeader = lines[startIdx].trim();
+
+    const out = new Map<string, { detail: string; errorType: string }>();
+
+    const isHeader = (l: string) => l.startsWith('  JUnit ');
+    let i = startIdx + 1;
+    while (i < lines.length) {
+      if (!lines[i].trim()) {
+        i++;
+        continue;
+      }
+      if (lines[i].trim().startsWith('Test run finished')) {
+        break;
+      }
+      if (!isHeader(lines[i])) {
+        i++;
+        continue;
+      }
+      const headerLine = lines[i].trim();
+      const parts = headerLine.split(':');
+      const methodName = (parts[parts.length - 1] ?? '').trim();
+
+      let j = i + 1;
+      while (j < lines.length) {
+        if (lines[j].trim().startsWith('Test run finished')) {
+          break;
+        }
+        if (isHeader(lines[j])) {
+          break;
+        }
+        j++;
+      }
+
+      const detail = lines.slice(i, j).join('\n').trim();
+      const detailWithHeader = `${failuresHeader}\n${detail}`.trim();
+      const errM = detail.match(/=>\s+([A-Za-z0-9_.$]+)(?::\s*|\b)/);
+      const errorType = errM?.[1] ?? 'TestFailure';
+      if (methodName) {
+        out.set(methodName, { detail: detailWithHeader, errorType });
+      }
+      i = j;
+    }
+
+    return out;
+  }
+
   private shortJavaClassNameFromFqnOrFile(classFqn: string | null, testFilePath: string): string {
     if (classFqn) {
       const parts = classFqn.split('.');
@@ -923,149 +1107,133 @@ export class Analyzer {
       return [];
     }
 
+    const baseFields = {
+      testFile: testFilePath,
+      logPath,
+      focalModule,
+      focalFunction,
+      focalRandom,
+      sourceFile,
+      implementationOrigin: null,
+      importLine: null,
+      modulePath: null,
+    } as const;
+
+    // New Java executor format:
+    // - compilation may fail before execution: "[EXECUTOR][JAVA] Compilation failed, skipping execution."
+    // - execution output is JUnit Platform Console tree with per-test ✔/✘ and optional "Failures (N):" blocks.
+    const selectedFqn = this.parseJavaExecutorSelectedClassFqn(logContent);
+    const className = this.shortJavaClassNameFromFqnOrFile(selectedFqn, testFilePath);
+
+    const isCompilationFailed = logContent.includes('[EXECUTOR][JAVA] Compilation failed');
+    if (isCompilationFailed) {
+      const methods = this.extractJavaTestMethodNamesFromSource(testFilePath);
+      const names = methods.length ? methods : [`${className}-1`];
+      return names.map(codeName => ({
+        codeName,
+        status: 'Errored',
+        errorType: 'COMPILATION ERROR',
+        detail: logContent.trim(),
+        ...baseFields
+      }));
+    }
+
+    const hasJUnitConsoleTree = logContent.includes('Thanks for using JUnit!') || logContent.includes('Test run finished after');
+    if (hasJUnitConsoleTree) {
+      const testsFound = this.parseJUnitConsoleTestsFound(logContent);
+      // If JUnit reports 0 tests found, treat as "no test cases" regardless of tree printing.
+      if (testsFound === 0) {
+        const names = this.extractJavaTestMethodNamesFromSource(testFilePath);
+        const effective = names.length ? names : [`${className}-1`];
+        return effective.map(codeName => ({
+          codeName,
+          status: 'Errored',
+          errorType: 'No test cases found',
+          detail: logContent.trim(),
+          ...baseFields
+        }));
+      }
+
+      const treeTests = this.parseJUnitConsoleTreeTests(logContent, className);
+      const failures = this.parseJUnitConsoleFailureBlocks(logContent);
+
+      // If tree parsing failed (rare), fall back to parsing test methods from source.
+      const fallbackMethods = treeTests.length ? [] : this.extractJavaTestMethodNamesFromSource(testFilePath);
+      const out: TestCaseResult[] = [];
+
+      const seen = new Set<string>();
+      for (const t of treeTests) {
+        seen.add(t.testName);
+        const fail = failures.get(t.testName);
+        const isFailed = t.icon === '✘';
+        out.push({
+          codeName: t.testName,
+          status: isFailed ? 'Failed' : 'Passed',
+          errorType: isFailed ? (fail?.errorType ?? 'TestFailure') : null,
+          detail: isFailed ? (fail?.detail ?? t.inlineMsg ?? '') : '',
+          ...baseFields
+        });
+      }
+
+      // Add any failures not shown in the tree (defensive).
+      for (const [methodName, payload] of failures.entries()) {
+        if (seen.has(methodName)) {
+          continue;
+        }
+        out.push({
+          codeName: methodName,
+          status: 'Failed',
+          errorType: payload.errorType ?? 'TestFailure',
+          detail: payload.detail ?? '',
+          ...baseFields
+        });
+      }
+
+      // Fallback: if we still have nothing, emit at least one errored testcase.
+      if (!out.length) {
+        const names = fallbackMethods.length ? fallbackMethods : [`${className}-1`];
+        return names.map(codeName => ({
+          codeName,
+          status: 'Errored',
+          errorType: 'TestError',
+          detail: logContent.trim(),
+          ...baseFields
+        }));
+      }
+      return out;
+    }
+
+    // Backward compatibility: older Maven/Surefire logs.
     const summary = this.parseJavaSurefireSummaryFromLog(logContent);
     const testCasesOfSummary = (summary?.testsRun ?? 0) + (summary?.failures ?? 0) + (summary?.errors ?? 0) + (summary?.skipped ?? 0);
     const isSummaryInvalid = !summary || testCasesOfSummary === 0;
-    const className = this.shortJavaClassNameFromFqnOrFile(summary?.classFqn ?? null, testFilePath);
-    const hasErrorSign = logContent.includes('COMPILATION ERROR')
+    const hasErrorSign = logContent.includes('COMPILATION ERROR');
 
-    // Second case: No "Tests run:" / "Failures:" summary => treat as one errored testcase.
     if (isSummaryInvalid || hasErrorSign) {
       return [{
         codeName: `${className}-1`,
         status: 'Errored',
         errorType: hasErrorSign ? 'COMPILATION ERROR' : 'TestError',
         detail: logContent.trim(),
-        testFile: testFilePath,
-        logPath,
-        focalModule,
-        focalFunction,
-        focalRandom,
-        sourceFile,
-        implementationOrigin: null,
-        importLine: null,
-        modulePath: null
+        ...baseFields
       }];
     }
 
+    // NOTE: Legacy Maven/Surefire detailed parsing is no longer used in our new Java executor.
+    // Keeping only a minimal fallback so the caller still gets a result object.
+    /*
     const failureBlocks = this.parseJavaSurefireFailureBlocks(logContent, className);
-
-    // Build testcase list:
-    // - failed tests: use method names discovered in log
-    // - passed/skipped/error tests: synthesize placeholder names (className-1, className-2, ...)
     const out: TestCaseResult[] = [];
-
-    // Failed tests with assertion logs
-    const failedByMethod = new Map<string, { detail: string; errorType: string }>();
-    for (const b of failureBlocks) {
-      // Keep first block per method, append if duplicates
-      const prev = failedByMethod.get(b.methodName);
-      if (!prev) {
-        failedByMethod.set(b.methodName, { detail: b.detail, errorType: b.errorType });
-      } else if (prev.detail !== b.detail) {
-        failedByMethod.set(b.methodName, { detail: `${prev.detail}\n\n${b.detail}`.trim(), errorType: prev.errorType || b.errorType });
-      }
-    }
-
-    const failedNames = Array.from(failedByMethod.keys());
-    for (const methodName of failedNames) {
-      const payload = failedByMethod.get(methodName)!;
-      out.push({
-        codeName: methodName,
-        status: 'Failed',
-        errorType: payload.errorType || 'TestFailure',
-        detail: payload.detail,
-        testFile: testFilePath,
-        logPath,
-        focalModule,
-        focalFunction,
-        focalRandom,
-        sourceFile,
-        implementationOrigin: null,
-        importLine: null,
-        modulePath: null
-      });
-    }
-
-    // If we couldn't discover all failed methods, synthesize remaining failures.
-    const missingFailures = Math.max(0, summary.failures - failedNames.length);
-    for (let i = 1; i <= missingFailures; i++) {
-      out.push({
-        codeName: `UnknownFailure-${i}`,
-        status: 'Failed',
-        errorType: 'TestFailure',
-        detail: '',
-        testFile: testFilePath,
-        logPath,
-        focalModule,
-        focalFunction,
-        focalRandom,
-        sourceFile,
-        implementationOrigin: null,
-        importLine: null,
-        modulePath: null
-      });
-    }
-
-    // Placeholders for passed tests
-    const passedCount = Math.max(0, summary.testsRun - summary.failures - summary.errors - summary.skipped);
-    for (let i = 1; i <= passedCount; i++) {
-      out.push({
-        codeName: `${className}-${i}`,
-        status: 'Passed',
-        errorType: null,
-        detail: '',
-        testFile: testFilePath,
-        logPath,
-        focalModule,
-        focalFunction,
-        focalRandom,
-        sourceFile,
-        implementationOrigin: null,
-        importLine: null,
-        modulePath: null
-      });
-    }
-
-    // Placeholders for skipped tests (rare; we don't know method names)
-    for (let i = 1; i <= Math.max(0, summary.skipped); i++) {
-      out.push({
-        codeName: `${className}-skipped-${i}`,
-        status: 'Skipped',
-        errorType: null,
-        detail: 'Test skipped',
-        testFile: testFilePath,
-        logPath,
-        focalModule,
-        focalFunction,
-        focalRandom,
-        sourceFile,
-        implementationOrigin: null,
-        importLine: null,
-        modulePath: null
-      });
-    }
-
-    // Placeholders for errored tests (we don't know method names reliably from logs)
-    for (let i = 1; i <= Math.max(0, summary.errors); i++) {
-      out.push({
-        codeName: `${className}-error-${i}`,
-        status: 'Errored',
-        errorType: 'TestError',
-        detail: '',
-        testFile: testFilePath,
-        logPath,
-        focalModule,
-        focalFunction,
-        focalRandom,
-        sourceFile,
-        implementationOrigin: null,
-        importLine: null,
-        modulePath: null
-      });
-    }
-
+    // ... old synthesis logic (failed/passed/skipped/errored placeholders) ...
     return out;
+    */
+    return [{
+      codeName: `${className}-1`,
+      status: 'Errored',
+      errorType: 'TestError',
+      detail: logContent.trim(),
+      ...baseFields
+    }];
   }
   
   private extractResultsFromLog(logPath: string, testFilePath: string): TestCaseResult[] {
@@ -1187,7 +1355,30 @@ export class Analyzer {
 
       const tcrs = this.extractResultsFromLog(res.logPath, res.testFile.path);
       if (!tcrs.length) {
+        // Ensure analysis report is "complete": every test file must end up as Passed/Failed.
+        // If we cannot extract any testcase result from the log, treat the file as Failed with one placeholder testcase.
+        files[fkey].status = 'Failed';
         files[fkey].note = 'No test results found in log file.';
+
+        const placeholder: TestCaseResult = {
+          codeName: `${path.basename(res.testFile.path)}-1`,
+          status: 'Errored',
+          errorType: 'No test results found',
+          detail: fs.existsSync(res.logPath) ? (fs.readFileSync(res.logPath, 'utf-8') || '').trim() : 'Log file missing',
+          testFile: res.testFile.path,
+          logPath: res.logPath,
+          focalModule: null,
+          focalFunction: null,
+          focalRandom: null,
+          sourceFile: files[fkey].sourceFile ?? null,
+          implementationOrigin: null,
+          importLine: null,
+          modulePath: null,
+        };
+
+        tests[placeholder.codeName] = placeholder;
+        files[fkey].testcases.push(placeholder);
+        files[fkey].counts[placeholder.status] = (files[fkey].counts[placeholder.status] ?? 0) + 1;
         continue;
       }
 
@@ -1215,55 +1406,55 @@ export class Analyzer {
 
     // Examination phase: analyze assertion errors for redefined symbols
     // Only available when running in VSCode extension context
-    // if (examineTestCasesBatch && filterTestCasesForExamination) {
-    //   console.log('[ANALYZER] Starting examination phase for assertion errors...');
-    //   const allTestCases = Object.values(tests);
-    //   const testCasesToExamine = filterTestCasesForExamination(allTestCases);
+    if (examineTestCasesBatch && filterTestCasesForExamination) {
+      console.log('[ANALYZER] Starting examination phase for assertion errors...');
+      const allTestCases = Object.values(tests);
+      const testCasesToExamine = filterTestCasesForExamination(allTestCases);
 
-    //   if (testCasesToExamine.length > 0) {
-    //     const examinations = await examineTestCasesBatch(
-    //       testCasesToExamine,
-    //       (tc: TestCaseResult) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
-    //       (tc: TestCaseResult) => tc.focalFunction || null,
-    //       5 // concurrency
-    //     );
+      if (testCasesToExamine.length > 0) {
+        const examinations = await examineTestCasesBatch(
+          testCasesToExamine,
+          (tc: TestCaseResult) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
+          (tc: TestCaseResult) => tc.focalFunction || null,
+          5 // concurrency
+        );
 
-    //     // Attach examination results back to test cases
-    //     for (const exam of examinations) {
-    //       const testCase = tests[exam.testCaseName];
-    //       if (testCase) {
-    //         testCase.examination = exam;
-    //       }
-    //     }
+        // Attach examination results back to test cases
+        for (const exam of examinations) {
+          const testCase = tests[exam.testCaseName];
+          if (testCase) {
+            testCase.examination = exam;
+          }
+        }
 
-    //     const redefinedErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && tc.examination.hasRedefinedSymbols);
-    //     console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
-    //     console.log(`[ANALYZER] REDEFINE error cases: ${redefinedErrorCases.length} test cases examined`);
-    //     for ( const tc of redefinedErrorCases) {
-    //       console.log(`[ANALYZER] REDEFINE error case: ${tc.codeName}`);
-    //       console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
-    //       console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
-    //       console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
-    //       console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
-    //     }
+        const redefinedErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && tc.examination.hasRedefinedSymbols);
+        console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+        console.log(`[ANALYZER] REDEFINE error cases: ${redefinedErrorCases.length} test cases examined`);
+        for ( const tc of redefinedErrorCases) {
+          console.log(`[ANALYZER] REDEFINE error case: ${tc.codeName}`);
+          console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
+          console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
+          console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
+          console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
+        }
 
 
-    //     const unknownErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && !tc.examination.hasRedefinedSymbols);
-    //     console.log(`\n=====================================================\n`);
-    //     console.log(`[ANALYZER] Still unknown error cases: ${unknownErrorCases.length} test cases examined`);
-    //     for ( const tc of unknownErrorCases) {
-    //       console.log(`[ANALYZER] Unknown error case: ${tc.codeName}`);
-    //       console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
-    //       console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
-    //       console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
-    //       console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
-    //     }
-    //   } else {
-    //     console.log('[ANALYZER] No assertion errors to examine');
-    //   }
-    // } else {
-    //   console.log('[ANALYZER] Examination phase skipped (requires VSCode extension API)');
-    // }
+        const unknownErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && !tc.examination.hasRedefinedSymbols);
+        console.log(`\n=====================================================\n`);
+        console.log(`[ANALYZER] Still unknown error cases: ${unknownErrorCases.length} test cases examined`);
+        for ( const tc of unknownErrorCases) {
+          console.log(`[ANALYZER] Unknown error case: ${tc.codeName}`);
+          console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
+          console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
+          console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
+          console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
+        }
+      } else {
+        console.log('[ANALYZER] No assertion errors to examine');
+      }
+    } else {
+      console.log('[ANALYZER] Examination phase skipped (requires VSCode extension API)');
+    }
 
     // Save file analysis to JSON for further analysis
     const fileAnalysisPath = path.join(outputDir, 'file_analysis.json');

@@ -13,30 +13,65 @@ import { ExecutionResult, TestFile } from './types';
  * Infers the exit code from pytest log content
  * Returns 0 if all tests passed, 1 if any failures/errors occurred
  */
-function inferExitCodeFromLog(logPath: string): number {
+export function inferExitCodeFromLogContent(logContent: string, language: string): number {
+  // Most reliable: our executor writes a footer with "Exit Code:"
+  const mExit = logContent.match(/^\s*Exit Code:\s*(\d+)\s*$/m);
+  if (mExit) {
+    return parseInt(mExit[1], 10);
+  }
+
+  if (language === 'java') {
+    // Maven/Gradle build failures / compilation errors (no tests executed)
+    if (
+      logContent.includes('COMPILATION ERROR') ||
+      logContent.includes('BUILD FAILURE') ||
+      logContent.includes('Failed to execute goal') ||
+      logContent.includes('MojoExecutionException') ||
+      logContent.includes('NoSuchFileException')
+    ) {
+      return 1;
+    }
+
+    // Surefire-style summary: Tests run: X, Failures: Y, Errors: Z, Skipped: K
+    const m = logContent.match(/Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+),\s*Skipped:\s*(\d+)/i);
+    if (m) {
+      const failures = parseInt(m[2], 10);
+      const errors = parseInt(m[3], 10);
+      return failures > 0 || errors > 0 ? 1 : 0;
+    }
+
+    // JUnit Console (best-effort): "tests failed: N" variants
+    const mFailed = logContent.match(/tests\s+failed:\s*(\d+)/i);
+    if (mFailed) {
+      return parseInt(mFailed[1], 10) > 0 ? 1 : 0;
+    }
+
+    // Conservative default for Java: unknown => treat as failure (avoids overcounting success)
+    return 1;
+  }
+
+  // Python (pytest) fallback
+  if (language === 'python') {
+    const failedMatch = logContent.match(/(\d+)\s+failed/);
+    const errorMatch = logContent.match(/(\d+)\s+error/);
+    if (failedMatch || errorMatch) {
+      return 1;
+    }
+    const passedMatch = logContent.match(/(\d+)\s+passed/);
+    if (passedMatch) {
+      return 0;
+    }
+    return 0;
+  }
+
+  // Default: unknown language, don't claim success without evidence
+  return 1;
+}
+
+function inferExitCodeFromLog(logPath: string, language: string): number {
   try {
     const content = fs.readFileSync(logPath, 'utf-8');
-    
-    // Check for test failures or errors in the log
-    // Pytest summary patterns:
-    // "1 passed" -> exit 0
-    // "1 failed, 1 passed" -> exit 1
-    // "1 error" -> exit 1
-    const failedMatch = content.match(/(\d+)\s+failed/);
-    const errorMatch = content.match(/(\d+)\s+error/);
-    
-    if (failedMatch || errorMatch) {
-      return 1; // Test failures or errors
-    }
-    
-    // Check if there's a passed count
-    const passedMatch = content.match(/(\d+)\s+passed/);
-    if (passedMatch) {
-      return 0; // All tests passed
-    }
-    
-    // If no clear indicators, assume success (cached result exists)
-    return 0;
+    return inferExitCodeFromLogContent(content, language);
   } catch (error) {
     console.warn(`[RUNNER] Failed to infer exit code from ${logPath}:`, error);
     return 0; // Default to success for cached results
@@ -82,7 +117,7 @@ export function reportLogCoverage(testFiles: TestFile[], logsDir: string, junitD
   }
 }
 
-export function splitCached(testFiles: TestFile[], logsDir: string, junitDir: string): [ExecutionResult[], TestFile[]] {
+export function splitCached(testFiles: TestFile[], logsDir: string, junitDir: string, language: string): [ExecutionResult[], TestFile[]] {
   console.log(`[RUNNER] Analyzing cache for ${testFiles.length} test files`);
   console.log(`[RUNNER] Logs directory: ${logsDir}`);
   console.log(`[RUNNER] JUnit directory: ${junitDir}`);
@@ -102,7 +137,7 @@ export function splitCached(testFiles: TestFile[], logsDir: string, junitDir: st
     
     if (logExists && junitExists && logSize > 0 && junitSize > 0) {
       // Infer exit code from log content to properly reflect test failures
-      const exitCode = inferExitCodeFromLog(logPath);
+      const exitCode = inferExitCodeFromLog(logPath, language);
       
       cached.push({
         testFile: tf,
@@ -321,7 +356,7 @@ export async function runPipeline(testsDir: string, outputDir: string, test_file
   let toRun: TestFile[];
   
   try {
-    [cachedResults, toRun] = splitCached(testFiles, logsDir, junitDir);
+    [cachedResults, toRun] = splitCached(testFiles, logsDir, junitDir, language);
     const cacheDuration = new Date().getTime() - cacheStartTime.getTime();
     
     console.log(`[RUNNER] Cache analysis completed in ${cacheDuration}ms`);
