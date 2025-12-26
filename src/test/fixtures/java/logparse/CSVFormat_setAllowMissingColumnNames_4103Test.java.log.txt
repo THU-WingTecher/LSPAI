@@ -1,0 +1,42 @@
+Thanks for using JUnit! Support its development at https://junit.org/sponsoring
+
+╷
+├─ JUnit Jupiter ✔
+└─ JUnit Vintage ✔
+   └─ CSVFormat_setAllowMissingColumnNames_4103Test ✔
+      ├─ testParser_DisallowsMissingNullHeaderNames_WhenDisallowed ✘ Unresolved compilation problem:
+      │     The method setReader(Reader) is undefined for the type CSVParser.Builder
+      ├─ CSVFormat_setAllowMissingColumnNames_4103Test_0 ✔
+      ├─ testDisallowMissingColumnNames_EmptyHeader_Throws ✘ Expected exception when missing header names are disallowed
+      ├─ testDisallowMissingColumnNames_AllValidHeaders_Passes ✔
+      └─ testParser_AllowsMissingNullHeaderNames_WhenAllowed ✘ Unresolved compilation problem:
+            The method setReader(Reader) is undefined for the type CSVParser.Builder
+
+Failures (3):
+  JUnit Vintage:CSVFormat_setAllowMissingColumnNames_4103Test:testParser_DisallowsMissingNullHeaderNames_WhenDisallowed
+    => java.lang.Error: Unresolved compilation problem:
+       The method setReader(Reader) is undefined for the type CSVParser.Builder
+       [...]
+  JUnit Vintage:CSVFormat_setAllowMissingColumnNames_4103Test:testDisallowMissingColumnNames_EmptyHeader_Throws
+    => java.lang.AssertionError: Expected exception when missing header names are disallowed
+       [...]
+  JUnit Vintage:CSVFormat_setAllowMissingColumnNames_4103Test:testParser_AllowsMissingNullHeaderNames_WhenAllowed
+    => java.lang.Error: Unresolved compilation problem:
+       The method setReader(Reader) is undefined for the type CSVParser.Builder
+       [...]
+
+Test run finished after 111 ms
+[         3 containers found      ]
+[         0 containers skipped    ]
+[         3 containers started    ]
+[         0 containers aborted    ]
+[         3 containers successful ]
+[         0 containers failed     ]
+[         5 tests found           ]
+[         0 tests skipped         ]
+[         5 tests started         ]
+[         0 tests aborted         ]
+[         2 tests successful      ]
+[         3 tests failed          ]
+
+

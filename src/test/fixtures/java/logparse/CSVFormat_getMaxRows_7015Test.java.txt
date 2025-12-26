@@ -1,0 +1,12 @@
+package org.apache.commons.csv;
+
+public class CSVFormat_getMaxRows_7015Test {
+    public static void main(String[] args) {
+        CSVFormat_getMaxRows_7015Test t = new CSVFormat_getMaxRows_7015Test();
+        t.CSVFormat_getMaxRows_7015Test_0();
+    }
+
+    public void CSVFormat_getMaxRows_7015Test_0() {}
+}
+
+

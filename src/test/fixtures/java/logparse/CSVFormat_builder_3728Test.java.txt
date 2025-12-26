@@ -1,0 +1,16 @@
+package org.apache.commons.csv;
+
+public class CSVFormat_builder_3728Test {
+    public static void main(String[] args) throws Exception {
+        CSVFormat_builder_3728Test t = new CSVFormat_builder_3728Test();
+        t.CSVFormat_builder_3728Test_0();
+        t.testBuilderProducesFormatUsableForParsingHeaderNullHandling();
+        System.out.println("All tests passed.");
+    }
+
+    public void CSVFormat_builder_3728Test_0() {}
+
+    public void testBuilderProducesFormatUsableForParsingHeaderNullHandling() throws Exception {}
+}
+
+

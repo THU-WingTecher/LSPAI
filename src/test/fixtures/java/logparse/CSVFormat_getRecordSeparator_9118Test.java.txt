@@ -1,0 +1,20 @@
+package org.apache.commons.csv;
+
+public class CSVFormat_getRecordSeparator_9118Test {
+    public static void main(String[] args) {
+        CSVFormat_getRecordSeparator_9118Test t = new CSVFormat_getRecordSeparator_9118Test();
+        t.CSVFormat_getRecordSeparator_9118Test_0();
+        t.CSVFormat_getRecordSeparator_withChar_returnsString();
+        t.CSVFormat_getRecordSeparator_immutabilityAndDistinctValue();
+        t.CSVFormat_getRecordSeparator_canBeUnsetWithNull();
+        t.CSVFormat_getRecordSeparator_allowsEmptyString();
+    }
+
+    public void CSVFormat_getRecordSeparator_9118Test_0() {}
+    public void CSVFormat_getRecordSeparator_withChar_returnsString() {}
+    public void CSVFormat_getRecordSeparator_immutabilityAndDistinctValue() {}
+    public void CSVFormat_getRecordSeparator_canBeUnsetWithNull() {}
+    public void CSVFormat_getRecordSeparator_allowsEmptyString() {}
+}
+
+
