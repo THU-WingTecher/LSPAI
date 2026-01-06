@@ -5,9 +5,11 @@ import path from 'path';
 import { invokeLLM } from '../../../invokeLLM';
 suite('LLM invoke Test Suite', () => {
 
+    const projectPath = "/LSPRAG/src/test/fixtures/python";
     const currentConfig = {
         // model: 'deepseek-coder',
         // provider: 'deepseek' as Provider,
+        workspace: projectPath,
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
     };

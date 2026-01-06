@@ -9,6 +9,7 @@ import { runGenerateTestCodeSuite } from '../../../../experiment';
 
 suite('Fixtures Test Suite - Python', () => {
     const projectPath = "/LSPRAG/src/test/fixtures/python";
+    const interpreterPath = "/root/miniconda3/envs/black/bin/python";
     const languageId = "python";
     const currentConfig = {
         model: 'gpt-4o-mini',
@@ -37,7 +38,7 @@ suite('Fixtures Test Suite - Python', () => {
         
         // Setup Python LSP with the fixture project path
         const pythonModulePath = [projectPath];
-        await setupPythonLSP(pythonModulePath);
+        await setupPythonLSP(pythonModulePath, interpreterPath);
     });
 
     test('Load target symbols from Python fixtures', async () => {
