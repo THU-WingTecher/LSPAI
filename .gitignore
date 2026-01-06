@@ -1,6 +1,7 @@
 .env.sh
 new_data
 cc-tests/
+claudecode-tests
 experiments/baselines/rag/embeddings/
 experiments/settings/
 experiments/lsprag_data/

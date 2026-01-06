@@ -60,6 +60,9 @@ npm run experiment -- --type baseline --task-list /path/to/taskList.json --proje
 
 # OpenCode experiment
 npm run experiment -- --type opencode --task-list /path/to/taskList.json --project-root /path/to/project --model gpt-4 --provider openai
+
+# Claude Code experiment (requires Anthropic provider and Claude model)
+npm run experiment -- --type claudecode --task-list /path/to/taskList.json --project-root /path/to/project --model claude-3-5-haiku-20241022 --provider anthropic
 ```
 
 ### Advanced Usage
@@ -93,7 +96,8 @@ npm run experiment -- \
 ## Arguments
 
 ### Required
-- `--type`: Experiment type (`baseline` or `opencode`)
+- `--type`: Experiment type (`baseline`, `opencode`, or `claudecode`)
+  - **Note**: `claudecode` type requires `--provider anthropic` and a Claude model (model name must start with `claude-`)
 - `--task-list`: Path to task list JSON file
 - `--project-root`: Path to project root directory
 - `--model`: Model name (e.g., `gpt-4`, `deepseek-chat`, `claude-3-5-sonnet`)

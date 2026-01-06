@@ -6,7 +6,7 @@
  * Single entry point for both baseline and opencode experiments
  * 
  * Usage:
- *   npm run experiment -- --type <baseline|opencode> --task-list <path> --project-root <path> --model <model> --provider <provider>
+ *   npm run experiment -- --type <baseline|opencode|claudecode> --task-list <path> --project-root <path> --model <model> --provider <provider>
  *   
  * Examples:
  *   # Baseline experiment
@@ -15,6 +15,9 @@
  *   # OpenCode experiment
  *   move to project directory & run the command
  *   npm run experiment -- --type opencode --task-list /path/to/taskList.json --project-root /path/to/project --model gpt-4 --provider openai
+ *   
+ *   # Claude Code experiment
+ *   npm run experiment -- --type claudecode --task-list /path/to/taskList.json --project-root /path/to/project --model claude-3-5-sonnet-20241022 --provider anthropic
  */
 
 import * as fs from 'fs';
@@ -23,11 +26,12 @@ import { randomUUID } from 'crypto';
 import { ExperimentLogger, LogLevel, createExperimentLogger } from './utils/logger';
 import { runBaselineFromArgs } from './runners/baselineRunner';
 import { runOpencodeFromArgs } from './runners/opencodeRunner';
+import { runClaudeCodeFromArgs } from './runners/claudeCodeRunner';
 
 /**
  * Supported experiment types
  */
-type ExperimentType = 'baseline' | 'opencode';
+type ExperimentType = 'baseline' | 'opencode' | 'claudecode';
 
 /**
  * CLI arguments interface
@@ -73,10 +77,27 @@ function parseArgs(): CLIArgs {
     }
 
     // Validate experiment type
-    if (!['baseline', 'opencode'].includes(parsed.type)) {
-        console.error(`Error: Invalid experiment type '${parsed.type}'. Must be 'baseline' or 'opencode'\n`);
+    if (!['baseline', 'opencode', 'claudecode'].includes(parsed.type)) {
+        console.error(`Error: Invalid experiment type '${parsed.type}'. Must be 'baseline', 'opencode', or 'claudecode'\n`);
         printUsage();
         process.exit(1);
+    }
+
+    // Validate Claude Code specific requirements
+    if (parsed.type === 'claudecode') {
+        if (parsed.provider !== 'anthropic') {
+            console.error(`Error: Claude Code experiments require provider 'anthropic', but got '${parsed.provider}'\n`);
+            printUsage();
+            process.exit(1);
+        }
+        
+        // Validate that model is a Claude model (starts with 'claude-')
+        if (!parsed.model || !parsed.model.startsWith('claude-')) {
+            console.error(`Error: Claude Code experiments require a Claude model (must start with 'claude-'), but got '${parsed.model}'\n`);
+            console.error(`Examples of valid Claude models: claude-3-5-sonnet-20241022, claude-3-opus-20240229, claude-3-haiku-20240307\n`);
+            printUsage();
+            process.exit(1);
+        }
     }
 
     return {
@@ -103,7 +124,7 @@ function printUsage() {
     console.log('  npm run experiment -- [options]');
     console.log('');
     console.log('Required Options:');
-    console.log('  --type <type>            Experiment type: baseline or opencode');
+    console.log('  --type <type>            Experiment type: baseline, opencode, or claudecode');
     console.log('  --task-list <path>       Path to task list JSON file');
     console.log('  --project-root <path>   Path to project root directory');
     console.log('  --model <model>          Model name (e.g., gpt-4, deepseek-chat, claude-3-5-sonnet)');
@@ -144,6 +165,14 @@ function printUsage() {
     console.log('    --concurrency 8 \\');
     console.log('    --log-level debug \\');
     console.log('    --verbose');
+    console.log('');
+    console.log('  # Claude Code experiment (requires Anthropic provider and Claude model)');
+    console.log('  npm run experiment -- \\');
+    console.log('    --type claudecode \\');
+    console.log('    --task-list /path/to/taskList.json \\');
+    console.log('    --project-root /path/to/project \\');
+    console.log('    --model claude-3-5-sonnet-20241022 \\');
+    console.log('    --provider anthropic');
     console.log('');
     console.log('  # Sequential execution (for debugging)');
     console.log('  npm run experiment -- \\');
@@ -259,6 +288,19 @@ async function main() {
         } else if (args.type === 'opencode') {
             console.log('Running OpenCode experiment...\n');
         result = await runOpencodeFromArgs(
+            args.taskList,
+            args.projectRoot,
+            args.model,
+            args.provider,
+            args.outputDir || '',
+            {
+                useParallel: args.parallel,
+                concurrency: args.concurrency
+            }
+        );
+        } else if (args.type === 'claudecode') {
+            console.log('Running Claude Code experiment...\n');
+        result = await runClaudeCodeFromArgs(
             args.taskList,
             args.projectRoot,
             args.model,
