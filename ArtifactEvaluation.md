@@ -28,11 +28,10 @@ The artifact includes the complete source code, test suites, evaluation scripts,
 and reproduction packages for all experiments in the paper.
 
 **Artifact Structure:**
-- `/src/` - Core extension implementation
+- `src/` - Core extension implementation
 - `/src/test/suite/` - Test suites for all components
-- `/evaluation/` - Evaluation scripts and data
-- `/docs/` - Documentation (setup, usage, API)
-- `REPRODUCTION.md` - Step-by-step reproduction guide
+- `experiments/` - Experiment scripts and data
+- `/docs/` - Documentation (setup, usage, experiment explanation)
 - `ARTIFACT_STRUCTURE.md` - Detailed codebase structure and component descriptions
 
 ---
@@ -40,6 +39,7 @@ and reproduction packages for all experiments in the paper.
 ## Claim for Availability
 
 - Publicly archived on Zenodo with permanent DOI: [https://zenodo.org/records/18065707]
+  - included source code and experiment data for reproduction
 - Licensed under Apache 2.0 for open reuse
 - Source code also available at: https://github.com/THU-WingTecher/LSPRAG.git
 - VSCode extension available and usable at: https://marketplace.visualstudio.com/items?itemName=LSPRAG.LSPRAG
@@ -58,13 +58,133 @@ and reproduction packages for all experiments in the paper.
 
 ### Evidence of Reusability
 
-- Modular design with clear interfaces and well-developed test cases for easy start
+#### Modular design with clear interfaces and well-developed test cases for easy start
+
+#### **Step to verify: Source Code Reusable** (Follow QUICKSTART.md 🚀 5-Minute Setup)
+
+1. Pull docker contianer for robust reproducement: 
+  ```docker pull gwihwan/lsprag:latest```
+
+2. Start docker container
+  ```docker run -it --name lsprag gwihwan/lsprag:latest /bin/bash```
+
+3. Clone the Repo
+  ```bash
+  git clone https://github.com/THU-WingTecher/LSPRAG.git
+  cd LSPRAG
+  ```
+
+4. Install Dependencies
+
+  [Optional] If npm is not installed, install it first.
+
+  ```bash
+  npm install --force
+  npm run compile
+  ```
+
+5. Install Language Server Extensions
+
+**For Python:**
+- Install "Python" extensions
+![Language Server Integration](docs/assets/language_server.png)
+
+**For Java:**
+- Install "Oracle Java Extension Pack" from VS Code Marketplace
+
+**For Go:**
+- Install "Go" extension
+- Enable semantic tokens in settings:
+```json
+{
+  "gopls": {
+    "ui.semanticTokens": true
+  }
+}
+```
+
+6. Download Baseline Project
+
+```bash
+cd experiments
+mkdir projects
+cd projects
+git clone https://github.com/psf/black.git
+```
+
+7. Activate Extension
+
+- Navigate to `src/extension.ts`
+- Click "Run and Debug" and select "VS Code Extension Development"
+![Method to activate the app](docs/assets/vscodeExtensionDevlopment.png)
+- A **new VS Code editor** will open - use this for subsequent actions
+
+8. Configure LLM Settings
+
+**Critical**: Configure LLM settings in the newly opened VS Code editor (not the original one).
+
+**Option A: VS Code Settings UI**
+- Open Settings (`Ctrl/Cmd + ,`, or search for `Preference: Open User Settings`)
+- Search for "LSPRAG"
+- Configure provider, model, and API keys
+  - For example, 
+  - model : "gpt-4o-mini"
+  - provider : "openai"
+  - openai-api-key : "sk-xxxx"
+
+**Option B: Direct JSON Configuration**
+Add to `settings.json`:
+```json
+{
+  "LSPRAG": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "deepseekApiKey": "your-api-key",
+    "openaiApiKey": "your-openai-key",
+    "localLLMUrl": "http://localhost:11434",
+    "savePath": "lsprag-tests",
+    "promptType": "detailed",
+    "generationType": "original",
+    "maxRound": 3
+  }
+}
+```
+
+**Option C: Environment Variables** (for tests)
+```bash
+export DEEPSEEK_API_KEY="your-key"
+export OPENAI_API_KEY="your-key"
+export LOCAL_LLM_URL="http://localhost:11434"
+```
+
+9. Verify configuration: `Ctrl+Shift+P` → `LSPRAG: Show Current Settings`
+
+10. Generate Tests
+
+  a. **Open Your Baseline Project**
+    - Open workspace in the new VS Code editor
+    - Navigate to: `LSPRAG/experiments/projects/black`
+    - Ensure you already downloaded python language servers at **Step 5**
+
+  b. **Generate Unit Test**
+    - Navigate to any function or method
+    - Right-click within the function definition
+    - Select **"LSPRAG: Generate Unit Test"** from the context menu
+    ![Generate Unit test](docs/assets/CommandFig.png)
+    - Wait for generation to complete
+    ![Waiting](docs/assets/loading.png)
   
-  **Step to verify:** Try to follow QUICKSTART.md 🚀 5-Minute Setup or 📚 Learning Path
+  c. **Review and Deploy**
+    - Python is sensitive to Environment and Path, for better performance, you need to manually set python interpreter and python path for better program analysis.
+    - For simplicity, we don't introduce that here.
+  
+#### [Optional] **Step to verify: Easy to Extend** (Follow QUICKSTART.md 📚 Learning Path)
 
-- Docker container for reproducible environment: `docker pull gwihwan/lsprag:latest`
+- We have more than 8k lines of test code under `src/test`.
+- Test code is written for product robustness and easy-to-follow for extend
+- Welcome to follow QUICKSTART.md 📚 Learning Path and learn how do we export and utilize LSP function!
 
-- **Off-the-shelf tool:** We have published our tool as VSCode Extensions. We recommend you to experience our tool!
+#### **Off-the-shelf tool:** We have published our tool as VSCode Extensions. We recommend you to experience our tool!
 
 ### Installation & Setup
 
@@ -199,8 +319,6 @@ npm install lru-cache@10.1.0
 
 ```bash 
 cd /LSPRAG
-mkdir -p experiments 
-cd experiments
 wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/0910553cfe484f2d9a1c/?dl=1" -O experimentData.tar.gz
 tar xvfz experimentData.tar.gz
 ```
@@ -241,7 +359,11 @@ For Python test cases:
 npm run test --testFile=exp.fixtures.python
 ```
 
-**Known issues:** For ssh-remote environment, you should add `xvfb-run -a` before `npm run test`. For example, `xvfb-run -a npm run test --testFile=exp.fixtures.python`
+**Known issues1:** For ssh-remote environment, you should add `xvfb-run -a` before `npm run test`. For example, `xvfb-run -a npm run test --testFile=exp.fixtures.python`
+
+**Known issues2:** 'libgtk-3.so.0: cannot open shared object file: No such file or directory\n'. You may need run `apt-get install -y libgtk-3-0 libxss1 libasound2 libgbm1`
+
+For ssh-remote environment, you should add `xvfb-run -a` before `npm run test`. For example, `xvfb-run -a npm run test --testFile=exp.fixtures.python`
 
 #### 4. Checkout Generated Test Files
 
@@ -268,7 +390,7 @@ wget --no-check-certificate "https://cloud.tsinghua.edu.cn/f/efade5fc56a54ee59ed
 tar xvf ../javaLib.tar.gz
 ```
 
-After running above commands, you can observe that jar files are located at `/LSPRAG/experiments/lib/`.
+After running above commands, you can observe that jar files are located at `/LSPRAG/scripts/lib/`.
 
 ```bash
 |-- lib
@@ -305,7 +427,7 @@ To reproduce the experiment results, execute the following commands one by one a
 Run the following command:
 
 ```bash
-python scripts/result_verifier.py /LSPRAG/experiments/data/main_result/commons-cli
+python3 scripts/result_verifier.py /LSPRAG/experiments/data/main_result/commons-cli
 ```
 
 **Expected Result:**
@@ -366,7 +488,7 @@ To reproduce the experiment results, execute the following commands one by one a
 Run the following command:
 
 ```bash
-python scripts/result_verifier.py /LSPRAG/experiments/data/main_result/commons-csv
+python3 scripts/result_verifier.py /LSPRAG/experiments/data/main_result/commons-csv
 ```
 
 **Expected Result:**
@@ -408,16 +530,6 @@ python scripts/result_verifier.py /LSPRAG/experiments/data/main_result/commons-c
 
 ### Go Projects (Logrus, Cobra)
 
-#### Prepare Unit Test Codes
-
-**Option A: Generate Unit Tests (Manual Method)**
-
-Follow above instructions.
-
-**Option B: Use Pre-generated Dataset (Recommended)**
-
-Download dataset by following **Prepare Unit Test Codes :: Option B**.
-
 #### Logrus Project Setup
 
 To set up the Logrus project, follow these steps:
@@ -443,7 +555,8 @@ To reproduce the experiment results, execute the following commands one by one a
 Run the following command:
 
 ```bash
-python scripts/result_verifier.py /LSPRAG/experiments/data/main_result/logrus
+cd /LSPRAG
+python3 scripts/result_verifier.py /LSPRAG/experiments/data/main_result/logrus
 ```
 
 **Expected Result:**
