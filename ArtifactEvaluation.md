@@ -4,7 +4,7 @@
 
 1. [Artifact Abstract](#artifact-abstract)
 2. [Claim for Availability](#claim-for-availability)
-3. [Claim for Reusable](#claim-for-reusable)
+3. [Claim for Reusability](#claim-for-reusable)
    - [Documentation](#documentation)
    - [Evidence of Reusability](#evidence-of-reusability)
    - [Installation & Setup](#installation--setup)
@@ -38,63 +38,76 @@ and reproduction packages for all experiments in the paper.
 
 ## Claim for Availability
 
-- Publicly archived on Zenodo with permanent DOI: [https://zenodo.org/records/18065707]
-  - included source code and experiment data for reproduction
-- Licensed under Apache 2.0 for open reuse
-- Source code also available at: https://github.com/THU-WingTecher/LSPRAG.git
-- VSCode extension available and usable at: https://marketplace.visualstudio.com/items?itemName=LSPRAG.LSPRAG
-- Archive includes: source code, datasets, scripts, and documentation
+- **Publicly Archived:** Zenodo with permanent DOI: [https://zenodo.org/records/18065707]
+  - Includes source code and experiment data for reproduction
+- **License:** Apache 2.0 for open reuse
+- **Source Code:** https://github.com/THU-WingTecher/LSPRAG.git
+- **VSCode Extension:** https://marketplace.visualstudio.com/items?itemName=LSPRAG.LSPRAG
+- **Archive Contents:** Source code, datasets, scripts, and documentation
 
 ---
 
-## Claim for Reusable
+## Claim for Reusability
 
 ### Documentation
 
-- `README.md` - Overview and Quick Start for extension user
-- `QuickStart.md` - Quick start for software development
-- `CONTRIBUTING.md` - Guide for extending to new languages, and software development
+- `README.md` - Overview and quick start for extension users
+- `QuickStart.md` - Quick start guide for software development
+- `CONTRIBUTING.md` - Guide for extending to new languages and software development
 - `ARCHITECTURE.md` - System design and component interaction
 
 ### Evidence of Reusability
 
-#### Modular design with clear interfaces and well-developed test cases for easy start
+#### Modular Design
 
-#### **Step to verify: Source Code Reusable** (Follow QUICKSTART.md 🚀 5-Minute Setup)
+The codebase features modular design with clear interfaces and well-developed test cases for easy adoption and extension.
 
-1. Pull docker contianer for robust reproducement: 
-  ```docker pull gwihwan/lsprag:latest```
+#### **Verification Step: Source Code Reusability** (Follow QUICKSTART.md 🚀 5-Minute Setup)
 
-2. Start docker container
-  ```docker run -it --name lsprag gwihwan/lsprag:latest /bin/bash```
+**1. Pull Docker Container**
 
-3. Clone the Repo
-  ```bash
-  git clone https://github.com/THU-WingTecher/LSPRAG.git
-  cd LSPRAG
-  ```
+Pull the Docker container for robust reproduction:
 
-4. Install Dependencies
+```bash
+docker pull gwihwan/lsprag:latest
+```
 
-  [Optional] If npm is not installed, install it first.
+**2. Start Docker Container**
 
-  ```bash
-  npm install --force
-  npm run compile
-  ```
+```bash
+docker run -it --name lsprag gwihwan/lsprag:latest /bin/bash
+```
 
-5. Install Language Server Extensions
+**3. Clone the Repository**
+
+```bash
+git clone https://github.com/THU-WingTecher/LSPRAG.git
+cd LSPRAG
+```
+
+**4. Install Dependencies**
+
+> **Note:** If npm is not installed, install it first.
+
+```bash
+npm install --force
+npm run compile
+```
+
+**5. Install Language Server Extensions**
 
 **For Python:**
-- Install "Python" extensions
+- Install "Python" extension from VS Code Marketplace
+
 ![Language Server Integration](docs/assets/language_server.png)
 
 **For Java:**
 - Install "Oracle Java Extension Pack" from VS Code Marketplace
 
 **For Go:**
-- Install "Go" extension
+- Install "Go" extension from VS Code Marketplace
 - Enable semantic tokens in settings:
+
 ```json
 {
   "gopls": {
@@ -103,7 +116,7 @@ and reproduction packages for all experiments in the paper.
 }
 ```
 
-6. Download Baseline Project
+**6. Download Baseline Project**
 
 ```bash
 cd experiments
@@ -112,28 +125,31 @@ cd projects
 git clone https://github.com/psf/black.git
 ```
 
-7. Activate Extension
+**7. Activate Extension**
 
 - Navigate to `src/extension.ts`
 - Click "Run and Debug" and select "VS Code Extension Development"
+
 ![Method to activate the app](docs/assets/vscodeExtensionDevlopment.png)
-- A **new VS Code editor** will open - use this for subsequent actions
 
-8. Configure LLM Settings
+- A **new VS Code editor** will open - use this for all subsequent actions
 
-**Critical**: Configure LLM settings in the newly opened VS Code editor (not the original one).
+**8. Configure LLM Settings**
+
+> **Critical:** Configure LLM settings in the newly opened VS Code editor (not the original one).
 
 **Option A: VS Code Settings UI**
 - Open Settings (`Ctrl/Cmd + ,`, or search for `Preference: Open User Settings`)
 - Search for "LSPRAG"
-- Configure provider, model, and API keys
-  - For example, 
-  - model : "gpt-4o-mini"
-  - provider : "openai"
-  - openai-api-key : "sk-xxxx"
+- Configure provider, model, and API keys. For example:
+  - `model`: "gpt-4o-mini"
+  - `provider`: "openai"
+  - `openai-api-key`: "sk-xxxx"
 
 **Option B: Direct JSON Configuration**
-Add to `settings.json`:
+
+Add the following to `settings.json`:
+
 ```json
 {
   "LSPRAG": {
@@ -151,57 +167,70 @@ Add to `settings.json`:
 ```
 
 **Option C: Environment Variables** (for tests)
+
 ```bash
 export DEEPSEEK_API_KEY="your-key"
 export OPENAI_API_KEY="your-key"
 export LOCAL_LLM_URL="http://localhost:11434"
 ```
 
-9. Verify configuration: `Ctrl+Shift+P` → `LSPRAG: Show Current Settings`
+**9. Verify Configuration**
 
-10. Generate Tests
+Press `Ctrl+Shift+P` → Select `LSPRAG: Show Current Settings`
 
-  a. **Open Your Baseline Project**
-    - Open workspace in the new VS Code editor
-    - Navigate to: `LSPRAG/experiments/projects/black`
-    - Ensure you already downloaded python language servers at **Step 5**
+**10. Generate Tests**
 
-  b. **Generate Unit Test**
-    - Navigate to any function or method
-    - Right-click within the function definition
-    - Select **"LSPRAG: Generate Unit Test"** from the context menu
-    ![Generate Unit test](docs/assets/CommandFig.png)
-    - Wait for generation to complete
-    ![Waiting](docs/assets/loading.png)
+**a. Open Your Baseline Project**
+- Open the workspace in the new VS Code editor
+- Navigate to: `LSPRAG/experiments/projects/black`
+- Ensure you have already installed the Python language server in **Step 5**
+
+**b. Generate Unit Test**
+- Navigate to any function or method
+- Right-click within the function definition
+- Select **"LSPRAG: Generate Unit Test"** from the context menu
+
+![Generate Unit test](docs/assets/CommandFig.png)
+
+- Wait for generation to complete
+
+![Waiting](docs/assets/loading.png)
+
+**c. Review and Deploy**
+
+> **Note:** Python is sensitive to environment and path settings. For better performance, you may need to manually configure the Python interpreter and Python path for improved program analysis. For simplicity, this is not covered in this quick start guide.
   
-  c. **Review and Deploy**
-    - Python is sensitive to Environment and Path, for better performance, you need to manually set python interpreter and python path for better program analysis.
-    - For simplicity, we don't introduce that here.
-  
-#### [Optional] **Step to verify: Easy to Extend** (Follow QUICKSTART.md 📚 Learning Path)
+#### [Optional] **Verification Step: Easy to Extend** (Follow QUICKSTART.md 📚 Learning Path)
 
-- We have more than 8k lines of test code under `src/test`.
-- Test code is written for product robustness and easy-to-follow for extend
-- Welcome to follow QUICKSTART.md 📚 Learning Path and learn how do we export and utilize LSP function!
+- The codebase includes over 8,000 lines of test code under `src/test`
+- Test code is written for product robustness and is designed to be easy to follow for extension purposes
+- Follow the QUICKSTART.md 📚 Learning Path to learn how we export and utilize LSP functions
 
-#### **Off-the-shelf tool:** We have published our tool as VSCode Extensions. We recommend you to experience our tool!
+#### **Off-the-Shelf Tool**
+
+We have published LSPRAG as a VSCode extension. We encourage you to try our tool directly from the marketplace!
 
 ### Installation & Setup
 
 #### 1. Download the Extension
 
-Download the extension named `LSPRAG`. Although Cursor is compatible with VSCode-based extension, but its extension market is not completely synchronized with it. Therefore, you should use VSCode to download our LSPRAG extension at Cursor's extension market.
+Download the `LSPRAG` extension from the VS Code Marketplace.
 
-#### 2. Setup LLM in VSCode Settings
+> **Note:** Although Cursor is compatible with VSCode extensions, its extension marketplace is not completely synchronized with VS Code's. Therefore, use VS Code to download the LSPRAG extension if you plan to use it in Cursor.
+
+#### 2. Set Up LLM in VS Code Settings
 
 **Option A: VS Code Settings UI**
 - Open Settings (`Ctrl/Cmd + ,`)
 - Search for "LSPRAG"
 - Configure provider, model, and API keys
-- For example, you can set provider as deepseek, and model as deepseek-chat, and you can also set provider as openai and model as gpt-4o-mini, or gpt-5.
+- Examples:
+  - Provider: `deepseek`, Model: `deepseek-chat`
+  - Provider: `openai`, Model: `gpt-4o-mini` or `gpt-4o`
 
 **Option B: Direct JSON Configuration**
-- For example, add below settings to `.vscode/settings.json`:
+
+Add the following settings to `.vscode/settings.json`:
 
 ```json
 {
@@ -222,14 +251,15 @@ Download the extension named `LSPRAG`. Although Cursor is compatible with VSCode
 #### 3. Install Language Server Extensions
 
 **For Python:**
-- Install "Pylance" and "Python" extensions
+- Install "Pylance" and "Python" extensions from VS Code Marketplace
+
 ![Language Server Integration](docs/assets/language_server.png)
 
 **For Java:**
 - Install "Oracle Java Extension Pack" from VS Code Marketplace
 
 **For Go:**
-- Install "Go" extension
+- Install "Go" extension from VS Code Marketplace
 - Enable semantic tokens in settings:
 
 ```json
@@ -242,37 +272,45 @@ Download the extension named `LSPRAG`. Although Cursor is compatible with VSCode
 
 #### 4. Open Your Project
 
-It can be any project written in Python, Java or Golang.
+Open any project written in Python, Java, or Go.
 
-If you don't know which project to test, you can directly clone our project and move to its demo files:
-- `git clone https://github.com/THU-WingTecher/LSPRAG.git`
-- Navigate to the demo test files: `LSPRAG/src/test/fixtures/python`
-  - At Editor, click left-up `File` -> `Open Folder` -> Select workspace to `LSPRAG/src/test/fixtures/python`
+If you don't have a project to test with, you can clone our repository and use the demo files:
 
-**[Optional] Test core utilities:**
-- You can check out your current setting by calling `Cmd/Ctrl + Shift + P => LSPRAG: Show Current Settings`
-- You can test your LLM availability by calling `Cmd/Ctrl + Shift + P => LSPRAG: Test LLM`
-- You can test your Language Server availability by calling `Cmd/Ctrl + Shift + P => LSPRAG: Test Language Server`
+```bash
+git clone https://github.com/THU-WingTecher/LSPRAG.git
+```
+
+Then navigate to the demo test files: `LSPRAG/src/test/fixtures/python`
+- In the editor, click `File` → `Open Folder` → Select `LSPRAG/src/test/fixtures/python`
+
+**[Optional] Test Core Utilities:**
+- Check your current settings: `Cmd/Ctrl + Shift + P` → `LSPRAG: Show Current Settings`
+- Test LLM availability: `Cmd/Ctrl + Shift + P` → `LSPRAG: Test LLM`
+- Test Language Server availability: `Cmd/Ctrl + Shift + P` → `LSPRAG: Test Language Server`
 
 #### 5. Generate Tests
 
 - Navigate to any function or method
 - Right-click within the function definition
 - Select **"LSPRAG: Generate Unit Test"** from the context menu
-  ![Generate Unit test](docs/assets/CommandFig.png)
+
+![Generate Unit test](docs/assets/CommandFig.png)
+
 - Wait for generation to complete
-  ![Waiting](docs/assets/loading.png)
+
+![Waiting](docs/assets/loading.png)
 
 #### 6. Review & Deploy
 
-- Generated tests will appear with accept/reject options
-  <img src="docs/assets/UnitGenResult.png" alt="LSPRAG Logo" width="200">
+Generated tests will appear with accept/reject options:
+
+<img src="docs/assets/UnitGenResult.png" alt="LSPRAG Logo" width="200">
 
 #### 7. Final Result
 
-- All logs including LLM prompt and specific cfg, and diagnostic-fix histories will be saved under `{your-workspace}/lsprag-workspace/`
-- If you click [Accept] the test file, the test file will be saved at `{your-workspace}/lsprag-tests`
-- You can change the save path by changing default value of save path. You can change it through VS Code Extension settings at the same interface with set up LLM.
+- All logs (including LLM prompts, CFG paths, and diagnostic-fix histories) will be saved under `{your-workspace}/lsprag-workspace/`
+- If you click **[Accept]**, the test file will be saved at `{your-workspace}/lsprag-tests`
+- You can change the save path through VS Code Extension settings (the same interface where you configured the LLM)
 
 ---
 
