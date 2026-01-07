@@ -91,7 +91,12 @@ async function main() {
     // Add after installation
   const installedExtensions = cp.execSync(
     `${cliPath} ${args.join(' ')} --list-extensions`,
-    { encoding: 'utf-8' }
+    { 
+      encoding: 'utf-8', 
+      timeout: 5000, 
+      stdio: 'pipe',
+      env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
+    }
   );
   console.log('installedExtensions', installedExtensions);
     // Use cp.spawn / cp.exec for custom setup
@@ -101,7 +106,8 @@ async function main() {
 		[...args, '--install-extension', 'ms-python.python', '--install-extension', 'redhat.java', '--install-extension', 'golang.go', '--install-extension', 'ms-vscode.cpptools'],
 		{
         encoding: 'utf-8',
-        stdio: 'inherit'
+        stdio: 'inherit',
+        env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
       }
     );
     const privateConfig = loadPrivateConfig();

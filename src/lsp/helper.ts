@@ -191,21 +191,17 @@ export async function updateJavaWorkspaceConfig(settingsPath: string) {
 export async function reloadJavaLanguageServer() {
     try {
         // Clean Java Language Server Workspace
-        await vscode.commands.executeCommand('java.clean.workspace');
-        
-        // Wait for the clean operation to complete
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Force update project configuration
-        await vscode.commands.executeCommand('java.projectConfiguration.update');
-        
+        await vscode.commands.executeCommand(
+            "java.server.restart"
+          );
+        // await vscode.commands.executeCommand('java.clean.workspace');
+
         console.log('Java Language Server reloaded successfully');
     } catch (error) {
         console.error('Error reloading Java Language Server:', error);
         throw error;
     }
 }
-
 export async function addJavaTestPath(testPath: string) {
     try {
         await updateJavaWorkspaceConfig(testPath);

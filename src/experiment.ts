@@ -364,7 +364,7 @@ export async function runGenerateTestCodeSuite(
         existingEntries = JSON.parse(prev);
     } catch {}
     await fs.promises.writeFile(testFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
-    return;
+    // return;
     console.log(`#### Test file map has been saved to ${testFileMapPath}`);
     // Generate test promises with progress tracking
     const testGenerationPromises = symbolPairsToProcess.map(symbolFilePair => 
