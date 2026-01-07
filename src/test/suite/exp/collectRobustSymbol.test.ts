@@ -94,7 +94,7 @@ export async function measureSymbolRobustness(
 
 suite('Experiment Test Suite', () => {
     const pythonInterpreterPath = "/root/miniconda3/envs/black/bin/python";
-    const projectName = "commons-csv";
+    const projectName = "black";
     
     const languageId = getProjectLanguage(projectName as ProjectConfigName);
     const projectPath = getProjectWorkspace(projectName as ProjectConfigName);

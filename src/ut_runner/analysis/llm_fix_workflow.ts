@@ -8,7 +8,7 @@ import { Analyzer } from '../analyzer';
 import { buildEnv } from '../runner';
 import { TestCaseResult, ExaminationResult } from '../types';
 import { LLMLogs } from '../../log';
-import { getSymbolFromDocument } from '../../lsp/symbol';
+import { getSymbolFromDocument, getSymbolByLocation, getSymbolDetail, isFunctionSymbol } from '../../lsp/symbol';
 import { 
   categorizeAssertionError, 
   loadCategoryStructure, 
@@ -24,6 +24,9 @@ import {
 import { logFixDiff, exportFixDiffSummary, exportDetailedFixReport, generateSimpleDiffReport } from './fix_diff_reporter';
 import { getPythonExtraPaths } from '../../lsp/helper';
 import { assert } from 'console';
+import { findTemplateFile } from '../../prompts/promptBuilder';
+import { getDecodedTokensFromSymbol } from '../../lsp/token';
+import { isBetweenFocalMethod, retrieveDefs } from '../../lsp/definition';
 
 interface ExaminationResults {
   summary: {
@@ -191,6 +194,71 @@ export class LLMFixWorkflow {
   }
 
   /**
+   * Collect signatures of functions invoked by the focal symbol.
+   */
+  private async getInvokedFunctionSignatures(testEntry: any): Promise<string[]> {
+    try {
+      const symbolName = testEntry.symbol_name || testEntry.symbolName;
+      if (!symbolName || !testEntry.source_file) {
+        return [];
+      }
+
+      const document = await vscode.workspace.openTextDocument(testEntry.source_file);
+      const focalSymbol = await getSymbolFromDocument(document, symbolName);
+      if (!focalSymbol) {
+        return [];
+      }
+
+      const tokens = await getDecodedTokensFromSymbol(document, focalSymbol);
+      if (!tokens.length) {
+        return [];
+      }
+
+      const tokensWithDefs = await retrieveDefs(document, tokens);
+      const unique = new Map<string, string>();
+
+      for (const token of tokensWithDefs) {
+        if (!token.definition?.length) {
+          continue;
+        }
+        if (token.type !== 'function' && token.type !== 'method') {
+          continue;
+        }
+
+        const def = token.definition[0];
+        if (isBetweenFocalMethod(def.range, focalSymbol)) {
+          continue;
+        }
+
+        const defDoc = await vscode.workspace.openTextDocument(def.uri);
+        const defSymbol = await getSymbolByLocation(defDoc, def.range.start);
+        if (!defSymbol || !isFunctionSymbol(defSymbol)) {
+          continue;
+        }
+
+        const signature = getSymbolDetail(defDoc, defSymbol);
+        if (signature) {
+          const key = `${def.uri.toString()}:${defSymbol.selectionRange.start.line}:${defSymbol.selectionRange.start.character}`;
+          unique.set(key, signature.trim());
+        }
+      }
+
+      return Array.from(unique.values());
+    } catch (error) {
+      console.warn(`[LLM_FIX] Failed to extract invoked function signatures:`, error);
+      return [];
+    }
+  }
+
+  private async extractContextForDefaultValueMismatch(testEntry: any): Promise<string[]> {
+    return this.getInvokedFunctionSignatures(testEntry);
+  }
+
+  private async extractContextForSentinelRedefinitionMismatch(testEntry: any): Promise<string[]> {
+    return this.getInvokedFunctionSignatures(testEntry);
+  }
+
+  /**
    * Create LLM prompt for fixing test code
    */
   private createRedeclaredErrorFixPrompt(
@@ -259,6 +327,417 @@ export class LLMFixWorkflow {
           { role: 'system' as const, content: systemPrompt },
           { role: 'user' as const, content: userPrompt }
       ];
+  }
+
+  /**
+   * Load default value mismatch template
+   */
+  private loadDefaultValueMismatchTemplate(): string {
+    const possiblePaths = [
+      path.join(__dirname, '../../../templates/cate_default_value_mismatching.md'),
+      path.join(__dirname, '../../templates/cate_default_value_mismatching.md'),
+      path.join(process.cwd(), 'templates/cate_default_value_mismatching.md')
+    ];
+
+    for (const templatePath of possiblePaths) {
+      if (fs.existsSync(templatePath)) {
+        return fs.readFileSync(templatePath, 'utf-8');
+      }
+    }
+
+    throw new Error('cate_default_value_mismatching.md not found in any of the expected locations.');
+  }
+
+  /**
+   * Load sentinel redefinition mismatch template
+   */
+  private loadSentinelRedefinitionMismatchTemplate(): string {
+    const possiblePaths = [
+      path.join(__dirname, '../../../templates/sentinel_redefinition_mismatch.md'),
+      path.join(__dirname, '../../templates/sentinel_redefinition_mismatch.md'),
+      path.join(process.cwd(), 'templates/sentinel_redefinition_mismatch.md')
+    ];
+
+    for (const templatePath of possiblePaths) {
+      if (fs.existsSync(templatePath)) {
+        return fs.readFileSync(templatePath, 'utf-8');
+      }
+    }
+
+    throw new Error('sentinel_redefinition_mismatch.md not found in any of the expected locations.');
+  }
+
+  /**
+   * Create LLM prompt for fixing sentinel redefinition mismatch errors
+   */
+  private createSentinelRedefinitionMismatchFixPrompt(
+    sourceCode: string,
+    testCode: string,
+    assertionErrors: string,
+    symbolName: string,
+    previousAttempts: FixAttempt[] = []
+  ): any[] {
+    const template = this.loadSentinelRedefinitionMismatchTemplate();
+    
+    const systemPrompt = `You are an expert software testing assistant specializing in fixing Constant / Sentinel Redefinition Mismatch errors.
+
+${template}
+
+Your task is to:
+1. Identify if this is a Sentinel Redefinition Mismatch (test redefines CONST_test, implementation uses CONST_impl)
+2. Find the locally redefined constant/sentinel in the test code
+3. Fix the test by importing the constant from the implementation module instead of redefining it
+
+Focus on:
+- Locally redefined constants/sentinels in the test file
+- Missing imports of constants from the implementation module
+- Tuple/list/object mismatches where only sentinel values differ
+- Identity comparison (is) failures for sentinel objects
+
+Be concise and focused on fixing the specific sentinel redefinition mismatch.
+You first explain the root cause (what constant is redefined).
+After that, you suggest the fixed test code.
+Test code should be wrapped in \`\`\` code blocks.`;
+
+    // Build fix history section
+    let fixHistorySection = '';
+    if (previousAttempts.length > 0) {
+      fixHistorySection = '\n\nPrevious Fix Attempts:\n';
+      for (let i = 0; i < previousAttempts.length; i++) {
+        const prevAttempt = previousAttempts[i];
+        const prevTestCode = i === 0 ? JSON.parse(prevAttempt.prompt).testCode : previousAttempts[i - 1].fixedCode;
+        const diff = generateSimpleDiffReport(prevTestCode, prevAttempt.fixedCode);
+        
+        fixHistorySection += `\nAttempt ${prevAttempt.round}:\n`;
+        fixHistorySection += `Result: ${prevAttempt.testResult}\n`;
+        if (prevAttempt.errorMessage) {
+          fixHistorySection += `Error: ${prevAttempt.errorMessage.substring(0, 200)}${prevAttempt.errorMessage.length > 200 ? '...' : ''}\n`;
+        }
+        fixHistorySection += `\nCode Changes:\n\`\`\`\n${diff}\n\`\`\`\n`;
+      }
+      fixHistorySection += '\nPlease learn from these previous attempts and provide a better fix.\n';
+    }
+
+    const userPrompt = `Given the following source code and test code with assertion errors, analyze if this is a Sentinel Redefinition Mismatch error and suggest a fix.
+
+Focal Symbol: ${symbolName}
+
+Source Code:
+\`\`\`python
+${sourceCode}
+\`\`\`
+
+Test Code (with errors):
+\`\`\`python
+${testCode}
+\`\`\`
+
+Assertion Errors:
+\`\`\`
+${assertionErrors}
+\`\`\`
+${fixHistorySection}
+Please:
+1. Analyze if this is a Sentinel Redefinition Mismatch (test redefines CONST_test ≠ implementation's CONST_impl)
+2. Identify the specific constant/sentinel that is redefined locally
+3. Provide the fixed test code that imports the constant from the implementation module
+
+You should only return the test function which starts with "def" and code should be wrapped in \`\`\` code blocks.
+For example, 
+\`\`\`
+def test_fixed(arg1, ...):
+    assert True
+\`\`\`
+`;
+
+    return [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+  }
+
+  /**
+   * Check if error is a default value mismatch (sequential check #1)
+   */
+  private async isDefaultValueMismatch(
+    sourceCode: string,
+    testCode: string,
+    assertionErrors: string,
+    symbolName: string
+  ): Promise<boolean> {
+    const template = this.loadDefaultValueMismatchTemplate();
+    
+    const systemPrompt = `You are an expert software testing assistant specializing in categorizing assertion errors BEFORE fixing them.
+
+${template}
+
+Your task is to analyze the source code, test code, and assertion errors to determine if this is a Default Value Mismatch error.
+
+A Default Value Mismatch occurs when:
+- The test implicitly assumes a default value (P_expected)
+- The implementation omits a parameter and uses a library/API/runtime default (P_default)
+- P_expected ≠ P_default, causing systematic assertion differences
+
+Look for these signals:
+- Systematic differences in formatting width/indentation, numeric precision, encoding, timezone, ordering
+- Helper/library calls without explicit arguments in the source code
+- Assertion errors showing consistent differences (e.g., spacing, precision, format)
+
+Respond with ONLY a JSON object:
+{
+  "isDefaultValueMismatch": true/false,
+  "confidence": "high" | "medium" | "low",
+  "reasoning": "brief explanation"
+}`;
+
+    const userPrompt = `Analyze if this error is a Default Value Mismatch:
+
+Focal Symbol: ${symbolName}
+
+Source Code:
+\`\`\`python
+${sourceCode}
+\`\`\`
+
+Test Code:
+\`\`\`python
+${testCode}
+\`\`\`
+
+Assertion Errors:
+\`\`\`
+${assertionErrors}
+\`\`\`
+
+Is this a Default Value Mismatch error? Respond with JSON only.`;
+
+    const messages = [
+      { role: 'system' as const, content: systemPrompt },
+      { role: 'user' as const, content: userPrompt }
+    ];
+
+    const logObj: LLMLogs = { tokenUsage: '', result: '', prompt: userPrompt, model: '' };
+
+    try {
+      const response = await invokeLLM(messages, logObj);
+      
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.isDefaultValueMismatch === true && 
+            (parsed.confidence === 'high' || parsed.confidence === 'medium')) {
+          console.log(`[CATEGORIZATION] Detected Default Value Mismatch (confidence: ${parsed.confidence})`);
+          console.log(`[CATEGORIZATION] Reasoning: ${parsed.reasoning}`);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.warn(`[CATEGORIZATION] Failed to check default value mismatch:`, error);
+    }
+    
+    return false;
+  }
+
+  /**
+   * Check if error is a sentinel redefinition mismatch (sequential check #2)
+   */
+  private async isSentinelRedefinitionMismatch(
+    sourceCode: string,
+    testCode: string,
+    assertionErrors: string,
+    symbolName: string
+  ): Promise<boolean> {
+    const template = this.loadSentinelRedefinitionMismatchTemplate();
+    
+    const systemPrompt = `You are an expert software testing assistant specializing in categorizing assertion errors BEFORE fixing them.
+
+${template}
+
+Your task is to analyze the source code, test code, and assertion errors to determine if this is a Sentinel Redefinition Mismatch error.
+
+A Sentinel Redefinition Mismatch occurs when:
+- The test redefines a constant/sentinel locally (CONST_test)
+- The implementation uses the original constant from the module (CONST_impl)
+- CONST_test ≠ CONST_impl, causing assertion failures
+
+Look for these signals:
+- Tuple/list/object mismatch where only sentinel field differs
+- Test file redefines constants locally (not imported)
+- Identity comparison (is) failures for constants
+- Assertion errors mentioning sentinel/constant value mismatches
+
+Respond with ONLY a JSON object:
+{
+  "isSentinelRedefinitionMismatch": true/false,
+  "confidence": "high" | "medium" | "low",
+  "reasoning": "brief explanation"
+}`;
+
+    const userPrompt = `Analyze if this error is a Sentinel Redefinition Mismatch:
+
+Focal Symbol: ${symbolName}
+
+Source Code:
+\`\`\`python
+${sourceCode}
+\`\`\`
+
+Test Code:
+\`\`\`python
+${testCode}
+\`\`\`
+
+Assertion Errors:
+\`\`\`
+${assertionErrors}
+\`\`\`
+
+Is this a Sentinel Redefinition Mismatch error? Respond with JSON only.`;
+
+    const messages = [
+      { role: 'system' as const, content: systemPrompt },
+      { role: 'user' as const, content: userPrompt }
+    ];
+
+    const logObj: LLMLogs = { tokenUsage: '', result: '', prompt: userPrompt, model: '' };
+
+    try {
+      const response = await invokeLLM(messages, logObj);
+      
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.isSentinelRedefinitionMismatch === true && 
+            (parsed.confidence === 'high' || parsed.confidence === 'medium')) {
+          console.log(`[CATEGORIZATION] Detected Sentinel Redefinition Mismatch (confidence: ${parsed.confidence})`);
+          console.log(`[CATEGORIZATION] Reasoning: ${parsed.reasoning}`);
+          return true;
+        }
+      }
+    } catch (error) {
+      console.warn(`[CATEGORIZATION] Failed to check sentinel redefinition mismatch:`, error);
+    }
+    
+    return false;
+  }
+
+  /**
+   * Pre-fix categorization: Sequential check of error categories
+   * This runs BEFORE fixing to route to the appropriate subagent
+   * Checks categories one by one: default_value_mismatch -> sentinel_redefinition_mismatch -> general
+   */
+  private async detectErrorCategory(
+    sourceCode: string,
+    testCode: string,
+    assertionErrors: string,
+    symbolName: string
+  ): Promise<"default_value_mismatch" | "sentinel_redefinition_mismatch" | "general" | "redefined"> {
+    // Step 1: Check if it's a default value mismatch
+    console.log(`[CATEGORIZATION] Checking if error is Default Value Mismatch...`);
+    if (await this.isDefaultValueMismatch(sourceCode, testCode, assertionErrors, symbolName)) {
+      return "default_value_mismatch";
+    }
+    
+    // Step 2: Check if it's a sentinel redefinition mismatch
+    // console.log(`[CATEGORIZATION] Checking if error is Sentinel Redefinition Mismatch...`);
+    // if (await this.isSentinelRedefinitionMismatch(sourceCode, testCode, assertionErrors, symbolName)) {
+    //   return "sentinel_redefinition_mismatch";
+    // }
+    
+    // Step 3: Default to general if no specific category matched
+    console.log(`[CATEGORIZATION] No specific category matched, defaulting to general`);
+    return "general";
+  }
+
+  /**
+   * Create LLM prompt for fixing default value mismatch errors
+   */
+  private createDefaultValueMismatchFixPrompt(
+    sourceCode: string,
+    testCode: string,
+    assertionErrors: string,
+    symbolName: string,
+    previousAttempts: FixAttempt[] = []
+  ): any[] {
+    const template = this.loadDefaultValueMismatchTemplate();
+    
+    const systemPrompt = `You are an expert software testing assistant specializing in fixing Default Value Mismatch errors.
+
+${template}
+
+Your task is to:
+1. Identify if this is a Default Value Mismatch error (test assumes P_expected, implementation uses P_default)
+2. Find the omitted parameter in the focal method that should be explicitly passed
+3. If It is not the Default Value Mismatch error, r
+3. Fix the test by either:
+   - Updating the test expectation to match the actual default (P_default), OR
+   - Identifying and documenting what parameter needs to be explicitly passed in the source code
+
+Focus on:
+- Systematic differences in formatting, precision, encoding, timezone, ordering
+- Helper/library calls without explicit arguments
+- Parameters that have non-trivial defaults
+
+Be concise and focused on fixing the specific default value mismatch.
+You first explain the root cause (what default value is mismatched).
+After that, you suggest the fixed test code.
+Test code should be wrapped in \`\`\` code blocks.`;
+
+    // Build fix history section
+    let fixHistorySection = '';
+    if (previousAttempts.length > 0) {
+      fixHistorySection = '\n\nPrevious Fix Attempts:\n';
+      for (let i = 0; i < previousAttempts.length; i++) {
+        const prevAttempt = previousAttempts[i];
+        const prevTestCode = i === 0 ? JSON.parse(prevAttempt.prompt).testCode : previousAttempts[i - 1].fixedCode;
+        const diff = generateSimpleDiffReport(prevTestCode, prevAttempt.fixedCode);
+        
+        fixHistorySection += `\nAttempt ${prevAttempt.round}:\n`;
+        fixHistorySection += `Result: ${prevAttempt.testResult}\n`;
+        if (prevAttempt.errorMessage) {
+          fixHistorySection += `Error: ${prevAttempt.errorMessage.substring(0, 200)}${prevAttempt.errorMessage.length > 200 ? '...' : ''}\n`;
+        }
+        fixHistorySection += `\nCode Changes:\n\`\`\`\n${diff}\n\`\`\`\n`;
+      }
+      fixHistorySection += '\nPlease learn from these previous attempts and provide a better fix.\n';
+    }
+
+    const userPrompt = `Given the following source code and test code with assertion errors, analyze if this is a Default Value Mismatch error and suggest a fix.
+
+Focal Symbol: ${symbolName}
+
+Source Code:
+\`\`\`python
+${sourceCode}
+\`\`\`
+
+Test Code (with errors):
+\`\`\`python
+${testCode}
+\`\`\`
+
+Assertion Errors:
+\`\`\`
+${assertionErrors}
+\`\`\`
+${fixHistorySection}
+Please:
+1. Analyze if this is a Default Value Mismatch (test assumes P_expected ≠ implementation's P_default)
+2. Identify the specific parameter with mismatched default value
+3. Provide the fixed test code that accounts for the actual default value
+
+You should only return the test function which starts with "def" and code should be wrapped in \`\`\` code blocks.
+For example, 
+\`\`\`
+def test_fixed(arg1, ...):
+    assert True
+\`\`\`
+`;
+
+    return [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
   }
 
   /**
@@ -365,6 +844,10 @@ console.log("userPrompt: ", userPrompt);
       prompt = this.createAssertionErrorFixPrompt(sourceCode, testCode, assertionErrors, symbolName, previousAttempts);
     } else if (cate === "redefined") {
       prompt = this.createRedeclaredErrorFixPrompt(sourceCode, testCode, assertionErrors, symbolName, examinationResult, previousAttempts);
+    } else if (cate === "default_value_mismatch") {
+      prompt = this.createDefaultValueMismatchFixPrompt(sourceCode, testCode, assertionErrors, symbolName, previousAttempts);
+    } else if (cate === "sentinel_redefinition_mismatch") {
+      prompt = this.createSentinelRedefinitionMismatchFixPrompt(sourceCode, testCode, assertionErrors, symbolName, previousAttempts);
     } else {
       throw new Error(`Invalid category: ${cate}`);
     }
@@ -734,8 +1217,9 @@ console.log("userPrompt: ", userPrompt);
    * Process a single test case
    * 
    * Workflow:
-   * 1. If testEntry has redefined symbols -> try fixTestWithLLM(cate="redefined")
-   * 2. If not fixed -> try fixTestWithLLM(cate="general")
+   * 1. Categorize the error (pre-fix categorization)
+   * 2. Route to appropriate specialized subagent based on category
+   * 3. Fall back to general subagent if specialized subagent fails
    */
   private async processTestCase(testEntry: any): Promise<boolean> {
     const testCaseName = testEntry.test_case.split('::').at(-1);
@@ -746,39 +1230,79 @@ console.log("userPrompt: ", userPrompt);
     
     // Get required data
     const sourceDocument = await vscode.workspace.openTextDocument(testEntry.source_file);
+    const contextForDefaultValueMismatch = await this.extractContextForDefaultValueMismatch(testEntry);
+    const contextForSentinelRedefinitionMismatch = await this.extractContextForSentinelRedefinitionMismatch(testEntry);
     const sourceCode = await this.extractSourceCode(testEntry, sourceDocument);
     const originalTestCode = await this.getPythonTestCode(testFile, testCaseName);
     const symbolName = testEntry.symbolName || testEntry.symbol_name || 'unknown';
+    const assertionErrors = this.getAssertionErrors(testEntry);
     
     if (!sourceCode || !originalTestCode) {
       console.log(`[LLM_FIX] Missing source or test code`);
       return false;
     }
     
-    // const hasRedefinedSymbols = testEntry.examination?.hasRedefinedSymbols === true;
+    // Step 1: Categorize the error BEFORE fixing
+    console.log(`[LLM_FIX] Categorizing error for ${testCaseName}...`);
+    let detectedCategory: "redefined" | "general" | "default_value_mismatch" | "sentinel_redefinition_mismatch" = "general";
     
-    // // Step 1: Try redefined subagent if applicable
-    // if (hasRedefinedSymbols) {
-    //   console.log(`[LLM_FIX] Detected redefined symbols, invoking redefined subagent`);
-    //   const redefinedSuccess = await this.tryFixWithSubagent(
-    //     testEntry, 
-    //     testCaseName, 
-    //     testFile, 
-    //     sourceCode, 
-    //     originalTestCode, 
-    //     symbolName, 
-    //     "redefined"
-    //   );
-      
-    //   if (redefinedSuccess) {
-    //     console.log(`[LLM_FIX] Successfully fixed with redefined subagent`);
-    //     return true;
-    //   }
-      
-    //   console.log(`[LLM_FIX] Redefined subagent failed, falling back to general subagent`);
-    // }
+    // Check for redefined symbols first (from examination data)
+    const hasRedefinedSymbols = testEntry.examination?.hasRedefinedSymbols === true;
+    if (hasRedefinedSymbols) {
+      console.log(`[LLM_FIX] Detected redefined symbols from examination data`);
+      // Sentinel redefinition mismatch can only happen if there are redefined symbols
+      // Check if it's specifically a sentinel redefinition mismatch
+      try {
+        if (await this.isSentinelRedefinitionMismatch(sourceCode, originalTestCode, assertionErrors, symbolName)) {
+          detectedCategory = "sentinel_redefinition_mismatch";
+          console.log(`[LLM_FIX] Categorized as: sentinel_redefinition_mismatch`);
+        } else {
+          detectedCategory = "general";
+          console.log(`[LLM_FIX] Categorized as: general (general redefinition)`);
+        }
+      } catch (error) {
+        console.warn(`[LLM_FIX] Failed to check sentinel redefinition, defaulting to general:`, error);
+        detectedCategory = "general";
+      }
+    } 
+    if (detectedCategory === "general") {
+      // No redefined symbols, check for other categories
+      try {
+        detectedCategory = await this.detectErrorCategory(
+          sourceCode,
+          originalTestCode,
+          assertionErrors,
+          symbolName
+        );
+        console.log(`[LLM_FIX] Categorized as: ${detectedCategory}`);
+      } catch (error) {
+        console.warn(`[LLM_FIX] Failed to categorize error, defaulting to general:`, error);
+        detectedCategory = "general";
+      }
+    }
     
-    // Step 2: Try general subagent
+    // Step 2: Try the detected category's specialized subagent
+    if (detectedCategory !== "general") {
+      console.log(`[LLM_FIX] Trying ${detectedCategory} subagent first`);
+      const specializedSuccess = await this.tryFixWithSubagent(
+        testEntry,
+        testCaseName,
+        testFile,
+        sourceCode,
+        originalTestCode,
+        symbolName,
+        detectedCategory
+      );
+      
+      if (specializedSuccess) {
+        console.log(`[LLM_FIX] Successfully fixed with ${detectedCategory} subagent`);
+        return true;
+      }
+      
+      console.log(`[LLM_FIX] ${detectedCategory} subagent failed, falling back to general subagent`);
+    }
+    
+    // Step 3: Fall back to general subagent
     console.log(`[LLM_FIX] Invoking general subagent`);
     const generalSuccess = await this.tryFixWithSubagent(
       testEntry,
@@ -809,9 +1333,9 @@ console.log("userPrompt: ", userPrompt);
     sourceCode: string,
     originalTestCode: string,
     symbolName: string,
-    category: "redefined" | "general"
+    category: "redefined" | "general" | "default_value_mismatch" | "sentinel_redefinition_mismatch"
   ): Promise<boolean> {
-    // Specific tasks (redefined) get 1 chance, general tasks get multiple chances
+    // Specific tasks (redefined) get 1 chance, general and specialized tasks get multiple chances
     const maxAttempts = category === "redefined" ? 1 : 3;
     console.log(`[LLM_FIX] Starting ${category} subagent (max attempts: ${maxAttempts})`);
     

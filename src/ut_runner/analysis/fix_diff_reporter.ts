@@ -6,7 +6,7 @@ export interface FixDiffEntry {
   timestamp: string;
   originalCode: string;
   fixedCode: string;
-  subagentCategory: 'redefined' | 'general';
+  subagentCategory: 'redefined' | 'general' | 'default_value_mismatch' | 'sentinel_redefinition_mismatch';
   attemptNumber: number;
   totalAttempts: number;
   success: boolean;
@@ -32,6 +32,16 @@ export interface FixDiffReport {
       failedFixes: number;
     };
     general: {
+      totalAttempts: number;
+      successfulFixes: number;
+      failedFixes: number;
+    };
+    default_value_mismatch: {
+      totalAttempts: number;
+      successfulFixes: number;
+      failedFixes: number;
+    };
+    sentinel_redefinition_mismatch: {
       totalAttempts: number;
       successfulFixes: number;
       failedFixes: number;
@@ -98,6 +108,16 @@ export function createFixDiffReport(): FixDiffReport {
         totalAttempts: 0,
         successfulFixes: 0,
         failedFixes: 0
+      },
+      default_value_mismatch: {
+        totalAttempts: 0,
+        successfulFixes: 0,
+        failedFixes: 0
+      },
+      sentinel_redefinition_mismatch: {
+        totalAttempts: 0,
+        successfulFixes: 0,
+        failedFixes: 0
       }
     },
     fixes: []
@@ -161,7 +181,7 @@ export function logFixDiff(
   testCaseName: string,
   originalCode: string,
   fixedCode: string,
-  subagentCategory: 'redefined' | 'general',
+  subagentCategory: 'redefined' | 'general' | 'default_value_mismatch' | 'sentinel_redefinition_mismatch',
   attemptNumber: number,
   totalAttempts: number,
   success: boolean,
@@ -222,6 +242,24 @@ export function generateFixDiffSummary(report: FixDiffReport): string {
   lines.push(`  Failed: ${report.subagentStats.general.failedFixes}`);
   if (report.subagentStats.general.totalAttempts > 0) {
     lines.push(`  Success Rate: ${((report.subagentStats.general.successfulFixes / (report.subagentStats.general.successfulFixes + report.subagentStats.general.failedFixes)) * 100).toFixed(1)}%`);
+  }
+  lines.push('');
+  
+  lines.push('Default Value Mismatch Subagent:');
+  lines.push(`  Total Attempts: ${report.subagentStats.default_value_mismatch.totalAttempts}`);
+  lines.push(`  Successful: ${report.subagentStats.default_value_mismatch.successfulFixes}`);
+  lines.push(`  Failed: ${report.subagentStats.default_value_mismatch.failedFixes}`);
+  if (report.subagentStats.default_value_mismatch.totalAttempts > 0) {
+    lines.push(`  Success Rate: ${((report.subagentStats.default_value_mismatch.successfulFixes / (report.subagentStats.default_value_mismatch.successfulFixes + report.subagentStats.default_value_mismatch.failedFixes)) * 100).toFixed(1)}%`);
+  }
+  lines.push('');
+  
+  lines.push('Sentinel Redefinition Mismatch Subagent:');
+  lines.push(`  Total Attempts: ${report.subagentStats.sentinel_redefinition_mismatch.totalAttempts}`);
+  lines.push(`  Successful: ${report.subagentStats.sentinel_redefinition_mismatch.successfulFixes}`);
+  lines.push(`  Failed: ${report.subagentStats.sentinel_redefinition_mismatch.failedFixes}`);
+  if (report.subagentStats.sentinel_redefinition_mismatch.totalAttempts > 0) {
+    lines.push(`  Success Rate: ${((report.subagentStats.sentinel_redefinition_mismatch.successfulFixes / (report.subagentStats.sentinel_redefinition_mismatch.successfulFixes + report.subagentStats.sentinel_redefinition_mismatch.failedFixes)) * 100).toFixed(1)}%`);
   }
   lines.push('');
   
@@ -382,6 +420,26 @@ export function generateDetailedFixReport(report: FixDiffReport): string {
   if (report.subagentStats.general.successfulFixes + report.subagentStats.general.failedFixes > 0) {
     const generalRate = (report.subagentStats.general.successfulFixes / (report.subagentStats.general.successfulFixes + report.subagentStats.general.failedFixes)) * 100;
     lines.push(`- **Success Rate:** ${generalRate.toFixed(1)}%`);
+  }
+  lines.push('');
+  
+  lines.push('### Default Value Mismatch Subagent');
+  lines.push(`- **Total Attempts:** ${report.subagentStats.default_value_mismatch.totalAttempts}`);
+  lines.push(`- **Successful Fixes:** ${report.subagentStats.default_value_mismatch.successfulFixes}`);
+  lines.push(`- **Failed Fixes:** ${report.subagentStats.default_value_mismatch.failedFixes}`);
+  if (report.subagentStats.default_value_mismatch.successfulFixes + report.subagentStats.default_value_mismatch.failedFixes > 0) {
+    const defaultMismatchRate = (report.subagentStats.default_value_mismatch.successfulFixes / (report.subagentStats.default_value_mismatch.successfulFixes + report.subagentStats.default_value_mismatch.failedFixes)) * 100;
+    lines.push(`- **Success Rate:** ${defaultMismatchRate.toFixed(1)}%`);
+  }
+  lines.push('');
+  
+  lines.push('### Sentinel Redefinition Mismatch Subagent');
+  lines.push(`- **Total Attempts:** ${report.subagentStats.sentinel_redefinition_mismatch.totalAttempts}`);
+  lines.push(`- **Successful Fixes:** ${report.subagentStats.sentinel_redefinition_mismatch.successfulFixes}`);
+  lines.push(`- **Failed Fixes:** ${report.subagentStats.sentinel_redefinition_mismatch.failedFixes}`);
+  if (report.subagentStats.sentinel_redefinition_mismatch.successfulFixes + report.subagentStats.sentinel_redefinition_mismatch.failedFixes > 0) {
+    const sentinelMismatchRate = (report.subagentStats.sentinel_redefinition_mismatch.successfulFixes / (report.subagentStats.sentinel_redefinition_mismatch.successfulFixes + report.subagentStats.sentinel_redefinition_mismatch.failedFixes)) * 100;
+    lines.push(`- **Success Rate:** ${sentinelMismatchRate.toFixed(1)}%`);
   }
   lines.push('');
   
