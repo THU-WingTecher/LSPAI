@@ -134,13 +134,6 @@ export function parseCode(response: string): string {
     return response.trim();
 }
 
-export async function getHover(document: vscode.TextDocument, symbol: vscode.DocumentSymbol): Promise<vscode.Hover | undefined> {
-    const hover = await VscodeRequestManager.hover(document.uri, symbol.selectionRange.start);
-    if (hover && hover.length > 0) {
-        return hover[0];
-}
-}
-
 export function removeComments(code: string): string {
     const commentRegex = [
         /\/\/[^\n]*\n/g,

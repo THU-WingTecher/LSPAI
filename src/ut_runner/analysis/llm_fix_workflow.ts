@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { invokeLLM } from '../../invokeLLM';
+import { getHover, extractHoverText } from '../../lsp/hover';
 import { parseCode } from '../../lsp/utils';
 import { makeExecutor } from '../executor';
 import { Analyzer } from '../analyzer';
@@ -22,9 +23,6 @@ import {
   logCategorizationDiff
 } from './category_diff_logger';
 import { logFixDiff, exportFixDiffSummary, exportDetailedFixReport, generateSimpleDiffReport } from './fix_diff_reporter';
-import { getPythonExtraPaths } from '../../lsp/helper';
-import { assert } from 'console';
-import { findTemplateFile } from '../../prompts/promptBuilder';
 import { getDecodedTokensFromSymbol } from '../../lsp/token';
 import { isBetweenFocalMethod, retrieveDefs } from '../../lsp/definition';
 
@@ -196,7 +194,7 @@ export class LLMFixWorkflow {
   /**
    * Collect signatures of functions invoked by the focal symbol.
    */
-  private async getInvokedFunctionSignatures(testEntry: any): Promise<string[]> {
+  async getInvokedFunctionSignatures(testEntry: any): Promise<string[]> {
     try {
       const symbolName = testEntry.symbol_name || testEntry.symbolName;
       if (!symbolName || !testEntry.source_file) {
@@ -236,10 +234,13 @@ export class LLMFixWorkflow {
           continue;
         }
 
-        const signature = getSymbolDetail(defDoc, defSymbol);
-        if (signature) {
+        // const signature = getSymbolDetail(defDoc, defSymbol);
+        // const signature = getHoverawait getHover(defDoc, defSymbol);
+        const hoverResults = await getHover(defDoc, defSymbol);
+        const hoverText = extractHoverText(hoverResults);
+        if (hoverText) {
           const key = `${def.uri.toString()}:${defSymbol.selectionRange.start.line}:${defSymbol.selectionRange.start.character}`;
-          unique.set(key, signature.trim());
+          unique.set(key, hoverText.trim());
         }
       }
 
@@ -255,7 +256,8 @@ export class LLMFixWorkflow {
   }
 
   private async extractContextForSentinelRedefinitionMismatch(testEntry: any): Promise<string[]> {
-    return this.getInvokedFunctionSignatures(testEntry);
+    return []
+    // return this.examineRedefinedSymbols(testEntry);
   }
 
   /**
@@ -550,21 +552,9 @@ Is this a Default Value Mismatch error? Respond with JSON only.`;
     const template = this.loadSentinelRedefinitionMismatchTemplate();
     
     const systemPrompt = `You are an expert software testing assistant specializing in categorizing assertion errors BEFORE fixing them.
+    Your task is to analyze the source code, test code, and assertion errors to determine if this is a Sentinel Redefinition Mismatch error.
 
 ${template}
-
-Your task is to analyze the source code, test code, and assertion errors to determine if this is a Sentinel Redefinition Mismatch error.
-
-A Sentinel Redefinition Mismatch occurs when:
-- The test redefines a constant/sentinel locally (CONST_test)
-- The implementation uses the original constant from the module (CONST_impl)
-- CONST_test ≠ CONST_impl, causing assertion failures
-
-Look for these signals:
-- Tuple/list/object mismatch where only sentinel field differs
-- Test file redefines constants locally (not imported)
-- Identity comparison (is) failures for constants
-- Assertion errors mentioning sentinel/constant value mismatches
 
 Respond with ONLY a JSON object:
 {
