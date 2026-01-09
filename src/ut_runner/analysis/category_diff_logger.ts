@@ -5,18 +5,17 @@ import { CategoryStructure, CategorizationResult, loadCategoryStructure } from '
 export interface CategoryDiff {
   timestamp: string;
   testCaseName: string;
-  action: 'added_to_existing' | 'created_small_category' | 'created_big_category';
+  action: 'added_to_existing' | 'created_big_category';
   bigCategory: string;
-  smallCategory: string;
   rootCauseSummary: string;
   reasoning: string;
   previousCategoryCount?: {
     bigCategories: number;
-    smallCategories: number;
+    testCases: number;
   };
   newCategoryCount?: {
     bigCategories: number;
-    smallCategories: number;
+    testCases: number;
   };
 }
 
@@ -27,7 +26,7 @@ export interface CategoryDiffLog {
   totalCategorizations: number;
   categoryStatistics: {
     totalBigCategories: number;
-    totalSmallCategories: number;
+    totalTestCases: number;
     categoryDistribution: Record<string, number>; // big category -> count of test cases
   };
   diffs: CategoryDiff[];
@@ -38,21 +37,22 @@ export interface CategoryDiffLog {
  */
 function calculateCategoryStats(categories: CategoryStructure): {
   totalBigCategories: number;
-  totalSmallCategories: number;
+  totalTestCases: number;
   categoryDistribution: Record<string, number>;
 } {
   const totalBigCategories = Object.keys(categories).length;
-  let totalSmallCategories = 0;
+  let totalTestCases = 0;
   const categoryDistribution: Record<string, number> = {};
 
-  for (const [bigCategory, smallCategories] of Object.entries(categories)) {
-    totalSmallCategories += (smallCategories as string[]).length;
-    categoryDistribution[bigCategory] = (smallCategories as string[]).length;
+  for (const [bigCategory, testCases] of Object.entries(categories)) {
+    const count = (testCases as string[]).length;
+    totalTestCases += count;
+    categoryDistribution[bigCategory] = count;
   }
 
   return {
     totalBigCategories,
-    totalSmallCategories,
+    totalTestCases,
     categoryDistribution
   };
 }
@@ -64,10 +64,6 @@ function determineAction(result: CategorizationResult): CategoryDiff['action'] {
   switch (result.categorizationDecision) {
     case '1':
       return 'added_to_existing';
-    case '2':
-      return 'created_small_category';
-    case '3':
-      return 'created_big_category';
     default:
       return 'created_big_category';
   }
@@ -89,16 +85,15 @@ export function createCategoryDiff(
     testCaseName: result.testCaseName,
     action: determineAction(result),
     bigCategory: result.bigCategory,
-    smallCategory: result.smallCategory,
     rootCauseSummary: result.rootCauseSummary,
     reasoning: result.reasoning,
     previousCategoryCount: {
       bigCategories: previousStats.totalBigCategories,
-      smallCategories: previousStats.totalSmallCategories
+      testCases: previousStats.totalTestCases
     },
     newCategoryCount: {
       bigCategories: newStats.totalBigCategories,
-      smallCategories: newStats.totalSmallCategories
+      testCases: newStats.totalTestCases
     }
   };
 }
@@ -125,7 +120,7 @@ export function createDiffLog(): CategoryDiffLog {
     totalCategorizations: 0,
     categoryStatistics: {
       totalBigCategories: 0,
-      totalSmallCategories: 0,
+      totalTestCases: 0,
       categoryDistribution: {}
     },
     diffs: []
@@ -197,12 +192,12 @@ export function generateDiffSummary(log: CategoryDiffLog): string {
   
   lines.push('=== Category Statistics ===');
   lines.push(`Total Big Categories: ${log.categoryStatistics.totalBigCategories}`);
-  lines.push(`Total Small Categories: ${log.categoryStatistics.totalSmallCategories}`);
+  lines.push(`Total Test Cases Tracked: ${log.categoryStatistics.totalTestCases}`);
   lines.push('');
   
   lines.push('=== Category Distribution ===');
   for (const [bigCategory, count] of Object.entries(log.categoryStatistics.categoryDistribution)) {
-    lines.push(`  ${bigCategory}: ${count} small categories`);
+    lines.push(`  ${bigCategory}: ${count} test case${count === 1 ? '' : 's'}`);
   }
   lines.push('');
   
@@ -221,7 +216,7 @@ export function generateDiffSummary(log: CategoryDiffLog): string {
   for (const diff of recentDiffs) {
     lines.push(`[${diff.timestamp}] ${diff.testCaseName}`);
     lines.push(`  Action: ${diff.action}`);
-    lines.push(`  Category: ${diff.bigCategory} → ${diff.smallCategory}`);
+    lines.push(`  Category: ${diff.bigCategory}`);
     lines.push(`  Summary: ${diff.rootCauseSummary}`);
     lines.push('');
   }
@@ -270,8 +265,8 @@ export function generateFinalCategorizationSummary(
   lines.push('## Overall Statistics');
   lines.push('');
   lines.push(`- **Total Big Categories:** ${log.categoryStatistics.totalBigCategories}`);
-  lines.push(`- **Total Small Categories:** ${log.categoryStatistics.totalSmallCategories}`);
-  lines.push(`- **Total Test Cases Categorized:** ${log.totalCategorizations}`);
+  lines.push(`- **Total Test Cases Tracked:** ${log.categoryStatistics.totalTestCases}`);
+  lines.push(`- **Total Categorizations:** ${log.totalCategorizations}`);
   lines.push('');
   
   // Category Distribution
@@ -280,33 +275,18 @@ export function generateFinalCategorizationSummary(
   lines.push('### By Big Category');
   lines.push('');
   
-  // Count test cases per big category
-  const categoryCounts: Record<string, { count: number; smallCategories: Record<string, number> }> = {};
-  for (const diff of log.diffs) {
-    if (!categoryCounts[diff.bigCategory]) {
-      categoryCounts[diff.bigCategory] = { count: 0, smallCategories: {} };
-    }
-    categoryCounts[diff.bigCategory].count++;
-    categoryCounts[diff.bigCategory].smallCategories[diff.smallCategory] = 
-      (categoryCounts[diff.bigCategory].smallCategories[diff.smallCategory] || 0) + 1;
-  }
+  const sortedCategories = Object.entries(categories)
+    .sort(([, a], [, b]) => (b as string[]).length - (a as string[]).length);
   
-  // Sort by count (descending)
-  const sortedCategories = Object.entries(categoryCounts)
-    .sort(([, a], [, b]) => b.count - a.count);
-  
-  for (const [bigCategory, data] of sortedCategories) {
-    const percentage = ((data.count / log.totalCategorizations) * 100).toFixed(1);
+  for (const [bigCategory, testCases] of sortedCategories) {
+    const count = (testCases as string[]).length;
+    const percentage = log.totalCategorizations === 0
+      ? '0.0'
+      : ((count / log.totalCategorizations) * 100).toFixed(1);
     lines.push(`### ${bigCategory}`);
-    lines.push(`- **Count:** ${data.count} (${percentage}%)`);
-    lines.push(`- **Small Categories:**`);
-    
-    // Sort small categories by count
-    const sortedSmall = Object.entries(data.smallCategories)
-      .sort(([, a], [, b]) => b - a);
-    
-    for (const [smallCategory, count] of sortedSmall) {
-      lines.push(`  - ${smallCategory}: ${count} test case${count > 1 ? 's' : ''}`);
+    lines.push(`- **Test Cases:** ${count} (${percentage}%)`);
+    if (count > 0) {
+      lines.push('  - ' + (testCases as string[]).sort().join(', '));
     }
     lines.push('');
   }
@@ -321,7 +301,6 @@ export function generateFinalCategorizationSummary(
   
   const actionLabels: Record<string, string> = {
     'added_to_existing': 'Used Existing Category',
-    'created_small_category': 'Created New Small Category',
     'created_big_category': 'Created New Big Category'
   };
   
@@ -336,29 +315,17 @@ export function generateFinalCategorizationSummary(
   lines.push('## Test Cases by Category');
   lines.push('');
   
-  // Group test cases by category
-  const testCasesByCategory: Record<string, Record<string, string[]>> = {};
-  for (const diff of log.diffs) {
-    if (!testCasesByCategory[diff.bigCategory]) {
-      testCasesByCategory[diff.bigCategory] = {};
-    }
-    if (!testCasesByCategory[diff.bigCategory][diff.smallCategory]) {
-      testCasesByCategory[diff.bigCategory][diff.smallCategory] = [];
-    }
-    testCasesByCategory[diff.bigCategory][diff.smallCategory].push(diff.testCaseName);
-  }
-  
-  for (const [bigCategory, smallCategories] of Object.entries(testCasesByCategory)) {
+  for (const [bigCategory, testCases] of Object.entries(categories)) {
     lines.push(`### ${bigCategory}`);
     lines.push('');
-    
-    for (const [smallCategory, testCases] of Object.entries(smallCategories)) {
-      lines.push(`#### ${smallCategory} (${testCases.length} test case${testCases.length > 1 ? 's' : ''})`);
-      for (const testCase of testCases.sort()) {
-        lines.push(`- \`${testCase}\``);
-      }
-      lines.push('');
+    const cases = (testCases as string[]).sort();
+    for (const testCase of cases) {
+      lines.push(`- \`${testCase}\``);
     }
+    if (cases.length === 0) {
+      lines.push('- (none)');
+    }
+    lines.push('');
   }
   
   // Root Cause Analysis

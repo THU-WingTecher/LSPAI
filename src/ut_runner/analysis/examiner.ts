@@ -44,9 +44,16 @@ export async function examineTestCase(
     // Build definition tree summary
     const treeSummary = prettyPrintDefTree(detection.definitionTree);
 
+    const enrichedSymbols = detection.redefinedSymbols.map(sym => ({
+      ...sym,
+      originalImplementation: sym.originalImplementation ?? sym.sourceImplementation,
+      originalLocation: sym.originalLocation ?? sym.sourceLoc,
+      symbolType: sym.symbolType ?? sym.symbolKind
+    }));
+
     result.examined = true;
     result.hasRedefinedSymbols = detection.hasRedefinedSymbols;
-    result.redefinedSymbols = detection.redefinedSymbols;
+    result.redefinedSymbols = enrichedSymbols;
     result.definitionTreeSummary = treeSummary;
 
     console.log(`[EXAMINER] Examination complete for ${testCase.codeName}`);

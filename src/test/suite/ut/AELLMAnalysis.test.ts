@@ -16,21 +16,21 @@ interface AELLMAnalysisTestConfig {
 suite('EXECUTE - Python', () => {
   /////////////////////////////////////
   const configs: AELLMAnalysisTestConfig[] = [
-    { projectName: "tornado",
-    testsDir: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/gpt-5/codes',
-    testFileMapPath: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/test_file_map.json'
-    },
-    { projectName: "tornado",
-    testsDir: '/LSPRAG/experiments/projects/tornado/lsprag-workspace/20251203_145746/tornado/lsprag_withcontext_/gpt-5/results/final',
-    testFileMapPath: '/LSPRAG/experiments/projects/tornado/lsprag-workspace/20251203_145746/tornado/lsprag_withcontext_/gpt-5/results/test_file_map.json'
-    },
+    // { projectName: "tornado",
+    // testsDir: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/gpt-5/codes',
+    // testFileMapPath: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/test_file_map.json'
+    // },
+    // { projectName: "tornado",
+    // testsDir: '/LSPRAG/experiments/projects/tornado/lsprag-workspace/20251203_145746/tornado/lsprag_withcontext_/gpt-5/results/final',
+    // testFileMapPath: '/LSPRAG/experiments/projects/tornado/lsprag-workspace/20251203_145746/tornado/lsprag_withcontext_/gpt-5/results/test_file_map.json'
+    // },
+    // { projectName: "black",
+    // testsDir: '/LSPRAG/experiments/motiv/assertion/opencode/gpt-5/codes',
+    // testFileMapPath: '/LSPRAG/experiments/motiv/assertion/opencode/test_file_map.json'
+    // },
     { projectName: "black",
-    testsDir: '/LSPRAG/experiments/motiv/assertion/opencode/gpt-5/codes',
-    testFileMapPath: '/LSPRAG/experiments/motiv/assertion/opencode/test_file_map.json'
-    },
-    { projectName: "black",
-    testsDir: '/LSPRAG/experiments/projects/black/lsprag-workspace/20251203_114956/black/lsprag_withcontext_/gpt-5/results/final',
-    testFileMapPath: '/LSPRAG/experiments/projects/black/lsprag-workspace/20251203_114956/black/lsprag_withcontext_/gpt-5/results/test_file_map.json'
+    testsDir: '//LSPRAG/experiments/data/motiv/codes',
+    testFileMapPath: '/LSPRAG/experiments/config/black_test_file_map.json'
     },
   ];
 
@@ -56,7 +56,7 @@ suite('EXECUTE - Python', () => {
       );
       const currentConfig = {
         workspace: projectPath,
-        model: 'gpt-5',
+        model: 'gpt-5-mini',
         provider: 'openai' as Provider,
       };
       getConfigInstance().updateConfig({
@@ -66,7 +66,7 @@ suite('EXECUTE - Python', () => {
         await runPipeline(testsDir, final_report_path, testFileMapPath, {
           language: 'python',
           pythonExe: pythonInterpreterPath,
-          jobs: 20,
+          jobs: 30,
           timeoutSec: 30,
           pythonpath: pythonExtraPaths
         });

@@ -19,6 +19,13 @@ export interface TestFile {
     name: string;
     sourceLoc: string | null;
     testLoc: string | null;
+    sourceImplementation?: string | null;
+    symbolKind?: string | null;
+    originalImplementation?: string | null;
+    originalLocation?: string | null;
+    symbolType?: string | null;
+    hoverText?: string | null;
+    trailingSourceContext?: string | null;
   }
 
   export interface ExaminationResult {

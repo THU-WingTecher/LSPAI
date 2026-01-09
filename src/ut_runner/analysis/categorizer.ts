@@ -3,19 +3,20 @@ import * as path from 'path';
 import { invokeLLM } from '../../invokeLLM';
 
 export interface CategoryStructure {
-  [bigCategory: string]: string[] | CategoryWithTestCases; // big category -> array of small categories OR enhanced structure with test cases
+  // big category -> array of test case names
+  [bigCategory: string]: string[];
 }
 
-export interface CategoryWithTestCases {
-  [smallCategory: string]: string[]; // small category -> array of test case names
+// Legacy format used small categories; kept for backward compatibility when loading old files
+interface LegacyCategoryWithTestCases {
+  [smallCategory: string]: string[];
 }
 
 export interface CategorizationResult {
   testCaseName: string;
   rootCauseSummary: string;
-  categorizationDecision: '1' | '2' | '3';
+  categorizationDecision: '1' | '3';
   bigCategory: string;
-  smallCategory: string;
   reasoning: string;
   timestamp: string;
 }
@@ -57,41 +58,40 @@ export function getDefaultCategories(): CategoryStructure {
 
   // Fallback to hardcoded defaults if file not found or invalid
   console.warn('Default categories file not found, using hardcoded defaults');
-  // Return in new format with test cases
   return {
-    'Wrong Environment': {
-      'workspace error': [],
-      'platform/file generation error': []
-    },
-    'Mock error': {},
-    'Symbol Misusing': {
-      're-declare already declared symbol': []
-    },
-    'Object Property Error': {},
-    'Logic Error': {}
+    'Wrong Environment': [],
+    'Mock error': [],
+    'Symbol Misusing': [],
+    'Object Property Error': [],
+    'Logic Error': []
   };
 }
 
 /**
- * Converts old format (string[]) to new format (CategoryWithTestCases)
+ * Converts legacy category values to a flat list of test cases.
+ * Legacy formats:
+ *  - string[]: list of small categories (no test cases) -> returns []
+ *  - LegacyCategoryWithTestCases: map of small categories to test case arrays
  */
-function normalizeCategoryValue(value: string[] | CategoryWithTestCases): CategoryWithTestCases {
+function toTestCaseList(value: string[] | LegacyCategoryWithTestCases | undefined): string[] {
+  if (!value) return [];
   if (Array.isArray(value)) {
-    // Old format: convert to new format
-    const normalized: CategoryWithTestCases = {};
-    for (const smallCategory of value) {
-      normalized[smallCategory] = [];
-    }
-    return normalized;
+    return [];
   }
-  // Already in new format
-  return value;
+
+  const tests = new Set<string>();
+  for (const testCases of Object.values(value)) {
+    for (const testCase of testCases) {
+      tests.add(testCase);
+    }
+  }
+  return Array.from(tests);
 }
 
 /**
  * Loads existing category structure from JSON file
  * If file doesn't exist, returns default categories
- * Supports both old format (string[]) and new format (CategoryWithTestCases)
+ * Supports legacy formats that stored small categories by flattening to big-category test lists
  */
 export function loadCategoryStructure(filePath: string): CategoryStructure {
   if (!fs.existsSync(filePath)) {
@@ -102,39 +102,20 @@ export function loadCategoryStructure(filePath: string): CategoryStructure {
   
   // Merge with defaults to ensure all default categories exist
   const defaults = getDefaultCategories();
-  const merged: CategoryStructure = {};
-  
-  // Convert defaults to new format
-  for (const [bigCategory, value] of Object.entries(defaults)) {
-    merged[bigCategory] = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
-  }
-  
-  // Add any categories from loaded file
+  const merged: CategoryStructure = { ...defaults };
+
+  // Add any categories from loaded file (supporting legacy formats)
   for (const [bigCategory, value] of Object.entries(loaded)) {
-    if (merged[bigCategory]) {
-      // Merge with existing
-      const existing = merged[bigCategory] as CategoryWithTestCases;
-      const loadedValue = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
-      
-      // Merge small categories and their test cases
-      for (const [smallCategory, testCases] of Object.entries(loadedValue)) {
-        if (!existing[smallCategory]) {
-          existing[smallCategory] = [];
-        }
-        // Merge test cases, avoiding duplicates
-        const existingTestCases = new Set(existing[smallCategory]);
-        for (const testCase of testCases) {
-          if (!existingTestCases.has(testCase)) {
-            existing[smallCategory].push(testCase);
-          }
-        }
-      }
-    } else {
-      // New big category not in defaults - normalize to new format
-      merged[bigCategory] = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
+    const existingTests = new Set<string>(merged[bigCategory] || []);
+    const loadedTests = toTestCaseList(value as string[] | LegacyCategoryWithTestCases);
+
+    for (const test of loadedTests) {
+      existingTests.add(test);
     }
+
+    merged[bigCategory] = Array.from(existingTests);
   }
-  
+
   return merged;
 }
 
@@ -157,38 +138,27 @@ export function generateCategoryStructureSummary(categories: CategoryStructure):
   lines.push('=== Category Structure Summary ===\n');
   
   let totalBigCategories = 0;
-  let totalSmallCategories = 0;
   let totalTestCases = 0;
   
-  for (const [bigCategory, value] of Object.entries(categories)) {
+  for (const [bigCategory, testCases] of Object.entries(categories)) {
     totalBigCategories++;
-    const normalized = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
+    const cases = testCases || [];
+    totalTestCases += cases.length;
     
     lines.push(`## ${bigCategory}`);
-    const smallCategories = Object.keys(normalized);
     
-    if (smallCategories.length === 0) {
-      lines.push('  (No small categories yet)');
+    if (cases.length === 0) {
+      lines.push('  (No test cases yet)');
     } else {
-      for (const smallCategory of smallCategories) {
-        totalSmallCategories++;
-        const testCases = normalized[smallCategory] || [];
-        totalTestCases += testCases.length;
-        
-        lines.push(`  - ${smallCategory} (${testCases.length} test case${testCases.length !== 1 ? 's' : ''})`);
-        
-        if (testCases.length > 0) {
-          for (const testCase of testCases) {
-            lines.push(`    * ${testCase}`);
-          }
-        }
+      lines.push(`  Test cases (${cases.length}):`);
+      for (const testCase of cases) {
+        lines.push(`    * ${testCase}`);
       }
     }
     lines.push('');
   }
   
   lines.unshift(`Total Big Categories: ${totalBigCategories}`);
-  lines.unshift(`Total Small Categories: ${totalSmallCategories}`);
   lines.unshift(`Total Test Cases: ${totalTestCases}`);
   lines.unshift('');
   
@@ -252,9 +222,8 @@ Categorization should be done based on the difference between the wrong and fixe
 You should output JSON format like this:
 {
   "rootCauseSummary": "string",
-  "categorizationDecision": "1" | "2" | "3",
+  "categorizationDecision": "1" | "3",
   "bigCategory": "string",
-  "smallCategory": "string",
   "reasoning": "string"
 }
 `;
@@ -292,12 +261,11 @@ function parseCategorizationResponse(response: string): CategorizationResult | n
       rootCauseSummary: parsed.root_cause_summary || parsed.rootCauseSummary,
       categorizationDecision: parsed.categorization_decision || parsed.categorizationDecision,
       bigCategory: parsed.big_category || parsed.bigCategory,
-      smallCategory: parsed.small_category || parsed.smallCategory,
       reasoning: parsed.reasoning
     };
 
     // Only return if we have the required fields
-    if (result.rootCauseSummary && result.bigCategory && result.smallCategory) {
+    if (result.rootCauseSummary && result.bigCategory) {
       return result as CategorizationResult;
     }
   }
@@ -315,28 +283,19 @@ export function updateCategoryStructure(
 ): CategoryStructure {
   const updated: CategoryStructure = {};
 
-  // Convert all existing categories to new format
-  for (const [bigCategory, value] of Object.entries(categories)) {
-    updated[bigCategory] = normalizeCategoryValue(value as string[] | CategoryWithTestCases);
+  // Clone existing categories to avoid mutating the original object
+  for (const [bigCategory, testCases] of Object.entries(categories)) {
+    updated[bigCategory] = [...testCases];
   }
 
   // Ensure big category exists
   if (!updated[result.bigCategory]) {
-    updated[result.bigCategory] = {};
-  }
-
-  // Normalize the big category value
-  const bigCategoryValue = normalizeCategoryValue(updated[result.bigCategory] as string[] | CategoryWithTestCases);
-  updated[result.bigCategory] = bigCategoryValue;
-
-  // Ensure small category exists
-  if (!bigCategoryValue[result.smallCategory]) {
-    bigCategoryValue[result.smallCategory] = [];
+    updated[result.bigCategory] = [];
   }
 
   // Add test case if not already present
-  if (!bigCategoryValue[result.smallCategory].includes(result.testCaseName)) {
-    bigCategoryValue[result.smallCategory].push(result.testCaseName);
+  if (!updated[result.bigCategory].includes(result.testCaseName)) {
+    updated[result.bigCategory].push(result.testCaseName);
   }
 
   return updated;
@@ -381,7 +340,6 @@ export async function categorizeAssertionError(
   const missingFields: string[] = [];
   if (!result.rootCauseSummary) missingFields.push('rootCauseSummary');
   if (!result.bigCategory) missingFields.push('bigCategory');
-  if (!result.smallCategory) missingFields.push('smallCategory');
   
   if (missingFields.length > 0) {
     console.error(`[CATEGORIZATION] Missing fields in result for ${request.testCaseName}:`, missingFields);
@@ -391,7 +349,7 @@ export async function categorizeAssertionError(
   }
 
   // Ensure categorization decision is valid
-  if (!['1', '2', '3'].includes(result.categorizationDecision)) {
+  if (!['1', '3'].includes(result.categorizationDecision)) {
     result.categorizationDecision = '3'; // Default to creating new category
   }
 

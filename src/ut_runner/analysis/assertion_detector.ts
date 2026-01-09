@@ -3,12 +3,20 @@ import * as path from 'path';
 import { getAllSymbols } from '../../lsp/symbol';
 import { getSymbolFromDocument } from '../../lsp/symbol';
 import { buildDefTree, DefinitionTreeNode, prettyPrintDefTree } from '../../lsp/tree';
+import { getHover, extractHoverText } from '../../lsp/hover';
 export { prettyPrintDefTree };
 
 export interface RedefinedSymbol {
     name: string;
     sourceLoc: string | null;
     testLoc: string | null;
+    sourceImplementation: string | null;
+    symbolKind: string | null;
+    originalImplementation?: string | null;
+    originalLocation?: string | null;
+    symbolType?: string | null;
+    hoverText?: string | null;
+    trailingSourceContext?: string | null;
 }
 
 export interface AssertionDetectionResult {
@@ -134,8 +142,20 @@ async function findRedefinedSymbols(
             }
 
             const testLoc = `${syms[0].name}@${syms[0].selectionRange.start.line + 1}:${syms[0].selectionRange.start.character}`;
-            const sourceLoc = await findSourceLocationForNode(node);
-            redefined.push({ name: node.name, sourceLoc, testLoc });
+            const sourceDetails = await findSourceSymbolDetails(node);
+            const symbolKind = sourceDetails.kind ?? symbolKindToString(syms[0].kind);
+            redefined.push({
+                name: node.name,
+                sourceLoc: sourceDetails.loc,
+                testLoc,
+                sourceImplementation: sourceDetails.implementation,
+                symbolKind,
+                originalImplementation: sourceDetails.implementation,
+                originalLocation: sourceDetails.loc,
+                symbolType: symbolKind,
+                hoverText: sourceDetails.hoverText,
+                trailingSourceContext: sourceDetails.trailingSourceContext
+            });
         }
     }
 
@@ -143,18 +163,52 @@ async function findRedefinedSymbols(
 }
 
 /**
- * Finds the source location for a given node in the dependency tree
+ * Converts a SymbolKind number to a readable string
  */
-async function findSourceLocationForNode(node: DefinitionTreeNode): Promise<string | null> {
+function symbolKindToString(kind?: vscode.SymbolKind): string | null {
+    if (typeof kind !== 'number') {
+        return null;
+    }
+    const label = (vscode.SymbolKind as unknown as Record<number, string>)[kind];
+    return label ?? null;
+}
+
+interface SourceSymbolDetails {
+    loc: string | null;
+    implementation: string | null;
+    kind: string | null;
+    hoverText: string | null;
+    trailingSourceContext: string | null;
+}
+
+/**
+ * Finds the source location, implementation, and symbol kind for a given node in the dependency tree
+ */
+async function findSourceSymbolDetails(node: DefinitionTreeNode): Promise<SourceSymbolDetails> {
     try {
         const uri = vscode.Uri.parse(node.uri);
+        const doc = await vscode.workspace.openTextDocument(uri);
         const syms = await getAllSymbols(uri);
         const match = syms.find(s => s.name === node.name);
         if (match) {
-            return `${path.relative(vscode.workspace.rootPath || '', uri.fsPath)}@${match.selectionRange.start.line + 1}:${match.selectionRange.start.character}`;
+            const loc = `${path.relative(vscode.workspace.rootPath || '', uri.fsPath)}@${match.selectionRange.start.line + 1}:${match.selectionRange.start.character}`;
+            const implementation = doc.getText(match.range) || null;
+            const kind = symbolKindToString(match.kind);
+            const hoverResults = await getHover(doc, match, false);
+            const hoverText = extractHoverText(hoverResults) || null;
+
+            const startLine = match.selectionRange.start.line;
+            const endLine = Math.min(doc.lineCount - 1, startLine + 20);
+            const trailingRange = new vscode.Range(
+                new vscode.Position(startLine, 0),
+                doc.lineAt(endLine).range.end
+            );
+            const trailingSourceContext = doc.getText(trailingRange) || null;
+
+            return { loc, implementation, kind, hoverText, trailingSourceContext };
         }
     } catch (error) {
         console.log(`#### Error finding source location for ${node.name}: ${error}`);
     }
-    return null;
+    return { loc: null, implementation: null, kind: null, hoverText: null, trailingSourceContext: null };
 }

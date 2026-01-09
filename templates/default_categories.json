@@ -1,12 +1,7 @@
 {
-  "Wrong Environment": [
-    "workspace error",
-    "platform/file generation error"
-  ],
+  "Wrong Environment": [],
   "Mock error": [],
-  "Symbol Misusing": [
-    "re-declare already declared symbol"
-  ],
+  "Symbol Misusing": [],
   "Object Property Error": [],
   "Logic Error": []
 }
