@@ -792,10 +792,10 @@ conda create -n black python=3.10
 conda activate black
 
 # Install dependencies
-pip install coverage pytest pytest-json-report
+pip install coverage pytest pytest-json-report 
 pip install -r docs/requirements.txt
 pip install -r test_requirements.txt
-pip install click mypy_extensions packaging urllib3 pathspec platformdirs
+pip install click mypy_extensions packaging urllib3 pathspec platformdirs aiohttp
 
 # Configure project
 echo "version = '00.0.0'" > src/black/_black_version.py

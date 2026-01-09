@@ -548,6 +548,7 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
         language: 'python',
         python: {
             pythonpath: [ // Python extra paths
+                "/LSPRAG/experiments/projects/black/src/black",
                 "/LSPRAG/experiments/projects/black/src/",
                 "/LSPRAG/experiments/projects/black",
                 "/LSPRAG/experiments/projects"
