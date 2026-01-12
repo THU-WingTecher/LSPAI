@@ -17,15 +17,20 @@ export interface TestFile {
 
   export interface RedefinedSymbol {
     name: string;
-    sourceLoc: string | null;
-    testLoc: string | null;
-    sourceImplementation?: string | null;
-    symbolKind?: string | null;
-    originalImplementation?: string | null;
-    originalLocation?: string | null;
+    symbolKind: string | null;
     symbolType?: string | null;
-    hoverText?: string | null;
-    trailingSourceContext?: string | null;
+    // Source (original) side
+    sourceFile: string | null;
+    sourceLoc: string | null;
+    sourceImplementation: string | null;
+    sourceHoverText: string | null;
+    sourceTrailingContext: string | null;
+    // Test (redefined) side
+    testFile: string | null;
+    testLoc: string | null;
+    testImplementation: string | null;
+    testHoverText: string | null;
+    testTrailingContext: string | null;
   }
 
   export interface ExaminationResult {

@@ -15,6 +15,7 @@ interface AELLMAnalysisTestConfig {
 
 suite('EXECUTE - Python', () => {
   /////////////////////////////////////
+  const concurrency = 5;
   const configs: AELLMAnalysisTestConfig[] = [
     // { projectName: "tornado",
     // testsDir: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/gpt-5/codes',
@@ -29,9 +30,13 @@ suite('EXECUTE - Python', () => {
     // testFileMapPath: '/LSPRAG/experiments/motiv/assertion/opencode/test_file_map.json'
     // },
     { projectName: "black",
-    testsDir: '//LSPRAG/experiments/data/motiv/codes',
+    testsDir: '/LSPRAG/experiments/data/motiv/codes',
     testFileMapPath: '/LSPRAG/experiments/config/black_test_file_map.json'
     },
+    // { projectName: "black",
+    // testsDir: '/LSPRAG/experiments/data/motiv/codes-tests',
+    // testFileMapPath: '/LSPRAG/experiments/config/black_test_file_map.json'
+    // },
   ];
 
   // const projectPath = getProjectWorkspace(projectName);
@@ -56,9 +61,14 @@ suite('EXECUTE - Python', () => {
       );
       const currentConfig = {
         workspace: projectPath,
-        model: 'gpt-5-mini',
-        provider: 'openai' as Provider,
+        model: 'deepseek-chat',
+        provider: 'deepseek' as Provider,
       };
+      // const currentConfig = {
+      //   workspace: projectPath,
+      //   model: 'gpt-5-mini',
+      //   provider: 'openai' as Provider,
+      // };
       getConfigInstance().updateConfig({
         ...currentConfig
       });
@@ -66,7 +76,7 @@ suite('EXECUTE - Python', () => {
         await runPipeline(testsDir, final_report_path, testFileMapPath, {
           language: 'python',
           pythonExe: pythonInterpreterPath,
-          jobs: 30,
+          jobs: concurrency,
           timeoutSec: 30,
           pythonpath: pythonExtraPaths
         });
@@ -74,7 +84,7 @@ suite('EXECUTE - Python', () => {
       await runLLMFixWorkflow(inputJsonPath, outputDir, {
         language: 'python',
         pythonExe: pythonInterpreterPath,
-        jobs: 30,
+        jobs: concurrency,
         timeoutSec: 30,
         pythonpath: pythonExtraPaths
       });

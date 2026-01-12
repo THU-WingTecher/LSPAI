@@ -76,7 +76,7 @@ export async function callLocalLLM(promptObj: any, logObj: any): Promise<string>
 		const tokenUsage = result.prompt_eval_count;
     	logObj.tokenUsage = tokenUsage;
     	logObj.result = result;
-		// console.log("Response content:", content);
+		// // console.log("Response content:", content);
 		return content;
 	} catch (error) {
 		console.error("Error sending chat request:", error);
@@ -108,11 +108,11 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 		return "";
 	}
 
-	// console.log('invokeLLM::promptObj', promptObj);
-	console.log('invokeLLM::promptObj_system', promptObj[0].content);
-	console.log('invokeLLM::promptObj_user', promptObj[1].content);
+	// // console.log('invokeLLM::promptObj', promptObj);
+	// // console.log('invokeLLM::promptObj_system', promptObj[0].content);
+	// console.log('invokeLLM::promptObj_user', promptObj[1].content);
 	const messageTokens = promptObj[1].content.split(/\s+/).length;
-	// console.log("Invoking . . .");
+	// // console.log("Invoking . . .");
 	// if (messageTokens > TOKENTHRESHOLD) {
 	// 	throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
 	// }
@@ -152,13 +152,13 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 			return response;
 		} catch (error) {
 			lastError = error as Error;
-			console.log(`Attempt ${attempt}/${maxRetries} failed: ${error}`);
+			// console.log(`Attempt ${attempt}/${maxRetries} failed: ${error}`);
 			
 			if (attempt < maxRetries) {
 				// Add exponential backoff with jitter for more robust retrying
 				const jitter = Math.random() * 1000;
 				const delay = retryDelay * Math.pow(2, attempt - 1) + jitter;
-				console.log(`Retrying in ${Math.round(delay / 1000)} seconds...`);
+				// console.log(`Retrying in ${Math.round(delay / 1000)} seconds...`);
 				await new Promise(resolve => setTimeout(resolve, delay));
 			}
 		}
@@ -194,13 +194,13 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 			model: modelName,
 			messages: promptObj
 		});
-		console.log('invokeLLM::callDeepSeek::response', JSON.stringify(response, null, 2));
+		// console.log('invokeLLM::callDeepSeek::response', JSON.stringify(response, null, 2));
 		const result = response.choices[0].message.content!;
 		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result + "<think>" + ((response.choices[0].message as any).reasoning_content || '');;
-		// console.log('Generated test code:', result);
-		// console.log('Token usage:', tokenUsage);
+		// // console.log('Generated test code:', result);
+		// // console.log('Token usage:', tokenUsage);
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);
@@ -209,18 +209,18 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 }
 
 export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
-	// console.log('invokeLLM::callOpenAi::proxyUrl', getConfigInstance().logAllConfig());
+	// // console.log('invokeLLM::callOpenAi::proxyUrl', getConfigInstance().logAllConfig());
 	const proxy = getConfigInstance().proxyUrl;
 	const apiKey = getConfigInstance().openaiApiKey;
-	console.log('invokeLLM::callOpenAi::proxy', proxy);
-	// console.log('invokeLLM::callOpenAi::apiKey', apiKey);
+	// console.log('invokeLLM::callOpenAi::proxy', proxy);
+	// // console.log('invokeLLM::callOpenAi::apiKey', apiKey);
 	if (!apiKey) {
 		throw new Error('OpenAI API key not configured. Please set it in VS Code settings.');
 	}
 	
 	// const modelName = getModelName(method);
 	const modelName = getModelName();
-	console.log('invokeLLM::callOpenAi::modelName', modelName);
+	// console.log('invokeLLM::callOpenAi::modelName', modelName);
 	if (proxy) {
 		process.env.http_proxy = proxy;
 		process.env.https_proxy = proxy;
@@ -243,8 +243,8 @@ export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
 		const tokenUsage = response.usage!.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
-		console.log('Generated test code:', result);
-		console.log('Token usage:', tokenUsage);
+		// console.log('Generated test code:', result);
+		// console.log('Token usage:', tokenUsage);
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);

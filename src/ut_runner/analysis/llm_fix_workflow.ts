@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import assert from 'assert';
 import { invokeLLM } from '../../invokeLLM';
 import { getHover, extractHoverText } from '../../lsp/hover';
 import { parseCode } from '../../lsp/utils';
@@ -85,6 +86,7 @@ export class LLMFixWorkflow {
   private readonly diffLogPath: string;
   private readonly fixDiffReportPath: string;
   private readonly surgenDir: string;
+  private fixSummaryDocs: Map<string, string> = new Map(); // testCaseName -> document path
   constructor(
     inputJsonPath: string,
     outputDir: string,
@@ -105,7 +107,7 @@ export class LLMFixWorkflow {
     // console.log("options: ", this.options);
     // Create analyzer instance to reuse its methods
     this.analyzer = new Analyzer(this.options.language);
-
+    assert(this.options.language === 'python', 'Unsupported language: ' + this.options.language);
     // Ensure output directory exists
     fs.mkdirSync(outputDir, { recursive: true });
 
@@ -152,10 +154,14 @@ export class LLMFixWorkflow {
     return sourceDocument.getText(symbol.range);
   }
 
+  private async getJavaTestFunctionCode(testFile: string, testCaseName: string): Promise<string> {
+    return '';
+  }
+
   /**
    * Get test code from test file
    */
-  private async getPythonTestCode(testFile: string, testCaseName: string): Promise<string> {
+  private async getPythonTestFuncgionCode(testFile: string, testCaseName: string): Promise<string> {
     if (!fs.existsSync(testFile)) {
       throw new Error(`Test file not found: ${testFile}`);
     }
@@ -261,7 +267,17 @@ export class LLMFixWorkflow {
       return [];
     }
 
-    return exam.redefinedSymbols.map(sym => {
+    // Deduplicate by symbol name - keep only the first occurrence
+    const seenNames = new Set<string>();
+    const uniqueSymbols = exam.redefinedSymbols.filter(sym => {
+      if (seenNames.has(sym.name)) {
+        return false;
+      }
+      seenNames.add(sym.name);
+      return true;
+    });
+
+    return uniqueSymbols.map(sym => {
       const parts: string[] = [];
       parts.push(`Symbol: ${sym.name}`);
       if (sym.symbolType || sym.symbolKind) {
@@ -269,24 +285,20 @@ export class LLMFixWorkflow {
       }
       // Source (original) side
       parts.push('Source:');
-      if (sym.originalLocation || sym.sourceLoc) {
-        parts.push(`  Location: ${sym.originalLocation ?? sym.sourceLoc}`);
+      if (sym.sourceFile) {
+        parts.push(`  File: ${sym.sourceFile}`);
       }
-      if (sym.hoverText) {
-        parts.push(`  Hover: ${sym.hoverText}`);
+      if (sym.sourceLoc) {
+        parts.push(`  Location: ${sym.sourceLoc}`);
       }
-      if (sym.trailingSourceContext) {
-        parts.push(`  Context:\n${sym.trailingSourceContext}`);
-      } else if (sym.originalImplementation || sym.sourceImplementation) {
-        parts.push(`  Implementation:\n${sym.originalImplementation ?? sym.sourceImplementation}`);
+      if (sym.sourceHoverText) {
+        parts.push(`  Hover: ${sym.sourceHoverText}`);
       }
-
-      // Test (redefined) side
-      parts.push('Test:');
-      if (sym.testLoc) {
-        parts.push(`  Location: ${sym.testLoc}`);
+      if (sym.sourceTrailingContext) {
+        parts.push(`  Context:\n${sym.sourceTrailingContext}`);
+      } else if (sym.sourceImplementation) {
+        parts.push(`  Implementation:\n${sym.sourceImplementation}`);
       }
-      // We currently do not capture test implementation body; location indicates redefinition.
 
       return parts.join('\n');
     });
@@ -492,6 +504,7 @@ def test_fixed(arg1, ...):
 
   /**
    * Check if error is a default value mismatch (sequential check #1)
+   * Returns both the result and the prompt/response for documentation
    */
   private async isDefaultValueMismatch(
     testEntry: any,
@@ -499,7 +512,7 @@ def test_fixed(arg1, ...):
     testCode: string,
     assertionErrors: string,
     symbolName: string
-  ): Promise<boolean> {
+  ): Promise<{ isMatch: boolean; userPrompt: string; response: string }> {
     const contextForDefaultValueMismatch = await this.extractContextForDefaultValueMismatch(testEntry);
     console.log(`[CATEGORIZATION] Context for Default Value Mismatch: ${contextForDefaultValueMismatch}`);
 
@@ -571,18 +584,19 @@ Is this a Default Value Mismatch error? Respond with JSON only.`;
             (parsed.confidence === 'high' || parsed.confidence === 'medium')) {
           console.log(`[CATEGORIZATION] Detected Default Value Mismatch (confidence: ${parsed.confidence})`);
           console.log(`[CATEGORIZATION] Reasoning: ${parsed.reasoning}`);
-          return true;
+          return { isMatch: true, userPrompt, response };
         }
       }
+      return { isMatch: false, userPrompt, response };
     } catch (error) {
       console.warn(`[CATEGORIZATION] Failed to check default value mismatch:`, error);
+      return { isMatch: false, userPrompt, response: `Error: ${error instanceof Error ? error.message : String(error)}` };
     }
-    
-    return false;
   }
 
   /**
    * Check if error is a sentinel redefinition mismatch (sequential check #2)
+   * Returns both the result and the prompt/response for documentation
    */
   private async isSentinelRedefinitionMismatch(
     testEntry: any,
@@ -590,7 +604,7 @@ Is this a Default Value Mismatch error? Respond with JSON only.`;
     testCode: string,
     assertionErrors: string,
     symbolName: string
-  ): Promise<boolean> {
+  ): Promise<{ isMatch: boolean; userPrompt: string; response: string }> {
     const contextForSentinelRedefinitionMismatch = await this.extractContextForSentinelRedefinitionMismatch(testEntry);
     console.log(`[CATEGORIZATION] Context for Sentinel Redefinition Mismatch: ${contextForSentinelRedefinitionMismatch}`);
 
@@ -651,14 +665,14 @@ Is this a Sentinel Redefinition Mismatch error? Respond with JSON only.`;
             (parsed.confidence === 'high' || parsed.confidence === 'medium')) {
           console.log(`[CATEGORIZATION] Detected Sentinel Redefinition Mismatch (confidence: ${parsed.confidence})`);
           console.log(`[CATEGORIZATION] Reasoning: ${parsed.reasoning}`);
-          return true;
+          return { isMatch: true, userPrompt, response };
         }
       }
+      return { isMatch: false, userPrompt, response };
     } catch (error) {
       console.warn(`[CATEGORIZATION] Failed to check sentinel redefinition mismatch:`, error);
+      return { isMatch: false, userPrompt, response: `Error: ${error instanceof Error ? error.message : String(error)}` };
     }
-    
-    return false;
   }
 
   /**
@@ -671,17 +685,36 @@ Is this a Sentinel Redefinition Mismatch error? Respond with JSON only.`;
     sourceCode: string,
     testCode: string,
     assertionErrors: string,
-    symbolName: string
+    symbolName: string,
+    testCaseName: string
   ): Promise<"default_value_mismatch" | "sentinel_redefinition_mismatch" | "general" | "redefined"> {
     // Step 1: Check if it's a default value mismatch
     console.log(`[CATEGORIZATION] Checking if error is Default Value Mismatch...`);
-    if (await this.isDefaultValueMismatch(testEntry,sourceCode, testCode, assertionErrors, symbolName)) {
+    const defaultValueResult = await this.isDefaultValueMismatch(testEntry, sourceCode, testCode, assertionErrors, symbolName);
+    
+    // Record categorization attempt
+    this.appendCategorizationAttemptToDocument(
+      testCaseName,
+      "default_value_mismatch",
+      defaultValueResult.userPrompt,
+      defaultValueResult.response
+    );
+    
+    if (defaultValueResult.isMatch) {
+      console.log(`[CATEGORIZATION] ## Categorized as : Detected Default Value Mismatch`);
       return "default_value_mismatch";
     }
     
     // Step 2: Check if it's a sentinel redefinition mismatch
     // console.log(`[CATEGORIZATION] Checking if error is Sentinel Redefinition Mismatch...`);
-    // if (await this.isSentinelRedefinitionMismatch(sourceCode, testCode, assertionErrors, symbolName)) {
+    // const sentinelResult = await this.isSentinelRedefinitionMismatch(testEntry, sourceCode, testCode, assertionErrors, symbolName);
+    // this.appendCategorizationAttemptToDocument(
+    //   testCaseName,
+    //   "sentinel_redefinition_mismatch",
+    //   sentinelResult.userPrompt,
+    //   sentinelResult.response
+    // );
+    // if (sentinelResult.isMatch) {
     //   return "sentinel_redefinition_mismatch";
     // }
     
@@ -861,6 +894,7 @@ console.log("userPrompt: ", userPrompt);
 
   /**
    * Fix test code using LLM
+   * Returns both the fixed code and the prompt/response for documentation
    */
   private async fixTestWithLLM(
     sourceCode: string,
@@ -871,7 +905,7 @@ console.log("userPrompt: ", userPrompt);
     examinationResult: ExaminationResult,
     testCaseName: string,
     cate: string = "general"
-  ): Promise<string | null> {
+  ): Promise<{ fixedCode: string; userPrompt: string; response: string } | null> {
     console.log(`[LLM_FIX] Round ${attempt}: Invoking LLM for ${symbolName}`);
 
     // Get previous attempts from fix history
@@ -900,7 +934,11 @@ console.log("userPrompt: ", userPrompt);
       
       console.log(`[LLM_FIX] LLM response received, fixed code length: ${fixedCode.length}`);
       
-      return fixedCode;
+      return {
+        fixedCode,
+        userPrompt: prompt[1].content,
+        response
+      };
     } catch (error) {
       console.error(`[LLM_FIX] LLM invocation failed:`, error);
       return null;
@@ -934,111 +972,115 @@ console.log("userPrompt: ", userPrompt);
     testFile: string,
     fixedCode: string
   ): Promise<string> {
-    const testContent = fs.readFileSync(testFile, 'utf-8');
-    const lines = testContent.split('\n');
-    
-    // Detect if this is a class-based test
-    let insertIdx = -1;
-    let classIndent = '    ';
-    
-    // Find test classes (class Test* or class *_test)
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      // Check for test class definition (Test..., unittest.TestCase inheritance, or _..._test naming)
-      const classMatch = line.match(/^(\s*)class\s+(\w+)\s*\(/);
-      if (classMatch) {
-        classIndent = classMatch[1];
-        
-        // Find the last method/statement inside the class
-        // Look for the last line that has more indentation than the class
-        let lastMethodLine = i + 1;
-        
-        for (let j = i + 1; j < lines.length; j++) {
-          const currentLine = lines[j];
+    if (this.options.language === 'python') {
+      const testContent = fs.readFileSync(testFile, 'utf-8');
+      const lines = testContent.split('\n');
+      
+      // Detect if this is a class-based test
+      let insertIdx = -1;
+      let classIndent = '    ';
+      
+      // Find test classes (class Test* or class *_test)
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Check for test class definition (Test..., unittest.TestCase inheritance, or _..._test naming)
+        const classMatch = line.match(/^(\s*)class\s+(\w+)\s*\(/);
+        if (classMatch) {
+          classIndent = classMatch[1];
           
-          if (currentLine.trim() === '') {
-            continue; // Skip empty lines
+          // Find the last method/statement inside the class
+          // Look for the last line that has more indentation than the class
+          let lastMethodLine = i + 1;
+          
+          for (let j = i + 1; j < lines.length; j++) {
+            const currentLine = lines[j];
+            
+            if (currentLine.trim() === '') {
+              continue; // Skip empty lines
+            }
+            
+            const lineIndent = currentLine.match(/^(\s*)/)?.[0] || '';
+            
+            // Check if we've left the class (module-level or another class)
+            const isModuleLevel = lineIndent.length === classIndent.length && lineIndent === classIndent;
+            const isNextClass = isModuleLevel && currentLine.match(/^(\s*)class\s/) !== null;
+            const isMainBlock = currentLine.trim().startsWith('if __name__') || 
+                                currentLine.trim().startsWith('if __main__');
+            
+            if (isNextClass || isMainBlock) {
+              // Insert before this line (j - 1 to insert before it)
+              insertIdx = j;
+              break;
+            }
+            
+            // If line is more indented than class, it's inside the class
+            if (lineIndent.length > classIndent.length) {
+              lastMethodLine = j + 1; // Use j + 1 to insert after this line
+            } else if (lineIndent.length <= classIndent.length && lineIndent !== classIndent) {
+              // We hit something at less indent or same indent with different whitespace
+              insertIdx = lastMethodLine;
+              break;
+            }
           }
           
-          const lineIndent = currentLine.match(/^(\s*)/)?.[0] || '';
-          
-          // Check if we've left the class (module-level or another class)
-          const isModuleLevel = lineIndent.length === classIndent.length && lineIndent === classIndent;
-          const isNextClass = isModuleLevel && currentLine.match(/^(\s*)class\s/) !== null;
-          const isMainBlock = currentLine.trim().startsWith('if __name__') || 
-                              currentLine.trim().startsWith('if __main__');
-          
-          if (isNextClass || isMainBlock) {
-            // Insert before this line (j - 1 to insert before it)
-            insertIdx = j;
-            break;
-          }
-          
-          // If line is more indented than class, it's inside the class
-          if (lineIndent.length > classIndent.length) {
-            lastMethodLine = j + 1; // Use j + 1 to insert after this line
-          } else if (lineIndent.length <= classIndent.length && lineIndent !== classIndent) {
-            // We hit something at less indent or same indent with different whitespace
+          if (insertIdx === -1) {
             insertIdx = lastMethodLine;
+          }
+          break;
+        }
+      }
+      
+      // If no test class found, check for standalone test functions
+      if (insertIdx === -1) {
+        // Look for the last test function or end of file
+        for (let i = lines.length - 1; i >= 0; i--) {
+          if (lines[i].trim().startsWith('def test_') || 
+              lines[i].trim().startsWith('if __name__') ||
+              lines[i].trim() === '') {
+            insertIdx = i + 1;
             break;
           }
         }
         
         if (insertIdx === -1) {
-          insertIdx = lastMethodLine;
-        }
-        break;
-      }
-    }
-    
-    // If no test class found, check for standalone test functions
-    if (insertIdx === -1) {
-      // Look for the last test function or end of file
-      for (let i = lines.length - 1; i >= 0; i--) {
-        if (lines[i].trim().startsWith('def test_') || 
-            lines[i].trim().startsWith('if __name__') ||
-            lines[i].trim() === '') {
-          insertIdx = i + 1;
-          break;
+          insertIdx = lines.length;
         }
       }
       
-      if (insertIdx === -1) {
-        insertIdx = lines.length;
-      }
+      // Ensure the fixed code has proper indentation
+      const fixedLines = fixedCode.split('\n');
+      
+      // Add indentation if inside a class
+      let indentedFixedCode: string;
+      const methodIndent = classIndent + '    ';
+      indentedFixedCode = fixedLines.map(line => {
+        // Don't add extra indent to empty lines
+        if (line.trim() === '') {
+          return classIndent; // Use class indent for empty lines
+        }
+        return methodIndent + line;
+      }).join('\n');
+      
+      // Insert the code
+      const newLines = [
+        ...lines.slice(0, insertIdx),
+        indentedFixedCode,
+        ...lines.slice(insertIdx)
+      ];
+      
+      const newContent = newLines.join('\n');
+      
+      // Save to outputDir instead of modifying original file
+      const outputPath = this.saveFixedCodeToOutputDir(testFile, newContent);
+      
+      console.log(`[LLM_FIX] Added test function to ${outputPath}`);
+      console.log(`[LLM_FIX] Inserted at line ${insertIdx + 1}`);
+      console.log(`[LLM_FIX] Original file preserved: ${testFile}`);
+      
+      return outputPath;
+    } else {
+      throw new Error(`Unsupported language: ${this.options.language}`);
     }
-    
-    // Ensure the fixed code has proper indentation
-    const fixedLines = fixedCode.split('\n');
-    
-    // Add indentation if inside a class
-    let indentedFixedCode: string;
-    const methodIndent = classIndent + '    ';
-    indentedFixedCode = fixedLines.map(line => {
-      // Don't add extra indent to empty lines
-      if (line.trim() === '') {
-        return classIndent; // Use class indent for empty lines
-      }
-      return methodIndent + line;
-    }).join('\n');
-    
-    // Insert the code
-    const newLines = [
-      ...lines.slice(0, insertIdx),
-      indentedFixedCode,
-      ...lines.slice(insertIdx)
-    ];
-    
-    const newContent = newLines.join('\n');
-    
-    // Save to outputDir instead of modifying original file
-    const outputPath = this.saveFixedCodeToOutputDir(testFile, newContent);
-    
-    console.log(`[LLM_FIX] Added test function to ${outputPath}`);
-    console.log(`[LLM_FIX] Inserted at line ${insertIdx + 1}`);
-    console.log(`[LLM_FIX] Original file preserved: ${testFile}`);
-    
-    return outputPath;
   }
   
   /**
@@ -1255,6 +1297,200 @@ console.log("userPrompt: ", userPrompt);
 
 
   /**
+   * Initialize fix summary document for a test case
+   */
+  private initializeFixSummaryDocument(
+    testCaseName: string,
+    sourceCode: string,
+    originalTestCode: string,
+    testFile: string,
+    assertionErrors: string
+  ): string {
+    const docFileName = `${testCaseName}_test_fix_summary.md`;
+    const docPath = path.join(this.outputDir, docFileName);
+    
+    // Ensure test file path is absolute
+    const absoluteTestFilePath = path.isAbsolute(testFile) ? testFile : path.resolve(testFile);
+    
+    const content = `# ${testCaseName} - Fix Summary
+
+## Summary
+
+Final Result : Not Fixed
+Final Category : ""
+
+## Detailed Summary
+
+Focal method code:
+\`\`\`python
+${sourceCode}
+\`\`\`
+
+Original Test Code :
+
+${absoluteTestFilePath}
+Test function code:
+\`\`\`python
+${originalTestCode}
+\`\`\`
+
+Very first Assertion Errors:
+
+\`\`\`bash
+${assertionErrors}
+\`\`\`
+
+## Categorization History
+
+## Fix History
+
+`;
+    
+    fs.writeFileSync(docPath, content, 'utf-8');
+    this.fixSummaryDocs.set(testCaseName, docPath);
+    console.log(`[LLM_FIX] Initialized fix summary document: ${docPath}`);
+    
+    return docPath;
+  }
+
+  /**
+   * Add a categorization attempt to the summary document
+   */
+  private appendCategorizationAttemptToDocument(
+    testCaseName: string,
+    agentName: string,
+    userPrompt: string,
+    response: string
+  ): void {
+    const docPath = this.fixSummaryDocs.get(testCaseName);
+    if (!docPath) {
+      console.warn(`[LLM_FIX] No fix summary document found for ${testCaseName}`);
+      return;
+    }
+
+    let content = fs.readFileSync(docPath, 'utf-8');
+    
+    // Find the position before "## Fix History" section
+    const fixHistoryIndex = content.indexOf('## Fix History');
+    if (fixHistoryIndex === -1) {
+      // If Fix History section doesn't exist, append at the end
+      const attemptSection = `
+### Categorizing (${agentName})
+
+#### User Prompt (do not include system prompt)
+\`\`\`
+${userPrompt}
+\`\`\`
+
+#### Model Response
+\`\`\`
+${response}
+\`\`\`
+
+`;
+      fs.appendFileSync(docPath, attemptSection, 'utf-8');
+    } else {
+      // Insert before Fix History section
+      const attemptSection = `
+### Categorizing (${agentName})
+
+#### User Prompt (do not include system prompt)
+\`\`\`
+${userPrompt}
+\`\`\`
+
+#### Model Response
+\`\`\`
+${response}
+\`\`\`
+
+`;
+      content = content.slice(0, fixHistoryIndex) + attemptSection + content.slice(fixHistoryIndex);
+      fs.writeFileSync(docPath, content, 'utf-8');
+    }
+  }
+
+  /**
+   * Add a fix attempt to the summary document
+   */
+  private appendFixAttemptToDocument(
+    testCaseName: string,
+    attemptNumber: number,
+    category: string,
+    userPrompt: string,
+    response: string
+  ): void {
+    const docPath = this.fixSummaryDocs.get(testCaseName);
+    if (!docPath) {
+      console.warn(`[LLM_FIX] No fix summary document found for ${testCaseName}`);
+      return;
+    }
+
+    const content = fs.readFileSync(docPath, 'utf-8');
+    const attemptSection = `
+### Fix History - ${attemptNumber} (with ${category} agent)
+
+#### User Prompt (do not include system prompt)
+\`\`\`
+${userPrompt}
+\`\`\`
+
+#### Model Response
+\`\`\`
+${response}
+\`\`\`
+
+`;
+    
+    fs.appendFileSync(docPath, attemptSection, 'utf-8');
+  }
+
+  /**
+   * Finalize fix summary document with final result
+   */
+  private finalizeFixSummaryDocument(
+    testCaseName: string,
+    finalResult: "Fixed" | "Not Fixed",
+    finalCategory: string
+  ): void {
+    const docPath = this.fixSummaryDocs.get(testCaseName);
+    if (!docPath) {
+      console.warn(`[LLM_FIX] No fix summary document found for ${testCaseName}`);
+      return;
+    }
+
+    let content = fs.readFileSync(docPath, 'utf-8');
+    
+    // Update summary section
+    content = content.replace(
+      /Final Result : .*/,
+      `Final Result : ${finalResult}`
+    );
+    content = content.replace(
+      /Final Category : .*/,
+      `Final Category : "${finalCategory}"`
+    );
+    
+    fs.writeFileSync(docPath, content, 'utf-8');
+    console.log(`[LLM_FIX] Finalized fix summary document: ${docPath}`);
+  }
+
+  async getTestCode(testFile: string): Promise<string> {
+    if (fs.existsSync(testFile)) {
+      return fs.readFileSync(testFile, 'utf-8');
+    } else {
+      throw new Error(`Test file not found: ${testFile}`);
+    }
+  }
+
+  async getTestFunctionCode(testFile: string, testCaseName: string): Promise<string> {
+    if (this.options.language === 'python') {
+      return await this.getPythonTestFuncgionCode(testFile, testCaseName);
+    } else {
+      return await this.getJavaTestFunctionCode(testFile, testCaseName);
+    }
+  }
+  /**
    * Process a single test case
    * 
    * Workflow:
@@ -1273,14 +1509,24 @@ console.log("userPrompt: ", userPrompt);
     const sourceDocument = await vscode.workspace.openTextDocument(testEntry.source_file);
 
     const sourceCode = await this.extractSourceCode(testEntry, sourceDocument);
-    const originalTestCode = await this.getPythonTestCode(testFile, testCaseName);
+    const testFunctionCode = await this.getTestFunctionCode(testFile, testCaseName);
+    const testCode = await this.getTestCode(testFile);
     const symbolName = testEntry.symbolName || testEntry.symbol_name || 'unknown';
     const assertionErrors = this.getAssertionErrors(testEntry);
     
-    if (!sourceCode || !originalTestCode) {
+    if (!sourceCode || !testFunctionCode) {
       console.log(`[LLM_FIX] Missing source or test code`);
       return false;
     }
+    
+    // Initialize fix summary document
+    this.initializeFixSummaryDocument(
+      testCaseName!,
+      sourceCode,
+      testCode,
+      testFile,
+      assertionErrors
+    );
     
     // Step 1: Categorize the error BEFORE fixing
     console.log(`[LLM_FIX] Categorizing error for ${testCaseName}...`);
@@ -1293,9 +1539,19 @@ console.log("userPrompt: ", userPrompt);
       // Sentinel redefinition mismatch can only happen if there are redefined symbols
       // Check if it's specifically a sentinel redefinition mismatch
       try {
-        if (await this.isSentinelRedefinitionMismatch(testEntry, sourceCode, originalTestCode, assertionErrors, symbolName)) {
+        const sentinelResult = await this.isSentinelRedefinitionMismatch(testEntry, sourceCode, testCode, assertionErrors, symbolName);
+        
+        // Record categorization attempt
+        this.appendCategorizationAttemptToDocument(
+          testCaseName!,
+          "sentinel_redefinition_mismatch",
+          sentinelResult.userPrompt,
+          sentinelResult.response
+        );
+        
+        if (sentinelResult.isMatch) {
           detectedCategory = "sentinel_redefinition_mismatch";
-          console.log(`[LLM_FIX] Categorized as: sentinel_redefinition_mismatch`);
+          console.log(`[LLM_FIX] ## Categorized as: sentinel_redefinition_mismatch`);
         } else {
           detectedCategory = "general";
           console.log(`[LLM_FIX] Categorized as: general (general redefinition)`);
@@ -1311,9 +1567,10 @@ console.log("userPrompt: ", userPrompt);
         detectedCategory = await this.detectErrorCategory(
           testEntry,
           sourceCode,
-          originalTestCode,
+          testCode,
           assertionErrors,
-          symbolName
+          symbolName,
+          testCaseName!
         );
         console.log(`[LLM_FIX] Categorized as: ${detectedCategory}`);
       } catch (error) {
@@ -1330,13 +1587,14 @@ console.log("userPrompt: ", userPrompt);
         testCaseName,
         testFile,
         sourceCode,
-        originalTestCode,
+        testCode,
         symbolName,
         detectedCategory
       );
       
       if (specializedSuccess) {
         console.log(`[LLM_FIX] Successfully fixed with ${detectedCategory} subagent`);
+        this.finalizeFixSummaryDocument(testCaseName!, "Fixed", detectedCategory);
         return true;
       }
       
@@ -1350,17 +1608,19 @@ console.log("userPrompt: ", userPrompt);
       testCaseName,
       testFile,
       sourceCode,
-      originalTestCode,
+      testCode,
       symbolName,
       "general"
     );
     
     if (generalSuccess) {
       console.log(`[LLM_FIX] Successfully fixed with general subagent`);
+      this.finalizeFixSummaryDocument(testCaseName!, "Fixed", detectedCategory);
       return true;
     }
     
     console.log(`[LLM_FIX] All subagents failed for ${testCaseName}`);
+    this.finalizeFixSummaryDocument(testCaseName!, "Not Fixed", detectedCategory);
     return false;
   }
 
@@ -1400,7 +1660,7 @@ console.log("userPrompt: ", userPrompt);
       console.log(`[LLM_FIX] ${category} subagent - Attempt ${attempt}/${maxAttempts}`);
       
       // Get fixed code from LLM
-      const fixedCode = await this.fixTestWithLLM(
+      const fixResult = await this.fixTestWithLLM(
         sourceCode, 
         testCode, 
         assertionErrors, 
@@ -1411,11 +1671,22 @@ console.log("userPrompt: ", userPrompt);
         category
       );
       
-      if (!fixedCode) {
+      if (!fixResult) {
         console.log(`[LLM_FIX] Failed to get fixed code from LLM`);
         attempt++;
         continue;
       }
+      
+      const { fixedCode, userPrompt, response } = fixResult;
+      
+      // Record fix attempt in summary document
+      this.appendFixAttemptToDocument(
+        testCaseName,
+        attempt,
+        category,
+        userPrompt,
+        response
+      );
       
       // Add test function (saves to outputDir)
       let outputTestFile: string;
@@ -1480,14 +1751,16 @@ console.log("userPrompt: ", userPrompt);
         this.fixDiffReportPath
       );
       
-      if (result.passed && category === "general") {
+      if (result.passed) {
         console.log(`[LLM_FIX] Successfully fixed with ${category} subagent after ${attempt} attempt(s)!`);
         
-        // Categorize the assertion error (use original test code)
-        try {
-          await this.categorizeFixedTestCase(testCaseName, originalTestCode, fixedCode);
-        } catch (error) {
-          console.error(`[LLM_FIX] Failed to categorize ${testCaseName}:`, error);
+        // Categorize the assertion error (use original test code) - only for general category
+        if (category === "general") {
+          try {
+            await this.categorizeFixedTestCase(testCaseName, originalTestCode, fixedCode);
+          } catch (error) {
+            console.error(`[LLM_FIX] Failed to categorize ${testCaseName}:`, error);
+          }
         }
         
         return true;

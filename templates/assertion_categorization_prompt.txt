@@ -29,15 +29,15 @@ You must provide your response in the following JSON format, wrapped in ```json 
 ```json
 {
   "root_cause_summary": "A concise one-sentence summary of why the assertion was wrong",
-  "categorization_decision": "1" | "3",
+  "categorization_decision": "0" | "1",
   "big_category": "The big category name (existing or new)",
   "reasoning": "Brief explanation of why this category was chosen or created"
 }
 ```
 
 ### Categorization Decision Values:
-- **"1"**: Used an existing big category
-- **"3"**: Created a new big category
+- **"0"**: Used an existing big category
+- **"1"**: Created a new big category
 
 ## Default Categories
 
@@ -45,9 +45,6 @@ The following default categories are available. You should prefer using these wh
 
 1. **Wrong Environment**
 2. **Mock error**
-3. **Symbol Misusing**
-4. **Object Property Error**
-5. **Logic Error**
 
 ## Category Naming Guidelines
 
@@ -56,43 +53,8 @@ The following default categories are available. You should prefer using these wh
 - Avoid overly generic names like "Error" or "Bug"
 - Prefer technical terms when appropriate
 - When creating new categories, ensure they are semantically distinct from existing default categories
+- Do not use too abstract category such as "Logic Error", or project-specific error reason
 
-## Example
-
-**Wrong Assertion Test Code:**
-```python
-def test_list_length():
-    items = [1, 2, 3]
-    assert len(items) == 4  # Wrong: expects 4 but actual is 3
-```
-
-**Fixed Version:**
-```python
-def test_list_length():
-    items = [1, 2, 3]
-    assert len(items) == 3  # Fixed: correct length
-```
-
-**Existing Categories:**
-```json
-{
-  "Wrong Environment": [],
-  "Mock error": [],
-  "Symbol Misusing": [],
-  "Object Property Error": [],
-  "Logic Error": []
-}
-```
-
-**Expected Output:**
-```json
-{
-  "rootCauseSummary": "The assertion expected incorrect list length due to hardcoded wrong value",
-  "categorizationDecision": "1",
-  "bigCategory": "Logic Error",
-  "reasoning": "The root cause is a logic error in the assertion where the expected value was incorrectly hardcoded. Using existing 'Logic Error' big category."
-}
-```
 
 ## Important Notes
 

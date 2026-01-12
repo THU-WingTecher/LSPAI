@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { TestCaseResult, ExaminationResult, FileAnalysis } from '../types';
+import { TestCaseResult, ExaminationResult, FileAnalysis, RedefinedSymbol } from '../types';
 import { detectRedefinedAssertions, prettyPrintDefTree } from './assertion_detector';
 
 /**
@@ -46,14 +46,14 @@ export async function examineTestCase(
 
     const enrichedSymbols = detection.redefinedSymbols.map(sym => ({
       ...sym,
-      originalImplementation: sym.originalImplementation ?? sym.sourceImplementation,
-      originalLocation: sym.originalLocation ?? sym.sourceLoc,
+      sourceImplementation: sym.sourceImplementation ?? sym.sourceImplementation,
+      sourceLoc: sym.sourceLoc ?? sym.sourceLoc,
       symbolType: sym.symbolType ?? sym.symbolKind
     }));
 
     result.examined = true;
     result.hasRedefinedSymbols = detection.hasRedefinedSymbols;
-    result.redefinedSymbols = enrichedSymbols;
+    result.redefinedSymbols = enrichedSymbols as RedefinedSymbol[];
     result.definitionTreeSummary = treeSummary;
 
     console.log(`[EXAMINER] Examination complete for ${testCase.codeName}`);
@@ -128,6 +128,7 @@ export async function examineTestCasesBatch(
  * @returns Filtered test cases for examination
  */
 export function filterTestCasesForExamination(testCases: TestCaseResult[]): TestCaseResult[] {
+  console.log("testcase status", testCases.map(tc => tc.status));
   const filtered = testCases.filter(tc => tc.status === 'Assertion Errors');
   console.log(`[EXAMINER] Filtered ${filtered.length} test cases for examination (out of ${testCases.length})`);
   return filtered;

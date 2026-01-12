@@ -90,21 +90,7 @@ async function main() {
     // const specificTest = process.env.npm_config_testfile || undefined;
     // Add after installation
   // Skip listing extensions in WSL to avoid prompt that causes hanging
-  try {
-    const installedExtensions = cp.execSync(
-      `${cliPath} ${args.join(' ')} --list-extensions`,
-      { 
-        encoding: 'utf-8', 
-        timeout: 5000, 
-        stdio: 'pipe',
-        env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
-      }
-    );
-    console.log('installedExtensions', installedExtensions);
-  } catch (err: any) {
-    // Ignore errors when listing extensions (common in WSL environments)
-    console.log('Skipping extension list check (this is normal in WSL)');
-  }
+
     // Use cp.spawn / cp.exec for custom setup
 	// const installExtensions = ['ms-python.python', 'oracle.oracle-java', 'golang.go'];
     cp.spawnSync(
@@ -116,6 +102,28 @@ async function main() {
         env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
       }
     );
+    let installedExtensions: any = null;
+    try {
+      installedExtensions = cp.execSync(
+        `${cliPath} ${args.join(' ')} --list-extensions`,
+        { 
+          encoding: 'utf-8', 
+          timeout: 5000, 
+          stdio: 'pipe',
+          env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
+        }
+      );
+      console.log('installedExtensions', installedExtensions);
+    } catch (err: any) {
+      // Ignore errors when listing extensions (common in WSL environments)
+      console.log('Skipping extension list check');
+    }
+
+    if (installedExtensions === null) {
+       console.error("Failed to install extensions, please review the issue on Github");
+       process.exit(1);
+    }
+    
     const privateConfig = loadPrivateConfig();
     // Run the extension test
     await runTests({

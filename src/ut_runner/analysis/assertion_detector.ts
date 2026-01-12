@@ -8,15 +8,20 @@ export { prettyPrintDefTree };
 
 export interface RedefinedSymbol {
     name: string;
-    sourceLoc: string | null;
-    testLoc: string | null;
-    sourceImplementation: string | null;
     symbolKind: string | null;
-    originalImplementation?: string | null;
-    originalLocation?: string | null;
     symbolType?: string | null;
-    hoverText?: string | null;
-    trailingSourceContext?: string | null;
+    // Source (original) side
+    sourceFile: string | null;
+    sourceLoc: string | null;
+    sourceImplementation: string | null;
+    sourceHoverText: string | null;
+    sourceTrailingContext: string | null;
+    // Test (redefined) side
+    testFile: string | null;
+    testLoc: string | null;
+    // testImplementation: string | null;
+    // testHoverText: string | null;
+    // testTrailingContext: string | null;
 }
 
 export interface AssertionDetectionResult {
@@ -64,18 +69,18 @@ export async function detectRedefinedAssertions(
     const testNameToSymbols = buildTestSymbolMap(testFileSymbols);
     console.log('#### TestNameToSymbols: ', Array.from(testNameToSymbols));
     // Find redefined symbols
-    const redefinedSymbols = await findRedefinedSymbols(referencedNames, testNameToSymbols);
+    const redefinedSymbols = await findRedefinedSymbols(referencedNames, testNameToSymbols, testFileDoc, testFile, sourceFile);
 
     // Print results
     if (redefinedSymbols.length > 0) {
         console.log('#### Symbols redefined in test file (also defined in source):');
         for (const r of redefinedSymbols) {
-            console.log(` - ${r.name}: source=${r.sourceLoc ?? 'unknown'}, test=${r.testLoc ?? 'unknown'}`);
+            console.log(` - ${r.name}: source=${r.sourceLoc ?? 'unknown'}`);
         }
-        console.log('#### TestFile absolute path: ', testFile);
-        console.log('#### SourceFile absolute path: ', sourceFile);
-        console.log('#### TestFile SourceCodes: ', testFileDoc.getText());
-        console.log('#### SourceFile SourceCodes: ', srcDoc.getText());
+        // console.log('#### TestFile absolute path: ', testFile);
+        // console.log('#### SourceFile absolute path: ', sourceFile);
+        // console.log('#### TestFile SourceCodes: ', testFileDoc.getText());
+        // console.log('#### SourceFile SourceCodes: ', srcDoc.getText());
     } else {
         console.log('#### No redefined symbols found in test file (w.r.t. source dependency tree).');
     }
@@ -129,7 +134,10 @@ function buildTestSymbolMap(testFileSymbols: vscode.DocumentSymbol[]): Map<strin
  */
 async function findRedefinedSymbols(
     referencedNames: Set<DefinitionTreeNode>,
-    testNameToSymbols: Map<string, vscode.DocumentSymbol[]>
+    testNameToSymbols: Map<string, vscode.DocumentSymbol[]>,
+    testFileDoc: vscode.TextDocument,
+    testFile: string,
+    sourceFile: string
 ): Promise<RedefinedSymbol[]> {
     const redefined: RedefinedSymbol[] = [];
 
@@ -143,18 +151,24 @@ async function findRedefinedSymbols(
 
             const testLoc = `${syms[0].name}@${syms[0].selectionRange.start.line + 1}:${syms[0].selectionRange.start.character}`;
             const sourceDetails = await findSourceSymbolDetails(node);
+            const testDetails = await findTestSymbolDetails(syms[0], testFileDoc);
             const symbolKind = sourceDetails.kind ?? symbolKindToString(syms[0].kind);
             redefined.push({
                 name: node.name,
-                sourceLoc: sourceDetails.loc,
-                testLoc,
-                sourceImplementation: sourceDetails.implementation,
                 symbolKind,
-                originalImplementation: sourceDetails.implementation,
-                originalLocation: sourceDetails.loc,
                 symbolType: symbolKind,
-                hoverText: sourceDetails.hoverText,
-                trailingSourceContext: sourceDetails.trailingSourceContext
+                // Source (original) side
+                sourceFile: sourceDetails.file ?? sourceFile,
+                sourceLoc: sourceDetails.loc,
+                sourceImplementation: sourceDetails.implementation,
+                sourceHoverText: sourceDetails.hoverText,
+                sourceTrailingContext: sourceDetails.trailingSourceContext,
+                // // Test (redefined) side
+                testFile,
+                testLoc,
+                // testImplementation: testDetails.implementation,
+                // testHoverText: testDetails.hoverText,
+                // testTrailingContext: testDetails.trailingContext
             });
         }
     }
@@ -174,6 +188,7 @@ function symbolKindToString(kind?: vscode.SymbolKind): string | null {
 }
 
 interface SourceSymbolDetails {
+    file: string | null;
     loc: string | null;
     implementation: string | null;
     kind: string | null;
@@ -191,6 +206,7 @@ async function findSourceSymbolDetails(node: DefinitionTreeNode): Promise<Source
         const syms = await getAllSymbols(uri);
         const match = syms.find(s => s.name === node.name);
         if (match) {
+            const file = uri.fsPath;
             const loc = `${path.relative(vscode.workspace.rootPath || '', uri.fsPath)}@${match.selectionRange.start.line + 1}:${match.selectionRange.start.character}`;
             const implementation = doc.getText(match.range) || null;
             const kind = symbolKindToString(match.kind);
@@ -205,10 +221,44 @@ async function findSourceSymbolDetails(node: DefinitionTreeNode): Promise<Source
             );
             const trailingSourceContext = doc.getText(trailingRange) || null;
 
-            return { loc, implementation, kind, hoverText, trailingSourceContext };
+            return { file, loc, implementation, kind, hoverText, trailingSourceContext };
         }
     } catch (error) {
         console.log(`#### Error finding source location for ${node.name}: ${error}`);
     }
-    return { loc: null, implementation: null, kind: null, hoverText: null, trailingSourceContext: null };
+    return { file: null, loc: null, implementation: null, kind: null, hoverText: null, trailingSourceContext: null };
+}
+
+interface TestSymbolDetails {
+    implementation: string | null;
+    hoverText: string | null;
+    trailingContext: string | null;
+}
+
+/**
+ * Finds the test implementation, hover text, and trailing context for a test symbol
+ */
+async function findTestSymbolDetails(
+    symbol: vscode.DocumentSymbol,
+    testFileDoc: vscode.TextDocument
+): Promise<TestSymbolDetails> {
+    try {
+        const implementation = testFileDoc.getText(symbol.range) || null;
+        
+        const hoverResults = await getHover(testFileDoc, symbol, false);
+        const hoverText = extractHoverText(hoverResults) || null;
+
+        const startLine = symbol.selectionRange.start.line;
+        const endLine = Math.min(testFileDoc.lineCount - 1, startLine + 20);
+        const trailingRange = new vscode.Range(
+            new vscode.Position(startLine, 0),
+            testFileDoc.lineAt(endLine).range.end
+        );
+        const trailingContext = testFileDoc.getText(trailingRange) || null;
+
+        return { implementation, hoverText, trailingContext };
+    } catch (error) {
+        console.log(`#### Error finding test symbol details for ${symbol.name}: ${error}`);
+    }
+    return { implementation: null, hoverText: null, trailingContext: null };
 }
