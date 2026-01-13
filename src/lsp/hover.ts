@@ -60,9 +60,9 @@ export async function getHover(
     const hoverResults = await VscodeRequestManager.hover(document.uri, hoverPosition);
     
     if (enableDebugLogging) {
-        console.log('=== Hover Debug ===');
-        console.log(`Hover position: line ${hoverPosition.line}, char ${hoverPosition.character}`);
-        console.log(`Hover results count: ${hoverResults.length}`);
+        // console.log('=== Hover Debug ===');
+        // console.log(`Hover position: line ${hoverPosition.line}, char ${hoverPosition.character}`);
+        // console.log(`Hover results count: ${hoverResults.length}`);
         
         if (hoverResults.length > 0) {
             hoverResults.forEach((hover, index) => {
@@ -79,7 +79,7 @@ export async function getHover(
             console.log('2. The position is not on an identifier/symbol');
             console.log('3. The language server needs more time to analyze');
         }
-        console.log('=== End Hover Debug ===');
+        // console.log('=== End Hover Debug ===');
     }
     
     return hoverResults;

@@ -60,6 +60,28 @@ export function getModelConfigError(): string | undefined {
 	return undefined;
 }
 
+function logLLMInteraction(prompt: string, response: string): void {
+	try {
+		const logSavePath = getConfigInstance().logSavePath;
+		if (!logSavePath) {
+			return;
+		}
+
+		// Ensure the log directory exists
+		if (!fs.existsSync(logSavePath)) {
+			fs.mkdirSync(logSavePath, { recursive: true });
+		}
+
+		const logFilePath = path.join(logSavePath, 'llm_logs');
+		const timestamp = new Date().toISOString();
+		const logEntry = `\n${'='.repeat(80)}\n[${timestamp}]\n${'='.repeat(80)}\n\nPROMPT:\n${prompt}\n\n${'-'.repeat(80)}\n\nRESPONSE:\n${response}\n\n`;
+
+		fs.appendFileSync(logFilePath, logEntry, 'utf8');
+	} catch (error) {
+		console.error('Failed to log LLM interaction:', error);
+	}
+}
+
 export async function callLocalLLM(promptObj: any, logObj: any): Promise<string> {
 	// const modelName = getModelName(method);
 	const modelName = getModelName();
@@ -85,7 +107,7 @@ export async function callLocalLLM(promptObj: any, logObj: any): Promise<string>
   }
 
 // ... existing code ...
-export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, retryDelay = 2000): Promise<string> {
+export async function invokeLLM(promptObj: any, logObj: any = { prompt: '', result: '', tokenUsage: 0, model: '' }, maxRetries = 2, retryDelay = 2000): Promise<string> {
 	const error = getModelConfigError();
 	if (error) {
 		vscode.window.showErrorMessage(error);
@@ -139,14 +161,8 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 			}
 			
 			// Log the prompt and response
-			if (fs.existsSync(getConfigInstance().logSavePath) && promptObj[1]?.content) {
-				const logData = {
-					prompt: promptObj[1].content,
-					response: response,
-					timestamp: new Date().toISOString()
-				};
-				const logFilePath = path.join(getConfigInstance().logSavePath, 'llm_logs.json');
-				fs.appendFileSync(logFilePath, JSON.stringify(logData) + '\n');
+			if (promptObj[1]?.content) {
+				logLLMInteraction(promptObj[1].content, response);
 			}
 
 			return response;
