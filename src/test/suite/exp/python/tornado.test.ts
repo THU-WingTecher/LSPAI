@@ -3,20 +3,21 @@ import * as vscode from 'vscode';
 import path from 'path';
 import { randomlySelectOneFileFromWorkspace, setWorkspaceFolders, updateWorkspaceFolders } from '../../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../../lsp/symbol";
-
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath, setupPythonLSP } from '../../../../lsp/helper';
+import { ProjectConfigName, getProjectPythonExe, getProjectPythonPath, getProjectWorkspace, getProjectLanguage } from '../../../../config';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../../config';
 import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from '../../../../experiment';
 import { readSliceAndSaveTaskList } from '../../../../experiment/utils/helper';
 
 suite('Experiment Test Suite', () => {
-    const pythonInterpreterPath = "/root/miniconda3/envs/LSPRAG/bin/python";
-    const projectPath = "/LSPRAG/experiments/projects/tornado";
-    const pyExtraPath = [path.join(projectPath, "tornado"), projectPath];
-    const sampleNumber = -1;
-    const languageId = "python";
+    const projectName = "tornado" as ProjectConfigName;
+    const pythonInterpreterPath = getProjectPythonExe(projectName) as string;       
+    const pythonExtraPaths = getProjectPythonPath(projectName);
+    const projectPath = getProjectWorkspace("tornado");
+    const languageId = getProjectLanguage(projectName as ProjectConfigName);
+    const taskListPath = '/LSPRAG/experiments/projects/tornado/symbol_robustness_results.json';
+    const sampleNumber = 100;
     const currentConfig = {
-        model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
         expProb: 1,
         promptType: PromptType.DETAILED,
@@ -38,7 +39,7 @@ suite('Experiment Test Suite', () => {
         }
         assert.ok(vscode.workspace.workspaceFolders, 'Workspace folders should be set');
         assert.strictEqual(vscode.workspace.workspaceFolders[0].uri.fsPath, projectPath, 'Workspace folder should match project path');
-        await setupPythonLSP(pyExtraPath, pythonInterpreterPath);
+        await setupPythonLSP(pythonExtraPaths, pythonInterpreterPath);
     });
 
     test('Prepare FUT with robustness scores for assertion generation analysis', async () => {
@@ -47,8 +48,7 @@ suite('Experiment Test Suite', () => {
             await activate();
         }
     
-        const taskListPath = '/LSPRAG/experiments/projects/tornado/symbol_robustness_results.json';
-        const sampledTaskListPath = await readSliceAndSaveTaskList(taskListPath, 100);
+        const sampledTaskListPath = await readSliceAndSaveTaskList(taskListPath, sampleNumber);
         
         const workspaceFolders = setWorkspaceFolders(projectPath);
         // await updateWorkspaceFolders(workspaceFolders);

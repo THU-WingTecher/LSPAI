@@ -75,7 +75,9 @@ export function getDefaultCategories(): CategoryStructure {
  *  - LegacyCategoryWithTestCases: map of small categories to test case arrays
  */
 function toTestCaseList(value: string[] | LegacyCategoryWithTestCases | undefined): string[] {
-  if (!value) return [];
+  if (!value) {
+    return [];
+  }
   if (Array.isArray(value)) {
     return [];
   }
@@ -363,6 +365,10 @@ export async function categorizeAssertionError(
   const categoryTemplates = loadCategoryTemplates();
   prompt = prompt.replace("{{{Existing Categories}}}", categoryTemplates);
 
+  if (logObj) {
+    logObj.prompt = prompt;
+  }
+
   const messages = [
     {
       role: 'system' as const,
@@ -375,6 +381,9 @@ export async function categorizeAssertionError(
   ];
 
   const response = await invokeLLM(messages, logObj);
+  if (logObj) {
+    logObj.result = response;
+  }
   console.log('categorizeAssertionError::response', response);
   const result = parseCategorizationResponse(response);
   console.log('categorizeAssertionError::result', result);
@@ -387,8 +396,12 @@ export async function categorizeAssertionError(
 
   // Validate required fields and provide detailed error
   const missingFields: string[] = [];
-  if (!result.rootCauseSummary) missingFields.push('rootCauseSummary');
-  if (!result.bigCategory) missingFields.push('bigCategory');
+  if (!result.rootCauseSummary) {
+    missingFields.push('rootCauseSummary');
+  }
+  if (!result.bigCategory) {
+    missingFields.push('bigCategory');
+  }
   
   if (missingFields.length > 0) {
     console.error(`[CATEGORIZATION] Missing fields in result for ${request.testCaseName}:`, missingFields);

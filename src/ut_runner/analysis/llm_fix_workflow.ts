@@ -24,7 +24,7 @@ import {
 import { 
   logCategorizationDiff
 } from './category_diff_logger';
-import { logFixDiff, exportFixDiffSummary, exportDetailedFixReport, generateSimpleDiffReport } from './fix_diff_reporter';
+import { logFixDiff, exportFixDiffSummary, exportDetailedFixReport, generateSimpleDiffReport, createFixDiffReport, loadFixDiffReport, saveFixDiffReport, FixDiffReport } from './fix_diff_reporter';
 import { getDecodedTokensFromSymbol } from '../../lsp/token';
 import { isBetweenFocalMethod, retrieveDefs } from '../../lsp/definition';
 
@@ -90,6 +90,7 @@ export class LLMFixWorkflow {
   private readonly fixDiffReportPath: string;
   private readonly surgenDir: string;
   private fixSummaryDocs: Map<string, string> = new Map(); // testCaseName -> document path
+  private fixDocument: FixDiffReport;
   constructor(
     inputJsonPath: string,
     outputDir: string,
@@ -118,6 +119,7 @@ export class LLMFixWorkflow {
     this.categoryStructurePath = path.join(outputDir, 'category_structure.json');
     this.diffLogPath = path.join(outputDir, 'category_diff_log.json');
     this.fixDiffReportPath = path.join(outputDir, 'fix_diff_report.json');
+    this.fixDocument = loadFixDiffReport(this.fixDiffReportPath) ?? createFixDiffReport();
     
     // Load existing category structure or initialize with defaults
     this.categoryStructure = loadCategoryStructure(this.categoryStructurePath);
@@ -876,7 +878,7 @@ Be concise and focused on fixing the specific assertion error.
 You first explain the root cause of assertion errors.
 After that, you suggest the fixed test code.
 Test code should be wrapped in \`\`\` code blocks.
-`
+`;
     // Build fix history section
     let fixHistorySection = '';
     if (previousAttempts.length > 0) {
@@ -1409,6 +1411,8 @@ ${assertionErrors}
     const docPath = this.fixSummaryDocs.get(testCaseName);
     if (!docPath) {
       console.warn(`[LLM_FIX] No fix summary document found for ${testCaseName}`);
+      // Still record categorization attempt to fix document (JSON) for reporting.
+      this.appendCategorizationAttemptToFixDocument(testCaseName, agentName, userPrompt, response);
       return;
     }
 
@@ -1452,6 +1456,28 @@ ${response}
       content = content.slice(0, fixHistoryIndex) + attemptSection + content.slice(fixHistoryIndex);
       fs.writeFileSync(docPath, content, 'utf-8');
     }
+
+    // Record to fix document (JSON) as well
+    this.appendCategorizationAttemptToFixDocument(testCaseName, agentName, userPrompt, response);
+  }
+
+  private appendCategorizationAttemptToFixDocument(
+    testCaseName: string,
+    agentName: string,
+    userPrompt: string,
+    response: string
+  ): void {
+    const report = loadFixDiffReport(this.fixDiffReportPath) ?? createFixDiffReport();
+    report.categorizationHistory ??= {};
+    report.categorizationHistory[testCaseName] ??= [];
+    report.categorizationHistory[testCaseName].push({
+      timestamp: new Date().toISOString(),
+      agentName,
+      prompt: userPrompt,
+      response
+    });
+    saveFixDiffReport(this.fixDiffReportPath, report);
+    this.fixDocument = report;
   }
 
   /**
@@ -2001,6 +2027,8 @@ ${response}
   ): Promise<string> {
     const previousCategories = { ...this.categoryStructure };
     let categorizationResult: CategorizationResult;
+    let categorizationPrompt = '';
+    let categorizationResponse = '';
 
     if (category === "general") {
       // Use LLM categorization for general category
@@ -2022,6 +2050,8 @@ ${response}
       };
       
       categorizationResult = await categorizeAssertionError(request, logObj);
+      categorizationPrompt = logObj.prompt || '';
+      categorizationResponse = logObj.result || '';
     } else {
       // Directly add specialized categories to structure
       const metadata = this.getCategoryMetadata(category);
@@ -2040,6 +2070,10 @@ ${response}
         reasoning: metadata.reasoning,
         timestamp: new Date().toISOString()
       };
+
+      // For non-LLM categorization, record a synthetic "prompt/response" so history is still meaningful.
+      categorizationPrompt = `Direct categorization (non-LLM): ${category}`;
+      categorizationResponse = JSON.stringify(categorizationResult, null, 2);
     }
 
     // Update category structure (creates category if it doesn't exist)
@@ -2050,6 +2084,14 @@ ${response}
     logCategorizationDiff(categorizationResult, previousCategories, this.categoryStructure, this.diffLogPath);
     
     console.log(`[CATEGORIZATION] Categorized ${testCaseName} as ${categorizationResult.bigCategory}`);
+
+    // Record categorization attempt to both markdown + JSON fix document
+    this.appendCategorizationAttemptToDocument(
+      testCaseName,
+      category,
+      categorizationPrompt,
+      categorizationResponse
+    );
     return categorizationResult.bigCategory;
   }
 
@@ -2085,17 +2127,17 @@ ${response}
       const testCaseName = testEntry.test_case.split('::').at(-1);
       
       // Check cache first
-      // const cachedAttempt = this.checkCache(testCaseName!);
-      // if (cachedAttempt) {
-      //   console.log(`[LLM_FIX] Using cached fix for ${testCaseName}`);
-      //   cached++;
+      const cachedAttempt = this.checkCache(testCaseName!);
+      if (cachedAttempt) {
+        console.log(`[LLM_FIX] Using cached fix for ${testCaseName}`);
+        cached++;
         
-      //   // Ensure it's in fixHistory
-      //   if (!this.fixHistory.has(testCaseName!)) {
-      //     this.fixHistory.set(testCaseName!, [cachedAttempt]);
-      //   }
-      //   continue;
-      // }
+        // Ensure it's in fixHistory
+        if (!this.fixHistory.has(testCaseName!)) {
+          this.fixHistory.set(testCaseName!, [cachedAttempt]);
+        }
+        continue;
+      }
       
       try {
         const result = await this.processTestCase(testEntry);

@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { runPipeline } from '../../../ut_runner/runner';
-import { getConfigInstance, getProjectPythonExe, getProjectPythonPath, Provider, getProjectWorkspace, ProjectConfigName } from '../../../config';
+import { getConfigInstance, getProjectPythonExe, getProjectPythonPath, Provider, getProjectWorkspace, ProjectConfigName, getProjectLanguage } from '../../../config';
 import { runLLMFixWorkflow, LLMFixWorkflow } from '../../../ut_runner/analysis/llm_fix_workflow';
 
 
@@ -15,22 +15,26 @@ interface AELLMAnalysisTestConfig {
 
 suite('EXECUTE - Python', () => {
   /////////////////////////////////////
-  const concurrency = 5;
+  const concurrency = 10;
   const configs: AELLMAnalysisTestConfig[] = [
     // { projectName: "tornado",
     // testsDir: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/gpt-5/codes',
     // testFileMapPath: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/test_file_map.json'
     // },
     // { projectName: "tornado",
-    // testsDir: '/LSPRAG/experiments/projects/tornado/lsprag-workspace/20251203_145746/tornado/lsprag_withcontext_/gpt-5/results/final',
-    // testFileMapPath: '/LSPRAG/experiments/projects/tornado/lsprag-workspace/20251203_145746/tornado/lsprag_withcontext_/gpt-5/results/test_file_map.json'
+    // testsDir: '/LSPRAG/experiments/data/RA/tornado/lsprag-gpt5/final',
+    // testFileMapPath: '/LSPRAG/experiments/data/RA/tornado/lsprag-gpt5/test_file_map.json'
+    // },
+    // { projectName: "commons-cli",
+    // testsDir: '/LSPRAG/experiments/data/main_result/commons-cli/lsprag/1/gpt-4o/results/final',
+    // testFileMapPath: '/LSPRAG/experiments/config/commons-cli_test_file_map.json'
     // },
     // { projectName: "black",
     // testsDir: '/LSPRAG/experiments/motiv/assertion/opencode/gpt-5/codes',
     // testFileMapPath: '/LSPRAG/experiments/motiv/assertion/opencode/test_file_map.json'
     // },
     { projectName: "black",
-    testsDir: '/LSPRAG/experiments/data/motiv/codes',
+    testsDir: '/LSPRAG/experiments/data/main_result/black/lsprag/5/gpt-4o/results/final',
     testFileMapPath: '/LSPRAG/experiments/config/black_test_file_map.json'
     },
     // { projectName: "black",
@@ -49,6 +53,7 @@ suite('EXECUTE - Python', () => {
     for (const config of configs) {
       const projectName = config.projectName as ProjectConfigName
       const projectPath = getProjectWorkspace(projectName);
+      const language = getProjectLanguage(projectName as ProjectConfigName);
       const pythonInterpreterPath = getProjectPythonExe(projectName);
       const pythonExtraPaths = getProjectPythonPath(projectName);
       const testsDir = config.testsDir;
@@ -66,7 +71,7 @@ suite('EXECUTE - Python', () => {
       };
       // const currentConfig = {
       //   workspace: projectPath,
-      //   model: 'gpt-5-mini',
+      //   model: 'gpt-5',
       //   provider: 'openai' as Provider,
       // };
       getConfigInstance().updateConfig({
@@ -74,7 +79,7 @@ suite('EXECUTE - Python', () => {
       });
       if (!fs.existsSync(inputJsonPath)) {
         await runPipeline(testsDir, final_report_path, testFileMapPath, {
-          language: 'python',
+          language: language,
           pythonExe: pythonInterpreterPath,
           jobs: concurrency,
           timeoutSec: 30,
@@ -82,7 +87,7 @@ suite('EXECUTE - Python', () => {
         });
       }
       await runLLMFixWorkflow(inputJsonPath, outputDir, {
-        language: 'python',
+        language: language,
         pythonExe: pythonInterpreterPath,
         jobs: concurrency,
         timeoutSec: 30,

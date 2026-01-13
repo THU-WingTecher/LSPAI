@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import { randomlySelectOneFileFromWorkspace, setWorkspaceFolders, updateWorkspaceFolders, genPythonicSrcImportStatement } from '../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../lsp/symbol";
 import { activate, getPythonExtraPaths, getPythonInterpreterPath, setPythonExtraPaths, setPythonInterpreterPath, setPythonAnalysisInclude, setPythonAnalysisExclude, setupPythonLSP, reloadJavaLanguageServer } from '../../../lsp/helper';
-import { getConfigInstance, GenerationType, PromptType, Provider, FixType, LANGUAGE_IDS, getProjectLanguage, ProjectConfigName, getProjectSrcPath, getProjectWorkspace } from '../../../config';
+import { getConfigInstance, GenerationType, PromptType, Provider, FixType, LANGUAGE_IDS, getProjectLanguage, ProjectConfigName, getProjectSrcPath, getProjectWorkspace, getProjectPythonExe, getProjectPythonPath } from '../../../config';
 import { VscodeRequestManager } from '../../../lsp/vscodeRequestManager';
 import { isTestFile } from '../../../lsp/reference';
 export interface SymbolRobustnessResult {
@@ -93,12 +93,12 @@ export async function measureSymbolRobustness(
 }
 
 suite('Experiment Test Suite', () => {
-    const pythonInterpreterPath = "/root/miniconda3/envs/black/bin/python";
-    const projectName = "black";
-    
+    // const projectName = "commons-cli";
+    const projectName = "tornado";
+    const pythonInterpreterPath = getProjectPythonExe(projectName) as string;
+    const pythonExtraPaths = getProjectPythonPath(projectName);
     const languageId = getProjectLanguage(projectName as ProjectConfigName);
     const projectPath = getProjectWorkspace(projectName as ProjectConfigName);
-    const blackModuleImportPath = [path.join(projectPath, "src/black"), path.join(projectPath, "src/blackd"), path.join(projectPath, "src/blib2to3"), path.join(projectPath, "src"), path.join(projectPath, "tests")];
     const currentConfig = {
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
@@ -118,7 +118,7 @@ suite('Experiment Test Suite', () => {
         await updateWorkspaceFolders(workspaceFolders);
         console.log('Workspace folders updated to:', vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath));
         if (languageId === "python") {  
-            await setupPythonLSP(blackModuleImportPath, pythonInterpreterPath);
+            await setupPythonLSP(pythonExtraPaths, pythonInterpreterPath);
         } else if (languageId === "java") {
             await reloadJavaLanguageServer();
             await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for Maven import to complete

@@ -18,6 +18,13 @@ export interface FixDiffEntry {
   };
 }
 
+export interface CategorizationAttemptLog {
+  timestamp: string;
+  agentName: string;
+  prompt?: string;
+  response?: string;
+}
+
 export interface FixDiffReport {
   reportVersion: string;
   createdAt: string;
@@ -48,6 +55,7 @@ export interface FixDiffReport {
     };
   };
   fixes: FixDiffEntry[];
+  categorizationHistory: Record<string, CategorizationAttemptLog[]>;
 }
 
 /**
@@ -120,7 +128,8 @@ export function createFixDiffReport(): FixDiffReport {
         failedFixes: 0
       }
     },
-    fixes: []
+    fixes: [],
+    categorizationHistory: {}
   };
 }
 
@@ -132,7 +141,11 @@ export function loadFixDiffReport(filePath: string): FixDiffReport | null {
     return null;
   }
   const content = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(content);
+  const parsed = JSON.parse(content) as FixDiffReport;
+  if (!parsed.categorizationHistory) {
+    parsed.categorizationHistory = {};
+  }
+  return parsed;
 }
 
 /**
