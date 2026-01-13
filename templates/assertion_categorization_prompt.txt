@@ -43,8 +43,7 @@ You must provide your response in the following JSON format, wrapped in ```json 
 
 The following default categories are available. You should prefer using these when they match the root cause:
 
-1. **Wrong Environment**
-2. **Mock error**
+{{{Existing Categories}}}
 
 ## Category Naming Guidelines
 
