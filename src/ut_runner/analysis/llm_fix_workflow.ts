@@ -309,13 +309,14 @@ export class LLMFixWorkflow {
    */
   private createRedeclaredErrorFixPrompt(
     sourceCode: string,
-    testCode: string,
+    wholeTestCode: string,
+    testFunctionCode: string,
     assertionErrors: string,
     symbolName: string,
     examinationResult: ExaminationResult,
     previousAttempts: FixAttempt[] = []
   ): any[] {
-    if (!sourceCode || !testCode) {
+    if (!sourceCode || !wholeTestCode) {
       throw new Error('Source code and test code are required');
     }
 
@@ -362,10 +363,17 @@ export class LLMFixWorkflow {
   ${sourceCode}
   \`\`\`
   
-  ` : ''}Test Code (fix import errors only):
+  ` : ''}
+  Whole Test Code:
   \`\`\`
-  ${testCode}
+  ${wholeTestCode}
   \`\`\`
+
+  Problematic Test Function:
+  \`\`\`
+  ${testFunctionCode}
+  \`\`\`
+
   ${fixHistorySection}
   Please fix ONLY import errors and return the complete fixed test code.`;
   
@@ -418,7 +426,8 @@ export class LLMFixWorkflow {
    */
   private createSentinelRedefinitionMismatchFixPrompt(
     sourceCode: string,
-    testCode: string,
+    wholeTestCode: string,
+    testFunctionCode: string,
     assertionErrors: string,
     symbolName: string,
     previousAttempts: FixAttempt[] = []
@@ -473,9 +482,14 @@ Source Code:
 ${sourceCode}
 \`\`\`
 
-Test Code (with errors):
+Whole Test Code:
 \`\`\`python
-${testCode}
+${wholeTestCode}
+\`\`\`
+
+Problematic Test Function:
+\`\`\`python
+${testFunctionCode}
 \`\`\`
 
 Assertion Errors:
@@ -510,6 +524,7 @@ def test_fixed(arg1, ...):
     testEntry: any,
     sourceCode: string,
     testCode: string,
+    testFunctionCode: string,
     assertionErrors: string,
     symbolName: string
   ): Promise<{ isMatch: boolean; userPrompt: string; response: string }> {
@@ -550,9 +565,14 @@ Source Code:
 ${sourceCode}
 \`\`\`
 
-Test Code:
+Whole Test Code:
 \`\`\`python
 ${testCode}
+\`\`\`
+
+Problematic Test Function:
+\`\`\`python
+${testFunctionCode}
 \`\`\`
 
 Assertion Errors:
@@ -602,6 +622,7 @@ Is this a Default Value Mismatch error? Respond with JSON only.`;
     testEntry: any,
     sourceCode: string,
     testCode: string,
+    testFunctionCode: string,
     assertionErrors: string,
     symbolName: string
   ): Promise<{ isMatch: boolean; userPrompt: string; response: string }> {
@@ -631,9 +652,15 @@ Source Code:
 ${sourceCode}
 \`\`\`
 
-Test Code:
+
+Whole Test Code:
 \`\`\`python
 ${testCode}
+\`\`\`
+
+Problematic Test Function:
+\`\`\`python
+${testFunctionCode}
 \`\`\`
 
 Assertion Errors:
@@ -684,13 +711,14 @@ Is this a Sentinel Redefinition Mismatch error? Respond with JSON only.`;
     testEntry: any,
     sourceCode: string,
     testCode: string,
+    testFunctionCode: string,
     assertionErrors: string,
     symbolName: string,
     testCaseName: string
   ): Promise<"default_value_mismatch" | "sentinel_redefinition_mismatch" | "general" | "redefined"> {
     // Step 1: Check if it's a default value mismatch
     console.log(`[CATEGORIZATION] Checking if error is Default Value Mismatch...`);
-    const defaultValueResult = await this.isDefaultValueMismatch(testEntry, sourceCode, testCode, assertionErrors, symbolName);
+    const defaultValueResult = await this.isDefaultValueMismatch(testEntry, sourceCode, testCode, testFunctionCode, assertionErrors, symbolName);
     
     // Record categorization attempt
     this.appendCategorizationAttemptToDocument(
@@ -728,7 +756,8 @@ Is this a Sentinel Redefinition Mismatch error? Respond with JSON only.`;
    */
   private createDefaultValueMismatchFixPrompt(
     sourceCode: string,
-    testCode: string,
+    wholeTestCode: string,
+    testFunctionCode: string,
     assertionErrors: string,
     symbolName: string,
     previousAttempts: FixAttempt[] = []
@@ -785,9 +814,14 @@ Source Code:
 ${sourceCode}
 \`\`\`
 
-Test Code (with errors):
+Whole Test Code:
 \`\`\`python
-${testCode}
+${wholeTestCode}
+\`\`\`
+
+Problematic Test Function:
+\`\`\`python
+${testFunctionCode}
 \`\`\`
 
 Assertion Errors:
@@ -819,7 +853,8 @@ def test_fixed(arg1, ...):
    */
   private createAssertionErrorFixPrompt(
     sourceCode: string,
-    testCode: string,
+    wholeTestCode: string,
+    testFunctionCode: string,
     assertionErrors: string,
     symbolName: string,
     previousAttempts: FixAttempt[] = []
@@ -867,9 +902,14 @@ Source Code:
 ${sourceCode}
 \`\`\`
 
-Test Code (with errors):
+Whole Test Code:
 \`\`\`python
-${testCode}
+${wholeTestCode}
+\`\`\`
+
+Problematic Test Function:
+\`\`\`python
+${testFunctionCode}
 \`\`\`
 
 Assertion Errors:
@@ -898,7 +938,8 @@ console.log("userPrompt: ", userPrompt);
    */
   private async fixTestWithLLM(
     sourceCode: string,
-    testCode: string,
+    wholeTestCode: string,
+    testFunctionCode: string,
     assertionErrors: string,
     symbolName: string,
     attempt: number,
@@ -916,13 +957,13 @@ console.log("userPrompt: ", userPrompt);
 
     let prompt: any[] = [];
     if (cate === "general") {
-      prompt = this.createAssertionErrorFixPrompt(sourceCode, testCode, assertionErrors, symbolName, previousAttempts);
+      prompt = this.createAssertionErrorFixPrompt(sourceCode, wholeTestCode, testFunctionCode, assertionErrors, symbolName, previousAttempts);
     } else if (cate === "redefined") {
-      prompt = this.createRedeclaredErrorFixPrompt(sourceCode, testCode, assertionErrors, symbolName, examinationResult, previousAttempts);
+      prompt = this.createRedeclaredErrorFixPrompt(sourceCode, wholeTestCode, testFunctionCode, assertionErrors, symbolName, examinationResult, previousAttempts);
     } else if (cate === "default_value_mismatch") {
-      prompt = this.createDefaultValueMismatchFixPrompt(sourceCode, testCode, assertionErrors, symbolName, previousAttempts);
+      prompt = this.createDefaultValueMismatchFixPrompt(sourceCode, wholeTestCode, testFunctionCode, assertionErrors, symbolName, previousAttempts);
     } else if (cate === "sentinel_redefinition_mismatch") {
-      prompt = this.createSentinelRedefinitionMismatchFixPrompt(sourceCode, testCode, assertionErrors, symbolName, previousAttempts);
+      prompt = this.createSentinelRedefinitionMismatchFixPrompt(sourceCode, wholeTestCode, testFunctionCode, assertionErrors, symbolName, previousAttempts);
     } else {
       throw new Error(`Invalid category: ${cate}`);
     }
@@ -1418,7 +1459,11 @@ ${response}
     attemptNumber: number,
     category: string,
     userPrompt: string,
-    response: string
+    response: string,
+    testResult?: 'pass' | 'fail' | 'error',
+    errorMessage?: string,
+    fixedCode?: string,
+    previousCode?: string
   ): void {
     const docPath = this.fixSummaryDocs.get(testCaseName);
     if (!docPath) {
@@ -1427,10 +1472,34 @@ ${response}
     }
 
     const content = fs.readFileSync(docPath, 'utf-8');
-    const attemptSection = `
+    
+    // Build the attempt section with test result and error message
+    let attemptSection = `
 ### Fix History - ${attemptNumber} (with ${category} agent)
 
-#### User Prompt (do not include system prompt)
+#### Test Result: ${testResult || 'unknown'}
+`;
+    
+    if (errorMessage) {
+      attemptSection += `#### Error Message:
+\`\`\`
+${errorMessage}
+\`\`\`
+
+`;
+    }
+    
+    if (previousCode && fixedCode) {
+      const diff = generateSimpleDiffReport(previousCode, fixedCode);
+      attemptSection += `#### Code Changes:
+\`\`\`
+${diff}
+\`\`\`
+
+`;
+    }
+    
+    attemptSection += `#### User Prompt (do not include system prompt)
 \`\`\`
 ${userPrompt}
 \`\`\`
@@ -1443,6 +1512,77 @@ ${response}
 `;
     
     fs.appendFileSync(docPath, attemptSection, 'utf-8');
+  }
+
+  /**
+   * Write all failed attempts from fixHistory to the summary document
+   * This ensures all failed attempts from different subagents are included
+   */
+  private writeAllFailedAttemptsToSummary(testCaseName: string): void {
+    const docPath = this.fixSummaryDocs.get(testCaseName);
+    if (!docPath) {
+      console.warn(`[LLM_FIX] No fix summary document found for ${testCaseName}`);
+      return;
+    }
+
+    const fixHistory = this.fixHistory.get(testCaseName) || [];
+    if (fixHistory.length === 0) {
+      return;
+    }
+
+    // Check what's already in the document
+    const content = fs.readFileSync(docPath, 'utf-8');
+    
+    // For each attempt in history, check if it's already in the document
+    for (const attempt of fixHistory) {
+      try {
+        const promptData = JSON.parse(attempt.prompt);
+        const category = promptData.category || 'unknown';
+        
+        // Check if this attempt is already in the document
+        // Escape special regex characters in category
+        const escapedCategory = category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const attemptPattern = new RegExp(
+          `### Fix History - ${attempt.round} \\(with ${escapedCategory} agent\\)`
+        );
+        
+        if (!attemptPattern.test(content)) {
+          // This attempt is not in the document yet, add it
+          const userPrompt = promptData.userPrompt || `Fix attempt ${attempt.round} for category ${category}`;
+          const response = attempt.response || attempt.fixedCode;
+          
+          // Get previous code if available (from previous attempt in same category)
+          let previousCode: string | undefined = undefined;
+          const sameCategoryAttempts = fixHistory.filter(a => {
+            try {
+              const aData = JSON.parse(a.prompt);
+              return aData.category === category && a.round < attempt.round;
+            } catch {
+              return false;
+            }
+          });
+          if (sameCategoryAttempts.length > 0) {
+            // Get the most recent previous attempt's fixed code
+            const previousAttempt = sameCategoryAttempts.sort((a, b) => b.round - a.round)[0];
+            previousCode = previousAttempt.fixedCode;
+          }
+          
+          this.appendFixAttemptToDocument(
+            testCaseName,
+            attempt.round,
+            category,
+            userPrompt,
+            response,
+            attempt.testResult,
+            attempt.errorMessage,
+            attempt.fixedCode,
+            previousCode
+          );
+        }
+      } catch (error) {
+        console.warn(`[LLM_FIX] Failed to write failed attempt to summary:`, error);
+      }
+    }
   }
 
   /**
@@ -1523,7 +1663,7 @@ ${response}
     this.initializeFixSummaryDocument(
       testCaseName!,
       sourceCode,
-      testCode,
+      testFunctionCode,
       testFile,
       assertionErrors
     );
@@ -1539,7 +1679,7 @@ ${response}
       // Sentinel redefinition mismatch can only happen if there are redefined symbols
       // Check if it's specifically a sentinel redefinition mismatch
       try {
-        const sentinelResult = await this.isSentinelRedefinitionMismatch(testEntry, sourceCode, testCode, assertionErrors, symbolName);
+        const sentinelResult = await this.isSentinelRedefinitionMismatch(testEntry, sourceCode, testCode, testFunctionCode, assertionErrors, symbolName);
         
         // Record categorization attempt
         this.appendCategorizationAttemptToDocument(
@@ -1552,6 +1692,13 @@ ${response}
         if (sentinelResult.isMatch) {
           detectedCategory = "sentinel_redefinition_mismatch";
           console.log(`[LLM_FIX] ## Categorized as: sentinel_redefinition_mismatch`);
+          
+          // Categorize the detected test case (we assume it's fixed for categorization purposes)
+          try {
+            await this.categorizeFixedTestCase(testCaseName!, testCode, testFunctionCode, testFunctionCode);
+          } catch (error) {
+            console.error(`[LLM_FIX] Failed to categorize detected sentinel redefinition mismatch ${testCaseName}:`, error);
+          }
         } else {
           detectedCategory = "general";
           console.log(`[LLM_FIX] Categorized as: general (general redefinition)`);
@@ -1568,6 +1715,7 @@ ${response}
           testEntry,
           sourceCode,
           testCode,
+          testFunctionCode,
           assertionErrors,
           symbolName,
           testCaseName!
@@ -1588,6 +1736,7 @@ ${response}
         testFile,
         sourceCode,
         testCode,
+        testFunctionCode,
         symbolName,
         detectedCategory
       );
@@ -1608,6 +1757,7 @@ ${response}
       testCaseName,
       testFile,
       sourceCode,
+      testFunctionCode,
       testCode,
       symbolName,
       "general"
@@ -1620,6 +1770,11 @@ ${response}
     }
     
     console.log(`[LLM_FIX] All subagents failed for ${testCaseName}`);
+    
+    // Write all failed attempts from fixHistory to the summary document
+    // This ensures all failed attempts from different subagents are included
+    this.writeAllFailedAttemptsToSummary(testCaseName!);
+    
     this.finalizeFixSummaryDocument(testCaseName!, "Not Fixed", detectedCategory);
     return false;
   }
@@ -1632,7 +1787,8 @@ ${response}
     testCaseName: string,
     testFile: string,
     sourceCode: string,
-    originalTestCode: string,
+    testCode: string,
+    testFunctionCode: string,
     symbolName: string,
     category: "redefined" | "general" | "default_value_mismatch" | "sentinel_redefinition_mismatch"
   ): Promise<boolean> {
@@ -1640,7 +1796,7 @@ ${response}
     const maxAttempts = category === "redefined" ? 1 : 3;
     console.log(`[LLM_FIX] Starting ${category} subagent (max attempts: ${maxAttempts})`);
     
-    let testCode = originalTestCode;
+    let wholeTestCode = testFunctionCode;
     let assertionErrors = this.getAssertionErrors(testEntry);
     
     // Check if we've already tried this category
@@ -1662,7 +1818,8 @@ ${response}
       // Get fixed code from LLM
       const fixResult = await this.fixTestWithLLM(
         sourceCode, 
-        testCode, 
+        wholeTestCode, 
+        testFunctionCode,
         assertionErrors, 
         symbolName, 
         attempt, 
@@ -1678,15 +1835,6 @@ ${response}
       }
       
       const { fixedCode, userPrompt, response } = fixResult;
-      
-      // Record fix attempt in summary document
-      this.appendFixAttemptToDocument(
-        testCaseName,
-        attempt,
-        category,
-        userPrompt,
-        response
-      );
       
       // Add test function (saves to outputDir)
       let outputTestFile: string;
@@ -1725,9 +1873,11 @@ ${response}
           sourceCode, 
           testCode, 
           assertionErrors, 
-          symbolName 
+          symbolName,
+          userPrompt,
+          response
         }),
-        response: fixedCode,
+        response: response, // Store the actual LLM response
         fixedCode,
         testResult: result.passed ? 'pass' : 'fail',
         errorMessage: result.error
@@ -1738,10 +1888,23 @@ ${response}
       }
       this.fixHistory.get(testCaseName)!.push(attemptRecord);
       
+      // Record fix attempt in summary document (after test result is known)
+      this.appendFixAttemptToDocument(
+        testCaseName,
+        attempt,
+        category,
+        userPrompt,
+        response,
+        attemptRecord.testResult,
+        attemptRecord.errorMessage,
+        fixedCode,
+        testCode
+      );
+      
       // Log fix diff for reporting
       logFixDiff(
         testCaseName,
-        originalTestCode,
+        wholeTestCode,
         fixedCode,
         category,
         attempt,
@@ -1757,7 +1920,7 @@ ${response}
         // Categorize the assertion error (use original test code) - only for general category
         if (category === "general") {
           try {
-            await this.categorizeFixedTestCase(testCaseName, originalTestCode, fixedCode);
+            await this.categorizeFixedTestCase(testCaseName, wholeTestCode, testFunctionCode, fixedCode);
           } catch (error) {
             console.error(`[LLM_FIX] Failed to categorize ${testCaseName}:`, error);
           }
@@ -1780,14 +1943,16 @@ ${response}
    */
   private async categorizeFixedTestCase(
     testCaseName: string,
-    wrongTestCode: string,
+    wholeTestCode: string,
+    testFunctionCode: string,
     fixedTestCode: string
   ): Promise<void> {
     console.log(`[CATEGORIZATION] Categorizing ${testCaseName}`);
     
     const request: CategorizationRequest = {
       testCaseName,
-      wrongTestCode,
+      wholeTestCode,
+      wrongTestCode: testFunctionCode,
       fixedTestCode,
       existingCategories: this.categoryStructure
     };
