@@ -18,7 +18,8 @@ import {
   updateCategoryStructure,
   generateCategoryStructureSummary,
   CategoryStructure,
-  CategorizationRequest
+  CategorizationRequest,
+  CategorizationResult
 } from './categorizer';
 import { 
   logCategorizationDiff
@@ -60,6 +61,8 @@ interface FixAttempt {
   testResult: 'pass' | 'fail' | 'error';
   errorMessage?: string;
 }
+
+type SubagentResult = { generalSuccess: boolean; new_category: string };
 
 /**
  * LLM-based workflow to fix assertion errors in test cases
@@ -1695,7 +1698,13 @@ ${response}
           
           // Categorize the detected test case (we assume it's fixed for categorization purposes)
           try {
-            await this.categorizeFixedTestCase(testCaseName!, testCode, testFunctionCode, testFunctionCode);
+            await this.categorizeFixedTestCaseByCategory(
+              testCaseName!,
+              "sentinel_redefinition_mismatch",
+              testCode,
+              testFunctionCode,
+              testFunctionCode
+            );
           } catch (error) {
             console.error(`[LLM_FIX] Failed to categorize detected sentinel redefinition mismatch ${testCaseName}:`, error);
           }
@@ -1730,7 +1739,7 @@ ${response}
     // Step 2: Try the detected category's specialized subagent
     if (detectedCategory !== "general") {
       console.log(`[LLM_FIX] Trying ${detectedCategory} subagent first`);
-      const specializedSuccess = await this.tryFixWithSubagent(
+      const { generalSuccess: specializedSuccess, new_category: specializedCategory } = await this.tryFixWithSubagent(
         testEntry,
         testCaseName,
         testFile,
@@ -1743,7 +1752,7 @@ ${response}
       
       if (specializedSuccess) {
         console.log(`[LLM_FIX] Successfully fixed with ${detectedCategory} subagent`);
-        this.finalizeFixSummaryDocument(testCaseName!, "Fixed", detectedCategory);
+        this.finalizeFixSummaryDocument(testCaseName!, "Fixed", specializedCategory);
         return true;
       }
       
@@ -1752,7 +1761,7 @@ ${response}
     
     // Step 3: Fall back to general subagent
     console.log(`[LLM_FIX] Invoking general subagent`);
-    const generalSuccess = await this.tryFixWithSubagent(
+    const { generalSuccess, new_category } = await this.tryFixWithSubagent(
       testEntry,
       testCaseName,
       testFile,
@@ -1760,12 +1769,12 @@ ${response}
       testFunctionCode,
       testCode,
       symbolName,
-      "general"
+      detectedCategory
     );
     
     if (generalSuccess) {
       console.log(`[LLM_FIX] Successfully fixed with general subagent`);
-      this.finalizeFixSummaryDocument(testCaseName!, "Fixed", detectedCategory);
+      this.finalizeFixSummaryDocument(testCaseName!, "Fixed", new_category);
       return true;
     }
     
@@ -1775,7 +1784,7 @@ ${response}
     // This ensures all failed attempts from different subagents are included
     this.writeAllFailedAttemptsToSummary(testCaseName!);
     
-    this.finalizeFixSummaryDocument(testCaseName!, "Not Fixed", detectedCategory);
+    this.finalizeFixSummaryDocument(testCaseName!, "Not Fixed", new_category);
     return false;
   }
 
@@ -1791,10 +1800,11 @@ ${response}
     testFunctionCode: string,
     symbolName: string,
     category: "redefined" | "general" | "default_value_mismatch" | "sentinel_redefinition_mismatch"
-  ): Promise<boolean> {
+  ): Promise<SubagentResult> {
+    let new_category : string = category;
     // Specific tasks (redefined) get 1 chance, general and specialized tasks get multiple chances
-    const maxAttempts = category === "redefined" ? 1 : 3;
-    console.log(`[LLM_FIX] Starting ${category} subagent (max attempts: ${maxAttempts})`);
+    const maxAttempts = new_category === "redefined" ? 1 : 3;
+    console.log(`[LLM_FIX] Starting ${new_category} subagent (max attempts: ${maxAttempts})`);
     
     let wholeTestCode = testFunctionCode;
     let assertionErrors = this.getAssertionErrors(testEntry);
@@ -1802,18 +1812,18 @@ ${response}
     // Check if we've already tried this category
     const fixHistory = this.fixHistory.get(testCaseName) || [];
     const categoryHistory = fixHistory.filter(attempt => 
-      attempt.prompt.includes(`"category":"${category}"`)
+      attempt.prompt.includes(`"category":"${new_category}"`)
     );
     
     if (categoryHistory.length >= maxAttempts) {
       console.log(`[LLM_FIX] Already exhausted attempts for category: ${category}`);
-      return false;
+      return { generalSuccess: false, new_category: new_category };
     }
     
     let attempt = categoryHistory.length + 1;
     
     while (attempt <= maxAttempts) {
-      console.log(`[LLM_FIX] ${category} subagent - Attempt ${attempt}/${maxAttempts}`);
+      console.log(`[LLM_FIX] general subagent - Attempt ${attempt}/${maxAttempts}`);
       
       // Get fixed code from LLM
       const fixResult = await this.fixTestWithLLM(
@@ -1825,7 +1835,7 @@ ${response}
         attempt, 
         testEntry.examination,
         testCaseName, 
-        category
+        new_category
       );
       
       if (!fixResult) {
@@ -1838,7 +1848,7 @@ ${response}
       
       // Add test function (saves to outputDir)
       let outputTestFile: string;
-      if (category === "redefined") {
+      if (new_category === "redefined") {
         // For "redefined", LLM generates the whole test file code
         // Save directly to output directory
         try {
@@ -1869,7 +1879,7 @@ ${response}
       const attemptRecord: FixAttempt = {
         round: attempt,
         prompt: JSON.stringify({ 
-          category, 
+          new_category, 
           sourceCode, 
           testCode, 
           assertionErrors, 
@@ -1892,7 +1902,7 @@ ${response}
       this.appendFixAttemptToDocument(
         testCaseName,
         attempt,
-        category,
+        new_category,
         userPrompt,
         response,
         attemptRecord.testResult,
@@ -1906,7 +1916,7 @@ ${response}
         testCaseName,
         wholeTestCode,
         fixedCode,
-        category,
+        new_category,
         attempt,
         maxAttempts,
         result.passed,
@@ -1917,16 +1927,20 @@ ${response}
       if (result.passed) {
         console.log(`[LLM_FIX] Successfully fixed with ${category} subagent after ${attempt} attempt(s)!`);
         
-        // Categorize the assertion error (use original test code) - only for general category
-        if (category === "general") {
-          try {
-            await this.categorizeFixedTestCase(testCaseName, wholeTestCode, testFunctionCode, fixedCode);
-          } catch (error) {
-            console.error(`[LLM_FIX] Failed to categorize ${testCaseName}:`, error);
-          }
+        // Categorize the assertion error based on the category
+        try {
+          new_category = await this.categorizeFixedTestCaseByCategory(
+            testCaseName,
+            category,
+            wholeTestCode,
+            testFunctionCode,
+            fixedCode
+          );
+        } catch (error) {
+          console.error(`[LLM_FIX] Failed to categorize ${testCaseName} for category ${category}:`, error);
         }
         
-        return true;
+        return { generalSuccess: true, new_category: new_category };
       }
       
       // Update for next attempt
@@ -1934,49 +1948,109 @@ ${response}
       assertionErrors = result.error || 'Unknown error';
       attempt++;
     }
-    
-    return false;
+    try {
+      new_category = await this.categorizeFixedTestCaseByCategory(
+        testCaseName,
+        category,
+        wholeTestCode,
+        testFunctionCode,
+        ""
+      );
+    } catch (error) {
+      console.error(`[LLM_FIX] Failed to categorize ${testCaseName} for category ${category}:`, error);
+    }
+    return { generalSuccess: false, new_category: new_category };
   }
 
   /**
-   * Categorize a successfully fixed test case
+   * Category metadata for specialized categories
    */
-  private async categorizeFixedTestCase(
+  private getCategoryMetadata(category: string): { bigCategory: string; rootCauseSummary: string; reasoning: string } | null {
+    const categoryMap: Record<string, { bigCategory: string; rootCauseSummary: string; reasoning: string }> = {
+      "sentinel_redefinition_mismatch": {
+        bigCategory: "Sentinel Redefinition Mismatch",
+        rootCauseSummary: "Sentinel/constant redefinition mismatch - test redefines a constant that differs from implementation",
+        reasoning: "Test case was successfully fixed by the sentinel_redefinition_mismatch subagent, indicating a sentinel/constant redefinition issue"
+      },
+      "default_value_mismatch": {
+        bigCategory: "Default Value Mismatch",
+        rootCauseSummary: "Default value mismatch - test assumes a default value that differs from the implementation's actual default",
+        reasoning: "Test case was successfully fixed by the default_value_mismatch subagent, indicating a default parameter value mismatch"
+      },
+      "redefined": {
+        bigCategory: "Symbol Redefinition",
+        rootCauseSummary: "Symbol redefinition error - test redefines symbols that conflict with implementation",
+        reasoning: "Test case was successfully fixed by the redefined subagent, indicating a symbol redefinition issue"
+      }
+    };
+    
+    return categoryMap[category] || null;
+  }
+
+  /**
+   * Categorize a successfully fixed test case based on category
+   * For specialized categories, directly adds to category structure
+   * For general category, uses LLM to determine the category
+   */
+  private async categorizeFixedTestCaseByCategory(
     testCaseName: string,
+    category: "redefined" | "general" | "default_value_mismatch" | "sentinel_redefinition_mismatch",
     wholeTestCode: string,
     testFunctionCode: string,
     fixedTestCode: string
-  ): Promise<void> {
-    console.log(`[CATEGORIZATION] Categorizing ${testCaseName}`);
-    
-    const request: CategorizationRequest = {
-      testCaseName,
-      wholeTestCode,
-      wrongTestCode: testFunctionCode,
-      fixedTestCode,
-      existingCategories: this.categoryStructure
-    };
-
+  ): Promise<string> {
     const previousCategories = { ...this.categoryStructure };
-    
-    // Create log object for LLM invocation
-    const logObj: LLMLogs = { 
-      tokenUsage: '', 
-      result: '', 
-      prompt: '', 
-      model: '' 
-    };
-    
-    const result = await categorizeAssertionError(request, logObj);
-    
-    // Update category structure
-    this.categoryStructure = updateCategoryStructure(this.categoryStructure, result);
+    let categorizationResult: CategorizationResult;
+
+    if (category === "general") {
+      // Use LLM categorization for general category
+      console.log(`[CATEGORIZATION] Categorizing ${testCaseName} using LLM`);
+      
+      const request: CategorizationRequest = {
+        testCaseName,
+        wholeTestCode,
+        wrongTestCode: testFunctionCode,
+        fixedTestCode,
+        existingCategories: this.categoryStructure
+      };
+
+      const logObj: LLMLogs = { 
+        tokenUsage: '', 
+        result: '', 
+        prompt: '', 
+        model: '' 
+      };
+      
+      categorizationResult = await categorizeAssertionError(request, logObj);
+    } else {
+      // Directly add specialized categories to structure
+      const metadata = this.getCategoryMetadata(category);
+      if (!metadata) {
+        console.warn(`[CATEGORIZATION] No metadata found for category: ${category}`);
+        return category;
+      }
+
+      console.log(`[CATEGORIZATION] Adding ${testCaseName} to category: ${metadata.bigCategory}`);
+      
+      categorizationResult = {
+        testCaseName,
+        rootCauseSummary: metadata.rootCauseSummary,
+        categorizationDecision: '1',
+        bigCategory: metadata.bigCategory,
+        reasoning: metadata.reasoning,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // Update category structure (creates category if it doesn't exist)
+    this.categoryStructure = updateCategoryStructure(this.categoryStructure, categorizationResult);
     saveCategoryStructure(this.categoryStructurePath, this.categoryStructure);
     
     // Log categorization diff
-    logCategorizationDiff(result, previousCategories, this.categoryStructure, this.diffLogPath);
+    logCategorizationDiff(categorizationResult, previousCategories, this.categoryStructure, this.diffLogPath);
     
-    console.log(`[CATEGORIZATION] Categorized ${testCaseName} as ${result.bigCategory}`);
+    console.log(`[CATEGORIZATION] Categorized ${testCaseName} as ${categorizationResult.bigCategory}`);
+    return categorizationResult.bigCategory;
   }
 
   /**

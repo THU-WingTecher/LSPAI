@@ -23,6 +23,7 @@ export interface CategorizationResult {
 
 export interface CategorizationRequest {
   testCaseName: string;
+  wholeTestCode: string;
   wrongTestCode: string;
   fixedTestCode: string;
   existingCategories?: CategoryStructure;
@@ -186,9 +187,47 @@ function loadPromptTemplate(): string {
 }
 
 /**
+ * Loads category template files and combines their contents
+ */
+function loadCategoryTemplates(): string {
+  const templateFiles = [
+    'cate_test_env_mismatching.md',
+    'cate_test_prefix_precond_mismatching.md',
+    'cate_wrong_mock_instance.md'
+  ];
+
+  // Try multiple possible paths (for both source and compiled output)
+  const basePaths = [
+    path.join(__dirname, '../../../templates'),
+    path.join(__dirname, '../../templates'),
+    path.join(process.cwd(), 'templates')
+  ];
+
+  const contents: string[] = [];
+
+  for (const templateFile of templateFiles) {
+    let loaded = false;
+    for (const basePath of basePaths) {
+      const templatePath = path.join(basePath, templateFile);
+      if (fs.existsSync(templatePath)) {
+        contents.push(fs.readFileSync(templatePath, 'utf-8'));
+        loaded = true;
+        break;
+      }
+    }
+    if (!loaded) {
+      console.warn(`[CATEGORIZATION] Template file not found: ${templateFile}`);
+    }
+  }
+
+  return contents.join('\n\n---\n\n');
+}
+
+/**
  * Builds the prompt for LLM categorization
  */
 function buildCategorizationPrompt(
+  wholeTestCode: string,
   wrongTestCode: string,
   fixedTestCode: string,
   existingCategories?: CategoryStructure
@@ -204,6 +243,11 @@ function buildCategorizationPrompt(
 
 ## Wrong Assertion Test Code
 \`\`\`
+${wholeTestCode}
+\`\`\`
+
+## Problematic Test Function
+\`\`\`python
 ${wrongTestCode}
 \`\`\`
 
@@ -308,11 +352,16 @@ export async function categorizeAssertionError(
   request: CategorizationRequest,
   logObj?: any
 ): Promise<CategorizationResult> {
-  const prompt = buildCategorizationPrompt(
+  let prompt = buildCategorizationPrompt(
+    request.wholeTestCode,
     request.wrongTestCode,
     request.fixedTestCode,
     request.existingCategories
   );
+  
+  // Load category template files and replace placeholder
+  const categoryTemplates = loadCategoryTemplates();
+  prompt = prompt.replace("{{{Existing Categories}}}", categoryTemplates);
 
   const messages = [
     {

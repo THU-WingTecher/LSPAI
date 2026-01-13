@@ -6,7 +6,7 @@ export interface FixDiffEntry {
   timestamp: string;
   originalCode: string;
   fixedCode: string;
-  subagentCategory: 'redefined' | 'general' | 'default_value_mismatch' | 'sentinel_redefinition_mismatch';
+  subagentCategory: string;
   attemptNumber: number;
   totalAttempts: number;
   success: boolean;
@@ -164,11 +164,11 @@ export function addFixToReport(
   
   // Update subagent stats
   const subagent = entry.subagentCategory;
-  updated.subagentStats[subagent].totalAttempts += entry.attemptNumber;
+  updated.subagentStats[subagent as keyof typeof updated.subagentStats].totalAttempts += entry.attemptNumber;
   if (entry.success) {
-    updated.subagentStats[subagent].successfulFixes++;
+    updated.subagentStats[subagent as keyof typeof updated.subagentStats].successfulFixes++;
   } else {
-    updated.subagentStats[subagent].failedFixes++;
+    updated.subagentStats[subagent as keyof typeof updated.subagentStats].failedFixes++;
   }
   
   return updated;
@@ -181,7 +181,7 @@ export function logFixDiff(
   testCaseName: string,
   originalCode: string,
   fixedCode: string,
-  subagentCategory: 'redefined' | 'general' | 'default_value_mismatch' | 'sentinel_redefinition_mismatch',
+  subagentCategory: string,
   attemptNumber: number,
   totalAttempts: number,
   success: boolean,
