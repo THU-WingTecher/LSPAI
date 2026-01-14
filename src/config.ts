@@ -525,6 +525,7 @@ export interface PythonProjectConfig {
 export interface ProjectConfig {
     workspace: string;
     srcPath: string;
+    srcPathToExclude?: string[];
     language: 'python' | 'java' | 'go' | 'cpp';
     python?: PythonProjectConfig;
     tasklist?: string;
@@ -533,7 +534,9 @@ export interface ProjectConfig {
 export type ProjectConfigName = 
     | 'black' 
     | 'tornado' 
-    | 'crawl4ai'
+    | 'mimesis'
+    | 'dataclasses-json'
+    | 'tqdm'
     | 'commons-cli' 
     | 'commons-csv'
     | 'logrus'
@@ -545,6 +548,7 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
     "black": {
         workspace: "/LSPRAG/experiments/projects/black",
         srcPath: "/src/black", // where source code is located
+        srcPathToExclude: [],
         language: 'python',
         python: {
             pythonpath: [ // Python extra paths
@@ -559,6 +563,7 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
     "tornado": {
         workspace: "/LSPRAG/experiments/projects/tornado",
         srcPath: "/tornado",
+        srcPathToExclude: [],
         language: 'python',
         python: {
             // Only include parent directory, not the package directory itself
@@ -569,34 +574,76 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
             pythonExe: "/root/miniconda3/envs/tornado/bin/python"
         },
     },
-    "crawl4ai": {
-        workspace: "/LSPRAG/experiments/projects/crawl4ai",
-        srcPath: "/crawl4ai",
-        language: 'python'
+    "mimesis": {
+        workspace: "/LSPRAG/experiments/projects/mimesis",
+        srcPath: "/mimesis",
+        srcPathToExclude: ["/mimesis/plugins", "/mimesis/datasets"],
+        language: 'python',
+        python: {
+            // Only include parent directory, not the package directory itself
+            // This prevents name collision with standard library modules like 'concurrent'
+            pythonpath: [
+                "/LSPRAG/experiments/projects/mimesis"
+            ],
+            pythonExe: "/root/miniconda3/envs/mimesis/bin/python"
+        },
+    },
+    "dataclasses-json": {
+        workspace: "/LSPRAG/experiments/projects/dataclasses-json",
+        srcPath: "/dataclasses_json",
+        language: 'python',
+        srcPathToExclude: [],
+        python: {
+            // Only include parent directory, not the package directory itself
+            // This prevents name collision with standard library modules like 'concurrent'
+            pythonpath: [
+                "/LSPRAG/experiments/projects/dataclasses-json"
+            ],
+            pythonExe: "/root/miniconda3/envs/dataclasses-json/bin/python"
+        },
+    },
+    "tqdm": {
+        workspace: "/LSPRAG/experiments/projects/tqdm",
+        srcPath: "/tqdm",
+        language: 'python',
+        srcPathToExclude: ["/tqdm/contrib"],
+        python: {
+            // Only include parent directory, not the package directory itself
+            // This prevents name collision with standard library modules like 'concurrent'
+            pythonpath: [
+                "/LSPRAG/experiments/projects/tqdm"
+            ],
+            pythonExe: "/root/miniconda3/envs/tqdm/bin/python"
+        },
     },
     "commons-cli": {
         workspace: "/LSPRAG/experiments/projects/commons-cli",
         srcPath: "src/main/java/",
+        srcPathToExclude: [],
         language: 'java',
     },
     "commons-csv": {
         workspace: "/LSPRAG/experiments/projects/commons-csv",
         srcPath: "src/main/java/",
+        srcPathToExclude: [],
         language: 'java',
     },
     "logrus": {
         workspace: "/LSPRAG/experiments/projects/logrus",
         srcPath: "/",
+        srcPathToExclude: [],
         language: 'go',
     },
     "cobra": {
         workspace: "/LSPRAG/experiments/projects/cobra",
         srcPath: "/",
+        srcPathToExclude: [],
         language: 'go',
     },
     "DEFAULT": {
         workspace: "/",
         srcPath: "/",
+        srcPathToExclude: [],
         language: 'python'
     }
 } as const;
@@ -628,12 +675,17 @@ export function getProjectSrcPath(projectName: ProjectConfigName): string {
     return path.join(getProjectWorkspace(projectName), getProjectConfig(projectName).srcPath);
 }
 
+export function getSrcPathToExclude(projectName: ProjectConfigName): string[] {
+    return getProjectConfig(projectName).srcPathToExclude || [];
+}
+
 export const LANGUAGE_IDS = {
     "commons-cli": 'java',
     "commons-csv": 'java',
     "black": 'python',
     "crawl4ai": 'python',
     "tornado": 'python',
+    "mimesis": 'python',
     "logrus": 'go',
     "cobra": 'go',
     DEFAULT: 'default'

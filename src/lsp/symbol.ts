@@ -5,7 +5,7 @@ import { getConstructorDetail, getFieldDetail, removeComments } from './utils';
 import { getPackageStatement } from './definition';
 import { VscodeRequestManager } from './vscodeRequestManager';
 import { initializeSeededRandom, SEED, seededRandom } from '../helper';
-import { MIN_FUNCTION_LINES, getConfigInstance, getProjectSrcPath, ProjectConfigName } from '../config';
+import { MIN_FUNCTION_LINES, getConfigInstance, getProjectSrcPath, getSrcPathToExclude, getProjectWorkspace, ProjectConfigName } from '../config';
 import { findFiles } from '../fileHandler';
 import { getLanguageSuffix } from '../language';
 import {findAFileFromWorkspace} from '../helper';
@@ -327,8 +327,11 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
     const Files: string[] = [];
     const projectName = path.basename(workspace);
     testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
+    const relativeExcludePaths = getSrcPathToExclude(projectName as ProjectConfigName);
+    const workspacePath = getProjectWorkspace(projectName as ProjectConfigName);
+    const srcPathToExclude = relativeExcludePaths.map(excludePath => path.join(workspacePath, excludePath));
     const suffix = getLanguageSuffix(language);
-    findFiles(testFilesPath, Files, language, suffix);
+    findFiles(testFilesPath, srcPathToExclude, Files, language, suffix);
     initializeSeededRandom(SEED); // Initialize the seeded random generator
     const symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument; }[] = [];
     // if (language === "go") {
@@ -343,7 +346,7 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
         if (symbols) {
             for (const symbol of symbols) {
                 if (maxSymbolNumber > 0 && symbolDocumentMap.length >= maxSymbolNumber) {
-                    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${MIN_FUNCTION_LINES} lines`);
+                    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${minLineNumber} lines`);
                     return symbolDocumentMap;
                 }
                 if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
@@ -361,7 +364,7 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
         }
         console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
     }
-    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${MIN_FUNCTION_LINES} lines`);
+    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${minLineNumber} lines`);
     return symbolDocumentMap;
 }
 

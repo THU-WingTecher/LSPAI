@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AnalysisReport, ExecutionResult, FileAnalysis, TestCaseResult, makeEmptyFileAnalysis } from './types';
 import { findFiles } from '../fileUtils';
-import { getConfigInstance, getProjectSrcPath, getProjectConfig, ProjectConfigName } from '../config';
+import { getConfigInstance, getProjectSrcPath, getProjectConfig, getSrcPathToExclude, ProjectConfigName } from '../config';
 import { getLanguageSuffix } from '../language';
 
 // Optional examiner import - requires VSCode extension API
@@ -36,9 +36,10 @@ export class Analyzer {
       const projectName = path.basename(workspaceRoot);
       let srcPath: string;
       srcPath = getProjectSrcPath(projectName as ProjectConfigName);
+      const srcPathToExclude = getSrcPathToExclude(projectName as ProjectConfigName);
       const suffix = getLanguageSuffix(this.language);
       const files: string[] = [];
-      findFiles(srcPath, files, this.language, suffix);
+      findFiles(srcPath, srcPathToExclude, files, this.language, suffix);
       this.sourceFiles = files;
       this.sourceFileNames = files.map((f) => path.basename(f));
     } catch (e) {

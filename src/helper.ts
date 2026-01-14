@@ -3,7 +3,7 @@ import vscode from "vscode";
 import fs from "fs";
 import { generateFileNameForDiffLanguage, findFiles } from "./fileHandler";
 import { getLanguageSuffix } from "./language";
-import { getConfigInstance, getProjectSrcPath, ProjectConfigName } from "./config";
+import { getConfigInstance, getProjectSrcPath, getSrcPathToExclude, ProjectConfigName } from "./config";
 import { generateUnitTestForAFunction } from "./generate";
 import assert from "assert";
 
@@ -233,7 +233,7 @@ export function goSpecificEnvGen(folderName: string, language: string, srcPath: 
     const Files: string[] = [];
 
     // Find all source code files
-    findFiles(srcPath, Files, language, suffix);
+    findFiles(srcPath, [], Files, language, suffix);
 	
     // Copy all source code files to the new folder, preserving directory structure
     Files.forEach(file => {
@@ -275,8 +275,9 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
     const Files: string[] = [];
     const projectName = path.basename(workspace);
     testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
+    const srcPathToExclude = getSrcPathToExclude(projectName as ProjectConfigName);
     const suffix = getLanguageSuffix(language); 
-    findFiles(testFilesPath, Files, language, suffix);	
+    findFiles(testFilesPath, srcPathToExclude, Files, language, suffix);	
     initializeSeededRandom(SEED); // Initialize the seeded random generator
     const randomIndex = Math.floor(Math.random() * Files.length);
     return Files[randomIndex];
@@ -292,7 +293,7 @@ export function findAFileFromWorkspace(targetFile: string, language: string) {
     const projectName = path.basename(workspace);
     testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
     const suffix = getLanguageSuffix(language); 
-    findFiles(testFilesPath, Files, language, suffix);	
+    findFiles(testFilesPath, [], Files, language, suffix);	
     return Files.filter(f => f.endsWith(targetFile))[0];
 }   
  

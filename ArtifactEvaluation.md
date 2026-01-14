@@ -929,6 +929,79 @@ Coverage collection completed. Summary saved to /LSPRAG/experiments/data/main_re
 PassRate ((passed files + failed files)/ total files): 403/522
 ```
 
+
+#### Mimesis Project Setup
+
+To set up the Tornado Mimesis, follow these steps:
+
+```bash
+mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/lk-geimfari/mimesis.git
+cd /LSPRAG/experiments/projects/mimesis
+
+# Python Setup
+conda create -n mimesis python=3.10
+conda activate mimesis
+
+# Install dependencies
+# Don't forget to activate venv environment
+git checkout 876b9398
+
+pip install coverage pytest pytest-json-report
+pip install 'pytest~=7.2' 'pytest-mock~=3.10' 'requests~=2.28' 'mypy~=1.1' 'colorama>=0.4.6,<0.5' 'pygments~=2.13' 'pytest-randomly~=3.12' 'pytz~=2023.3' 'black>=22.10,<24.0' 'autoflake~=2.0' 'types-pytz~=2023.3' 'taskipy>=1.10.1,<2' 'validators>=0.20.0,<0.21' 'pytest-repeat>=0.9.1,<0.10' 'coverage>=7.2.3,<8' 'pytest-cov>=4.0.0,<5' 'Sphinx>=5.1.1,<8.0.0' 'sphinx-copybutton>=0.5.0,<0.6' 'sphinx-autodoc-typehints>=1.19.2,<2' 'pytest-factoryboy>=2.6.0,<3' 'isort>=6.0.1' 'twine>=6.1.0'
+pytest # for checking whether the setting is complete
+```
+
+#### dataclasses-json Project Setup
+
+To set up the Tornado Mimesis, follow these steps:
+
+```bash
+mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/lidatong/dataclasses-json.git
+cd /LSPRAG/experiments/projects/dataclasses-json
+
+# Python Setup
+conda create -n dataclasses-json python=3.10
+conda activate dataclasses-json
+
+# Install dependencies
+# Don't forget to activate venv environment
+git checkout dc63902
+
+pip install coverage pytest pytest-json-report
+pip install -e . 
+pip install mypy hypothesis 
+pytest # for checking whether the setting is complete
+```
+
+---
+
+#### tqdm Project Setup
+
+To set up the Tornado Mimesis, follow these steps:
+
+```bash
+mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/tqdm/tqdm.git
+cd /LSPRAG/experiments/projects/tqdm
+
+# Python Setup
+conda create -n tqdm python=3.10
+conda activate tqdm
+
+# Install dependencies
+# Don't forget to activate venv environment
+git checkout 0ed5d7f
+
+pip install coverage pytest pytest-json-report
+pip install -e ".[dev]" 
+pytest # for checking whether the setting is complete
+```
+
 ---
 
 ## Claim 2: Under-Minute Overheads

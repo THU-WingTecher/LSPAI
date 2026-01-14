@@ -16,18 +16,20 @@ const ignoreDirNamesToStartWith = ['node_modules', '.git', '.vscode', 'out', 'di
  * @param language Programming language (affects filtering logic)
  * @param suffix File extension to match (e.g., 'py', 'go', 'java')
  */
-export function findFiles(folderPath: string, Files: string[] = [], language: string, suffix: string) {
+export function findFiles(folderPath: string, srcPathToExclude: string[] = [], Files: string[] = [], language: string, suffix: string) {
     fs.readdirSync(folderPath).forEach(file => {
         const fullPath = path.join(folderPath, file);
         if (fs.statSync(fullPath).isDirectory() && 
             !path.basename(fullPath).startsWith(getConfigInstance().savePath) &&
             !ignoreDirNamesToStartWith.some(ignoreName => path.basename(fullPath).startsWith(ignoreName))) {
-            findFiles(fullPath, Files, language, suffix); // Recursively search in subdirectory
+            findFiles(fullPath, srcPathToExclude, Files, language, suffix); // Recursively search in subdirectory
         } else if (file.endsWith(`.${suffix}`)) {
             if (language === "go" && file.toLowerCase().includes('test')) {
                 // Ignore Go test files when searching for source files
             } else {
-                Files.push(fullPath);
+                if (!srcPathToExclude.some(excludePath => fullPath.startsWith(excludePath))) {
+                    Files.push(fullPath);
+                }
             }
         }
     });
