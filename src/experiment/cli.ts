@@ -92,12 +92,12 @@ function parseArgs(): CLIArgs {
         }
         
         // Validate that model is a Claude model (starts with 'claude-')
-        if (!parsed.model || !parsed.model.startsWith('claude-')) {
-            console.error(`Error: Claude Code experiments require a Claude model (must start with 'claude-'), but got '${parsed.model}'\n`);
-            console.error(`Examples of valid Claude models: claude-3-5-sonnet-20241022, claude-3-opus-20240229, claude-3-haiku-20240307\n`);
-            printUsage();
-            process.exit(1);
-        }
+        // if (!parsed.model || !parsed.model.startsWith('claude-')) {
+        //     console.error(`Error: Claude Code experiments require a Claude model (must start with 'claude-'), but got '${parsed.model}'\n`);
+        //     console.error(`Examples of valid Claude models: claude-3-5-sonnet-20241022, claude-3-opus-20240229, claude-3-haiku-20240307\n`);
+        //     printUsage();
+        //     process.exit(1);
+        // }
     }
 
     return {

@@ -5,7 +5,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
-import { query } from '@anthropic-ai/claude-agent-sdk';
 import { Task, TestResult, LogEntry } from '../core/types';
 import { buildTestPrompt, detectLanguage, generateSystemPrompt } from '../prompts/templates';
 import { extractCleanCode } from '../utils/codeExtractor';
@@ -13,9 +12,34 @@ import { generateTestFileName } from '../utils/fileNameGenerator';
 import { FileNameParams } from '../core/types';
 
 /**
+ * Claude SDK is ESM-only, but the VSCode extension host test runner loads code as CommonJS.
+ * So we MUST NOT `import { query } ...` at module load time (it would become require() after build).
+ * Instead we use a runtime dynamic import, and allow tests to inject a mock query implementation.
+ */
+export type QueryFn = (args: any) => AsyncIterable<any>;
+
+let cachedQuery: QueryFn | null = null;
+async function getQuery(): Promise<QueryFn> {
+    if (cachedQuery) return cachedQuery;
+    // Force a real dynamic import() even when TypeScript emits CommonJS.
+    const loader = new Function('return import("@anthropic-ai/claude-agent-sdk")');
+    const mod = (await loader()) as { query: QueryFn };
+    cachedQuery = mod.query;
+    return cachedQuery!;
+}
+
+let queryImplForTest: QueryFn | null = null;
+export function __setQueryForTest(mockQuery: QueryFn): void {
+    queryImplForTest = mockQuery;
+}
+export function __resetQueryForTest(): void {
+    queryImplForTest = null;
+}
+
+/**
  * Claude Code Manager for handling queries and logging
  */
-class ClaudeCodeManager {
+export class ClaudeCodeManager {
     private sessionId: string;
     private logsDir: string;
     private codesDir: string;
@@ -61,6 +85,7 @@ class ClaudeCodeManager {
             let lastError: any = null;
             
             // Stream messages from Claude Code
+            const query = queryImplForTest ?? (await getQuery());
             for await (const message of query({
                 prompt: fullPrompt,
                 options: {

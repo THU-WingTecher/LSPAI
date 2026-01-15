@@ -4,6 +4,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as net from 'net';
 import { Task, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
 import { generateTestsSequential, generateTestsParallel } from '../generators/opencodeGenerator';
 
@@ -49,15 +50,37 @@ export async function runOpencodeExperiment(
     console.log('Initializing shared OpenCode server...');
     let sharedClient: any = null;
     let serverCleanup: (() => void) | null = null;
-    
+    const baseUrl = process.env.OPENCODE_BASE_URL;
+    console.log('baseUrl', baseUrl);
+    console.log('process.env.OPENCODE_BASE_URL', process.env.OPENCODE_BASE_URL);
+    console.log('process.env.OPENCODE_SERVER_PASSWORD', process.env.OPENCODE_SERVER_PASSWORD);
     try {
         const sdk = await (eval('import("@opencode-ai/sdk")') as Promise<any>);
-        const result = await sdk.createOpencode({
-            workspaceDir: config.projectRoot
-        });
-        sharedClient = result.client;
-        serverCleanup = result.server.close;
-        console.log('✓ Shared OpenCode server initialized\n');
+        if (baseUrl) {
+            console.log(`Connecting to existing OpenCode server at ${baseUrl}...`);
+            const password = process.env.OPENCODE_SERVER_PASSWORD || '';
+            const basicAuth =
+                password ? `Basic ${Buffer.from(`opencode:${password}`).toString('base64')}` : undefined;
+            sharedClient = sdk.createOpencodeClient({
+                baseUrl,
+                headers: basicAuth ? { Authorization: basicAuth } : undefined
+            });
+            console.log('✓ Connected to existing OpenCode server\n');
+        } else {
+            // Ensure local CLI binary is discoverable when invoked from compiled JS
+            const binPath = path.join(config.projectRoot, 'node_modules', '.bin');
+            process.env.PATH = `${binPath}${path.delimiter}${process.env.PATH ?? ''}`;
+            const port = await getAvailablePort(4096);
+            const hostname = '127.0.0.1';
+            const result = await sdk.createOpencode({
+                workspaceDir: config.projectRoot,
+                hostname,
+                port
+            });
+            sharedClient = result.client;
+            serverCleanup = result.server.close;
+            console.log(`✓ Shared OpenCode server initialized at http://${hostname}:${port}\n`);
+        }
     } catch (error: any) {
         console.error('✗ Failed to initialize shared OpenCode server:', error.message);
         throw new Error(`Failed to initialize shared OpenCode server: ${error.message}`);
@@ -217,5 +240,30 @@ export async function runOpencodeFromArgs(
     };
 
     return await runOpencodeExperiment(config, options);
+}
+
+/**
+ * Find an available port, preferring the provided one
+ */
+async function getAvailablePort(preferredPort: number): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const tryPreferred = net.createServer();
+        tryPreferred.once('error', (err: any) => {
+            if (err.code === 'EADDRINUSE') {
+                const fallback = net.createServer();
+                fallback.listen(0, '127.0.0.1', () => {
+                    const address = fallback.address() as net.AddressInfo;
+                    fallback.close(() => resolve(address.port));
+                });
+                fallback.on('error', reject);
+            } else {
+                reject(err);
+            }
+        });
+        tryPreferred.listen(preferredPort, '127.0.0.1', () => {
+            const address = tryPreferred.address() as net.AddressInfo;
+            tryPreferred.close(() => resolve(address.port));
+        });
+    });
 }
 

@@ -2,6 +2,13 @@
 
 A unified, clean, and extensible framework for running unit test generation experiments using both baseline (Claude Code Router) and OpenCode approaches.
 
+Ready:
+- Install the CLI once (global is simplest): `npm i -g opencode-ai@latest` (or via bun/pnpm/yarn).
+- Start one shared server (with a password) before running experiments:
+```
+OPENCODE_SERVER_PASSWORD=lsprag npx opencode serve --hostname 127.0.0.1 --port 4096
+```
+- Point the experiment runner to it in each session: `export OPENCODE_BASE_URL=http://127.0.0.1:4096 export OPENCODE_SERVER_PASSWORD=lsprag`
 ## Structure
 
 ```
@@ -62,7 +69,9 @@ npm run experiment -- --type baseline --task-list /path/to/taskList.json --proje
 npm run experiment -- --type opencode --task-list /path/to/taskList.json --project-root /path/to/project --model gpt-4 --provider openai
 
 # Claude Code experiment (requires Anthropic provider and Claude model)
-npm run experiment -- --type claudecode --task-list /path/to/taskList.json --project-root /path/to/project --model claude-3-5-haiku-20241022 --provider anthropic
+npm run experiment -- --type claudecode --task-list /LSPRAG/experiments/config/black-taskList.json --project-root /LSPRAG/experiments/projects/black --model ark-code-latest --provider anthropic
+
+npm run experiment -- --type opencode --task-list /LSPRAG/experiments/config/mimesis-robust-sample100.json --project-root /LSPRAG/experiments/projects/mimesis --model deepseek-chat --provider deepseek
 ```
 
 ### Advanced Usage

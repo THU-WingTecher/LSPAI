@@ -29,7 +29,7 @@ export class OpencodeManager {
     private logsDir: string;
     private codesDir: string;
     private model: string;
-    private client: any;
+    // private client: any;
     private sharedClient: any;
 
     constructor(config: OpencodeConfig = {}) {
@@ -58,24 +58,30 @@ export class OpencodeManager {
      * Initialize OpenCode client (lazy initialization)
      */
     private async initClient() {
+        // if (this.client) return this.client;
+
         if (this.sharedClient) {
-            this.client = this.sharedClient;
-            return this.client;
+            // this.client = this.sharedClient;
+            return this.sharedClient;
         }
-        
-        if (!this.client) {
-            try {
-                const sdk = await (eval('import("@opencode-ai/sdk")') as Promise<any>);
-                const result = await sdk.createOpencode({
-                    directory: this.projectDir,
-                });
-                this.client = result.client;
-                console.log('✓ OpenCode client initialized');
-            } catch (error: any) {
-                throw new Error(`Failed to initialize OpenCode client: ${error.message}`);
-            }
+
+        // Avoid spinning up another server; reuse existing one via BASE_URL
+        const baseUrl = process.env.OPENCODE_BASE_URL;
+        if (baseUrl) {
+            const sdk = await (eval('import("@opencode-ai/sdk")') as Promise<any>);
+            const password = process.env.OPENCODE_SERVER_PASSWORD || '';
+            const basicAuth =
+                password ? `Basic ${Buffer.from(`opencode:${password}`).toString('base64')}` : undefined;
+            this.sharedClient = sdk.createOpencodeClient({
+                baseUrl,
+                headers: basicAuth ? { Authorization: basicAuth } : undefined
+            });
+            return this.sharedClient;
         }
-        return this.client;
+
+        throw new Error(
+            'OpenCode client not initialized. Pass sharedClient or set OPENCODE_BASE_URL.'
+        );
     }
 
     public getProjectDir(): string {
@@ -105,17 +111,17 @@ export class OpencodeManager {
 
         try {
             const client = await this.initClient();
-
+            // console.log('client', client);
             // Create session with directory query parameter
             const sessionResponse = await client.session.create({
-                // query: {
-                //     directory: this.projectDir  // This sets the working directory!
-                // },
+                query: {
+                    directory: this.projectDir  // This sets the working directory!
+                },
                 body: {
                     title: fileName
                 }
             });
-            
+            console.log('sessionResponse', sessionResponse);
             let sessionId = this.sessionId;
             if (sessionResponse.data && sessionResponse.data.id) {
                 sessionId = sessionResponse.data.id;
@@ -148,7 +154,7 @@ export class OpencodeManager {
                     parts: [{ type: "text", text: prompt }]
                 }
             });
-
+            console.log('response', response);
             const endTime = new Date();
             const durationMs = endTime.getTime() - startTime.getTime();
 
