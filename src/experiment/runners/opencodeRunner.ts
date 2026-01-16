@@ -8,6 +8,72 @@ import * as net from 'net';
 import { Task, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
 import { generateTestsSequential, generateTestsParallel } from '../generators/opencodeGenerator';
 
+function withCwd<T>(cwd: string, fn: () => Promise<T>): Promise<T> {
+    const prev = process.cwd();
+    process.chdir(cwd);
+    return fn().finally(() => process.chdir(prev));
+}
+
+function makeBasicAuthHeader(password: string | undefined): string | undefined {
+    const pw = password?.trim();
+    if (!pw) return undefined;
+    return `Basic ${Buffer.from(`opencode:${pw}`).toString('base64')}`;
+}
+
+function makeFetchWithAuth(authHeader: string | undefined): typeof fetch | undefined {
+    if (!authHeader) return undefined;
+    if (typeof globalThis.fetch !== 'function') {
+        throw new Error('globalThis.fetch is not available; cannot inject OPENCODE_SERVER_PASSWORD auth header');
+    }
+    return (input: any, init?: any) => {
+        const req = input instanceof Request ? input : new Request(input, init);
+        const headers = new Headers(req.headers);
+        headers.set('Authorization', authHeader);
+        const authedReq = new Request(req, { headers });
+        return globalThis.fetch(authedReq);
+    };
+}
+
+function getProviderApiKey(providerID: string): string {
+    const p = providerID.toLowerCase();
+    if (p === 'openai') return process.env.OPENAI_API_KEY ?? '';
+    if (p === 'deepseek') return process.env.DEEPSEEK_API_KEY ?? '';
+    if (p === 'anthropic') return process.env.ANTHROPIC_API_KEY ?? '';
+    return process.env.OPENAI_API_KEY ?? '';
+}
+
+async function ensureProviderAuth(sharedClient: any, providerID: string): Promise<void> {
+    const skipAuthSet = process.env.OPENCODE_SKIP_AUTH_SET === '1';
+    if (skipAuthSet) return;
+
+    const apiKey = getProviderApiKey(providerID);
+    if (!apiKey) return;
+
+    try {
+        const result = await sharedClient.auth.set({
+            path: { id: providerID },
+            body: { type: 'api', key: apiKey }
+        });
+        if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
+            console.warn('[opencode] auth.set returned error; set OPENCODE_SKIP_AUTH_SET=1 to skip.', (result as any).error);
+        }
+    } catch (e) {
+        console.warn('[opencode] auth.set threw; set OPENCODE_SKIP_AUTH_SET=1 to skip.', e);
+    }
+}
+
+async function tryCreateClient(sdk: any, baseUrl: string, authedFetch: typeof fetch | undefined): Promise<any> {
+    const client = sdk.createOpencodeClient({
+        baseUrl,
+        fetch: authedFetch,
+        throwOnError: true
+    });
+    // SDK v0.15.x does not expose client.global.health(); use an always-present endpoint as a smoke test.
+    // Will throw if server is not reachable / unauthorized / unhealthy.
+    await client.config.get();
+    return client;
+}
+
 /**
  * Run OpenCode unit test generation experiment
  */
@@ -56,35 +122,46 @@ export async function runOpencodeExperiment(
     console.log('process.env.OPENCODE_SERVER_PASSWORD', process.env.OPENCODE_SERVER_PASSWORD);
     try {
         const sdk = await (eval('import("@opencode-ai/sdk")') as Promise<any>);
+        const basicAuth = makeBasicAuthHeader(process.env.OPENCODE_SERVER_PASSWORD);
+        const authedFetch = makeFetchWithAuth(basicAuth);
+
         if (baseUrl) {
             console.log(`Connecting to existing OpenCode server at ${baseUrl}...`);
-            const password = process.env.OPENCODE_SERVER_PASSWORD || '';
-            const basicAuth =
-                password ? `Basic ${Buffer.from(`opencode:${password}`).toString('base64')}` : undefined;
-            sharedClient = sdk.createOpencodeClient({
-                baseUrl,
-                headers: basicAuth ? { Authorization: basicAuth } : undefined
-            });
-            console.log('✓ Connected to existing OpenCode server\n');
-        } else {
-            // Ensure local CLI binary is discoverable when invoked from compiled JS
-            const binPath = path.join(config.projectRoot, 'node_modules', '.bin');
-            process.env.PATH = `${binPath}${path.delimiter}${process.env.PATH ?? ''}`;
+            try {
+                sharedClient = await tryCreateClient(sdk, baseUrl, authedFetch);
+                console.log('✓ Connected to existing OpenCode server\n');
+            } catch (e: any) {
+                console.warn(
+                    `[opencode] Failed to connect to OPENCODE_BASE_URL (${baseUrl}). Auto-starting a local server instead. ` +
+                        `Set OPENCODE_BASE_URL to a reachable server to disable this fallback.`,
+                    e?.message ?? e
+                );
+            }
+        }
+
+        if (!sharedClient) {
             const port = await getAvailablePort(4096);
             const hostname = '127.0.0.1';
-            const result = await sdk.createOpencode({
-                workspaceDir: config.projectRoot,
-                hostname,
-                port
-            });
-            sharedClient = result.client;
+            const result = await withCwd<any>(config.projectRoot, () =>
+                sdk.createOpencode({
+                    hostname,
+                    port,
+                    // Let opencode pick up opencode.json from cwd; we only override inline config if needed.
+                    timeout: 30000
+                })
+            );
+            sharedClient = await tryCreateClient(sdk, result.server.url, authedFetch);
             serverCleanup = result.server.close;
-            console.log(`✓ Shared OpenCode server initialized at http://${hostname}:${port}\n`);
+            console.log(`✓ OpenCode server auto-started at ${result.server.url}\n`);
         }
     } catch (error: any) {
         console.error('✗ Failed to initialize shared OpenCode server:', error.message);
         throw new Error(`Failed to initialize shared OpenCode server: ${error.message}`);
     }
+
+    // If provider credentials are supplied via env, push them into the opencode server (best-effort).
+    // If this fails (server version/schema differs), set OPENCODE_SKIP_AUTH_SET=1 and rely on env/config.
+    await ensureProviderAuth(sharedClient, config.provider);
 
     // Generate tests
     const useParallel = options.useParallel !== false;
@@ -101,6 +178,7 @@ export async function runOpencodeExperiment(
                 config.projectRoot,
                 config.outputDir,
                 config.model,
+                config.provider,
                 concurrency,
                 (completed: number, total: number, taskName: string) => {
                     console.log(`[${completed}/${total}] Completed: ${taskName}`);
@@ -113,6 +191,7 @@ export async function runOpencodeExperiment(
                 config.projectRoot,
                 config.outputDir,
                 config.model,
+                config.provider,
                 (completed: number, total: number, taskName: string) => {
                     console.log(`[${completed}/${total}] Completed: ${taskName}`);
                 },

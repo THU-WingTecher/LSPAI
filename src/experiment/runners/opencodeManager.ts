@@ -15,6 +15,7 @@ export interface OpencodeConfig {
     outputDir?: string;
     projectDir?: string;
     model?: string;
+    provider?: string;
     sharedClient?: any;
 }
 
@@ -29,13 +30,16 @@ export class OpencodeManager {
     private logsDir: string;
     private codesDir: string;
     private model: string;
+    private provider: string;
     // private client: any;
     private sharedClient: any;
+    private authConfigured: boolean = false;
 
     constructor(config: OpencodeConfig = {}) {
         this.sessionId = config.sessionId || randomUUID();
         this.projectDir = config.projectDir || '/LSPRAG';
         this.model = config.model || 'o3-mini';
+        this.provider = config.provider || process.env.OPENCODE_PROVIDER || 'openai';
         this.sharedClient = config.sharedClient;
         
         // Create date-based directory structure
@@ -72,16 +76,60 @@ export class OpencodeManager {
             const password = process.env.OPENCODE_SERVER_PASSWORD || '';
             const basicAuth =
                 password ? `Basic ${Buffer.from(`opencode:${password}`).toString('base64')}` : undefined;
+            const authedFetch = basicAuth
+                ? ((input: any, init?: any) => {
+                      if (typeof globalThis.fetch !== 'function') {
+                          throw new Error('globalThis.fetch is not available; cannot inject OPENCODE_SERVER_PASSWORD auth header');
+                      }
+                      const req = input instanceof Request ? input : new Request(input, init);
+                      const headers = new Headers(req.headers);
+                      headers.set('Authorization', basicAuth);
+                      const authedReq = new Request(req, { headers });
+                      return globalThis.fetch(authedReq);
+                  }) satisfies (typeof fetch)
+                : undefined;
             this.sharedClient = sdk.createOpencodeClient({
                 baseUrl,
-                headers: basicAuth ? { Authorization: basicAuth } : undefined
+                fetch: authedFetch
             });
+            await this.ensureProviderAuth();
             return this.sharedClient;
         }
 
         throw new Error(
             'OpenCode client not initialized. Pass sharedClient or set OPENCODE_BASE_URL.'
         );
+    }
+
+    private getProviderApiKey(): string {
+        const p = (this.provider || '').toLowerCase();
+        if (p === 'openai') return process.env.OPENAI_API_KEY ?? '';
+        if (p === 'deepseek') return process.env.DEEPSEEK_API_KEY ?? '';
+        if (p === 'anthropic') return process.env.ANTHROPIC_API_KEY ?? '';
+        return process.env.OPENAI_API_KEY ?? '';
+    }
+
+    private async ensureProviderAuth(): Promise<void> {
+        if (this.authConfigured) return;
+        this.authConfigured = true;
+
+        const skipAuthSet = process.env.OPENCODE_SKIP_AUTH_SET === '1';
+        if (skipAuthSet) return;
+
+        const apiKey = this.getProviderApiKey();
+        if (!apiKey) return;
+
+        try {
+            const result = await this.sharedClient?.auth?.set?.({
+                path: { id: this.provider },
+                body: { type: 'api', key: apiKey }
+            });
+            if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
+                console.warn('[opencode] auth.set returned error; set OPENCODE_SKIP_AUTH_SET=1 to skip.', (result as any).error);
+            }
+        } catch (e) {
+            console.warn('[opencode] auth.set threw; set OPENCODE_SKIP_AUTH_SET=1 to skip.', e);
+        }
     }
 
     public getProjectDir(): string {
@@ -104,6 +152,10 @@ export class OpencodeManager {
         const timestamp = Date.now();
         const fileName = outputName || `prompt_${timestamp}`;
         const outputFile = path.join(this.logsDir, `${fileName}.json`);
+        let sessionCreateResponse: any;
+        let promptResponse: any;
+        let sessionMessagesResponse: any;
+        const requestPayload: any = {};
 
         console.log(`Running OpenCode prompt: ${prompt.substring(0, 60)}...`);
         console.log(`Session ID: ${this.sessionId}`);
@@ -111,20 +163,29 @@ export class OpencodeManager {
 
         try {
             const client = await this.initClient();
+            // Sanity check connection
+            // await client.global.health();
+            // await client.auth.set({
+            //     path: { id: "openai" },
+            //     body: { type: "api", key: process.env.OPENAI_API_KEY },
+            //   })
             // console.log('client', client);
-            // Create session with directory query parameter
-            const sessionResponse = await client.session.create({
-                query: {
-                    directory: this.projectDir  // This sets the working directory!
-                },
+
+            // Create session
+            sessionCreateResponse = await client.session.create({
                 body: {
                     title: fileName
                 }
             });
-            console.log('sessionResponse', sessionResponse);
+            // console.log('sessionResponse', sessionCreateResponse);
+            const sessionCreateStatus = (sessionCreateResponse as any)?.response?.status;
+            const sessionCreateStatusText = (sessionCreateResponse as any)?.response?.statusText;
+            if (sessionCreateStatus || sessionCreateStatusText) {
+                console.log(`   session.create HTTP: ${sessionCreateStatus ?? 'unknown'} ${sessionCreateStatusText ?? ''}`);
+            }
             let sessionId = this.sessionId;
-            if (sessionResponse.data && sessionResponse.data.id) {
-                sessionId = sessionResponse.data.id;
+            if (sessionCreateResponse.data && sessionCreateResponse.data.id) {
+                sessionId = sessionCreateResponse.data.id;
             }
 
             // Log explicit mapping between local task session and remote OpenCode session
@@ -132,83 +193,91 @@ export class OpencodeManager {
             console.log(`   OpenCode Session ID (remote): ${sessionId}`);
             
             // Parse model string
-            const modelParts = this.model.includes('/') ? this.model.split('/') : ['openai', this.model];
-            const providerID = modelParts[0];
+            const modelParts = this.model.includes('/') ? this.model.split('/') : [this.provider, this.model];
+            const providerID = modelParts[0] || this.provider;
             const modelID = modelParts[1] || this.model;
             
             console.log(`   Provider ID: ${providerID}, Model ID: ${modelID}`);
             
-            // Send prompt with directory query parameter
-            const response = await client.session.prompt({
+            // Send prompt
+            requestPayload.model = { providerID, modelID };
+            requestPayload.parts = [{ type: "text", text: prompt }];
+
+            promptResponse = await client.session.prompt({
                 path: { 
                     id: sessionId
                 },
-                // query: {
-                //     directory: this.projectDir  // This sets the working directory!
-                // },
                 body: {
-                    model: { 
-                        providerID: providerID, 
-                        modelID: modelID 
-                    },
-                    parts: [{ type: "text", text: prompt }]
+                    model: requestPayload.model,
+                    parts: requestPayload.parts
                 }
             });
-            console.log('response', response);
+            console.log('response', promptResponse);
+            const promptStatus = (promptResponse as any)?.response?.status;
+            const promptStatusText = (promptResponse as any)?.response?.statusText;
+            if (promptStatus || promptStatusText) {
+                console.log(`   prompt HTTP: ${promptStatus ?? 'unknown'} ${promptStatusText ?? ''}`);
+            }
+            const providerDetail = (promptResponse as any)?.data?.provider;
+            if (providerDetail) {
+                console.log(`   prompt provider detail: ${JSON.stringify(providerDetail, null, 2)}`);
+            }
             const endTime = new Date();
             const durationMs = endTime.getTime() - startTime.getTime();
 
             // Check for errors in response
-            if (response && response.error) {
-                const errorMsg = `OpenCode API Error: ${response.error.name} - ${JSON.stringify(response.error.data)}`;
+            if (promptResponse && promptResponse.error) {
+                const errorMsg = `OpenCode API Error: ${promptResponse.error.name} - ${JSON.stringify(promptResponse.error.data)}`;
                 console.error(`   ${errorMsg}`);
                 throw new Error(errorMsg);
             }
 
             // Debug: Log raw response structure
-            console.log(`   Raw response type: ${typeof response}`);
-            console.log(`   Raw response keys: ${response ? Object.keys(response) : 'null'}`);
-            if (response && response.data) {
-                console.log(`   Response.data keys: ${Object.keys(response.data)}`);
-                if (response.data.parts) {
-                    console.log(`   Response.data.parts length: ${response.data.parts.length}`);
-                    console.log(`   Response.data.parts:`, JSON.stringify(response.data.parts, null, 2));
+            console.log(`   Raw response type: ${typeof promptResponse}`);
+            console.log(`   Raw response keys: ${promptResponse ? Object.keys(promptResponse) : 'null'}`);
+            if (promptResponse && promptResponse.data) {
+                console.log(`   Response.data keys: ${Object.keys(promptResponse.data)}`);
+                if (promptResponse.data.parts) {
+                    console.log(`   Response.data.parts length: ${promptResponse.data.parts.length}`);
+                    console.log(`   Response.data.parts:`, JSON.stringify(promptResponse.data.parts, null, 2));
                 }
-                if (response.data.blocked) {
-                    console.log(`   Response blocked: ${response.data.blocked}`);
+                if (promptResponse.data.blocked) {
+                    console.log(`   Response blocked: ${promptResponse.data.blocked}`);
                 }
-                if (response.data.info) {
-                    console.log(`   Response info:`, JSON.stringify(response.data.info, null, 2));
+                if (promptResponse.data.info) {
+                    console.log(`   Response info:`, JSON.stringify(promptResponse.data.info, null, 2));
                 }
             }
 
             // Extract content
             let content = '';
-            if (response && response.data) {
-                if (response.data.parts && Array.isArray(response.data.parts)) {
-                    const textParts = response.data.parts
+            if (promptResponse && promptResponse.data) {
+                if (promptResponse.data.parts && Array.isArray(promptResponse.data.parts)) {
+                    const textParts = promptResponse.data.parts
                         .filter((p: any) => p.type === 'text')
                         .map((p: any) => p.text)
                         .join('\n');
                     content = textParts;
-                } else if (response.data.text) {
-                    content = response.data.text;
+                } else if (promptResponse.data.text) {
+                    content = promptResponse.data.text;
                 } else {
-                    content = JSON.stringify(response.data);
+                    content = JSON.stringify(promptResponse.data);
                 }
-            } else if (typeof response === 'string') {
-                content = response;
-            } else if (response && typeof response === 'object') {
-                content = response.content || response.result || response.text || JSON.stringify(response);
+            } else if (typeof promptResponse === 'string') {
+                content = promptResponse;
+            } else if (promptResponse && typeof promptResponse === 'object') {
+                content = promptResponse.content || promptResponse.result || promptResponse.text || JSON.stringify(promptResponse);
             }
 
             // Check for empty content
             if (!content || content.trim() === '') {
-                throw new Error(`Empty response from OpenCode: ${JSON.stringify(response, null, 2)}`);
+                throw new Error(
+                    `Empty response from OpenCode (status=${promptStatus ?? 'n/a'} ${promptStatusText ?? ''}): ${JSON.stringify(promptResponse, null, 2)}`
+                );
             }
 
             // Create log entry
-            const sessionDetails = await client.session.messages({
+            sessionMessagesResponse = await client.session.messages({
                 path: { id: sessionId }
             });
             
@@ -218,7 +287,11 @@ export class OpencodeManager {
                 response: content,
                 sessionId: this.sessionId,
                 opencodeSessionId: sessionId,
-                opencodeSessionDetails: sessionDetails,
+                opencodeSessionDetails: sessionMessagesResponse,
+                requestPayload,
+                promptResponse,
+                sessionCreateResponse,
+                sessionMessagesResponse,
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
                 durationMs: durationMs,
@@ -279,6 +352,10 @@ Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}
                 errorStack: error.stack,
                 errorDetails: JSON.stringify(error, Object.getOwnPropertyNames(error), 2),
                 sessionId: this.sessionId,
+                sessionCreateResponse,
+                promptResponse,
+                sessionMessagesResponse,
+                requestPayload,
                 startTime: startTime.toISOString(),
                 endTime: endTime.toISOString(),
                 durationMs: durationMs,

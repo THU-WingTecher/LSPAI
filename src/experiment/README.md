@@ -4,11 +4,11 @@ A unified, clean, and extensible framework for running unit test generation expe
 
 Ready:
 - Install the CLI once (global is simplest): `npm i -g opencode-ai@latest` (or via bun/pnpm/yarn).
-- Start one shared server (with a password) before running experiments:
+- Need to give key through environment variables
 ```
-OPENCODE_SERVER_PASSWORD=lsprag npx opencode serve --hostname 127.0.0.1 --port 4096
+export DEEPSEEK_API_KEY="sk-4~"
+export OPENAI_API_KEY="sk~"
 ```
-- Point the experiment runner to it in each session: `export OPENCODE_BASE_URL=http://127.0.0.1:4096 export OPENCODE_SERVER_PASSWORD=lsprag`
 ## Structure
 
 ```

@@ -77,6 +77,12 @@ export interface LogEntry {
     opencodeSessionId?: string;
     /** Optional raw session details from OpenCode SDK */
     opencodeSessionDetails?: any;
+    /** Raw payload sent to prompt API */
+    requestPayload?: any;
+    /** Raw response objects for debugging */
+    promptResponse?: any;
+    sessionCreateResponse?: any;
+    sessionMessagesResponse?: any;
     startTime: string;
     endTime: string;
     durationMs: number;

@@ -20,6 +20,7 @@ export async function generateTest(
     projectDir: string,
     outputDir: string,
     model: string,
+    provider: string,
     sharedClient?: any
 ): Promise<TestResult> {
     const startTime = Date.now();
@@ -35,6 +36,7 @@ export async function generateTest(
             outputDir: opencodeOutputDir,
             projectDir: projectDir,
             model: model,
+            provider: provider,
             sharedClient: sharedClient
         } as any);
         const languageId = detectLanguage(task.relativeDocumentPath);
@@ -62,7 +64,7 @@ export async function generateTest(
         const logfileName = `${testFileName}.log`;
         const response = await opencodeManager.runPrompt(systemPrompt + "\n\n" + prompt, logfileName);
         console.log(`   Response length: ${response.length} chars`);
-        console.log(`   Response: ${response}`);
+        // console.log(`   Response: ${response}`);
 
         // Extract code
         const { code, isValid, warnings } = extractCleanCode(
@@ -117,6 +119,7 @@ export async function generateTestsSequential(
     projectDir: string,
     outputDir: string,
     model: string,
+    provider: string,
     onProgress?: (completed: number, total: number, taskName: string) => void,
     sharedClient?: any
 ): Promise<TestResult[]> {
@@ -125,7 +128,7 @@ export async function generateTestsSequential(
 
     for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
-        const result = await generateTest(task, opencodeOutputDir, projectDir, outputDir, model, sharedClient);
+        const result = await generateTest(task, opencodeOutputDir, projectDir, outputDir, model, provider, sharedClient);
         results.push(result);
 
         if (onProgress) {
@@ -147,6 +150,7 @@ export async function generateTestsParallel(
     projectDir: string,
     outputDir: string,
     model: string,
+    provider: string,
     concurrency: number = 4,
     onProgress?: (completed: number, total: number, taskName: string) => void,
     sharedClient?: any
@@ -158,7 +162,7 @@ export async function generateTestsParallel(
 
     const taskPromises = tasks.map(task =>
         limit(async () => {
-            const result = await generateTest(task, opencodeOutputDir, projectDir, outputDir, model, sharedClient);
+            const result = await generateTest(task, opencodeOutputDir, projectDir, outputDir, model, provider, sharedClient);
             
             completed++;
             if (onProgress) {
