@@ -1,0 +1,1002 @@
+[
+  {
+    "symbolName": "pipe",
+    "totalReferences": 13,
+    "testReferences": 11,
+    "robustnessScore": 123,
+    "sourceCode": "def pipe(*functions: KeyFunc) -> KeyFunc:\n    \"\"\"Pipe multiple key functions together.\n\n    Example:\n        >>> field('full_name', key=pipe(str.lower, slugify, prefix('user-')))\n        'user-john-doe'\n\n    :param functions: Key functions to pipe together.\n    :return: A closure that applies all functions in sequence.\n    \"\"\"\n\n    def key(result: Any, random: Random | None = None) -> Any:\n        for func in functions:\n            try:\n                result = func(result, random)  # type: ignore[call-arg]\n            except TypeError:\n                result = func(result)  # type: ignore[call-arg]\n        return result\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 19,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "romanize",
+    "totalReferences": 11,
+    "testReferences": 9,
+    "robustnessScore": 101,
+    "sourceCode": "def romanize(locale: Locale) -> Callable[[str], str]:\n    \"\"\"Create a closure function to romanize a given string in the specified locale.\n\n    Supported locales are:\n\n    - Locale.RU (Russian)\n    - Locale.UK (Ukrainian)\n    - Locale.KK (Kazakh)\n\n    :param locale: Locale.\n    :return: A closure that takes a string and returns a romanized string.\n    \"\"\"\n    locale = validate_locale(locale)\n\n    if locale not in (Locale.RU, Locale.UK, Locale.KK):\n        raise ValueError(f\"Romanization is not available for: {locale}\")\n\n    table = str.maketrans({**ROMANIZATION_DICT[locale.value], **COMMON_LETTERS})\n\n    def key(v: str) -> str:\n        \"\"\"Romanize a given string in the specified locale.\n\n        :param v: Cyrillic string.\n        :return: Romanized string.\n        \"\"\"\n        if not isinstance(v, str):\n            raise TypeError(f\"romanize() requires a string, got {type(v).__name__}\")\n\n        return v.translate(table)\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 30,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "get_all",
+    "totalReferences": 10,
+    "testReferences": 8,
+    "robustnessScore": 90,
+    "sourceCode": "@classmethod\n    def get_all(cls) -> dict[str, type[\"BaseProvider\"]]:\n        \"\"\"Get all registered providers.\n\n        :return: Dictionary mapping provider names to classes\n        \"\"\"\n        return cls._providers.copy()",
+    "importString": "import contextlib\nimport json\nimport operator\nfrom functools import reduce\n\nfrom mimesis import random as _random\nfrom mimesis.constants import DATADIR, LOCALE_SEP\nfrom mimesis.exceptions import NonEnumerableError\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.types import JSON, MissingSeed, Seed",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/providers/base.py"
+  },
+  {
+    "symbolName": "maybe",
+    "totalReferences": 9,
+    "testReferences": 7,
+    "robustnessScore": 79,
+    "sourceCode": "def maybe(value: Any, probability: float = 0.5) -> Callable[[Any, Random], Any]:\n    \"\"\"Return a closure (a key function).\n\n    The returned closure itself returns either **value** or\n    the first argument passed to closure with a certain probability (0.5 by default).\n\n    :param value: The value that may be returned.\n    :param probability: The probability of returning **value**.\n    :return: A closure that takes two arguments.\n    \"\"\"\n\n    def key(result: Any, random: Random) -> Any:\n        if 0 < probability <= 1:\n            value_weight = 1 - probability\n            (result,) = random.choices(\n                population=[result, value],\n                weights=[value_weight, probability],\n                k=1,\n            )\n        return result\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 21,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "prefix",
+    "totalReferences": 9,
+    "testReferences": 7,
+    "robustnessScore": 79,
+    "sourceCode": "def prefix(text: str) -> Callable[[str], str]:\n    \"\"\"Add prefix to result.\n\n    Example:\n        >>> field('word', key=prefix('user_'))\n        'user_order'\n\n    :param text: Prefix text to add.\n    :return: A closure that adds a prefix.\n    :raises TypeError: If result is not a string.\n    \"\"\"\n\n    def key(v: str) -> str:\n        if not isinstance(v, str):\n            raise TypeError(f\"prefix() requires a string, got {type(v).__name__}\")\n        return f\"{text}{v}\"\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 17,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "validate_locale",
+    "totalReferences": 12,
+    "testReferences": 6,
+    "robustnessScore": 72,
+    "sourceCode": "def validate_locale(locale: Locale | str) -> Locale:\n    if isinstance(locale, str):\n        try:\n            return Locale(locale)\n        except ValueError:\n            raise LocaleError(locale)\n\n    if not isinstance(locale, Locale):\n        raise LocaleError(locale)\n\n    return locale",
+    "importString": "from mimesis.enums import Locale\nfrom mimesis.exceptions import LocaleError",
+    "lineNum": 10,
+    "relativeDocumentPath": "mimesis/locales.py"
+  },
+  {
+    "symbolName": "slugify",
+    "totalReferences": 8,
+    "testReferences": 5,
+    "robustnessScore": 58,
+    "sourceCode": "def slugify(value: str) -> str:\n    \"\"\"Convert to URL-friendly slug.\n\n    Example:\n        >>> field('sentence', key=slugify)\n        'where-are-my-pants'\n\n    :param value: Input string to slugify.\n    :return: URL-friendly slug.\n    :raises TypeError: If result is not a string.\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(f\"slugify() requires a string, got {type(value).__name__}\")\n    value = value.lower()\n    value = re.sub(r\"[^\\w\\s-]\", \"\", value)\n    value = re.sub(r\"[-\\s]+\", \"-\", value)\n    return value.strip(\"-\")",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 16,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "reverse",
+    "totalReferences": 7,
+    "testReferences": 5,
+    "robustnessScore": 57,
+    "sourceCode": "def reverse(value: str) -> str:\n    \"\"\"Reverse the string.\n\n    :param value: Input string to reverse.\n    :return: Reversed string.\n    :raises TypeError: If result is not a string.\n\n    Example:\n        >>> field('word', key=reverse)\n        'ebircsed'\n\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(f\"reverse() requires a string, got {type(value).__name__}\")\n    return value[::-1]",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 14,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "snake_case",
+    "totalReferences": 7,
+    "testReferences": 5,
+    "robustnessScore": 57,
+    "sourceCode": "def snake_case(value: str) -> str:\n    \"\"\"Convert to snake_case.\n\n    Example:\n        >>> field('full_name', key=snake_case)\n        'michael_caldwell'\n\n    :param value: Input string to convert.\n    :return: snake_case string.\n    :raises TypeError: If result is not a string.\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(f\"snake_case() requires a string, got {type(value).__name__}\")\n    value = value.strip().replace(\" \", \"_\")\n    value = re.sub(r\"[^\\w_]\", \"\", value)\n    return value.lower()",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 15,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "truncate",
+    "totalReferences": 7,
+    "testReferences": 5,
+    "robustnessScore": 57,
+    "sourceCode": "def truncate(max_length: int, suffix: str = \"...\") -> Callable[[str], str]:\n    \"\"\"Truncate to maximum length.\n\n    Example:\n        >>> field('sentence', key=truncate(20))\n        'Ports are created...'\n\n    :param max_length: Maximum length of the result.\n    :param suffix: Suffix to add when truncating.\n    :return: A closure that truncates a string.\n    :raises TypeError: If result is not a string.\n    :raises ValueError: If max_length is not positive.\n    \"\"\"\n    if max_length <= 0:\n        raise ValueError(f\"max_length must be positive, got {max_length}\")\n\n    def key(result: str) -> str:\n        if not isinstance(result, str):\n            raise TypeError(\n                f\"truncate() requires a string, got {type(result).__name__}\"\n            )\n        if len(result) <= max_length:\n            return result\n        return result[: max_length - len(suffix)] + suffix\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 25,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "hash_with",
+    "totalReferences": 7,
+    "testReferences": 5,
+    "robustnessScore": 57,
+    "sourceCode": "def hash_with(algorithm: str = \"sha256\") -> Callable[[str], str]:\n    \"\"\"Return a function that hashes a string using the given algorithm.\n\n    Supported algorithms are those available in :mod:`hashlib.algorithms_available`.\n\n    Example:\n        >>> field('password', key=hash_with('sha1'))\n        'd3e7130d657733468b10c1fd207c4d62b7180cda'\n\n    :param algorithm: Hash algorithm name.\n    :return: A closure that hashes a string.\n    :raises ValueError: If algorithm is not supported.\n    :raises TypeError: If result is not a string.\n    \"\"\"\n    if algorithm not in hashlib.algorithms_available:\n        raise ValueError(f\"Unsupported hash algorithm: {algorithm}\")\n\n    def key(v: str) -> str:\n        if not isinstance(v, str):\n            raise TypeError(f\"hash_with() requires a string, got {type(v).__name__}\")\n        hash_func = hashlib.new(algorithm)\n        hash_func.update(v.encode())\n        return hash_func.hexdigest()\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 24,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "map",
+    "totalReferences": 6,
+    "testReferences": 5,
+    "robustnessScore": 56,
+    "sourceCode": "def map(self, fn: Callable[..., Any]) -> \"Schema\":\n        \"\"\"Transform each generated item.\n\n        :param fn: Function to transform items.\n            Can accept (item) or (item, context).\n        :return: Self for chaining.\n        \"\"\"\n        self._transformers.append(fn)\n        return self",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 8,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "create",
+    "totalReferences": 9,
+    "testReferences": 4,
+    "robustnessScore": 49,
+    "sourceCode": "def create(self) -> list[JSON]:\n        \"\"\"Creates a list of a fulfilled schemas.\n\n        .. note::\n            This method evaluates immediately, so be careful when creating\n            large datasets otherwise you're risking running out of memory.\n\n            If you need a lazy version of this method, just use :meth:`iterator` or\n            the iterator protocol of :class:`Schema`\n\n        :return: List of fulfilled schemas.\n        \"\"\"\n        index = 0\n        results: list[JSON] = []\n\n        while len(results) < self.iterations:\n            result = self._create_item(index)\n\n            if result is not None:\n                results.append(result)\n\n            index += 1\n\n        return results",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 23,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "camel_case",
+    "totalReferences": 6,
+    "testReferences": 4,
+    "robustnessScore": 46,
+    "sourceCode": "def camel_case(value: str) -> str:\n    \"\"\"Convert to camelCase.\n\n    Example:\n        >>> field('sentence', key=camel_case)\n        'makeMeASandwich.'\n\n    :param value: Input string to convert.\n    :return: camelCase string.\n    :raises TypeError: If result is not a string.\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(f\"camel_case() requires a string, got {type(value).__name__}\")\n\n    words = value.split()\n    if not words:\n        return \"\"\n\n    return words[0].lower() + \"\".join(w.capitalize() for w in words[1:])",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 18,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "suffix",
+    "totalReferences": 6,
+    "testReferences": 4,
+    "robustnessScore": 46,
+    "sourceCode": "def suffix(text: str) -> Callable[[str], str]:\n    \"\"\"Add suffix to result.\n\n    Example:\n        >>> field('word', key=suffix('.io'))\n        'ecipe.io'\n\n    :param text: Suffix text to add.\n    :return: A closure that adds a suffix.\n    :raises TypeError: If result is not a string.\n    \"\"\"\n\n    def key(v: str) -> str:\n        if not isinstance(v, str):\n            raise TypeError(f\"suffix() requires a string, got {type(v).__name__}\")\n        return f\"{v}{text}\"\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 17,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "base64_encode",
+    "totalReferences": 6,
+    "testReferences": 4,
+    "robustnessScore": 46,
+    "sourceCode": "def base64_encode(value: str) -> str:\n    \"\"\"Encode as base64.\n\n    :param value: Input string to encode.\n    :return: Base64 encoded string.\n    :raises TypeError: If result is not a string.\n\n    Example:\n        >>> field('word', key=base64_encode)\n        'cHJlcGFyZWQ='\n\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(\n            f\"base64_encode() requires a string, got {type(value).__name__}\"\n        )\n    return base64.b64encode(value.encode()).decode()",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 16,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "apply_if",
+    "totalReferences": 6,
+    "testReferences": 4,
+    "robustnessScore": 46,
+    "sourceCode": "def apply_if(\n    condition: Callable[[Any], bool],\n    transform: Callable[[Any], Any],\n    otherwise: Callable[[Any], Any] | None = None,\n) -> Callable[[Any], Any]:\n    \"\"\"Apply transform only if the condition is true.\n\n    Example:\n        >>> field('word', key=apply_if(lambda x: len(x) > 3, str.upper, str.lower))\n        'FIELDS'\n\n    :param condition: Condition function.\n    :param transform: Transform function to apply if condition is True.\n    :param otherwise: Optional transform to apply if condition is False.\n    :return: A closure that conditionally transforms the result.\n    \"\"\"\n\n    def key(v: Any) -> Any:\n        if condition(v):\n            return transform(v)\n        elif otherwise:\n            return otherwise(v)\n        return v\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 24,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "wrap",
+    "totalReferences": 5,
+    "testReferences": 3,
+    "robustnessScore": 35,
+    "sourceCode": "def wrap(before: str = \"<\", after: str = \">\") -> Callable[[str], str]:\n    \"\"\"Wrap result with before and after strings.\n\n    Example:\n        >>> field('word', key=wrap('[', ']'))\n        '[dynamics]'\n\n    :param before: String to prepend.\n    :param after: String to append.\n    :return: A closure that wraps a string.\n    :raises TypeError: If the result is not a string.\n    \"\"\"\n\n    def key(v: str) -> str:\n        if not isinstance(v, str):\n            raise TypeError(f\"wrap() requires a string, got {type(v).__name__}\")\n        return f\"{before}{v}{after}\"\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 18,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "kebab_case",
+    "totalReferences": 5,
+    "testReferences": 3,
+    "robustnessScore": 35,
+    "sourceCode": "def kebab_case(value: str) -> str:\n    \"\"\"Convert to kebab-case.\n\n    :param value: Input string to convert.\n    :return: kebab-case string.\n    :raises TypeError: If result is not a string.\n    \"\"\"\n    return slugify(value)",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "remove_whitespace",
+    "totalReferences": 5,
+    "testReferences": 3,
+    "robustnessScore": 35,
+    "sourceCode": "def remove_whitespace(value: str) -> str:\n    \"\"\"Remove all whitespace.\n\n    :param value: Input string.\n    :return: String with all whitespace removed.\n    :raises TypeError: If result is not a string.\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(\n            f\"remove_whitespace() requires a string, got {type(value).__name__}\"\n        )\n    return \"\".join(value.split())",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 11,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "redact",
+    "totalReferences": 5,
+    "testReferences": 3,
+    "robustnessScore": 35,
+    "sourceCode": "def redact(replacement: str = \"[REDACTED]\") -> Callable[[Any], str]:\n    \"\"\"Replace the entire value with redaction marker.\n\n    Example:\n        >>> field('password', key=redact('[CLASSIFIED]'))\n        '[CLASSIFIED]'\n\n    :param replacement: Replacement text.\n    :return: A closure that returns the replacement text.\n    \"\"\"\n\n    def key(_: Any) -> str:\n        return replacement\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 14,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "join",
+    "totalReferences": 5,
+    "testReferences": 3,
+    "robustnessScore": 35,
+    "sourceCode": "def join(sep: str = \", \") -> Callable[[list[Any]], str]:\n    \"\"\"Join list items with separator.\n\n    Example:\n        >>> field('words', quantity=3, key=join(' | '))\n        'pci | promise | excel'\n\n    :param sep: Separator string.\n    :return: A closure that joins items.\n    :raises TypeError: If the result is not iterable.\n    \"\"\"\n\n    def key(v: Iterable[Any]) -> str:\n        if not isinstance(v, Iterable):\n            raise TypeError(f\"join() requires iterable, got {type(v).__name__}\")\n        return sep.join(str(item) for item in v)\n\n    return key",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 17,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "override_locale",
+    "totalReferences": 4,
+    "testReferences": 3,
+    "robustnessScore": 34,
+    "sourceCode": "@contextlib.contextmanager\n    def override_locale(\n        self,\n        locale: Locale,\n    ) -> t.Generator[\"BaseDataProvider\", None, None]:\n        \"\"\"Context manager that allows overriding current locale.\n\n        Temporarily overrides current locale for\n        locale-dependent providers.\n\n        :param locale: Locale.\n        :return: Provider with overridden locale.\n        \"\"\"\n        try:\n            origin_locale = Locale(self.locale)\n            self._override_locale(locale)\n            try:\n                yield self\n            finally:\n                self._override_locale(origin_locale)\n        except AttributeError:\n            raise ValueError(f\"«{self.__class__.__name__}» has not locale dependent\")",
+    "importString": "import contextlib\nimport json\nimport operator\nfrom functools import reduce\n\nfrom mimesis import random as _random\nfrom mimesis.constants import DATADIR, LOCALE_SEP\nfrom mimesis.exceptions import NonEnumerableError\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.types import JSON, MissingSeed, Seed",
+    "lineNum": 21,
+    "relativeDocumentPath": "mimesis/providers/base.py"
+  },
+  {
+    "symbolName": "validate_enum",
+    "totalReferences": 26,
+    "testReferences": 0,
+    "robustnessScore": 26,
+    "sourceCode": "def validate_enum(self, item: t.Any, enum: t.Any) -> t.Any:\n        \"\"\"Validates various enum objects that are used as arguments for methods.\n\n        :param item: Item of an enum object.\n        :param enum: Enum object.\n        :return: Value of item.\n        :raises NonEnumerableError: If enums has not such an item.\n        \"\"\"\n        if item is None:\n            result = self.random.choice_enum_item(enum)\n        elif item and isinstance(item, enum):\n            result = item\n        else:\n            raise NonEnumerableError(enum)\n\n        return result.value",
+    "importString": "import contextlib\nimport json\nimport operator\nfrom functools import reduce\n\nfrom mimesis import random as _random\nfrom mimesis.constants import DATADIR, LOCALE_SEP\nfrom mimesis.exceptions import NonEnumerableError\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.types import JSON, MissingSeed, Seed",
+    "lineNum": 15,
+    "relativeDocumentPath": "mimesis/providers/base.py"
+  },
+  {
+    "symbolName": "urlsafe_base64_encode",
+    "totalReferences": 4,
+    "testReferences": 2,
+    "robustnessScore": 24,
+    "sourceCode": "def urlsafe_base64_encode(value: str) -> str:\n    \"\"\"Encode as URL-safe base64.\n\n    :param value: Input string to encode.\n    :return: URL-safe base64 encoded string.\n    :raises TypeError: If result is not a string.\n\n    Example:\n        >>> field('word', key=urlsafe_base64_encode)\n        'YXBwZWFscw=='\n    \"\"\"\n    if not isinstance(value, str):\n        raise TypeError(\n            f\"urlsafe_base64_encode() requires a string, got {type(value).__name__}\"\n        )\n    return base64.urlsafe_b64encode(value.encode()).decode()",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 15,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "get",
+    "totalReferences": 3,
+    "testReferences": 2,
+    "robustnessScore": 23,
+    "sourceCode": "@classmethod\n    def get(cls, name: str) -> type[\"BaseProvider\"] | None:\n        \"\"\"Get a specific provider by name.\n\n        :param name: Provider name\n        :return: Provider class or None\n        \"\"\"\n        return cls._providers.get(name)",
+    "importString": "import contextlib\nimport json\nimport operator\nfrom functools import reduce\n\nfrom mimesis import random as _random\nfrom mimesis.constants import DATADIR, LOCALE_SEP\nfrom mimesis.exceptions import NonEnumerableError\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.types import JSON, MissingSeed, Seed",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/providers/base.py"
+  },
+  {
+    "symbolName": "define",
+    "totalReferences": 3,
+    "testReferences": 2,
+    "robustnessScore": 23,
+    "sourceCode": "def define(self, name: str, schema: Schema) -> Schema:\n        \"\"\"Register a schema with a name.\n\n        :param name: Name to register schema under.\n        :param schema: Schema instance.\n        :return: The schema for chaining.\n        \"\"\"\n        self._schemas[name] = schema\n        return schema",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 8,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "luhn_checksum",
+    "totalReferences": 6,
+    "testReferences": 1,
+    "robustnessScore": 16,
+    "sourceCode": "def luhn_checksum(num: str) -> str:\n    \"\"\"Calculate a checksum for num using the Luhn algorithm.\n\n    Used to validate credit card numbers, IMEI numbers,\n    and other identification numbers.\n\n    :param num: The number to calculate a checksum for as a string.\n    :return: Checksum for number.\n    \"\"\"\n    check = 0\n    for i, s in enumerate(reversed(num)):\n        sx = int(s)\n        if i % 2 == 0:\n            sx *= 2\n        if sx > 9:\n            sx -= 9\n        check += sx\n    return str(check * 9 % 10)",
+    "importString": "",
+    "lineNum": 17,
+    "relativeDocumentPath": "mimesis/shortcuts.py"
+  },
+  {
+    "symbolName": "email",
+    "totalReferences": 3,
+    "testReferences": 1,
+    "robustnessScore": 13,
+    "sourceCode": "def email(\n        self,\n        domains: t.Sequence[str] | None = None,\n        unique: bool = False,\n    ) -> str:\n        \"\"\"Generates a random email.\n\n        :param domains: List of custom domains for emails.\n        :param unique: Makes email addresses unique.\n        :return: Email address.\n        :raises ValueError: if «unique» is True and the provider was seeded.\n\n        :Example:\n            foretime10@live.com\n        \"\"\"\n        if unique and self._has_seed():\n            raise ValueError(\n                \"You cannot use «unique» parameter with the seeded provider\"\n            )\n\n        if not domains:\n            domains = EMAIL_DOMAINS\n\n        domain = self.random.choice(domains)\n\n        if not domain.startswith(\"@\"):\n            domain = \"@\" + domain\n\n        if unique:\n            name = str(uuid.uuid4().hex)\n        else:\n            name = self.username(mask=\"ld\")\n\n        return f\"{name}{domain}\"",
+    "importString": "import hashlib\nimport re\nimport uuid\nfrom datetime import date, datetime\nfrom string import ascii_letters, digits, punctuation\nfrom mimesis.datasets import (\nBLOOD_GROUPS\nCALLING_CODES\nEMAIL_DOMAINS\nGENDER_CODES\nGENDER_SYMBOLS\nUSERNAMES\n)\nfrom mimesis.enums import Gender, TitleType\nfrom mimesis.providers.base import BaseDataProvider\nfrom mimesis.types import Date",
+    "lineNum": 33,
+    "relativeDocumentPath": "mimesis/providers/person.py"
+  },
+  {
+    "symbolName": "values",
+    "totalReferences": 2,
+    "testReferences": 1,
+    "robustnessScore": 12,
+    "sourceCode": "@classmethod\n    def values(cls) -> t.List[str]:\n        return [i.value for i in cls.__members__.values()]",
+    "importString": "from enum import Enum, auto",
+    "lineNum": 2,
+    "relativeDocumentPath": "mimesis/enums.py"
+  },
+  {
+    "symbolName": "get_current_locale",
+    "totalReferences": 2,
+    "testReferences": 1,
+    "robustnessScore": 12,
+    "sourceCode": "def get_current_locale(self) -> str:\n        \"\"\"Returns current locale.\n\n        If locale is not defined, then this method will always return ``en``,\n        because ``en`` is a default locale for all providers.\n\n        :return: Current locale.\n        \"\"\"\n        # noinspection PyTypeChecker\n        return self.locale",
+    "importString": "import contextlib\nimport json\nimport operator\nfrom functools import reduce\n\nfrom mimesis import random as _random\nfrom mimesis.constants import DATADIR, LOCALE_SEP\nfrom mimesis.exceptions import NonEnumerableError\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.types import JSON, MissingSeed, Seed",
+    "lineNum": 9,
+    "relativeDocumentPath": "mimesis/providers/base.py"
+  },
+  {
+    "symbolName": "increment",
+    "totalReferences": 2,
+    "testReferences": 1,
+    "robustnessScore": 12,
+    "sourceCode": "def increment(self, accumulator: str | None = None) -> int:\n        \"\"\"Generates an incrementing number.\n\n        Each call of this method returns an incrementing number (with the step of +1).\n\n        If **accumulator** passed then increments number associated with it.\n\n        Example:\n            >>> self.increment()\n            1\n            >>> self.increment(accumulator=\"a\")\n            1\n            >>> self.increment()\n            2\n            >>> self.increment(accumulator=\"a\")\n            2\n            >>> self.increment(accumulator=\"b\")\n            1\n            >>> self.increment(accumulator=\"a\")\n            3\n\n        :param accumulator: Accumulator (used to create associative incrementation).\n        :return: Integer.\n        \"\"\"\n        if not accumulator:\n            accumulator = self.__default_accumulator_value\n\n        self.__increment_dict[accumulator] += 1\n        return self.__increment_dict[accumulator]",
+    "importString": "from collections import defaultdict\nfrom decimal import Decimal\n\nfrom mimesis.enums import NumType\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.types import Matrix",
+    "lineNum": 28,
+    "relativeDocumentPath": "mimesis/providers/numeric.py"
+  },
+  {
+    "symbolName": "with_context",
+    "totalReferences": 2,
+    "testReferences": 1,
+    "robustnessScore": 12,
+    "sourceCode": "def with_context(self, **kwargs: Any) -> \"Schema\":\n        \"\"\"Add custom context data.\n\n        :param kwargs: Custom context values.\n        :return: Self for chaining.\n        \"\"\"\n        self._custom_context.update(kwargs)\n        return self",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "to_csv",
+    "totalReferences": 2,
+    "testReferences": 1,
+    "robustnessScore": 12,
+    "sourceCode": "def to_csv(self, file_path: str, **kwargs: Any) -> None:\n        \"\"\"Export a schema as a CSV file.\n\n        :param file_path: The file path.\n        :param kwargs: The keyword arguments for :py:class:`csv.DictWriter` class.\n        \"\"\"\n        data = self.create()\n        with open(file_path, \"w\", encoding=\"utf-8\", newline=\"\") as fp:\n            fieldnames = list(data[0])\n            dict_writer = csv.DictWriter(fp, fieldnames, **kwargs)\n            dict_writer.writeheader()\n            dict_writer.writerows(data)",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 11,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "to_json",
+    "totalReferences": 2,
+    "testReferences": 1,
+    "robustnessScore": 12,
+    "sourceCode": "def to_json(self, file_path: str, **kwargs: Any) -> None:\n        \"\"\"Export a schema as a JSON file.\n\n        :param file_path: File a path.\n        :param kwargs: Extra keyword arguments for :py:func:`json.dump` class.\n        \"\"\"\n        with open(file_path, \"w\", encoding=\"utf-8\") as fp:\n            json.dump(self.create(), fp, **kwargs)",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "to_pickle",
+    "totalReferences": 2,
+    "testReferences": 1,
+    "robustnessScore": 12,
+    "sourceCode": "def to_pickle(self, file_path: str, **kwargs: Any) -> None:\n        \"\"\"Export a schema as the pickled representation of the object to the file.\n\n        :param file_path: The file path.\n        :param kwargs: Extra keyword arguments for :py:func:`pickle.dump` class.\n        \"\"\"\n        with open(file_path, \"wb\") as fp:\n            pickle.dump(self.create(), fp, **kwargs)",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "create",
+    "totalReferences": 2,
+    "testReferences": 1,
+    "robustnessScore": 12,
+    "sourceCode": "def create(self, **counts: int) -> dict[str, list[JSON]]:\n        \"\"\"Create all schemas with specified counts.\n\n        :param counts: Schema names and their counts.\n        :return: Dictionary of schema names to generated data.\n        \"\"\"\n        result: dict[str, list[JSON]] = {}\n\n        for name, count in counts.items():\n            if name not in self._schemas:\n                raise ValueError(f\"Schema '{name}' is not defined\")\n\n            schema = self._schemas[name]\n\n            # Wrap transformers to inject builder context\n            temp_transformers = [\n                self._wrap_transformer(transformer)\n                for transformer in schema._transformers\n            ]\n\n            old_transformers = schema._transformers\n            schema._transformers = temp_transformers\n\n            old_iterations = schema.iterations\n            schema.iterations = count\n            data = schema.create()\n            schema.iterations = old_iterations\n\n            self._data[name] = data\n            result[name] = data\n\n            schema._transformers = old_transformers\n\n        return result",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 33,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "generate_string_by_mask",
+    "totalReferences": 9,
+    "testReferences": 0,
+    "robustnessScore": 9,
+    "sourceCode": "def generate_string_by_mask(\n        self,\n        mask: str = \"@###\",\n        char: str = \"@\",\n        digit: str = \"#\",\n    ) -> str:\n        \"\"\"Generate custom code using ascii uppercase and random integers.\n\n        :param mask: Mask of code.\n        :param char: Placeholder for characters.\n        :param digit: Placeholder for digits.\n        :return: Custom code.\n        \"\"\"\n        char_code = ord(char)\n        digit_code = ord(digit)\n\n        if char_code == digit_code:\n            raise ValueError(\n                \"The same placeholder cannot be \"\n                \"used for both numbers and characters.\"\n            )\n\n        _mask = mask.encode()\n        code = bytearray(len(_mask))\n        rand_fn = self.random\n        for i, p in enumerate(_mask):\n            if p == char_code:\n                code[i] = int(rand_fn() * 26) + 65  # A-Z\n            elif p == digit_code:\n                code[i] = int(rand_fn() * 10) + 48  # 0-9\n            else:\n                code[i] = p\n        return code.decode()",
+    "importString": "from mimesis.types import MissingSeed, Seed",
+    "lineNum": 32,
+    "relativeDocumentPath": "mimesis/random.py"
+  },
+  {
+    "symbolName": "uniform",
+    "totalReferences": 9,
+    "testReferences": 0,
+    "robustnessScore": 9,
+    "sourceCode": "def uniform(self, a: float, b: float, precision: int = 15) -> float:\n        \"\"\"Get a random number in the range [a, b) or [a, b] depending on rounding.\n\n        :param a: Minimum value.\n        :param b: Maximum value.\n        :param precision: Round a number to a given\n            precision in decimal digits, default is 15.\n        \"\"\"\n        return round(a + (b - a) * self.random(), precision)",
+    "importString": "from mimesis.types import MissingSeed, Seed",
+    "lineNum": 8,
+    "relativeDocumentPath": "mimesis/random.py"
+  },
+  {
+    "symbolName": "reseed",
+    "totalReferences": 6,
+    "testReferences": 0,
+    "robustnessScore": 6,
+    "sourceCode": "def reseed(self, seed: Seed = MissingSeed) -> None:\n        \"\"\"Reseeds the internal random generator.\n\n        In case we use the default seed, we need to create a per instance\n        random generator. In this case, two providers with the same seed\n        will always return the same values.\n\n        :param seed: Seed for random.\n            When set to `None` the current system time is used.\n        \"\"\"\n        self.seed = seed\n        if seed is MissingSeed:\n            # Remove casts after mypy will fix this inference:\n            if _random.global_seed is not MissingSeed:\n                self.random.seed(t.cast(t.Any, _random.global_seed))\n        else:\n            self.random.seed(t.cast(t.Any, seed))",
+    "importString": "import contextlib\nimport json\nimport operator\nfrom functools import reduce\n\nfrom mimesis import random as _random\nfrom mimesis.constants import DATADIR, LOCALE_SEP\nfrom mimesis.exceptions import NonEnumerableError\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.types import JSON, MissingSeed, Seed",
+    "lineNum": 16,
+    "relativeDocumentPath": "mimesis/providers/base.py"
+  },
+  {
+    "symbolName": "reseed",
+    "totalReferences": 6,
+    "testReferences": 0,
+    "robustnessScore": 6,
+    "sourceCode": "def reseed(self, seed: Seed = MissingSeed) -> None:\n        \"\"\"Reseed the internal random generator.\n\n        Overrides method `BaseProvider.reseed()`.\n\n        :param seed: Seed for random.\n        :return: None.\n        \"\"\"\n        # Make sure to reseed the random generator on Generic itself.\n        super().reseed(seed)\n\n        for attr in self.__dir__():\n            try:\n                provider = getattr(self, attr)\n                provider.reseed(seed)\n            except AttributeError:\n                continue",
+    "importString": "from mimesis.locales import Locale\nfrom mimesis.providers.base import (\nBaseDataProvider\nBaseProvider\nProviderRegistry\n)\nfrom mimesis.types import MissingSeed, Seed",
+    "lineNum": 16,
+    "relativeDocumentPath": "mimesis/providers/generic.py"
+  },
+  {
+    "symbolName": "words",
+    "totalReferences": 6,
+    "testReferences": 0,
+    "robustnessScore": 6,
+    "sourceCode": "def words(self, quantity: int = 5) -> list[str]:\n        \"\"\"Generates a list of random words.\n\n        :param quantity: Quantity of words. Default is 5.\n        :return: Word list.\n\n        :Example:\n            [science, network, god, octopus, love]\n        \"\"\"\n        words = self._extract([\"words\"])\n        return self.random.choices(words, k=quantity)",
+    "importString": "from mimesis.datasets import SAFE_COLORS\nfrom mimesis.enums import EmojiCategory\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 10,
+    "relativeDocumentPath": "mimesis/providers/text.py"
+  },
+  {
+    "symbolName": "randbytes",
+    "totalReferences": 6,
+    "testReferences": 0,
+    "robustnessScore": 6,
+    "sourceCode": "def randbytes(self, n: int = 16) -> bytes:\n        \"\"\"Generate n random bytes.\"\"\"\n        return self.getrandbits(n * 8).to_bytes(n, \"little\")",
+    "importString": "from mimesis.types import MissingSeed, Seed",
+    "lineNum": 2,
+    "relativeDocumentPath": "mimesis/random.py"
+  },
+  {
+    "symbolName": "state",
+    "totalReferences": 5,
+    "testReferences": 0,
+    "robustnessScore": 5,
+    "sourceCode": "def state(self, abbr: bool = False) -> str:\n        \"\"\"Generates a random administrative district of the country.\n\n        :param abbr: Return ISO 3166-2 code.\n        :return: Administrative district.\n        \"\"\"\n        key = \"abbr\" if abbr else \"name\"\n        states: list[str] = self._extract([\"state\", key])\n        return self.random.choice(states)",
+    "importString": "from mimesis.datasets import (\nCALLING_CODES\nCONTINENT_CODES\nCOUNTRY_CODES\nIATA_CODES\nICAO_CODES\nSHORTENED_ADDRESS_FMT\n)\nfrom mimesis.enums import CountryCode\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 8,
+    "relativeDocumentPath": "mimesis/providers/address.py"
+  },
+  {
+    "symbolName": "mime_type",
+    "totalReferences": 5,
+    "testReferences": 0,
+    "robustnessScore": 5,
+    "sourceCode": "def mime_type(self, type_: MimeType | None = None) -> str:\n        \"\"\"Generates a random mime type.\n\n        :param type_: Enum object MimeType.\n        :return: Mime type.\n        \"\"\"\n        key = self.validate_enum(item=type_, enum=MimeType)\n        types = MIME_TYPES[key]\n        return self.random.choice(types)",
+    "importString": "from mimesis.datasets import EXTENSIONS, FILENAMES, MIME_TYPES\nfrom mimesis.enums import FileType, MimeType\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 8,
+    "relativeDocumentPath": "mimesis/providers/file.py"
+  },
+  {
+    "symbolName": "hostname",
+    "totalReferences": 5,
+    "testReferences": 0,
+    "robustnessScore": 5,
+    "sourceCode": "def hostname(\n        self,\n        tld_type: TLDType | None = None,\n        subdomains: list[str] | None = None,\n    ) -> str:\n        \"\"\"Generates a random hostname without a scheme.\n\n        :param tld_type: TLDType.\n        :param subdomains: List of subdomains (make sure they are valid).\n        :return: Hostname.\n        \"\"\"\n        tld = self.tld(tld_type=tld_type)\n        host = self.random.choice(USERNAMES)\n\n        if subdomains:\n            subdomain = self.random.choice(subdomains)\n            host = f\"{subdomain}.{host}\"\n\n        return f\"{host}{tld}\"",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 18,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "token_bytes",
+    "totalReferences": 4,
+    "testReferences": 0,
+    "robustnessScore": 4,
+    "sourceCode": "def token_bytes(self, entropy: int = 32) -> bytes:\n        \"\"\"Generates byte string containing ``entropy`` bytes.\n\n        The string has ``entropy`` random bytes, each byte\n        converted to two hex digits.\n\n        :param entropy: Number of bytes (default: 32).\n        :return: Random bytes.\n        \"\"\"\n        return bytes([self.random.randint(0, 255) for _ in range(entropy)])",
+    "importString": "import hashlib\nimport json\nimport time\nfrom base64 import urlsafe_b64encode\nfrom uuid import UUID\n\nfrom mimesis.datasets.int.cryptographic import WORDLIST\nfrom mimesis.enums import Algorithm\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 9,
+    "relativeDocumentPath": "mimesis/providers/cryptographic.py"
+  },
+  {
+    "symbolName": "token_hex",
+    "totalReferences": 4,
+    "testReferences": 0,
+    "robustnessScore": 4,
+    "sourceCode": "def token_hex(self, entropy: int = 32) -> str:\n        \"\"\"Generates a random text string, in hexadecimal.\n\n        The string has *entropy* random bytes, each byte converted to two\n        hex digits.  If *entropy* is ``None`` or not supplied, a reasonable\n        default is used.\n\n        :param entropy: Number of bytes (default: 32).\n        :return: Token.\n        \"\"\"\n        return self.token_bytes(entropy).hex()",
+    "importString": "import hashlib\nimport json\nimport time\nfrom base64 import urlsafe_b64encode\nfrom uuid import UUID\n\nfrom mimesis.datasets.int.cryptographic import WORDLIST\nfrom mimesis.enums import Algorithm\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 10,
+    "relativeDocumentPath": "mimesis/providers/cryptographic.py"
+  },
+  {
+    "symbolName": "date",
+    "totalReferences": 4,
+    "testReferences": 0,
+    "robustnessScore": 4,
+    "sourceCode": "def date(self, start: int = 2000, end: int = _CURRENT_YEAR) -> Date:\n        \"\"\"Generates a random date object.\n\n        :param start: Minimum value of year.\n        :param end: Maximum value of year.\n        :return: Formatted date.\n        \"\"\"\n        year = self.random.randint(start, end)\n        month = self.random.randint(1, 12)\n        day = self.random.randint(1, monthrange(year, month)[1])\n        date_object = date(year, month, day)\n        return date_object",
+    "importString": "from calendar import monthrange\nfrom datetime import date, datetime, time, timedelta\n\nfrom mimesis.compat import pytz\nfrom mimesis.datasets import GMT_OFFSETS, ROMAN_NUMS, TIMEZONES\nfrom mimesis.enums import DurationUnit, TimestampFormat, TimezoneRegion\nfrom mimesis.providers.base import BaseDataProvider\nfrom mimesis.types import Date, DateTime, Time",
+    "lineNum": 11,
+    "relativeDocumentPath": "mimesis/providers/date.py"
+  },
+  {
+    "symbolName": "randints",
+    "totalReferences": 4,
+    "testReferences": 0,
+    "robustnessScore": 4,
+    "sourceCode": "def randints(self, n: int = 3, a: int = 1, b: int = 100) -> list[int]:\n        \"\"\"Generate a list of random integers.\n\n        :param n: Number of elements.\n        :param a: Minimum value of range.\n        :param b: Maximum value of range.\n        :return: List of random integers.\n        :raises ValueError: if the number is less or equal to zero.\n        \"\"\"\n        if n <= 0:\n            raise ValueError(\"Amount out of range.\")\n\n        return [int(self.random() * (b - a)) + a for _ in range(n)]",
+    "importString": "from mimesis.types import MissingSeed, Seed",
+    "lineNum": 12,
+    "relativeDocumentPath": "mimesis/random.py"
+  },
+  {
+    "symbolName": "read_file",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def read_file(locale_name: str) -> t.Any:\n            file_path = datadir / locale_name / datafile\n            with open(file_path, encoding=\"utf8\") as f:\n                return json.load(f)",
+    "importString": "import contextlib\nimport json\nimport operator\nfrom functools import reduce\n\nfrom mimesis import random as _random\nfrom mimesis.constants import DATADIR, LOCALE_SEP\nfrom mimesis.exceptions import NonEnumerableError\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.types import JSON, MissingSeed, Seed",
+    "lineNum": 3,
+    "relativeDocumentPath": "mimesis/providers/base.py"
+  },
+  {
+    "symbolName": "locale_code",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def locale_code(self) -> str:\n        \"\"\"Generates a random locale code (MS-LCID).\n\n        See Windows Language Code Identifier Reference\n        for more information.\n\n        :return: Locale code.\n        \"\"\"\n        return self.random.choice(LOCALE_CODES)",
+    "importString": "from mimesis.datasets import (\nEAN_MASKS\nIMEI_TACS\nISBN_GROUPS\nISBN_MASKS\nLOCALE_CODES\n)\nfrom mimesis.enums import EANFormat, ISBNFormat\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.shortcuts import luhn_checksum",
+    "lineNum": 8,
+    "relativeDocumentPath": "mimesis/providers/code.py"
+  },
+  {
+    "symbolName": "uuid",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def uuid(self) -> str:\n        \"\"\"Generates UUID4 string.\n\n        :return: UUID4 as string.\n        \"\"\"\n        return str(self.uuid_object())",
+    "importString": "import hashlib\nimport json\nimport time\nfrom base64 import urlsafe_b64encode\nfrom uuid import UUID\n\nfrom mimesis.datasets.int.cryptographic import WORDLIST\nfrom mimesis.enums import Algorithm\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 5,
+    "relativeDocumentPath": "mimesis/providers/cryptographic.py"
+  },
+  {
+    "symbolName": "time",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def time(self) -> Time:\n        \"\"\"Generates a random time object.\n\n        :return: ``datetime.time`` object.\n        \"\"\"\n        random_time = time(\n            self.random.randint(0, 23),\n            self.random.randint(0, 59),\n            self.random.randint(0, 59),\n            self.random.randint(0, 999999),\n        )\n        return random_time",
+    "importString": "from calendar import monthrange\nfrom datetime import date, datetime, time, timedelta\n\nfrom mimesis.compat import pytz\nfrom mimesis.datasets import GMT_OFFSETS, ROMAN_NUMS, TIMEZONES\nfrom mimesis.enums import DurationUnit, TimestampFormat, TimezoneRegion\nfrom mimesis.providers.base import BaseDataProvider\nfrom mimesis.types import Date, DateTime, Time",
+    "lineNum": 11,
+    "relativeDocumentPath": "mimesis/providers/date.py"
+  },
+  {
+    "symbolName": "datetime",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def datetime(\n        self,\n        start: int = _CURRENT_YEAR,\n        end: int = _CURRENT_YEAR,\n        timezone: str | None = None,\n    ) -> DateTime:\n        \"\"\"Generates random datetime.\n\n        :param start: Minimum value of year.\n        :param end: Maximum value of year.\n        :param timezone: Set custom timezone (pytz required).\n        :return: Datetime\n        \"\"\"\n        datetime_obj = datetime.combine(\n            date=self.date(start, end),\n            time=self.time(),\n        )\n        if timezone:\n            if not pytz:\n                raise ImportError(\"Timezones are supported only with pytz\")\n            tz = pytz.timezone(timezone)\n            datetime_obj = tz.localize(datetime_obj)\n\n        return datetime_obj",
+    "importString": "from calendar import monthrange\nfrom datetime import date, datetime, time, timedelta\n\nfrom mimesis.compat import pytz\nfrom mimesis.datasets import GMT_OFFSETS, ROMAN_NUMS, TIMEZONES\nfrom mimesis.enums import DurationUnit, TimestampFormat, TimezoneRegion\nfrom mimesis.providers.base import BaseDataProvider\nfrom mimesis.types import Date, DateTime, Time",
+    "lineNum": 23,
+    "relativeDocumentPath": "mimesis/providers/date.py"
+  },
+  {
+    "symbolName": "add_provider",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def add_provider(self, cls: t.Type[BaseProvider], **kwargs: t.Any) -> None:\n        \"\"\"Adds a custom provider to a Generic() object.\n\n        :param cls: Custom provider.\n        :param kwargs: Keyword arguments for provider.\n        :raises TypeError: if cls is Generic, if cls is not\n            class or is not a subclass of BaseProvider.\n        :return: Absolutely none.\n        \"\"\"\n\n        if inspect.isclass(cls):\n            if not issubclass(cls, BaseProvider):\n                raise TypeError(\n                    \"The provider must be a \"\n                    \"subclass of mimesis.providers.BaseProvider\"\n                )\n            try:\n                name = cls.Meta.name\n            except AttributeError:\n                name = cls.__name__.lower()\n\n            # Enforce the same seed is used across all providers.\n            kwargs.pop(\"seed\", None)\n\n            instance = cls(seed=self.seed, **kwargs)\n            if isinstance(instance, Generic):\n                raise TypeError(\"Cannot add Generic instance to itself.\")\n            setattr(self, name, instance)\n        else:\n            raise TypeError(\"The provider must be a class\")",
+    "importString": "from mimesis.locales import Locale\nfrom mimesis.providers.base import (\nBaseDataProvider\nBaseProvider\nProviderRegistry\n)\nfrom mimesis.types import MissingSeed, Seed",
+    "lineNum": 29,
+    "relativeDocumentPath": "mimesis/providers/generic.py"
+  },
+  {
+    "symbolName": "ip_v4_object",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def ip_v4_object(self) -> IPv4Address:\n        \"\"\"Generates a random :py:class:`ipaddress.IPv4Address` object.\n\n        If you only need special purpose IPv4 addresses,\n        use :meth:`special_ip_v4_object`.\n\n        :return: :py:class:`ipaddress.IPv4Address` object.\n        \"\"\"\n        return IPv4Address(\n            self.random.randint(0, self._MAX_IPV4),\n        )",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 10,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "ip_v6_object",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def ip_v6_object(self) -> IPv6Address:\n        \"\"\"Generates random :py:class:`ipaddress.IPv6Address` object.\n\n        :return: :py:class:`ipaddress.IPv6Address` object.\n        \"\"\"\n        return IPv6Address(\n            self.random.randint(\n                0,\n                self._MAX_IPV6,\n            ),\n        )",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 10,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "port",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def port(self, port_range: PortRange = PortRange.ALL) -> int:\n        \"\"\"Generates a random port.\n\n        :param port_range: PortRange enum object.\n        :return: Port number.\n        :raises NonEnumerableError: if port_range is not in PortRange.\n\n        :Example:\n            8080\n        \"\"\"\n\n        rng = self.validate_enum(port_range, PortRange)\n        return self.random.randint(*rng)",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 12,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "slug",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def slug(self, parts_count: int | None = None) -> str:\n        \"\"\"Generates a random slug of given parts count.\n\n        :param parts_count: Slug's parts count.\n        :return: Slug.\n        \"\"\"\n\n        if not parts_count:\n            parts_count = self.random.randint(2, 12)\n\n        if parts_count > 12:\n            raise ValueError(\"Slug's parts count must be <= 12\")\n\n        if parts_count < 2:\n            raise ValueError(\"Slug must contain more than 2 parts\")\n\n        return \"-\".join(self._text.words(parts_count))",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 16,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "float_number",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def float_number(\n        self, start: float = -1000.0, end: float = 1000.0, precision: int = 15\n    ) -> float:\n        \"\"\"Generates a random float number in range [start, end].\n\n        :param start: Start range.\n        :param end:  End range.\n        :param precision: Round a number to a given\n            precision in decimal digits, default is 15.\n        :return: Float.\n        \"\"\"\n        return self.random.uniform(start, end, precision)",
+    "importString": "from collections import defaultdict\nfrom decimal import Decimal\n\nfrom mimesis.enums import NumType\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.types import Matrix",
+    "lineNum": 11,
+    "relativeDocumentPath": "mimesis/providers/numeric.py"
+  },
+  {
+    "symbolName": "user",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def user(self) -> str:\n        \"\"\"Generates a random user.\n\n        :return: Path to user.\n\n        :Example:\n            /home/oretha\n        \"\"\"\n        user = self.random.choice(USERNAMES)\n        user = user.capitalize() if self.platform.startswith(\"win\") else user.lower()\n        return str(self._pathlib_home / user)",
+    "importString": "import sys\nfrom pathlib import PurePosixPath, PureWindowsPath\nfrom mimesis.datasets import (\nFOLDERS\nPLATFORMS\nPROGRAMMING_LANGS\nPROJECT_NAMES\nUSERNAMES\n)\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 10,
+    "relativeDocumentPath": "mimesis/providers/path.py"
+  },
+  {
+    "symbolName": "name",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def name(self, gender: Gender | None = None) -> str:\n        \"\"\"Generates a random name.\n\n        :param gender: Gender's enum object.\n        :return: Name.\n\n        :Example:\n            John.\n        \"\"\"\n        key = self.validate_enum(gender, Gender)\n        names: list[str] = self._extract([\"names\", key])\n        return self.random.choice(names)",
+    "importString": "import hashlib\nimport re\nimport uuid\nfrom datetime import date, datetime\nfrom string import ascii_letters, digits, punctuation\nfrom mimesis.datasets import (\nBLOOD_GROUPS\nCALLING_CODES\nEMAIL_DOMAINS\nGENDER_CODES\nGENDER_SYMBOLS\nUSERNAMES\n)\nfrom mimesis.enums import Gender, TitleType\nfrom mimesis.providers.base import BaseDataProvider\nfrom mimesis.types import Date",
+    "lineNum": 11,
+    "relativeDocumentPath": "mimesis/providers/person.py"
+  },
+  {
+    "symbolName": "surname",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def surname(self, gender: Gender | None = None) -> str:\n        \"\"\"Generates a random surname.\n\n        :param gender: Gender's enum object.\n        :return: Surname.\n\n        :Example:\n            Smith.\n        \"\"\"\n        surnames: t.Sequence[str] = self._extract([\"surnames\"])\n\n        # Surnames separated by gender.\n        if isinstance(surnames, dict):\n            key = self.validate_enum(gender, Gender)\n            surnames = surnames[key]\n\n        return self.random.choice(surnames)",
+    "importString": "import hashlib\nimport re\nimport uuid\nfrom datetime import date, datetime\nfrom string import ascii_letters, digits, punctuation\nfrom mimesis.datasets import (\nBLOOD_GROUPS\nCALLING_CODES\nEMAIL_DOMAINS\nGENDER_CODES\nGENDER_SYMBOLS\nUSERNAMES\n)\nfrom mimesis.enums import Gender, TitleType\nfrom mimesis.providers.base import BaseDataProvider\nfrom mimesis.types import Date",
+    "lineNum": 16,
+    "relativeDocumentPath": "mimesis/providers/person.py"
+  },
+  {
+    "symbolName": "text",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def text(self, quantity: int = 5) -> str:\n        \"\"\"Generates the text.\n\n        :param quantity: Quantity of sentences.\n        :return: Text.\n        \"\"\"\n        text = self._extract([\"text\"])\n        return \" \".join(self.random.choices(text, k=quantity))",
+    "importString": "from mimesis.datasets import SAFE_COLORS\nfrom mimesis.enums import EmojiCategory\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/providers/text.py"
+  },
+  {
+    "symbolName": "choice_enum_item",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def choice_enum_item(self, enum: t.Any) -> t.Any:\n        \"\"\"Get random value of enum object.\n\n        :param enum: Enum object.\n        :return: Random value of enum.\n        \"\"\"\n        return self.choice(list(enum))",
+    "importString": "from mimesis.types import MissingSeed, Seed",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/random.py"
+  },
+  {
+    "symbolName": "perform",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def perform(\n        self,\n        name: str | None = None,\n        key: Key = None,\n        **kwargs: Any,\n    ) -> Any:\n        \"\"\"Performs the value of the field by its name.\n\n        It takes any string that represents the name of any method of\n        any supported data provider and the ``**kwargs`` of this method.\n\n        .. note:: Some data providers have methods with the same names,\n            and in such cases, you can explicitly define that the method\n            belongs to data-provider ``field(name='provider.name')`` otherwise\n            it will return the data from the first provider which\n            has a method ``name``.\n\n            Allowed delimiters: ``.``, ``:``, ``/`` and space:\n\n            - ``provider.name``\n            - ``provider:name``\n            - ``provider/name``\n            - ``provider name``\n\n        You can apply a *key function* to the result returned by\n        the method, by passing a parameter **key** with a callable\n        object which returns the final result.\n\n        The key function has the option to accept two parameters: **result**\n        and **random**. In case you require access to a random instance within\n        the key function, you must modify the function to accept both of them,\n        where the first corresponds to the method result and the second\n        corresponds to the instance of random.\n\n        :param name: Name of the method.\n        :param key: A key function (any callable object)\n            which will be applied to result.\n        :param kwargs: Kwargs of method.\n        :return: The result of method.\n        :raises ValueError: if provider is not supported or if field is not defined.\n        \"\"\"\n        # Validate aliases before lookup\n        self._validate_aliases()\n\n        if name is None:\n            raise FieldError()\n\n        random = self.get_random_instance()\n\n        # First, try to find a custom field handler.\n        if name in self._handlers:\n            result = self._handlers[name](random, **kwargs)  # type: ignore\n        else:\n            result = self._lookup_method(name)(**kwargs)\n\n        if key and callable(key):\n            try:\n                # If a key function accepts two parameters\n                # then pass random instance to it.\n                return key(result, random)  # type: ignore\n            except TypeError:\n                return key(result)\n\n        return result",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 63,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "register_handler",
+    "totalReferences": 3,
+    "testReferences": 0,
+    "robustnessScore": 3,
+    "sourceCode": "def register_handler(self, field_name: str, field_handler: FieldHandler) -> None:\n        \"\"\"Register a new field handler.\n\n        :param field_name: Name of the field.\n        :param field_handler: Callable object.\n        \"\"\"\n\n        if not isinstance(field_name, str):\n            raise TypeError(\"Field name must be a string.\")\n\n        if not field_name.isidentifier():\n            raise FieldNameError(field_name)\n\n        if not callable(field_handler):\n            raise TypeError(\"Handler must be a callable object.\")\n\n        callable_signature = inspect.signature(field_handler)\n\n        if len(callable_signature.parameters) <= 1:\n            raise FieldArityError()\n\n        if field_name not in self._handlers:\n            self._handlers[field_name] = field_handler",
+    "importString": "import csv\nimport json\nimport pickle\nimport re\nfrom typing import Any, Callable, Sequence\nfrom mimesis.exceptions import (\nAliasesTypeError\nFieldArityError\nFieldError\nFieldNameError\nFieldsetError\nSchemaError\n)\nfrom mimesis.locales import Locale\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.generic import Generic\nfrom mimesis.random import Random\nfrom mimesis.types import JSON, CallableSchema, Key, MissingSeed, Seed",
+    "lineNum": 22,
+    "relativeDocumentPath": "mimesis/schema.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(v: str) -> str:\n        \"\"\"Romanize a given string in the specified locale.\n\n        :param v: Cyrillic string.\n        :return: Romanized string.\n        \"\"\"\n        if not isinstance(v, str):\n            raise TypeError(f\"romanize() requires a string, got {type(v).__name__}\")\n\n        return v.translate(table)",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 9,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(result: Any, random: Random) -> Any:\n        if 0 < probability <= 1:\n            value_weight = 1 - probability\n            (result,) = random.choices(\n                population=[result, value],\n                weights=[value_weight, probability],\n                k=1,\n            )\n        return result",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 8,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(v: str) -> str:\n        if not isinstance(v, str):\n            raise TypeError(f\"wrap() requires a string, got {type(v).__name__}\")\n        return f\"{before}{v}{after}\"",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 3,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(result: str) -> str:\n        if not isinstance(result, str):\n            raise TypeError(\n                f\"truncate() requires a string, got {type(result).__name__}\"\n            )\n        if len(result) <= max_length:\n            return result\n        return result[: max_length - len(suffix)] + suffix",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(v: str) -> str:\n        if not isinstance(v, str):\n            raise TypeError(f\"prefix() requires a string, got {type(v).__name__}\")\n        return f\"{text}{v}\"",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 3,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(v: str) -> str:\n        if not isinstance(v, str):\n            raise TypeError(f\"suffix() requires a string, got {type(v).__name__}\")\n        return f\"{v}{text}\"",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 3,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(v: str) -> str:\n        if not isinstance(v, str):\n            raise TypeError(f\"hash_with() requires a string, got {type(v).__name__}\")\n        hash_func = hashlib.new(algorithm)\n        hash_func.update(v.encode())\n        return hash_func.hexdigest()",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 5,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(_: Any) -> str:\n        return replacement",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 1,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(v: Iterable[Any]) -> str:\n        if not isinstance(v, Iterable):\n            raise TypeError(f\"join() requires iterable, got {type(v).__name__}\")\n        return sep.join(str(item) for item in v)",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 3,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(v: Any) -> Any:\n        if condition(v):\n            return transform(v)\n        elif otherwise:\n            return otherwise(v)\n        return v",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 5,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "key",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def key(result: Any, random: Random | None = None) -> Any:\n        for func in functions:\n            try:\n                result = func(result, random)  # type: ignore[call-arg]\n            except TypeError:\n                result = func(result)  # type: ignore[call-arg]\n        return result",
+    "importString": "import base64\nimport hashlib\nimport re\nfrom collections.abc import Iterable\nfrom typing import Any, Callable\n\nfrom mimesis.datasets import COMMON_LETTERS, ROMANIZATION_DICT\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.random import Random",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/keys.py"
+  },
+  {
+    "symbolName": "street_number",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def street_number(self, maximum: int = 1400) -> str:\n        \"\"\"Generates a random street number.\n\n        :param maximum: Maximum value.\n        :return: Street number.\n        \"\"\"\n        return str(self.random.randint(1, maximum))",
+    "importString": "from mimesis.datasets import (\nCALLING_CODES\nCONTINENT_CODES\nCOUNTRY_CODES\nIATA_CODES\nICAO_CODES\nSHORTENED_ADDRESS_FMT\n)\nfrom mimesis.enums import CountryCode\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/providers/address.py"
+  },
+  {
+    "symbolName": "street_name",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def street_name(self) -> str:\n        \"\"\"Generates a random street name.\n\n        :return: Street name.\n        \"\"\"\n        street_names: list[str] = self._extract([\"street\", \"name\"])\n        return self.random.choice(street_names)",
+    "importString": "from mimesis.datasets import (\nCALLING_CODES\nCONTINENT_CODES\nCOUNTRY_CODES\nIATA_CODES\nICAO_CODES\nSHORTENED_ADDRESS_FMT\n)\nfrom mimesis.enums import CountryCode\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/providers/address.py"
+  },
+  {
+    "symbolName": "street_suffix",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def street_suffix(self) -> str:\n        \"\"\"Generates a random street suffix.\n\n        :return: Street suffix.\n        \"\"\"\n        suffixes: list[str] = self._extract([\"street\", \"suffix\"])\n        return self.random.choice(suffixes)",
+    "importString": "from mimesis.datasets import (\nCALLING_CODES\nCONTINENT_CODES\nCOUNTRY_CODES\nIATA_CODES\nICAO_CODES\nSHORTENED_ADDRESS_FMT\n)\nfrom mimesis.enums import CountryCode\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/providers/address.py"
+  },
+  {
+    "symbolName": "postal_code",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def postal_code(self) -> str:\n        \"\"\"Generates a postal code for current locale.\n\n        :return: Postal code.\n        \"\"\"\n        return self.random.generate_string_by_mask(self._extract([\"postal_code_fmt\"]))",
+    "importString": "from mimesis.datasets import (\nCALLING_CODES\nCONTINENT_CODES\nCOUNTRY_CODES\nIATA_CODES\nICAO_CODES\nSHORTENED_ADDRESS_FMT\n)\nfrom mimesis.enums import CountryCode\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 5,
+    "relativeDocumentPath": "mimesis/providers/address.py"
+  },
+  {
+    "symbolName": "country_code",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def country_code(self, code: CountryCode | None = CountryCode.A2) -> str:\n        \"\"\"Generates a random code of country.\n\n        Default format is :attr:`~enums.CountryCode.A2` (ISO 3166-1-alpha2),\n        you can change it by passing parameter ``fmt``.\n\n        :param code: Country code.\n        :return: Country code in selected format.\n        :raises KeyError: if fmt is not supported.\n        \"\"\"\n        key = self.validate_enum(code, CountryCode)\n        return self.random.choice(COUNTRY_CODES[key])",
+    "importString": "from mimesis.datasets import (\nCALLING_CODES\nCONTINENT_CODES\nCOUNTRY_CODES\nIATA_CODES\nICAO_CODES\nSHORTENED_ADDRESS_FMT\n)\nfrom mimesis.enums import CountryCode\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 11,
+    "relativeDocumentPath": "mimesis/providers/address.py"
+  },
+  {
+    "symbolName": "calling_code",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def calling_code(self) -> str:\n        \"\"\"Generates a random calling code of random country.\n\n        :return: Calling code.\n        \"\"\"\n        return self.random.choice(CALLING_CODES)",
+    "importString": "from mimesis.datasets import (\nCALLING_CODES\nCONTINENT_CODES\nCOUNTRY_CODES\nIATA_CODES\nICAO_CODES\nSHORTENED_ADDRESS_FMT\n)\nfrom mimesis.enums import CountryCode\nfrom mimesis.providers.base import BaseDataProvider",
+    "lineNum": 5,
+    "relativeDocumentPath": "mimesis/providers/address.py"
+  },
+  {
+    "symbolName": "register",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "@classmethod\n    def register(cls, name: str, provider_cls: type[\"BaseProvider\"]) -> None:\n        \"\"\"Register a provider in the global registry.\n\n        :param name: Provider name (from Meta.name)\n        :param provider_cls: Provider class\n        \"\"\"\n        cls._providers[name] = provider_cls",
+    "importString": "import contextlib\nimport json\nimport operator\nfrom functools import reduce\n\nfrom mimesis import random as _random\nfrom mimesis.constants import DATADIR, LOCALE_SEP\nfrom mimesis.exceptions import NonEnumerableError\nfrom mimesis.locales import Locale, validate_locale\nfrom mimesis.types import JSON, MissingSeed, Seed",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/providers/base.py"
+  },
+  {
+    "symbolName": "uuid_object",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def uuid_object(self) -> UUID:\n        \"\"\"Generates UUID4 object.\n\n        :return: UUID4 object.\n        \"\"\"\n        rand_bits = self.random.getrandbits(128)\n        return UUID(int=rand_bits, version=4)",
+    "importString": "import hashlib\nimport json\nimport time\nfrom base64 import urlsafe_b64encode\nfrom uuid import UUID\n\nfrom mimesis.datasets.int.cryptographic import WORDLIST\nfrom mimesis.enums import Algorithm\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/providers/cryptographic.py"
+  },
+  {
+    "symbolName": "token_urlsafe",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def token_urlsafe(self, entropy: int = 32) -> str:\n        \"\"\"Generates a random URL-safe text string, in Base64 encoding.\n\n        The string has *entropy* random bytes.  If *entropy* is ``None``\n        or not supplied, a reasonable default is used.\n\n        :param entropy: Number of bytes (default: 32).\n        :return: URL-safe token.\n        \"\"\"\n        token = self.token_bytes(entropy)\n        return urlsafe_b64encode(token).rstrip(b\"=\").decode()",
+    "importString": "import hashlib\nimport json\nimport time\nfrom base64 import urlsafe_b64encode\nfrom uuid import UUID\n\nfrom mimesis.datasets.int.cryptographic import WORDLIST\nfrom mimesis.enums import Algorithm\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 10,
+    "relativeDocumentPath": "mimesis/providers/cryptographic.py"
+  },
+  {
+    "symbolName": "year",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def year(self, minimum: int = 1990, maximum: int = _CURRENT_YEAR) -> int:\n        \"\"\"Generates a random year.\n\n        :param minimum: Minimum value.\n        :param maximum: Maximum value.\n        :return: Year.\n        \"\"\"\n        return self.random.randint(minimum, maximum)",
+    "importString": "from calendar import monthrange\nfrom datetime import date, datetime, time, timedelta\n\nfrom mimesis.compat import pytz\nfrom mimesis.datasets import GMT_OFFSETS, ROMAN_NUMS, TIMEZONES\nfrom mimesis.enums import DurationUnit, TimestampFormat, TimezoneRegion\nfrom mimesis.providers.base import BaseDataProvider\nfrom mimesis.types import Date, DateTime, Time",
+    "lineNum": 7,
+    "relativeDocumentPath": "mimesis/providers/date.py"
+  },
+  {
+    "symbolName": "system_quality_attribute",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def system_quality_attribute(self) -> str:\n        \"\"\"Generates a random system quality attribute.\n\n        Within systems engineering, quality attributes are realized\n        non-functional requirements used to evaluate the performance\n        of a system. These are sometimes named \"ilities\" after the\n        suffix many of the words share.\n\n        :return: System quality attribute.\n        \"\"\"\n        return self.random.choice(SYSTEM_QUALITY_ATTRIBUTES)",
+    "importString": "from datetime import datetime\nfrom mimesis.datasets import (\nLICENSES\nOS\nPROGRAMMING_LANGS\nSTAGES\nSYSTEM_QUALITY_ATTRIBUTES\n)\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 10,
+    "relativeDocumentPath": "mimesis/providers/development.py"
+  },
+  {
+    "symbolName": "extension",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def extension(self, file_type: FileType | None = None) -> str:\n        \"\"\"Generates a random file extension.\n\n        :param file_type: Enum object FileType.\n        :return: Extension of the file.\n\n        :Example:\n            .py\n        \"\"\"\n        key = self.validate_enum(item=file_type, enum=FileType)\n        extensions = EXTENSIONS[key]\n        return self.random.choice(extensions)",
+    "importString": "from mimesis.datasets import EXTENSIONS, FILENAMES, MIME_TYPES\nfrom mimesis.enums import FileType, MimeType\nfrom mimesis.providers.base import BaseProvider",
+    "lineNum": 11,
+    "relativeDocumentPath": "mimesis/providers/file.py"
+  },
+  {
+    "symbolName": "ip_v4",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def ip_v4(self) -> str:\n        \"\"\"Generates a random IPv4 address as string.\n\n        :Example:\n            19.121.223.58\n        \"\"\"\n        return str(self.ip_v4_object())",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "url",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def url(\n        self,\n        scheme: URLScheme | None = URLScheme.HTTPS,\n        port_range: PortRange | None = None,\n        tld_type: TLDType | None = None,\n        subdomains: list[str] | None = None,\n    ) -> str:\n        \"\"\"Generates a random URL.\n\n        :param scheme: The scheme.\n        :param port_range: PortRange enum object.\n        :param tld_type: TLDType.\n        :param subdomains: List of subdomains (make sure they are valid).\n        :return: URL.\n        \"\"\"\n        host = self.hostname(tld_type, subdomains)\n        url_scheme = self.validate_enum(scheme, URLScheme)\n\n        url = f\"{url_scheme}://{host}\"\n\n        if port_range is not None:\n            url = f\"{url}:{self.port(port_range)}\"\n\n        return f\"{url}/\"",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 23,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "uri",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def uri(\n        self,\n        scheme: URLScheme | None = URLScheme.HTTPS,\n        tld_type: TLDType | None = None,\n        subdomains: list[str] | None = None,\n        query_params_count: int | None = None,\n    ) -> str:\n        \"\"\"Generates a random URI.\n\n        :param scheme: Scheme.\n        :param tld_type: TLDType.\n        :param subdomains: List of subdomains (make sure they are valid).\n        :param query_params_count: Query params.\n        :return: URI.\n        \"\"\"\n        directory = (\n            self._datetime.date(start=2010, end=self._datetime._CURRENT_YEAR)\n            .strftime(\"%Y-%m-%d\")\n            .replace(\"-\", \"/\")\n        )\n        url = self.url(scheme, None, tld_type, subdomains)\n        uri = f\"{url}{directory}/{self.slug()}\"\n\n        if query_params_count:\n            uri += f\"?{self.query_string(query_params_count)}\"\n\n        return uri",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 26,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "query_string",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def query_string(self, length: int | None = None) -> str:\n        \"\"\"Generates an arbitrary query string of given length.\n\n        :param length: Length of query string.\n        :return: Query string.\n        \"\"\"\n        return urllib.parse.urlencode(self.query_parameters(length))",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "query_parameters",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def query_parameters(self, length: int | None = None) -> dict[str, str]:\n        \"\"\"Generates an arbitrary query parameters as a dict.\n\n        :param length: Length of query parameters dictionary (maximum is 32).\n        :return: Dict of query parameters.\n        \"\"\"\n\n        def pick_unique_words(quantity: int = 5) -> list[str]:\n            words: set[str] = set()\n\n            while len(words) != quantity:\n                words.add(self._text.word())\n\n            return list(words)\n\n        if not length:\n            length = self.random.randint(1, 10)\n\n        if length > 32:\n            raise ValueError(\"Maximum allowed length of query parameters is 32.\")\n\n        return dict(zip(pick_unique_words(length), self._text.words(length)))",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 21,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "pick_unique_words",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def pick_unique_words(quantity: int = 5) -> list[str]:\n            words: set[str] = set()\n\n            while len(words) != quantity:\n                words.add(self._text.word())\n\n            return list(words)",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 6,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "top_level_domain",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def top_level_domain(self, tld_type: TLDType = TLDType.CCTLD) -> str:\n        \"\"\"Generates random top level domain.\n\n        :param tld_type: Enum object :class:`enums.TLDType`\n        :return: Top level domain.\n        :raises NonEnumerableError: if tld_type not in :class:`enums.TLDType`.\n        \"\"\"\n        key = self.validate_enum(item=tld_type, enum=TLDType)\n        return self.random.choice(TLD[key])",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 8,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "tld",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def tld(self, *args: t.Any, **kwargs: t.Any) -> str:\n        \"\"\"Generates a random TLD.\n\n        An alias for :meth:`top_level_domain`\n        \"\"\"\n        return self.top_level_domain(*args, **kwargs)",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 5,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  },
+  {
+    "symbolName": "user_agent",
+    "totalReferences": 2,
+    "testReferences": 0,
+    "robustnessScore": 2,
+    "sourceCode": "def user_agent(self) -> str:\n        \"\"\"Get a random user agent.\n\n        :return: User agent.\n\n        :Example:\n            Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:15.0)\n            Gecko/20100101 Firefox/15.0.1\n        \"\"\"\n        return self.random.choice(USER_AGENTS)",
+    "importString": "import urllib.error\nimport urllib.parse\nimport urllib.request\nfrom base64 import b64encode\nfrom ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network\nfrom mimesis.datasets import (\nCLOUD_REGION_DIRECTIONS\nCLOUD_REGION_PREFIXES\nCONTENT_ENCODING_DIRECTIVES\nCORS_OPENER_POLICIES\nCORS_RESOURCE_POLICIES\nHTTP_METHODS\nHTTP_SERVERS\nHTTP_STATUS_CODES\nHTTP_STATUS_MSGS\nPUBLIC_DNS\nTLD\nUSER_AGENTS\nUSERNAMES\n)\nfrom mimesis.enums import (\nDSNType\nIPv4Purpose\nLocale\nMimeType\nPortRange\nTLDType\nURLScheme\n)\nfrom mimesis.providers.base import BaseProvider\nfrom mimesis.providers.code import Code\nfrom mimesis.providers.date import Datetime\nfrom mimesis.providers.file import File\nfrom mimesis.providers.text import Text\nfrom mimesis.types import Keywords",
+    "lineNum": 9,
+    "relativeDocumentPath": "mimesis/providers/internet.py"
+  }
+]

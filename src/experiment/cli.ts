@@ -85,11 +85,37 @@ function parseArgs(): CLIArgs {
 
     // Validate Claude Code specific requirements
     if (parsed.type === 'claudecode') {
-        if (parsed.provider !== 'anthropic') {
-            console.error(`Error: Claude Code experiments require provider 'anthropic', but got '${parsed.provider}'\n`);
-            printUsage();
-            process.exit(1);
+        if (parsed.provider === "deepseek"){
+            if (!process.env.DEEPSEEK_API_KEY) {
+                console.error(`Error: DeepSeek API key is not set. Please set the DEEPSEEK_API_KEY environment variable.\n`);
+                printUsage();
+                process.exit(1);
+            }
+
+            process.env.ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic";
+            process.env.API_TIMEOUT_MS = "600000";
+            // export API_TIMEOUT_MS=600000
+                // process.env.ANTHROPIC_MODEL = "deepseek-chat";
+                // process.env.ANTHROPIC_SMALL_FAST_MODEL = "deepseek-chat";
+            process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1";
+            console.log("using deepseek models")
+            console.log(process.env.DEEPSEEK_API_KEY)
+            console.log(process.env.ANTHROPIC_BASE_URL)
+            console.log(process.env.API_TIMEOUT_MS)
+            console.log(process.env.ANTHROPIC_MODEL)
+            console.log(process.env.ANTHROPIC_SMALL_FAST_MODEL)
+            console.log(process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC)
+
+        } else if (parsed.provider === "anthropic"){
+            if (!process.env.ANTHROPIC_API_KEY) {
+                console.log("using anthropic models")
+            }
         }
+        // if (parsed.provider !== 'anthropic') {
+        //     console.error(`Error: Claude Code experiments require provider 'anthropic', but got '${parsed.provider}'\n`);
+        //     printUsage();
+        //     process.exit(1);
+        // }
         
         // Validate that model is a Claude model (starts with 'claude-')
         // if (!parsed.model || !parsed.model.startsWith('claude-')) {
