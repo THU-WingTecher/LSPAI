@@ -48,7 +48,7 @@ export async function _processTokenDefinitions(tokenMap: Map<string, DecodedToke
         symbols = await getAllSymbols(vscode.Uri.parse(uri));
         childDoc = await vscode.workspace.openTextDocument(vscode.Uri.parse(uri));
         for (const token of tokens) {
-            console.log(`#### Getting symbol for token: ${token.word} in ${uri}`);
+            // console.log(`#### Getting symbol for token: ${token.word} in ${uri}`);
             if (!token.definition || token.definition.length === 0) {
                 continue;
             }
@@ -63,7 +63,7 @@ export async function _processTokenDefinitions(tokenMap: Map<string, DecodedToke
                     token.document = document;
                     token.defSymbol = defSymbol;
                     token.defSymbolRange = boundedRange;
-                    console.log(`### definition context: ${document.getText(boundedRange!)}`);
+                    // console.log(`### definition context: ${document.getText(boundedRange!)}`);
                     // 1. Load its definition and code using getSymbolDetail
                     const symbolDetail = await getSymbolDetail(document, token.defSymbol!, true);
                     token.context = symbolDetail;

@@ -150,7 +150,7 @@ export class VscodeRequestManager {
       }
     }
     for (let i = 0; i < retries; i++) {
-      console.log("hover",uri, position);
+      // console.log("hover",uri, position);
       const res = await vscode.commands.executeCommand<vscode.Hover[]>(
         'vscode.executeHoverProvider',
         uri,
