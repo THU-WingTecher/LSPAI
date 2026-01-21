@@ -299,8 +299,6 @@ export async function runGenerateTestCodeSuite(
         model: model,
         provider: provider
     });
-    console.log("savePath", getConfigInstance().savePath+"/final");
-    console.log("testFileMapPath", getConfigInstance().savePath);
     // If continuing from previous experiment, use its save path
     const savePath = previousExperimentDir || getConfigInstance().genSaveName();;
     getConfigInstance().updateConfig({
