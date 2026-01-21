@@ -85,6 +85,7 @@ export async function generateTest(
 
         // Save test code
         const outputPath = path.join(opencodeManager.getCodesDir(), testFileName);
+        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
         await fs.promises.writeFile(outputPath, code, 'utf8');
         console.log(`   Saved to: ${outputPath}`);
 

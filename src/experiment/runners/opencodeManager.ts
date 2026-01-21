@@ -152,6 +152,7 @@ export class OpencodeManager {
         const timestamp = Date.now();
         const fileName = outputName || `prompt_${timestamp}`;
         const outputFile = path.join(this.logsDir, `${fileName}.json`);
+        fs.mkdirSync(path.dirname(outputFile), { recursive: true });
         let sessionCreateResponse: any;
         let promptResponse: any;
         let sessionMessagesResponse: any;

@@ -36,6 +36,67 @@ export function __resetQueryForTest(): void {
     queryImplForTest = null;
 }
 
+function truncateString(s: string, maxLen: number): string {
+    return s.length > maxLen ? s.slice(0, maxLen) + '…(truncated)' : s;
+}
+
+function safeToString(value: unknown, maxLen: number = 12000): string {
+    try {
+        if (value == null) return String(value);
+        if (typeof value === 'string') return truncateString(value, maxLen);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const anyVal: any = value as any;
+        if (typeof Buffer !== 'undefined' && Buffer.isBuffer(anyVal)) {
+            return truncateString(anyVal.toString('utf8'), maxLen);
+        }
+        const s = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+        return truncateString(s, maxLen);
+    } catch {
+        return '[unserializable]';
+    }
+}
+
+// Capture subprocess stderr/stdout/etc. when the SDK throws a wrapped process error.
+function serializeErrorForLog(err: unknown, depth: number = 0): Record<string, unknown> {
+    if (depth > 3) return { note: 'max depth reached' };
+    if (!(err instanceof Error)) return { raw: safeToString(err) };
+
+    const out: Record<string, unknown> = {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+    };
+
+    const anyErr = err as any;
+    const props = new Set<string>([
+        ...Object.getOwnPropertyNames(anyErr),
+        'code',
+        'status',
+        'statusCode',
+        'exitCode',
+        'signal',
+        'stdout',
+        'stderr',
+        'command',
+        'args',
+        'cause'
+    ]);
+
+    for (const k of props) {
+        if (k in anyErr && out[k] === undefined) {
+            const v = anyErr[k];
+            if (k === 'cause' && v) {
+                out.cause = serializeErrorForLog(v, depth + 1);
+            } else if (k === 'stderr' || k === 'stdout') {
+                out[k] = safeToString(v, 24000);
+            } else {
+                out[k] = typeof v === 'string' ? truncateString(v, 4000) : v;
+            }
+        }
+    }
+    return out;
+}
+
 /**
  * Claude Code Manager for handling queries and logging
  */
@@ -168,6 +229,7 @@ export class ClaudeCodeManager {
 
             // Save log file
             const logPath = path.join(this.logsDir, `${logFileName}.json`);
+            fs.mkdirSync(path.dirname(logPath), { recursive: true });
             await fs.promises.writeFile(logPath, JSON.stringify(logEntry, null, 2), 'utf8');
 
             return responseText;
@@ -176,25 +238,10 @@ export class ClaudeCodeManager {
             const durationMs = endTime.getTime() - startTime.getTime();
             
             // Extract comprehensive error information
-            let errorMsg = '';
-            let errorDetails: any = {};
-            
-            if (error instanceof Error) {
-                errorMsg = error.message;
-                errorDetails = {
-                    name: error.name,
-                    message: error.message,
-                    stack: error.stack
-                };
-                // Check for additional error properties
-                if ((error as any).code) errorDetails.code = (error as any).code;
-                if ((error as any).status) errorDetails.status = (error as any).status;
-                if ((error as any).statusCode) errorDetails.statusCode = (error as any).statusCode;
-                if ((error as any).cause) errorDetails.cause = (error as any).cause;
-            } else {
-                errorMsg = String(error);
-                errorDetails = { raw: error };
-            }
+            const errorDetails = serializeErrorForLog(error);
+            const errorMsg = typeof errorDetails.message === 'string'
+                ? errorDetails.message
+                : safeToString(error);
             
             // Create detailed error message
             const detailedErrorMsg = errorMsg || JSON.stringify(errorDetails, null, 2);
@@ -214,6 +261,7 @@ export class ClaudeCodeManager {
             };
 
             const logPath = path.join(this.logsDir, `${logFileName}.json`);
+            fs.mkdirSync(path.dirname(logPath), { recursive: true });
             await fs.promises.writeFile(logPath, JSON.stringify(logEntry, null, 2), 'utf8');
 
             // Throw error with detailed message
@@ -309,6 +357,7 @@ export async function generateTest(
 
         // Save test code
         const outputPath = path.join(codesDir, testFileName);
+        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
         await fs.promises.writeFile(outputPath, code, 'utf8');
         console.log(`   Saved to: ${outputPath}`);
 

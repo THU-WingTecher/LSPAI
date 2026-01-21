@@ -8,6 +8,44 @@ import { FileNameParams } from '../core/types';
 
 export { FileNameParams };
 
+function normalizeToPosix(p: string): string {
+    return p.replace(/\\/g, '/');
+}
+
+function sanitizeJavaSymbolNameForFile(symbolName: string): string {
+    // Rule: no "()", no ",", no "-"
+    // - Remove any "(...)" segments entirely
+    // - Remove "," and "-"
+    const cleaned = symbolName
+        .replace(/\([^)]*\)/g, '')
+        .replace(/[,\-]/g, '')
+        .trim();
+    return cleaned.length > 0 ? cleaned : 'Symbol';
+}
+
+function tryExtractJavaPackageFolderFromRelativePath(relativeFilePath: string | undefined): string | undefined {
+    if (!relativeFilePath) {
+        return undefined;
+    }
+    const posixPath = normalizeToPosix(relativeFilePath);
+
+    // Common layouts:
+    // - src/main/java/org/apache/.../Foo.java
+    // - src/test/java/org/apache/.../FooTest.java
+    const markerMatch = posixPath.match(/\/src\/(?:main|test)\/java\/(.+)\/[^/]+\.java$/);
+    if (markerMatch?.[1]) {
+        return markerMatch[1];
+    }
+
+    // Fallback: if path contains a typical Java package root segment, keep from there.
+    const segMatch = posixPath.match(/\/((?:org|com|net|io|edu)\/.+)\/[^/]+\.java$/);
+    if (segMatch?.[1]) {
+        return segMatch[1];
+    }
+
+    return undefined;
+}
+
 /**
  * Generate core file name WITHOUT test suffix and extension
  * Returns: base name like "utils_add_numbers" or "com/example/Utils_add_numbers"
@@ -21,7 +59,8 @@ export function generateFileNameCore(params: FileNameParams): string {
     // Generate base name
     if (languageId === 'java') {
         // Java: use package path structure
-        const finalName = `${fileNameWithoutExt}_${symbolName}`;
+        const cleanSymbolName = sanitizeJavaSymbolNameForFile(symbolName);
+        const finalName = `${fileNameWithoutExt}_${cleanSymbolName}`;
         if (packageString) {
             const packageFolder = packageString
                 .replace(";", "")
@@ -29,7 +68,8 @@ export function generateFileNameCore(params: FileNameParams): string {
                 .replace(/\./g, '/');
             return `${packageFolder}/${finalName}`;
         } else {
-            return finalName;
+            const packageFolder = tryExtractJavaPackageFolderFromRelativePath(relativeFilePath);
+            return packageFolder ? `${packageFolder}/${finalName}` : finalName;
         }
     } else if (languageId === 'go') {
         // Go: use relative path and capitalize function name

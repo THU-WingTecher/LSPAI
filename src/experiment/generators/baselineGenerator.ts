@@ -78,6 +78,7 @@ export async function generateTest(
         const outputPath = path.join(ccrManager.getCodesDir(), testFileName);
 
         // Save test code
+        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
         await fs.promises.writeFile(outputPath, code, 'utf8');
         console.log(`   Saved to: ${outputPath}`);
 

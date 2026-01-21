@@ -36,7 +36,7 @@ export async function runClaudeCodeExperiment(
     }
 
     // Setup Claude Code output directory
-    const claudeCodeOutputDir = path.join(config.outputDir, 'claudecode-outputs');
+    const claudeCodeOutputDir = path.join(config.outputDir, config.model);
     if (!fs.existsSync(claudeCodeOutputDir)) {
         fs.mkdirSync(claudeCodeOutputDir, { recursive: true });
     }
