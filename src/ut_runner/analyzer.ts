@@ -6,6 +6,30 @@ import { findFiles } from '../fileUtils';
 import { getConfigInstance, getProjectSrcPath, getProjectConfig, getSrcPathToExclude, ProjectConfigName } from '../config';
 import { getLanguageSuffix } from '../language';
 
+export function isPassedTestCaseStatus(status: string): boolean {
+  return status === 'Passed';
+}
+
+export function isFailedTestCaseStatus(status: string): boolean {
+  // Cross-language:
+  // - Java/Go: explicit 'Failed'
+  // - Python: categorized assertion failures as 'Assertion Errors'
+  return status === 'Failed' || status === 'Assertion Errors';
+}
+
+export function classifyFileStatusFromTestCases(tcrs: TestCaseResult[]): 'FilePassed' | 'FileFailed' | 'FileErrored' {
+  if (!tcrs.length) {
+    return 'FileErrored';
+  }
+  if (tcrs.every((tcr) => isPassedTestCaseStatus(tcr.status))) {
+    return 'FilePassed';
+  }
+  if (tcrs.some((tcr) => isFailedTestCaseStatus(tcr.status))) {
+    return 'FileFailed';
+  }
+  return 'FileErrored';
+}
+
 // Optional examiner import - requires VSCode extension API
 let examineTestCasesBatch: any = null;
 let filterTestCasesForExamination: any = null;
@@ -1364,7 +1388,7 @@ export class Analyzer {
       if (!tcrs.length) {
         // Ensure analysis report is "complete": every test file must end up as Passed/Failed.
         // If we cannot extract any testcase result from the log, treat the file as Failed with one placeholder testcase.
-        files[fkey].status = 'Failed';
+        files[fkey].status = 'FileErrored';
         files[fkey].note = 'No test results found in log file.';
 
         const placeholder: TestCaseResult = {
@@ -1389,12 +1413,7 @@ export class Analyzer {
         continue;
       }
 
-      // if all tcr.status is Passed, then files[fkey].status = 'Passed'
-      if (tcrs.every(tcr => tcr.status === 'Passed')) {
-        files[fkey].status = 'Passed';
-      } else {
-        files[fkey].status = 'Failed';
-      }
+      files[fkey].status = classifyFileStatusFromTestCases(tcrs);
       files[fkey].symbolName = tcrs[0].focalFunction || '';
       console.log(`[ANALYZER] Symbol name: ${files[fkey].symbolName}`);
       console.log(`[ANALYZER] Source file: ${files[fkey].sourceFile}`);
@@ -1470,6 +1489,53 @@ export class Analyzer {
       console.log(`[ANALYZER] File analysis saved to: ${fileAnalysisPath}`);
     } catch (e) {
       console.warn(`[ANALYZER] Failed to save file analysis to JSON: ${e}`);
+    }
+
+    // Save summary stats for quick consumption
+    const allTestCases = Object.values(tests);
+    const totalTestCases = allTestCases.length;
+    const failedTestCases = allTestCases.filter((tc) => isFailedTestCaseStatus(tc.status)).length;
+    const passedTestCases = allTestCases.filter((tc) => isPassedTestCaseStatus(tc.status)).length;
+    const erroredTestCases = totalTestCases - failedTestCases - passedTestCases;
+
+    const allFiles = Object.values(files);
+    const totalFiles = allFiles.length;
+    const failedFiles = allFiles.filter((f) => f.status === 'FileFailed').length;
+    const passedFiles = allFiles.filter((f) => f.status === 'FilePassed').length;
+    const erroredFiles = totalFiles - failedFiles - passedFiles;
+
+    const summary = {
+      meta: {
+        language: this.language,
+        tests_dir: testsDir,
+        output_dir: outputDir,
+      },
+      counts: {
+        testcases: {
+          total: totalTestCases,
+          passed: passedTestCases,
+          failed: failedTestCases,
+          errored: erroredTestCases,
+        },
+        files: {
+          total: totalFiles,
+          passed: passedFiles,
+          failed: failedFiles,
+          errored: erroredFiles,
+        }
+      },
+      ratios: {
+        failed_testcases: totalTestCases ? failedTestCases / totalTestCases : 0,
+        failed_files: totalFiles ? failedFiles / totalFiles : 0,
+      }
+    };
+
+    const summaryPath = path.join(outputDir, 'assertion_analysis_summary.json');
+    try {
+      fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2), 'utf-8');
+      console.log(`[ANALYZER] Assertion analysis summary saved to: ${summaryPath}`);
+    } catch (e) {
+      console.warn(`[ANALYZER] Failed to save assertion analysis summary: ${e}`);
     }
 
     return {
