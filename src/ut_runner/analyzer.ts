@@ -877,7 +877,7 @@ export class Analyzer {
     const out: Array<{ testName: string; icon: string; inlineMsg: string }> = [];
 
     // Note: do NOT use word-boundary after ✔/✘ (they are not "word" chars).
-    const lineRe = /^\s*[├└]─\s+(.*?)\s+(✔|✘)(?:\s+(.*))?$/;
+    const lineRe = /^\s*(?:[│|]\s*)*[├└]─\s+(.*?)\s+(✔|✘)(?:\s+(.*))?$/;
 
     const isContainerName = (name: string) => {
       return name === 'JUnit Jupiter' || name === 'JUnit Vintage' || name === className;
@@ -1141,7 +1141,10 @@ export class Analyzer {
 
     const hasJUnitConsoleTree = logContent.includes('Thanks for using JUnit!') || logContent.includes('Test run finished after');
     if (hasJUnitConsoleTree) {
+      console.log(`[ANALYZER] hasJUnitConsoleTree`);
+      console.log(`[ANALYZER] logContent: ${logContent}`);
       const testsFound = this.parseJUnitConsoleTestsFound(logContent);
+      console.log(`[ANALYZER] testsFound: ${JSON.stringify(testsFound)}`);
       // If JUnit reports 0 tests found, treat as "no test cases" regardless of tree printing.
       if (testsFound === 0) {
         const names = this.extractJavaTestMethodNamesFromSource(testFilePath);
@@ -1156,10 +1159,12 @@ export class Analyzer {
       }
 
       const treeTests = this.parseJUnitConsoleTreeTests(logContent, className);
+      console.log(`Tree tests: ${JSON.stringify(treeTests)}`);
       const failures = this.parseJUnitConsoleFailureBlocks(logContent);
+      // console.log(`Failures: ${JSON.stringify(failures)}`);
 
-      // If tree parsing failed (rare), fall back to parsing test methods from source.
-      const fallbackMethods = treeTests.length ? [] : this.extractJavaTestMethodNamesFromSource(testFilePath);
+      // // If tree parsing failed (rare), fall back to parsing test methods from source.
+      // const fallbackMethods = treeTests.length ? [] : this.extractJavaTestMethodNamesFromSource(testFilePath);
       const out: TestCaseResult[] = [];
 
       const seen = new Set<string>();
@@ -1169,7 +1174,7 @@ export class Analyzer {
         const isFailed = t.icon === '✘';
         out.push({
           codeName: t.testName,
-          status: isFailed ? 'Failed' : 'Passed',
+          status: isFailed ? 'Assertion Errors' : 'Passed',
           errorType: isFailed ? (fail?.errorType ?? 'TestFailure') : null,
           detail: isFailed ? (fail?.detail ?? t.inlineMsg ?? '') : '',
           ...baseFields
@@ -1190,16 +1195,17 @@ export class Analyzer {
         });
       }
 
+      console.log(`[ANALYZER] Test cases: ${out.map(t => `${t.codeName}: ${t.status}`).join(', ')}`);
+      // console.log(`[ANALYZER] Test cases: ${JSON.stringify(out)}`);
       // Fallback: if we still have nothing, emit at least one errored testcase.
       if (!out.length) {
-        const names = fallbackMethods.length ? fallbackMethods : [`${className}-1`];
-        return names.map(codeName => ({
-          codeName,
+        return [{
+          codeName: `${className}-1`,
           status: 'Errored',
           errorType: 'TestError',
           detail: logContent.trim(),
           ...baseFields
-        }));
+        }];
       }
       return out;
     }
@@ -1396,7 +1402,7 @@ export class Analyzer {
         console.log(`[ANALYZER] Analyzing MUT for ${files[fkey].symbolName} in ${files[fkey].sourceFile}`);
         files[fkey].mutAnalysis = await mutAnalyzer(files[fkey].sourceFile, files[fkey].symbolName);
       }
-      console.log(`[ANALYZER] MUT analysis: ${JSON.stringify(files[fkey].mutAnalysis)}`);
+      // console.log(`[ANALYZER] MUT analysis: ${JSON.stringify(files[fkey].mutAnalysis)}`);
       for (const tcr of tcrs) {
         tests[tcr.codeName] = tcr;
         files[fkey].testcases.push(tcr);

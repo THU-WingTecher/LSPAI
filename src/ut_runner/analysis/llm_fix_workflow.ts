@@ -27,6 +27,36 @@ import {
 import { logFixDiff, exportFixDiffSummary, exportDetailedFixReport, generateSimpleDiffReport, createFixDiffReport, loadFixDiffReport, saveFixDiffReport, FixDiffReport } from './fix_diff_reporter';
 import { getDecodedTokensFromSymbol } from '../../lsp/token';
 import { isBetweenFocalMethod, retrieveDefs } from '../../lsp/definition';
+import { sanitizeJavaFixedCodeForInsertion } from './add_test_function_utils';
+
+export function computeOutputTestFilePath(outputDir: string, language: string, testFile: string): string {
+  const testFileName = path.basename(testFile);
+  if (language !== 'java') {
+    return path.join(outputDir, testFileName);
+  }
+
+  const normalized = path.normalize(testFile);
+  const parts = normalized.split(path.sep).filter(p => p.length > 0);
+
+  // Prefer Maven/Gradle layout: .../src/test/java/<package-path>/<Test>.java
+  for (let i = 0; i + 2 < parts.length; i++) {
+    if (parts[i] === 'src' && parts[i + 1] === 'test' && parts[i + 2] === 'java') {
+      const relParts = parts.slice(i + 3);
+      if (relParts.length > 0) {
+        return path.join(outputDir, ...relParts);
+      }
+      break;
+    }
+  }
+
+  // Fallback: if we can spot a Java package root like "org/...", keep it.
+  const orgIdx = parts.indexOf('org');
+  if (orgIdx >= 0 && orgIdx < parts.length - 1) {
+    return path.join(outputDir, ...parts.slice(orgIdx));
+  }
+
+  return path.join(outputDir, testFileName);
+}
 
 interface ExaminationResults {
   summary: {
@@ -111,7 +141,7 @@ export class LLMFixWorkflow {
     // console.log("options: ", this.options);
     // Create analyzer instance to reuse its methods
     this.analyzer = new Analyzer(this.options.language);
-    assert(this.options.language === 'python', 'Unsupported language: ' + this.options.language);
+    // assert(this.options.language === 'python', 'Unsupported language: ' + this.options.language);
     // Ensure output directory exists
     fs.mkdirSync(outputDir, { recursive: true });
 
@@ -160,7 +190,74 @@ export class LLMFixWorkflow {
   }
 
   private async getJavaTestFunctionCode(testFile: string, testCaseName: string): Promise<string> {
-    return '';
+    if (!fs.existsSync(testFile)) {
+      throw new Error(`Test file not found: ${testFile}`);
+    }
+
+    const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const content = fs.readFileSync(testFile, 'utf-8');
+    const lines = content.split('\n');
+    const targetName = testCaseName.split('::').at(-1) || testCaseName;
+
+    // Match common Java test styles:
+    // - optional annotations on the previous lines (e.g., @Test, @ParameterizedTest)
+    // - visibility/static modifiers
+    // - any return type (void / Future<?> / etc.)
+    const signatureRegex = new RegExp(
+      `^\\s*(?:@[\\w.$]+\\s*)*(?:public|protected|private)?\\s*(?:static\\s+)?[\\w<>\\[\\]\\?\\s]+\\s+${escape(
+        targetName
+      )}\\s*\\(`
+    );
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!signatureRegex.test(line)) {
+        continue;
+      }
+
+      // Include contiguous annotations/empty lines immediately above the method
+      let start = i;
+      for (let j = i - 1; j >= 0; j--) {
+        const trimmed = lines[j].trim();
+        if (trimmed === '') {
+          start = j;
+          continue;
+        }
+        if (trimmed.startsWith('@')) {
+          start = j;
+          continue;
+        }
+        break;
+      }
+
+      const collected: string[] = [];
+      let braceBalance = 0;
+      let seenOpeningBrace = false;
+
+      for (let j = start; j < lines.length; j++) {
+        const current = lines[j];
+        collected.push(current);
+
+        const opens = (current.match(/\{/g) || []).length;
+        const closes = (current.match(/\}/g) || []).length;
+
+        if (opens > 0) {
+          seenOpeningBrace = true;
+        }
+        if (seenOpeningBrace) {
+          braceBalance += opens - closes;
+          if (braceBalance <= 0) {
+            return collected.join('\n');
+          }
+        }
+      }
+
+      // If we matched a signature but couldn't find balanced braces, fall back to full file
+      return content;
+    }
+
+    // If no specific method found, return full file content to avoid losing context
+    return content;
   }
 
   /**
@@ -996,11 +1093,10 @@ console.log("userPrompt: ", userPrompt);
    * This preserves the original test file and saves the fixed version to outputDir
    */
   private saveFixedCodeToOutputDir(testFile: string, fixedCode: string): string {
-    const testFileName = path.basename(testFile);
-    const outputPath = path.join(this.outputDir, testFileName);
-    
-    // Ensure output directory exists
-    fs.mkdirSync(this.outputDir, { recursive: true });
+    const outputPath = computeOutputTestFilePath(this.outputDir, this.options.language, testFile);
+
+    // Ensure output directory exists (including package dirs for Java)
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     
     // Write fixed code to output directory
     fs.writeFileSync(outputPath, fixedCode, 'utf-8');
@@ -1123,6 +1219,78 @@ console.log("userPrompt: ", userPrompt);
       console.log(`[LLM_FIX] Inserted at line ${insertIdx + 1}`);
       console.log(`[LLM_FIX] Original file preserved: ${testFile}`);
       
+      return outputPath;
+    } else if (this.options.language === 'java') {
+      const testContent = fs.readFileSync(testFile, 'utf-8');
+      const lines = testContent.split('\n');
+
+      const sanitizedFixedCode = sanitizeJavaFixedCodeForInsertion(testContent, fixedCode);
+
+      // Locate the primary test class to insert into
+      let classIndent = '';
+      let insertIdx = lines.length;
+      let classFound = false;
+
+      for (let i = 0; i < lines.length; i++) {
+        const classMatch = lines[i].match(/^(\s*)(?:public\s+)?(?:abstract\s+)?(class|interface|enum)\s+\w+/);
+        if (!classMatch) {
+          continue;
+        }
+
+        classFound = true;
+        classIndent = classMatch[1];
+
+        // Find the matching closing brace for this class
+        let braceBalance = 0;
+        let started = false;
+
+        for (let j = i; j < lines.length; j++) {
+          const openCount = (lines[j].match(/\{/g) || []).length;
+          const closeCount = (lines[j].match(/\}/g) || []).length;
+
+          if (!started && openCount > 0) {
+            started = true;
+          }
+
+          if (started) {
+            braceBalance += openCount - closeCount;
+            if (braceBalance === 0) {
+              insertIdx = j;
+              break;
+            }
+          }
+        }
+        break;
+      }
+
+      // Default indentation (4 spaces) if no class is found
+      const methodIndent = classFound ? `${classIndent}    ` : '';
+
+      const indentedFixedCode = sanitizedFixedCode
+        .split('\n')
+        .map(line => {
+          if (methodIndent === '') {
+            return line;
+          }
+          if (line.trim() === '') {
+            return methodIndent.trimEnd();
+          }
+          return methodIndent + line;
+        })
+        .join('\n');
+
+      const newLines = [
+        ...lines.slice(0, insertIdx),
+        indentedFixedCode,
+        ...lines.slice(insertIdx)
+      ];
+
+      const newContent = newLines.join('\n');
+      const outputPath = this.saveFixedCodeToOutputDir(testFile, newContent);
+
+      console.log(`[LLM_FIX] Added Java test function to ${outputPath}`);
+      console.log(`[LLM_FIX] Inserted before class closing at line ${insertIdx + 1}`);
+
       return outputPath;
     } else {
       throw new Error(`Unsupported language: ${this.options.language}`);
@@ -1254,40 +1422,46 @@ console.log("userPrompt: ", userPrompt);
    * Reuses analyzer's extractFailedFromSummary method
    */
   private extractTestErrorFromLog(logPath: string, testCaseName: string): string {
+
     if (!fs.existsSync(logPath)) {
       return 'Log file not found';
     }
-    
     const content = fs.readFileSync(logPath, 'utf-8');
-    
-    // Use analyzer's method to extract failures
-    const failed = this.analyzer.extractFailedFromSummary(content);
-    const errors = this.analyzer.extractErrorFromSummary(content);
-    
-    // Search for the specific test function error
-    const searchPatterns = [
-      new RegExp(`.*::.*::${testCaseName}`, 'i'),
-      new RegExp(testCaseName, 'i')
-    ];
-    
-    for (const pattern of searchPatterns) {
-      for (const [testName, errorDetail] of Object.entries(failed)) {
-        if (pattern.test(testName)) {
-          return errorDetail || 'Test failed';
-        }
-      }
-      
-      for (const [testName, errorDetail] of Object.entries(errors)) {
-        if (pattern.test(testName)) {
-          return errorDetail || 'Test error';
-        }
-      }
-    }
-    
-    // Fallback: return a truncated portion of the log
-    return content.substring(Math.max(0, content.length - 500));
-  }
 
+    if (this.options.language === 'python') {
+      // Use analyzer's method to extract failures
+      const failed = this.analyzer.extractFailedFromSummary(content);
+      const errors = this.analyzer.extractErrorFromSummary(content);
+      
+      // Search for the specific test function error
+      const searchPatterns = [
+        new RegExp(`.*::.*::${testCaseName}`, 'i'),
+        new RegExp(testCaseName, 'i')
+      ];
+      
+      for (const pattern of searchPatterns) {
+        for (const [testName, errorDetail] of Object.entries(failed)) {
+          if (pattern.test(testName)) {
+            return errorDetail || 'Test failed';
+          }
+        }
+        
+        for (const [testName, errorDetail] of Object.entries(errors)) {
+          if (pattern.test(testName)) {
+            return errorDetail || 'Test error';
+          }
+        }
+      }
+
+      // Fallback: return a truncated portion of the log
+      return content.substring(Math.max(0, content.length - 500));
+  } else if (this.options.language === 'java') {
+    console.log(`[LLM_FIX] Java test execution raw log: ${content}`);
+    return content;
+  } else {
+    throw new Error(`Unsupported language: ${this.options.language}`);
+  }
+}
   /**
    * Check if a test case has already been successfully fixed (cache check)
    */
@@ -1878,8 +2052,8 @@ ${response}
         // For "redefined", LLM generates the whole test file code
         // Save directly to output directory
         try {
-          const testFileName = path.basename(testFile);
-          outputTestFile = path.join(this.outputDir, testFileName);
+          outputTestFile = computeOutputTestFilePath(this.outputDir, this.options.language, testFile);
+          fs.mkdirSync(path.dirname(outputTestFile), { recursive: true });
           fs.writeFileSync(outputTestFile, fixedCode, 'utf-8');
           console.log(`[LLM_FIX] Saved complete test file to ${outputTestFile}`);
         } catch (error) {

@@ -335,7 +335,6 @@ export async function runPipeline(testsDir: string, outputDir: string, test_file
     }
     
     // Log first few test files for debugging
-    testFiles = testFiles.slice(0,100)
     const sampleFiles = testFiles.slice(0, 5);
     console.log(`[RUNNER] Sample test files:`);
     sampleFiles.forEach((tf, i) => {

@@ -70,32 +70,32 @@ export async function analyzeFocalMethod(
     const externalDependencyTokens = tokensInFileOutsideFunction.length + tokensInOtherDocuments.length;
     
     // Debug logging for tokens
-    console.log('=== MUT Analysis Debug ===');
-    console.log(`Total tokens: ${totalTokens}`);
-    console.log(`Tokens with definitions in same file (outside function): ${tokensInFileOutsideFunction.length}`);
-    console.log('Tokens in same file (outside function):', 
-        tokensInFileOutsideFunction.map(t => ({
-            word: t.word,
-            type: t.type,
-            line: t.line,
-            definition: t.definition?.[0] ? {
-                uri: t.definition[0].uri.toString(),
-                range: t.definition[0].range
-            } : null
-        }))
-    );
-    console.log(`Tokens with definitions in other documents: ${tokensInOtherDocuments.length}`);
-    console.log('Tokens in other documents:', 
-        tokensInOtherDocuments.map(t => ({
-            word: t.word,
-            type: t.type,
-            line: t.line,
-            definition: t.definition?.[0] ? {
-                uri: t.definition[0].uri.toString(),
-                range: t.definition[0].range
-            } : null
-        }))
-    );
+    // console.log('=== MUT Analysis Debug ===');
+    // console.log(`Total tokens: ${totalTokens}`);
+    // console.log(`Tokens with definitions in same file (outside function): ${tokensInFileOutsideFunction.length}`);
+    // console.log('Tokens in same file (outside function):', 
+    //     tokensInFileOutsideFunction.map(t => ({
+    //         word: t.word,
+    //         type: t.type,
+    //         line: t.line,
+    //         definition: t.definition?.[0] ? {
+    //             uri: t.definition[0].uri.toString(),
+    //             range: t.definition[0].range
+    //         } : null
+    //     }))
+    // );
+    // console.log(`Tokens with definitions in other documents: ${tokensInOtherDocuments.length}`);
+    // console.log('Tokens in other documents:', 
+    //     tokensInOtherDocuments.map(t => ({
+    //         word: t.word,
+    //         type: t.type,
+    //         line: t.line,
+    //         definition: t.definition?.[0] ? {
+    //             uri: t.definition[0].uri.toString(),
+    //             range: t.definition[0].range
+    //         } : null
+    //     }))
+    // );
     
     // 3. Analyze unique paths using CFG analyzer
     const functionText = document.getText(symbol.range);
@@ -120,13 +120,13 @@ export async function analyzeFocalMethod(
     const comments = countCommentsFromHover(hoverText, languageId);
     
     // Debug logging for hover-based comments
-    console.log('=== Hover Comments Debug ===');
-    console.log(`Hover text extracted: ${hoverText.length} characters`);
-    console.log(`Comments found in hover: ${comments}`);
-    if (hoverText.length > 0) {
-        console.log('Hover text preview:', hoverText.substring(0, 200));
-    }
-    console.log('=== End Hover Comments Debug ===');
+    // console.log('=== Hover Comments Debug ===');
+    // console.log(`Hover text extracted: ${hoverText.length} characters`);
+    // console.log(`Comments found in hover: ${comments}`);
+    // if (hoverText.length > 0) {
+    //     console.log('Hover text preview:', hoverText.substring(0, 200));
+    // }
+    // console.log('=== End Hover Comments Debug ===');
     
     return {
         totalTokens,
