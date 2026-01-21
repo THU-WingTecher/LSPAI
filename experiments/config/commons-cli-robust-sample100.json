@@ -1,0 +1,1002 @@
+[
+  {
+    "symbolName": "addOption(Option)",
+    "totalReferences": 271,
+    "testReferences": 263,
+    "robustnessScore": 2901,
+    "sourceCode": "/**\n     * Adds an option instance.\n     *\n     * @param opt the option that is to be added.\n     * @return the resulting Options instance.\n     */\n    public Options addOption(final Option opt) {\n        final String key = opt.getKey();\n        // add it to the long option list\n        if (opt.hasLongOpt()) {\n            longOpts.put(opt.getLongOpt(), opt);\n        }\n        // if the option is required add it to the required list\n        if (opt.isRequired()) {\n            if (requiredOpts.contains(key)) {\n                requiredOpts.remove(requiredOpts.indexOf(key));\n            }\n            requiredOpts.add(key);\n        }\n        shortOpts.put(key, opt);\n        return this;\n    }",
+    "importString": "",
+    "lineNum": 21,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Options.java"
+  },
+  {
+    "symbolName": "get()",
+    "totalReferences": 258,
+    "testReferences": 252,
+    "robustnessScore": 2778,
+    "sourceCode": "/**\n         * Constructs an Option with the values declared by this {@link Builder}.\n         *\n         * @return the new {@link Option}.\n         * @throws IllegalStateException if neither {@code opt} or {@code longOpt} has been set.\n         */\n        @Override\n        public Option get() {\n            return new Option(this);\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "hasOption(String)",
+    "totalReferences": 212,
+    "testReferences": 205,
+    "robustnessScore": 2262,
+    "sourceCode": "/**\n     * Tests to see if an option has been set.\n     *\n     * @param optionName Short name of the option.\n     * @return true if set, false if not.\n     */\n    public boolean hasOption(final String optionName) {\n        return hasOption(resolveOption(optionName));\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "parse(Options, String[])",
+    "totalReferences": 156,
+    "testReferences": 153,
+    "robustnessScore": 1686,
+    "sourceCode": "/**\n     * Parses the arguments according to the specified options.\n     *\n     * @param options the specified Options.\n     * @param arguments the command line arguments.\n     * @return the list of atomic option and value tokens.\n     * @throws ParseException if there are any problems encountered while parsing the command line tokens.\n     */\n    CommandLine parse(Options options, String[] arguments) throws ParseException;",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLineParser.java"
+  },
+  {
+    "symbolName": "longOpt(String)",
+    "totalReferences": 149,
+    "testReferences": 148,
+    "robustnessScore": 1629,
+    "sourceCode": "/**\n         * Sets the long name of the Option.\n         *\n         * @param longOption the long name of the Option\n         * @return this builder.\n         */\n        public Builder longOpt(final String longOption) {\n            this.longOption = longOption;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "parse(Options, String[])",
+    "totalReferences": 135,
+    "testReferences": 134,
+    "robustnessScore": 1475,
+    "sourceCode": "@Override\n    public CommandLine parse(final Options options, final String[] arguments) throws ParseException {\n        return parse(options, arguments, null);\n    }",
+    "importString": "",
+    "lineNum": 3,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+  },
+  {
+    "symbolName": "builder()",
+    "totalReferences": 135,
+    "testReferences": 134,
+    "robustnessScore": 1475,
+    "sourceCode": "/**\n     * Returns a {@link Builder} to create an {@link Option} using descriptive methods.\n     *\n     * @return a new {@link Builder} instance.\n     * @since 1.3\n     */\n    public static Builder builder() {\n        return builder(null);\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "parse(Options, String[])",
+    "totalReferences": 135,
+    "testReferences": 134,
+    "robustnessScore": 1475,
+    "sourceCode": "/**\n     * Parses the specified {@code arguments} based on the specified {@link Options}.\n     *\n     * @param options the {@code Options}.\n     * @param arguments the {@code arguments}.\n     * @return the {@code CommandLine}.\n     * @throws ParseException if there are any problems encountered while parsing the command line tokens.\n     */\n    @Override\n    public CommandLine parse(final Options options, final String[] arguments) throws ParseException {\n        return parse(options, arguments, null, false);\n    }",
+    "importString": "",
+    "lineNum": 11,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Parser.java"
+  },
+  {
+    "symbolName": "builder(String)",
+    "totalReferences": 133,
+    "testReferences": 128,
+    "robustnessScore": 1413,
+    "sourceCode": "/**\n     * Returns a {@link Builder} to create an {@link Option} using descriptive methods.\n     *\n     * @param option short representation of the option.\n     * @return a new {@link Builder} instance.\n     * @throws IllegalArgumentException if there are any non valid Option characters in {@code opt}.\n     * @since 1.3\n     */\n    public static Builder builder(final String option) {\n        return new Builder(option);\n    }",
+    "importString": "",
+    "lineNum": 10,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "hasArg()",
+    "totalReferences": 107,
+    "testReferences": 106,
+    "robustnessScore": 1167,
+    "sourceCode": "/**\n         * Tests whether the Option will require an argument.\n         *\n         * @return {@code this} instance..\n         */\n        public Builder hasArg() {\n            return hasArg(true);\n        }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "addOption(Option)",
+    "totalReferences": 103,
+    "testReferences": 102,
+    "robustnessScore": 1123,
+    "sourceCode": "/**\n     * Adds the given {@code Option} to this group.\n     *\n     * @param option the option to add to this group.\n     * @return this option group with the option added.\n     */\n    public OptionGroup addOption(final Option option) {\n        optionMap.put(option.getKey(), option);\n        return this;\n    }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionGroup.java"
+  },
+  {
+    "symbolName": "option(String)",
+    "totalReferences": 99,
+    "testReferences": 97,
+    "robustnessScore": 1069,
+    "sourceCode": "/**\n         * Sets the name of the Option.\n         *\n         * @param option the name of the Option.\n         * @return this builder.\n         * @throws IllegalArgumentException if there are any non valid Option characters in {@code opt}.\n         * @since 1.5.0\n         */\n        public Builder option(final String option) throws IllegalArgumentException {\n            this.option = OptionValidator.validate(option);\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 11,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "getArgList()",
+    "totalReferences": 88,
+    "testReferences": 87,
+    "robustnessScore": 958,
+    "sourceCode": "/**\n     * Gets any left-over non-recognized options and arguments.\n     *\n     * @return remaining items passed in but not parsed as a {@code List}.\n     */\n    public List<String> getArgList() {\n        return args;\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "create(char)",
+    "totalReferences": 81,
+    "testReferences": 80,
+    "robustnessScore": 881,
+    "sourceCode": "/**\n     * Creates an Option using the current settings and with the specified Option {@code char}.\n     *\n     * @param opt the character representation of the Option.\n     * @return the Option instance.\n     * @throws IllegalArgumentException if {@code opt} is not a valid character. See Option.\n     */\n    public static Option create(final char opt) throws IllegalArgumentException {\n        return create(String.valueOf(opt));\n    }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "getOptionValue(String)",
+    "totalReferences": 78,
+    "testReferences": 74,
+    "robustnessScore": 818,
+    "sourceCode": "/**\n     * Gets the first argument, if any, of this option.\n     *\n     * @param optionName the name of the option.\n     * @return Value of the argument if option is set, and has an argument, otherwise null.\n     */\n    public String getOptionValue(final String optionName) {\n        return getOptionValue(resolveOption(optionName));\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "desc(String)",
+    "totalReferences": 73,
+    "testReferences": 72,
+    "robustnessScore": 793,
+    "sourceCode": "/**\n         * Sets the description for this option.\n         *\n         * @param description the description of the option.\n         * @return {@code this} instance..\n         */\n        public Builder desc(final String description) {\n            this.description = description;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "withLongOpt(String)",
+    "totalReferences": 72,
+    "testReferences": 71,
+    "robustnessScore": 782,
+    "sourceCode": "/**\n     * The next Option created will have the following long option value.\n     *\n     * @param newLongopt the long option value.\n     * @return the OptionBuilder instance.\n     */\n    public static OptionBuilder withLongOpt(final String newLongopt) {\n        longOption = newLongopt;\n        return INSTANCE;\n    }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "addOption(String, String, boolean, String)",
+    "totalReferences": 73,
+    "testReferences": 70,
+    "robustnessScore": 773,
+    "sourceCode": "/**\n     * Adds an option that contains a short-name and a long-name.\n     * <p>\n     * It may be specified as requiring an argument.\n     * </p>\n     *\n     * @param opt Short single-character name of the option.\n     * @param longOpt Long multi-character name of the option.\n     * @param hasArg flag signaling if an argument is required after this option.\n     * @param description Self-documenting description.\n     * @return the resulting Options instance.\n     */\n    public Options addOption(final String opt, final String longOpt, final boolean hasArg, final String description) {\n        addOption(new Option(opt, longOpt, hasArg, description));\n        return this;\n    }",
+    "importString": "",
+    "lineNum": 15,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Options.java"
+  },
+  {
+    "symbolName": "getOption(String)",
+    "totalReferences": 78,
+    "testReferences": 58,
+    "robustnessScore": 658,
+    "sourceCode": "/**\n     * Gets the {@link Option} matching the long or short name specified.\n     * <p>\n     * The leading hyphens in the name are ignored (up to 2).\n     * </p>\n     *\n     * @param opt short or long name of the {@link Option}.\n     * @return the option represented by opt.\n     */\n    public Option getOption(final String opt) {\n        final String clean = Util.stripLeadingHyphens(opt);\n        final Option option = shortOpts.get(clean);\n        return option != null ? option : longOpts.get(clean);\n    }",
+    "importString": "",
+    "lineNum": 13,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Options.java"
+  },
+  {
+    "symbolName": "argName(String)",
+    "totalReferences": 55,
+    "testReferences": 54,
+    "robustnessScore": 595,
+    "sourceCode": "/**\n         * Sets the display name for the argument value.\n         *\n         * @param argName the display name for the argument value.\n         * @return {@code this} instance..\n         */\n        public Builder argName(final String argName) {\n            this.argName = argName;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "getOptionValues(String)",
+    "totalReferences": 48,
+    "testReferences": 45,
+    "robustnessScore": 498,
+    "sourceCode": "/**\n     * Gets the array of values, if any, of an option.\n     *\n     * @param optionName string name of the option.\n     * @return Values of the argument if option is set, and has an argument, otherwise null.\n     */\n    public String[] getOptionValues(final String optionName) {\n        return getOptionValues(resolveOption(optionName));\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "getOpt()",
+    "totalReferences": 54,
+    "testReferences": 42,
+    "robustnessScore": 474,
+    "sourceCode": "/**\n     * Gets the name of this Option.\n     *\n     * It is this String which can be used with {@link CommandLine#hasOption(String opt)} and {@link CommandLine#getOptionValue(String opt)} to check for\n     * existence and argument.\n     *\n     * @return The name of this option.\n     */\n    public String getOpt() {\n        return option;\n    }",
+    "importString": "",
+    "lineNum": 10,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "withDescription(String)",
+    "totalReferences": 42,
+    "testReferences": 41,
+    "robustnessScore": 452,
+    "sourceCode": "/**\n     * The next Option created will have the specified description\n     *\n     * @param newDescription a description of the Option's purpose.\n     * @return the OptionBuilder instance.\n     */\n    public static OptionBuilder withDescription(final String newDescription) {\n        description = newDescription;\n        return INSTANCE;\n    }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "addOption(String, boolean, String)",
+    "totalReferences": 41,
+    "testReferences": 40,
+    "robustnessScore": 441,
+    "sourceCode": "/**\n     * Adds an option that only contains a short-name.\n     * <p>\n     * It may be specified as requiring an argument.\n     * </p>\n     *\n     * @param opt Short single-character name of the option.\n     * @param hasArg flag signaling if an argument is required after this option.\n     * @param description Self-documenting description.\n     * @return the resulting Options instance.\n     */\n    public Options addOption(final String opt, final boolean hasArg, final String description) {\n        addOption(opt, null, hasArg, description);\n        return this;\n    }",
+    "importString": "",
+    "lineNum": 14,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Options.java"
+  },
+  {
+    "symbolName": "addOptionGroup(OptionGroup)",
+    "totalReferences": 41,
+    "testReferences": 39,
+    "robustnessScore": 431,
+    "sourceCode": "/**\n     * Adds the specified option group.\n     * <p>\n     * An Option cannot be required if it is in an {@link OptionGroup}, either the group is required or nothing is required. This means that {@link Option} in\n     * the given group are set to optional.\n     * </p>\n     *\n     * @param optionGroup the OptionGroup that is to be added.\n     * @return the resulting Options instance.\n     */\n    public Options addOptionGroup(final OptionGroup optionGroup) {\n        if (optionGroup.isRequired()) {\n            requiredOpts.add(optionGroup);\n        }\n        optionGroup.getOptions().forEach(option -> {\n            // an Option cannot be required if it is in an\n            // OptionGroup, either the group is required or\n            // nothing is required\n            option.setRequired(false);\n            final String key = option.getKey();\n            requiredOpts.remove(key);\n            addOption(option);\n            optionGroups.put(key, optionGroup);\n        });\n        return this;\n    }",
+    "importString": "",
+    "lineNum": 25,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Options.java"
+  },
+  {
+    "symbolName": "getArgs()",
+    "totalReferences": 37,
+    "testReferences": 36,
+    "robustnessScore": 397,
+    "sourceCode": "/**\n     * Gets any left-over non-recognized options and arguments.\n     *\n     * @return remaining items passed in but not parsed as an array.\n     */\n    public String[] getArgs() {\n        return args.toArray(Util.EMPTY_STRING_ARRAY);\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "get()",
+    "totalReferences": 48,
+    "testReferences": 34,
+    "robustnessScore": 388,
+    "sourceCode": "@Override\n        public TextStyle get() {\n            return new TextStyle(this);\n        }",
+    "importString": "",
+    "lineNum": 3,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextStyle.java"
+  },
+  {
+    "symbolName": "hasArg()",
+    "totalReferences": 35,
+    "testReferences": 34,
+    "robustnessScore": 375,
+    "sourceCode": "/**\n     * The next Option created will require an argument value.\n     *\n     * @return the OptionBuilder instance\n     */\n    public static OptionBuilder hasArg() {\n        argCount = 1;\n        return INSTANCE;\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "create()",
+    "totalReferences": 33,
+    "testReferences": 32,
+    "robustnessScore": 353,
+    "sourceCode": "/**\n     * Creates an Option using the current settings.\n     *\n     * @return the Option instance.\n     * @throws IllegalArgumentException if {@code longOpt} has not been set.\n     */\n    public static Option create() throws IllegalArgumentException {\n        if (longOption == null) {\n            reset();\n            throw new IllegalStateException(\"longopt missing\");\n        }\n        return create(null);\n    }",
+    "importString": "",
+    "lineNum": 12,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "build(Option)",
+    "totalReferences": 34,
+    "testReferences": 28,
+    "robustnessScore": 314,
+    "sourceCode": "/**\n         * Build an OptionFormatter to format the specified option.\n         *\n         * @param option The Option to format.\n         * @return An OptionFormatter to format the specified option.\n         */\n        public OptionFormatter build(final Option option) {\n            return new OptionFormatter(option, this);\n        }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/OptionFormatter.java"
+  },
+  {
+    "symbolName": "create(String)",
+    "totalReferences": 28,
+    "testReferences": 25,
+    "robustnessScore": 278,
+    "sourceCode": "/**\n     * Creates an Option using the current settings and with the specified Option {@code char}.\n     *\n     * @param opt the {@code String} representation of the Option.\n     * @return the Option instance.\n     * @throws IllegalArgumentException if {@code opt} is not a valid character. See Option.\n     */\n    public static Option create(final String opt) throws IllegalArgumentException {\n        Option option;\n        try {\n            // create the option\n            option = new Option(opt, description);\n            // set the option properties\n            option.setLongOpt(longOption);\n            option.setRequired(required);\n            option.setOptionalArg(optionalArg);\n            option.setArgs(argCount);\n            option.setType(type);\n            option.setConverter(TypeHandler.getDefault().getConverter(type));\n            option.setValueSeparator(valueSeparator);\n            option.setArgName(argName);\n        } finally {\n            // reset the OptionBuilder properties\n            reset();\n        }\n        // return the Option instance\n        return option;\n    }",
+    "importString": "",
+    "lineNum": 27,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "get()",
+    "totalReferences": 27,
+    "testReferences": 25,
+    "robustnessScore": 277,
+    "sourceCode": "@Override\n        public DeprecatedAttributes get() {\n            return new DeprecatedAttributes(description, since, forRemoval);\n        }",
+    "importString": "",
+    "lineNum": 3,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DeprecatedAttributes.java"
+  },
+  {
+    "symbolName": "appendFormat(String, Object...)",
+    "totalReferences": 26,
+    "testReferences": 24,
+    "robustnessScore": 266,
+    "sourceCode": "/**\n     * Appends a formatted string using the specified format string and arguments.\n     * <p>\n     * Short-hand for calling:\n     * </p>\n     *\n     * <pre>\n     * helpAppendable.{@link #append(CharSequence) append.}({@link String#format(String, Object...) String.format}(format, args));\n     * </pre>\n     *\n     * @param format The format string for {@link String#format(String, Object...)}.\n     * @param args   Arguments to {@link String#format(String, Object...)}.\n     * @throws IllegalFormatException See {@link String#format(String, Object...)}.\n     * @throws IOException            If an output error occurs.\n     * @see String#format(String, Object...)\n     * @see Formatter\n     * @see #append(CharSequence)\n     */\n    default void appendFormat(final String format, final Object... args) throws IOException {\n        append(String.format(format, args));\n    }",
+    "importString": "",
+    "lineNum": 20,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/HelpAppendable.java"
+  },
+  {
+    "symbolName": "getLongOpt()",
+    "totalReferences": 35,
+    "testReferences": 22,
+    "robustnessScore": 255,
+    "sourceCode": "/**\n     * Gets the long name of this Option.\n     *\n     * @return Long name of this option, or null, if there is no long name.\n     */\n    public String getLongOpt() {\n        return longOption;\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "builder()",
+    "totalReferences": 24,
+    "testReferences": 23,
+    "robustnessScore": 254,
+    "sourceCode": "/**\n     * Creates a new {@link Builder} to create an {@link DefaultParser} using descriptive\n     * methods.\n     *\n     * @return a new {@link Builder} instance\n     * @since 1.5.0\n     */\n    public static Builder builder() {\n        return new Builder();\n    }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+  },
+  {
+    "symbolName": "apply(String)",
+    "totalReferences": 33,
+    "testReferences": 22,
+    "robustnessScore": 253,
+    "sourceCode": "/**\n     * Applies the conversion function to the String argument.\n     *\n     * @param string the String to convert.\n     * @return the Object from the conversion.\n     * @throws E on error.\n     */\n    T apply(String string) throws E;",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Converter.java"
+  },
+  {
+    "symbolName": "get()",
+    "totalReferences": 26,
+    "testReferences": 22,
+    "robustnessScore": 246,
+    "sourceCode": "/**\n         * Builds an DefaultParser with the values declared by this {@link Builder}.\n         *\n         * @return the new {@link DefaultParser}.\n         * @since 1.10.0\n         */\n        @Override\n        public DefaultParser get() {\n            return new DefaultParser(allowPartialMatching, stripLeadingAndTrailingQuotes, deprecatedHandler);\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+  },
+  {
+    "symbolName": "builder()",
+    "totalReferences": 25,
+    "testReferences": 22,
+    "robustnessScore": 245,
+    "sourceCode": "/**\n     * Creates a new builder.\n     *\n     * @return a new builder.\n     */\n    public static Builder builder() {\n        return new Builder();\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/OptionFormatter.java"
+  },
+  {
+    "symbolName": "required()",
+    "totalReferences": 23,
+    "testReferences": 22,
+    "robustnessScore": 243,
+    "sourceCode": "/**\n         * Marks this Option as required.\n         *\n         * @return this builder.\n         */\n        public Builder required() {\n            return required(true);\n        }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "getOptionObject(String)",
+    "totalReferences": 22,
+    "testReferences": 20,
+    "robustnessScore": 222,
+    "sourceCode": "/**\n     * Gets the {@code Object} type of this {@code Option}.\n     *\n     * @param optionName the name of the option.\n     * @return the type of this {@code Option}.\n     * @deprecated due to System.err message; use {@link #getParsedOptionValue(String)} instead.\n     */\n    @Deprecated\n    public Object getOptionObject(final String optionName) {\n        try {\n            return getParsedOptionValue(optionName);\n        } catch (final ParseException pe) {\n            System.err.println(\"Exception found converting \" + optionName + \" to desired type: \" + pe.getMessage());\n            return null;\n        }\n    }",
+    "importString": "",
+    "lineNum": 15,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "get()",
+    "totalReferences": 22,
+    "testReferences": 20,
+    "robustnessScore": 222,
+    "sourceCode": "@Override\n        public HelpFormatter get() {\n            return new HelpFormatter(this);\n        }",
+    "importString": "",
+    "lineNum": 3,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/HelpFormatter.java"
+  },
+  {
+    "symbolName": "builder()",
+    "totalReferences": 21,
+    "testReferences": 20,
+    "robustnessScore": 221,
+    "sourceCode": "/**\n     * Constructs a new builder.\n     *\n     * @return a new builder.\n     */\n    public static Builder builder() {\n        return new Builder();\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/HelpFormatter.java"
+  },
+  {
+    "symbolName": "type(Class<?>)",
+    "totalReferences": 22,
+    "testReferences": 19,
+    "robustnessScore": 212,
+    "sourceCode": "/**\n         * Sets the type of the Option.\n         *\n         * @param type the type of the Option.\n         * @return this builder.\n         */\n        public Builder type(final Class<?> type) {\n            this.type = toType(type);\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "optionalArg(boolean)",
+    "totalReferences": 20,
+    "testReferences": 19,
+    "robustnessScore": 210,
+    "sourceCode": "/**\n         * Sets whether the Option can have an optional argument.\n         *\n         * @param optionalArg specifies whether the Option can have an optional argument.\n         * @return this builder.\n         */\n        public Builder optionalArg(final boolean optionalArg) {\n            if (optionalArg && argCount == UNINITIALIZED) {\n                argCount = 1;\n            }\n            this.optionalArg = optionalArg;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 12,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "setAlignment(Alignment)",
+    "totalReferences": 23,
+    "testReferences": 18,
+    "robustnessScore": 203,
+    "sourceCode": "/**\n         * Sets the alignment.\n         *\n         * @param alignment the desired alignment.\n         * @return {@code this} instance.\n         */\n        public Builder setAlignment(final Alignment alignment) {\n            this.alignment = alignment;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextStyle.java"
+  },
+  {
+    "symbolName": "required(boolean)",
+    "totalReferences": 22,
+    "testReferences": 18,
+    "robustnessScore": 202,
+    "sourceCode": "/**\n         * Sets whether the Option is required.\n         *\n         * @param required specifies whether the Option is required.\n         * @return this builder.\n         */\n        public Builder required(final boolean required) {\n            this.required = required;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "builder()",
+    "totalReferences": 20,
+    "testReferences": 18,
+    "robustnessScore": 200,
+    "sourceCode": "/**\n     * Creates a new builder.\n     *\n     * @return a new builder.\n     */\n    public static Builder builder() {\n        return new Builder();\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DeprecatedAttributes.java"
+  },
+  {
+    "symbolName": "get()",
+    "totalReferences": 20,
+    "testReferences": 18,
+    "robustnessScore": 200,
+    "sourceCode": "@Override\n        public HelpFormatter get() {\n            return new HelpFormatter(deprecatedFormatFunction, printStream, showSince);\n        }",
+    "importString": "",
+    "lineNum": 3,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/HelpFormatter.java"
+  },
+  {
+    "symbolName": "getOptions()",
+    "totalReferences": 19,
+    "testReferences": 18,
+    "robustnessScore": 199,
+    "sourceCode": "/**\n     * Gets an array of the processed {@link Option}s.\n     *\n     * @return an array of the processed {@link Option}s.\n     */\n    public Option[] getOptions() {\n        return options.toArray(Option.EMPTY_ARRAY);\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "getOptionValue(Option)",
+    "totalReferences": 21,
+    "testReferences": 17,
+    "robustnessScore": 191,
+    "sourceCode": "/**\n     * Gets the first argument, if any, of this option.\n     *\n     * @param option the option.\n     * @return Value of the argument if option is set, and has an argument, otherwise null.\n     * @since 1.5.0\n     */\n    public String getOptionValue(final Option option) {\n        return first(getOptionValues(option));\n    }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "getOptionValues(Option)",
+    "totalReferences": 21,
+    "testReferences": 17,
+    "robustnessScore": 191,
+    "sourceCode": "/**\n     * Gets the array of values, if any, of an option.\n     *\n     * @param option the option.\n     * @return Values of the argument if option is set, and has an argument, otherwise null.\n     * @since 1.5.0\n     */\n    public String[] getOptionValues(final Option option) {\n        if (option == null) {\n            return null;\n        }\n        final List<String> values = new ArrayList<>();\n        options.forEach(processedOption -> {\n            if (processedOption.equals(option)) {\n                if (option.isDeprecated()) {\n                    handleDeprecated(option);\n                }\n                values.addAll(processedOption.getValuesList());\n            }\n        });\n        return values.isEmpty() ? null : values.toArray(Util.EMPTY_STRING_ARRAY);\n    }",
+    "importString": "",
+    "lineNum": 21,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "toSyntaxOption()",
+    "totalReferences": 19,
+    "testReferences": 17,
+    "robustnessScore": 189,
+    "sourceCode": "/**\n     * Gets the syntax format for this option.\n     *\n     * @return the syntax format for this option as specified by the syntaxFormatFunction.\n     */\n    public String toSyntaxOption() {\n        return toSyntaxOption(isRequired());\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/OptionFormatter.java"
+  },
+  {
+    "symbolName": "setForRemoval(boolean)",
+    "totalReferences": 18,
+    "testReferences": 17,
+    "robustnessScore": 188,
+    "sourceCode": "/**\n         * Sets whether this option is subject to removal in a future version.\n         *\n         * @param forRemoval whether this is subject to removal in a future version.\n         * @return {@code this} instance.\n         * @see <a href=\"https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Deprecated.html#forRemoval()\">Deprecated.forRemoval</a>\n         */\n        public Builder setForRemoval(final boolean forRemoval) {\n            this.forRemoval = forRemoval;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 10,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DeprecatedAttributes.java"
+  },
+  {
+    "symbolName": "from(Option)",
+    "totalReferences": 18,
+    "testReferences": 17,
+    "robustnessScore": 188,
+    "sourceCode": "/**\n     * Construct the {@link OptionFormatter} from an {@link Option} using the default {@link OptionFormatter.Builder}.\n     *\n     * @param option the option to format.\n     * @return an OptionFormatter for the specified @{code option}.\n     */\n    public static OptionFormatter from(final Option option) {\n        return new Builder().build(option);\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/OptionFormatter.java"
+  },
+  {
+    "symbolName": "setDescription(String)",
+    "totalReferences": 17,
+    "testReferences": 16,
+    "robustnessScore": 177,
+    "sourceCode": "/**\n         * Sets the description.\n         *\n         * @param description the description.\n         * @return {@code this} instance.\n         */\n        public Builder setDescription(final String description) {\n            this.description = description;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DeprecatedAttributes.java"
+  },
+  {
+    "symbolName": "hasOption(char)",
+    "totalReferences": 16,
+    "testReferences": 15,
+    "robustnessScore": 166,
+    "sourceCode": "/**\n     * jkeyes - commented out until it is implemented properly\n     * <p>\n     * Dump state, suitable for debugging.\n     * </p>\n     *\n     * @return Stringified form of this object.\n     */\n\n    /*\n     * public String toString() { StringBuilder buf = new StringBuilder();\n     *\n     * buf.append(\"[ CommandLine: [ options: \"); buf.append(options.toString()); buf.append(\" ] [ args: \");\n     * buf.append(args.toString()); buf.append(\" ] ]\");\n     *\n     * return buf.toString(); }\n     */\n\n    /**\n     * Tests to see if an option has been set.\n     *\n     * @param optionChar character name of the option.\n     * @return true if set, false if not.\n     */\n    public boolean hasOption(final char optionChar) {\n        return hasOption(String.valueOf(optionChar));\n    }",
+    "importString": "",
+    "lineNum": 26,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "parse(Options, String[], boolean)",
+    "totalReferences": 17,
+    "testReferences": 14,
+    "robustnessScore": 157,
+    "sourceCode": "/**\n     * Parses the arguments according to the specified options.\n     *\n     * @param options the specified Options.\n     * @param arguments the command line arguments.\n     * @param stopAtNonOption if {@code true} an unrecognized argument stops the parsing and the remaining arguments\n     *        are added to the {@link CommandLine}s args list. If {@code false} an unrecognized argument triggers a\n     *        ParseException.\n     *\n     * @return the list of atomic option and value tokens.\n     * @throws ParseException if there are any problems encountered while parsing the command line tokens.\n     */\n    CommandLine parse(Options options, String[] arguments, boolean stopAtNonOption) throws ParseException;",
+    "importString": "",
+    "lineNum": 12,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLineParser.java"
+  },
+  {
+    "symbolName": "hasOption(Option)",
+    "totalReferences": 16,
+    "testReferences": 14,
+    "robustnessScore": 156,
+    "sourceCode": "/**\n     * Tests to see if an option has been set.\n     *\n     * @param option the option to check.\n     * @return true if set, false if not.\n     * @since 1.5.0\n     */\n    public boolean hasOption(final Option option) {\n        final boolean result = options.contains(option);\n        if (result && option.isDeprecated()) {\n            handleDeprecated(option);\n        }\n        return result;\n    }",
+    "importString": "",
+    "lineNum": 13,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "appendHeader(int, CharSequence)",
+    "totalReferences": 16,
+    "testReferences": 14,
+    "robustnessScore": 156,
+    "sourceCode": "/**\n     * Appends a header.\n     *\n     * @param level the level of the header. This is equivalent to the \"1\", \"2\", or \"3\" in the HTML \"h1\", \"h2\", \"h3\" tags.\n     * @param text  the text for the header, null is a noop.\n     * @throws IOException If an output error occurs.\n     */\n    void appendHeader(int level, CharSequence text) throws IOException;",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/HelpAppendable.java"
+  },
+  {
+    "symbolName": "setSince(String)",
+    "totalReferences": 15,
+    "testReferences": 14,
+    "robustnessScore": 155,
+    "sourceCode": "/**\n         * Sets the version in which the option became deprecated.\n         *\n         * @param since the version in which the option became deprecated.\n         * @return {@code this} instance.\n         */\n        public Builder setSince(final String since) {\n            this.since = since;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DeprecatedAttributes.java"
+  },
+  {
+    "symbolName": "hasOptionalArg()",
+    "totalReferences": 15,
+    "testReferences": 14,
+    "robustnessScore": 155,
+    "sourceCode": "/**\n     * The next Option can have an optional argument.\n     *\n     * @return the OptionBuilder instance.\n     */\n    public static OptionBuilder hasOptionalArg() {\n        argCount = 1;\n        optionalArg = true;\n        return INSTANCE;\n    }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "isRequired()",
+    "totalReferences": 15,
+    "testReferences": 14,
+    "robustnessScore": 155,
+    "sourceCode": "/**\n     * The next Option created will be required.\n     *\n     * @return the OptionBuilder instance.\n     */\n    public static OptionBuilder isRequired() {\n        required = true;\n        return INSTANCE;\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "parse(Options, String[], boolean)",
+    "totalReferences": 15,
+    "testReferences": 14,
+    "robustnessScore": 155,
+    "sourceCode": "/**\n     * Parses the specified {@code arguments} based on the specified {@link Options}.\n     *\n     * @param options the {@code Options}.\n     * @param arguments the {@code arguments}.\n     * @param stopAtNonOption if {@code true} an unrecognized argument stops the parsing and the remaining arguments\n     *        are added to the {@link CommandLine}s args list. If {@code false} an unrecognized argument triggers a\n     *        ParseException.\n     * @return the {@code CommandLine}.\n     * @throws ParseException if an error occurs when parsing the arguments.\n     */\n    @Override\n    public CommandLine parse(final Options options, final String[] arguments, final boolean stopAtNonOption) throws ParseException {\n        return parse(options, arguments, null, stopAtNonOption);\n    }",
+    "importString": "",
+    "lineNum": 14,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Parser.java"
+  },
+  {
+    "symbolName": "deprecated(DeprecatedAttributes)",
+    "totalReferences": 15,
+    "testReferences": 13,
+    "robustnessScore": 145,
+    "sourceCode": "/**\n         * Sets whether the Option is deprecated.\n         *\n         * @param deprecated specifies whether the Option is deprecated.\n         * @return this builder.\n         * @since 1.7.0\n         */\n        public Builder deprecated(final DeprecatedAttributes deprecated) {\n            this.deprecated = deprecated;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 10,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "builder()",
+    "totalReferences": 14,
+    "testReferences": 13,
+    "robustnessScore": 144,
+    "sourceCode": "/**\n     * Creates a new builder.\n     *\n     * @return a new builder.\n     * @since 1.7.0\n     */\n    public static Builder builder() {\n        return new Builder();\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/HelpFormatter.java"
+  },
+  {
+    "symbolName": "numberOfArgs(int)",
+    "totalReferences": 14,
+    "testReferences": 13,
+    "robustnessScore": 144,
+    "sourceCode": "/**\n         * Sets the number of argument values the Option can take.\n         *\n         * @param argCount the number of argument values\n         * @return this builder.\n         */\n        public Builder numberOfArgs(final int argCount) {\n            this.argCount = argCount;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "hasArgs()",
+    "totalReferences": 14,
+    "testReferences": 13,
+    "robustnessScore": 144,
+    "sourceCode": "/**\n     * The next Option created can have unlimited argument values.\n     *\n     * @return the OptionBuilder instance.\n     */\n    public static OptionBuilder hasArgs() {\n        argCount = Option.UNLIMITED_VALUES;\n        return INSTANCE;\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "getDescription()",
+    "totalReferences": 23,
+    "testReferences": 12,
+    "robustnessScore": 143,
+    "sourceCode": "/**\n     * Gets the self-documenting description of this Option.\n     *\n     * @return The string description of this option.\n     */\n    public String getDescription() {\n        return description;\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "setMaxWidth(int)",
+    "totalReferences": 19,
+    "testReferences": 12,
+    "robustnessScore": 139,
+    "sourceCode": "/**\n         * Sets the currently specified minimum width.\n         *\n         * @param maxWidth The currently specified maximum width.\n         * @return {@code this} instance.\n         */\n        public Builder setMaxWidth(final int maxWidth) {\n            this.maxWidth = maxWidth;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextStyle.java"
+  },
+  {
+    "symbolName": "from(String, List<TextStyle>, List<String>, Iterable<List<String>>)",
+    "totalReferences": 15,
+    "testReferences": 12,
+    "robustnessScore": 135,
+    "sourceCode": "/**\n     * A helper function to create a table instance from the various components.\n     *\n     * @param caption     The caption, may be {@code null}.\n     * @param columnStyle a list of TextStyle elements defining the columns.\n     * @param headers     the list of column headers.\n     * @param rows        a collection of rows.\n     * @return A TableDefinition returning the parameters as appropriate.\n     */\n    static TableDefinition from(final String caption, final List<TextStyle> columnStyle, final List<String> headers, final Iterable<List<String>> rows) {\n        return new TableDefinition() {\n\n            @Override\n            public String caption() {\n                return caption;\n            }\n\n            @Override\n            public List<TextStyle> columnTextStyles() {\n                return columnStyle;\n            }\n\n            @Override\n            public List<String> headers() {\n                return headers;\n            }\n\n            @Override\n            public Iterable<List<String>> rows() {\n                return rows;\n            }\n        };\n    }",
+    "importString": "",
+    "lineNum": 32,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TableDefinition.java"
+  },
+  {
+    "symbolName": "getOptionValue(char)",
+    "totalReferences": 13,
+    "testReferences": 12,
+    "robustnessScore": 133,
+    "sourceCode": "/**\n     * Gets the first argument, if any, of this option.\n     *\n     * @param optionChar the character name of the option.\n     * @return Value of the argument if option is set, and has an argument, otherwise null.\n     */\n    public String getOptionValue(final char optionChar) {\n        return getOptionValue(String.valueOf(optionChar));\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "builder()",
+    "totalReferences": 18,
+    "testReferences": 11,
+    "robustnessScore": 128,
+    "sourceCode": "/**\n     * Creates a new builder.\n     *\n     * @return a new builder.\n     */\n    public static Builder builder() {\n        return new Builder();\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextStyle.java"
+  },
+  {
+    "symbolName": "setIndent(int)",
+    "totalReferences": 17,
+    "testReferences": 11,
+    "robustnessScore": 127,
+    "sourceCode": "/**\n         * Sets the indent value.\n         *\n         * @param indent the new indent value.\n         * @return {@code this} instance.\n         */\n        public Builder setIndent(final int indent) {\n            this.indent = indent;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextStyle.java"
+  },
+  {
+    "symbolName": "printHelp(String, String, Options, String, boolean)",
+    "totalReferences": 13,
+    "testReferences": 11,
+    "robustnessScore": 123,
+    "sourceCode": "/**\n     * Prints the help for a collection of {@link Option}s with the specified command line syntax.\n     *\n     * @param cmdLineSyntax the syntax for this application.\n     * @param header        the banner to display at the beginning of the help.\n     * @param options       the collection of {@link Option} objects to print.\n     * @param footer        the banner to display at the end of the help.\n     * @param autoUsage     whether to print an automatically generated usage statement.\n     * @throws IOException If the output could not be written to the {@link HelpAppendable}.\n     */\n    public void printHelp(final String cmdLineSyntax, final String header, final Options options, final String footer, final boolean autoUsage)\n            throws IOException {\n        if (Util.isEmpty(cmdLineSyntax)) {\n            throw new IllegalArgumentException(\"cmdLineSyntax not provided\");\n        }\n        if (autoUsage) {\n            helpAppendable.appendParagraphFormat(\"%s %s %s\", syntaxPrefix, cmdLineSyntax, toSyntaxOptions(options));\n        } else {\n            helpAppendable.appendParagraphFormat(\"%s %s\", syntaxPrefix, cmdLineSyntax);\n        }\n        if (!Util.isEmpty(header)) {\n            helpAppendable.appendParagraph(header);\n        }\n        helpAppendable.appendTable(getTableDefinition(options.getOptions()));\n        if (!Util.isEmpty(footer)) {\n            helpAppendable.appendParagraph(footer);\n        }\n    }",
+    "importString": "",
+    "lineNum": 27,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/AbstractHelpFormatter.java"
+  },
+  {
+    "symbolName": "getDescription()",
+    "totalReferences": 13,
+    "testReferences": 11,
+    "robustnessScore": 123,
+    "sourceCode": "/**\n     * Gets the description for the option. This will include any deprecation notices if the deprecated format function has been set.\n     *\n     * @return The Description from the option or an empty string is no description was provided and the option is not deprecated.\n     */\n    public String getDescription() {\n        return option.isDeprecated() ? deprecatedFormatFunction.apply(option) : Util.defaultValue(option.getDescription(), \"\");\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/OptionFormatter.java"
+  },
+  {
+    "symbolName": "getOptionObject(char)",
+    "totalReferences": 12,
+    "testReferences": 11,
+    "robustnessScore": 122,
+    "sourceCode": "/**\n     * Gets the {@code Object} type of this {@code Option}.\n     *\n     * @param optionChar the name of the option.\n     * @return the type of opt.\n     * @deprecated due to System.err message; use {@link #getParsedOptionValue(char)} instead.\n     */\n    @Deprecated\n    public Object getOptionObject(final char optionChar) {\n        return getOptionObject(String.valueOf(optionChar));\n    }",
+    "importString": "",
+    "lineNum": 10,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "deprecated()",
+    "totalReferences": 12,
+    "testReferences": 11,
+    "robustnessScore": 122,
+    "sourceCode": "/**\n         * Marks this Option as deprecated.\n         *\n         * @return this builder.\n         * @since 1.7.0\n         */\n        public Builder deprecated() {\n            return deprecated(DeprecatedAttributes.DEFAULT);\n        }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "valueSeparator()",
+    "totalReferences": 12,
+    "testReferences": 11,
+    "robustnessScore": 122,
+    "sourceCode": "/**\n         * The Option will use '=' as a means to separate argument value.\n         *\n         * @return this builder.\n         */\n        public Builder valueSeparator() {\n            return valueSeparator(Char.EQUAL);\n        }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "printHelp(String, String, Iterable<Option>, String, boolean)",
+    "totalReferences": 12,
+    "testReferences": 11,
+    "robustnessScore": 122,
+    "sourceCode": "/**\n     * Prints the help for {@link Options} with the specified command line syntax.\n     *\n     * @param cmdLineSyntax the syntax for this application.\n     * @param header        the banner to display at the beginning of the help.\n     * @param options       the collection of {@link Option} objects to print.\n     * @param footer        the banner to display at the end of the help.\n     * @param autoUsage     whether to print an automatically generated usage statement.\n     * @throws IOException If the output could not be written to the {@link HelpAppendable}.\n     */\n    public void printHelp(final String cmdLineSyntax, final String header, final Iterable<Option> options, final String footer, final boolean autoUsage)\n            throws IOException {\n        Options optionsObject = new Options();\n        options.forEach(optionsObject::addOption);\n        printHelp(cmdLineSyntax, header, optionsObject, footer, autoUsage);\n    }",
+    "importString": "",
+    "lineNum": 15,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/AbstractHelpFormatter.java"
+  },
+  {
+    "symbolName": "getOptions()",
+    "totalReferences": 18,
+    "testReferences": 10,
+    "robustnessScore": 118,
+    "sourceCode": "/**\n     * Gets a read-only list of options in this set.\n     *\n     * @return read-only Collection of {@link Option} objects in this descriptor.\n     */\n    public Collection<Option> getOptions() {\n        return Collections.unmodifiableCollection(helpOptions());\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Options.java"
+  },
+  {
+    "symbolName": "setLeftPad(int)",
+    "totalReferences": 15,
+    "testReferences": 10,
+    "robustnessScore": 115,
+    "sourceCode": "/**\n         * Sets the left padding.\n         *\n         * @param leftPad the new left padding.\n         * @return {@code this} instance.\n         */\n        public Builder setLeftPad(final int leftPad) {\n            this.leftPad = leftPad;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextStyle.java"
+  },
+  {
+    "symbolName": "printUsage(PrintWriter, int, String, Options)",
+    "totalReferences": 12,
+    "testReferences": 10,
+    "robustnessScore": 112,
+    "sourceCode": "/**\n     * Prints the usage statement for the specified application.\n     *\n     * @param pw The PrintWriter to print the usage statement\n     * @param width The number of characters to display per line\n     * @param app The application name\n     * @param options The command line Options\n     */\n    public void printUsage(final PrintWriter pw, final int width, final String app, final Options options) {\n        // initialize the string buffer\n        final StringBuilder buff = new StringBuilder(getSyntaxPrefix()).append(app).append(Char.SP);\n        // create a list for processed option groups\n        final Collection<OptionGroup> processedGroups = new ArrayList<>();\n        final List<Option> optList = new ArrayList<>(options.getOptions());\n        if (getOptionComparator() != null) {\n            Collections.sort(optList, getOptionComparator());\n        }\n        // iterate over the options\n        for (final Iterator<Option> it = optList.iterator(); it.hasNext();) {\n            // get the next Option\n            final Option option = it.next();\n            // check if the option is part of an OptionGroup\n            final OptionGroup group = options.getOptionGroup(option);\n            // if the option is part of a group\n            if (group != null) {\n                // and if the group has not already been processed\n                if (!processedGroups.contains(group)) {\n                    // add the group to the processed list\n                    processedGroups.add(group);\n                    // add the usage clause\n                    appendOptionGroup(buff, group);\n                }\n                // otherwise the option was displayed in the group\n                // previously so ignore it.\n            }\n            // if the Option is not part of an OptionGroup\n            else {\n                appendOption(buff, option, option.isRequired());\n            }\n            if (it.hasNext()) {\n                buff.append(Char.SP);\n            }\n        }\n\n        // call printWrapped\n        printWrapped(pw, width, buff.toString().indexOf(' ') + 1, buff.toString());\n    }",
+    "importString": "",
+    "lineNum": 46,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/HelpFormatter.java"
+  },
+  {
+    "symbolName": "getOptionValue(String, String)",
+    "totalReferences": 11,
+    "testReferences": 10,
+    "robustnessScore": 111,
+    "sourceCode": "/**\n     * Gets the first argument, if any, of an option.\n     *\n     * @param optionName name of the option.\n     * @param defaultValue is the default value to be returned if the option is not specified.\n     * @return Value of the argument if option is set, and has an argument, otherwise {@code defaultValue}.\n     */\n    public String getOptionValue(final String optionName, final String defaultValue) {\n        return getOptionValue(resolveOption(optionName), () -> defaultValue);\n    }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "parse(Options, String[], boolean)",
+    "totalReferences": 11,
+    "testReferences": 10,
+    "robustnessScore": 111,
+    "sourceCode": "/**\n     * @see #parse(Options, Properties, NonOptionAction, String[])\n     */\n    @Override\n    public CommandLine parse(final Options options, final String[] arguments, final boolean stopAtNonOption) throws ParseException {\n        return parse(options, arguments, null, stopAtNonOption);\n    }",
+    "importString": "",
+    "lineNum": 6,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+  },
+  {
+    "symbolName": "parsePattern(String)",
+    "totalReferences": 11,
+    "testReferences": 10,
+    "robustnessScore": 111,
+    "sourceCode": "/**\n     * Returns the {@link Options} instance represented by {@code pattern}.\n     *\n     * @param pattern the pattern string\n     * @return The {@link Options} instance\n     */\n    public static Options parsePattern(final String pattern) {\n        char opt = Char.SP;\n        boolean required = false;\n        Class<?> type = null;\n        Converter<?, ?> converter = Converter.DEFAULT;\n\n        final Options options = new Options();\n\n        for (int i = 0; i < pattern.length(); i++) {\n            final char ch = pattern.charAt(i);\n\n            // a value code comes after an option and specifies\n            // details about it\n            if (!isValueCode(ch)) {\n                if (opt != Char.SP) {\n                    // @formatter:off\n                    final Option option = Option.builder(String.valueOf(opt))\n                            .hasArg(type != null)\n                            .required(required)\n                            .type(type)\n                            .converter(converter)\n                            .get();\n                    // @formatter:on\n                    // we have a previous one to deal with\n                    options.addOption(option);\n                    required = false;\n                    type = null;\n                    converter = Converter.DEFAULT;\n                }\n\n                opt = ch;\n            } else if (ch == '!') {\n                required = true;\n            } else {\n                type = getValueType(ch);\n                final Map<Class<?>, Converter<?, ? extends Throwable>> map = TypeHandler.createDefaultMap();\n                // Backward compatibility (probably).\n                map.put(FILES_VALUE, unsupported());\n                converter = new TypeHandler(map).getConverter(getValueType(ch));\n            }\n        }\n\n        if (opt != Char.SP) {\n            final Option option = Option.builder(String.valueOf(opt)).hasArg(type != null).required(required).type(type).get();\n\n            // we have a final one to deal with\n            options.addOption(option);\n        }\n\n        return options;\n    }",
+    "importString": "",
+    "lineNum": 56,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/PatternOptionBuilder.java"
+  },
+  {
+    "symbolName": "getOption()",
+    "totalReferences": 11,
+    "testReferences": 10,
+    "robustnessScore": 111,
+    "sourceCode": "/**\n     * Gets the unrecognized option.\n     *\n     * @return the related option.\n     * @since 1.2\n     */\n    public String getOption() {\n        return option;\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/UnrecognizedOptionException.java"
+  },
+  {
+    "symbolName": "setHelpAppendable(HelpAppendable)",
+    "totalReferences": 11,
+    "testReferences": 10,
+    "robustnessScore": 111,
+    "sourceCode": "/**\n         * Sets the {@link HelpAppendable}.\n         *\n         * @param helpAppendable the {@link HelpAppendable} to use.\n         * @return {@code this} instance.\n         */\n        public B setHelpAppendable(final HelpAppendable helpAppendable) {\n            this.helpAppendable = helpAppendable != null ? helpAppendable : TextHelpAppendable.systemOut();\n            return asThis();\n        }",
+    "importString": "",
+    "lineNum": 9,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/AbstractHelpFormatter.java"
+  },
+  {
+    "symbolName": "append(CharSequence)",
+    "totalReferences": 20,
+    "testReferences": 9,
+    "robustnessScore": 110,
+    "sourceCode": "@Override\n    public FilterHelpAppendable append(final CharSequence text) throws IOException {\n        output.append(text);\n        return this;\n    }",
+    "importString": "",
+    "lineNum": 4,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/FilterHelpAppendable.java"
+  },
+  {
+    "symbolName": "parse(Options, Properties, NonOptionAction, String...)",
+    "totalReferences": 13,
+    "testReferences": 9,
+    "robustnessScore": 103,
+    "sourceCode": "/**\n     * Parses the arguments according to the specified options and properties.\n     *\n     * @param options the specified Options\n     * @param properties command line option name-value pairs\n     * @param nonOptionAction see {@link NonOptionAction}.\n     * @param arguments the command line arguments\n     *\n     * @return the list of atomic option and value tokens.\n     * @throws ParseException if there are any problems encountered while parsing the command line tokens.\n     * @since 1.10.0\n     */\n    public CommandLine parse(final Options options, final Properties properties, final NonOptionAction nonOptionAction, final String... arguments)\n            throws ParseException {\n        this.options = Objects.requireNonNull(options, \"options\");\n        this.nonOptionAction = nonOptionAction;\n        skipParsing = false;\n        currentOption = null;\n        expectedOpts = new ArrayList<>(options.getRequiredOptions());\n        // clear the data from the groups\n        for (final OptionGroup optionGroup : options.getOptionGroups()) {\n            optionGroup.setSelected(null);\n        }\n        cmd = CommandLine.builder().setDeprecatedHandler(deprecatedHandler).get();\n        if (arguments != null) {\n            for (final String argument : arguments) {\n                handleToken(argument);\n            }\n        }\n        // check the arguments of the last option\n        checkRequiredArgs();\n        // add the default options\n        handleProperties(properties);\n        checkRequiredOptions();\n        return cmd;\n    }",
+    "importString": "",
+    "lineNum": 35,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+  },
+  {
+    "symbolName": "appendTable(TableDefinition)",
+    "totalReferences": 13,
+    "testReferences": 9,
+    "robustnessScore": 103,
+    "sourceCode": "/**\n     * Appends a table.\n     *\n     * @param table the table definition to write, null is a noop.\n     * @throws IOException If an output error occurs.\n     */\n    void appendTable(TableDefinition table) throws IOException;",
+    "importString": "",
+    "lineNum": 6,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/HelpAppendable.java"
+  },
+  {
+    "symbolName": "getOptionValue(String, Supplier<String>)",
+    "totalReferences": 12,
+    "testReferences": 9,
+    "robustnessScore": 102,
+    "sourceCode": "/**\n     * Gets the first argument, if any, of an option.\n     *\n     * @param optionName name of the option.\n     * @param defaultValue is a supplier for the default value to be returned if the option is not specified.\n     * @return Value of the argument if option is set, and has an argument, otherwise {@code defaultValue}.\n     * @since 1.7.0\n     */\n    public String getOptionValue(final String optionName, final Supplier<String> defaultValue) {\n        return getOptionValue(resolveOption(optionName), defaultValue);\n    }",
+    "importString": "",
+    "lineNum": 10,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "printHelp(PrintWriter, int, String, String, Options, int, int, String, boolean)",
+    "totalReferences": 12,
+    "testReferences": 9,
+    "robustnessScore": 102,
+    "sourceCode": "/**\n     * Prints the help for {@code options} with the specified command line syntax.\n     *\n     * @param pw the writer to which the help will be written\n     * @param width the number of characters to be displayed on each line\n     * @param cmdLineSyntax the syntax for this application\n     * @param header the banner to display at the beginning of the help\n     * @param options the Options instance\n     * @param leftPad the number of characters of padding to be prefixed to each line\n     * @param descPad the number of characters of padding to be prefixed to each description line\n     * @param footer the banner to display at the end of the help\n     * @param autoUsage whether to print an automatically generated usage statement\n     * @throws IllegalStateException if there is no room to print a line\n     */\n    public void printHelp(final PrintWriter pw, final int width, final String cmdLineSyntax, final String header, final Options options, final int leftPad,\n        final int descPad, final String footer, final boolean autoUsage) {\n        if (Util.isEmpty(cmdLineSyntax)) {\n            throw new IllegalArgumentException(\"cmdLineSyntax not provided\");\n        }\n        if (autoUsage) {\n            printUsage(pw, width, cmdLineSyntax, options);\n        } else {\n            printUsage(pw, width, cmdLineSyntax);\n        }\n        if (header != null && !header.isEmpty()) {\n            printWrapped(pw, width, header);\n        }\n        printOptions(pw, width, options, leftPad, descPad);\n        if (footer != null && !footer.isEmpty()) {\n            printWrapped(pw, width, footer);\n        }\n    }",
+    "importString": "",
+    "lineNum": 31,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/HelpFormatter.java"
+  },
+  {
+    "symbolName": "getOptionValue(OptionGroup, Supplier<String>)",
+    "totalReferences": 11,
+    "testReferences": 9,
+    "robustnessScore": 101,
+    "sourceCode": "/**\n     * Gets the first argument, if any, of an option group.\n     *\n     * @param optionGroup the option group.\n     * @param defaultValue is a supplier for the default value to be returned if the option group is not selected.\n     * @return Value of the argument if option group is selected, and has an argument, otherwise {@code defaultValue}.\n     * @since 1.9.0\n     */\n    public String getOptionValue(final OptionGroup optionGroup, final Supplier<String> defaultValue) {\n        final String answer = getOptionValue(optionGroup);\n        return answer != null ? answer : get(defaultValue);\n    }",
+    "importString": "",
+    "lineNum": 11,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "getType()",
+    "totalReferences": 11,
+    "testReferences": 9,
+    "robustnessScore": 101,
+    "sourceCode": "/**\n     * Gets the type of this Option.\n     *\n     * @return The type of this option.\n     */\n    public Object getType() {\n        return type;\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "setArgs(int)",
+    "totalReferences": 11,
+    "testReferences": 9,
+    "robustnessScore": 101,
+    "sourceCode": "/**\n     * Sets the number of argument values this Option can take.\n     *\n     * @param num the number of argument values.\n     */\n    public void setArgs(final int num) {\n        this.argCount = num;\n    }",
+    "importString": "",
+    "lineNum": 7,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/Option.java"
+  },
+  {
+    "symbolName": "indexOfWrap(CharSequence, int, int)",
+    "totalReferences": 11,
+    "testReferences": 9,
+    "robustnessScore": 101,
+    "sourceCode": "// @formatter:on\n\n    /**\n     * Finds the next text wrap position after {@code startPos} for the text in {@code text} with the column width {@code width}. The wrap point is the last\n     * position before startPos+width having a whitespace character (space, \\n, \\r). If there is no whitespace character before startPos+width, it will return\n     * startPos+width.\n     *\n     * @param text     The text being searched for the wrap position\n     * @param width    width of the wrapped text\n     * @param startPos position from which to start the lookup whitespace character\n     * @return position on which the text must be wrapped or @{code text.length()} if the wrap position is at the end of the text.\n     */\n    public static int indexOfWrap(final CharSequence text, final int width, final int startPos) {\n        if (width < 1) {\n            throw new IllegalArgumentException(\"Width must be greater than 0\");\n        }\n        // handle case of width > text.\n        // the line ends before the max wrap pos or a new line char found\n        int limit = Math.min(startPos + width, text.length());\n        for (int idx = startPos; idx < limit; idx++) {\n            if (BREAK_CHAR_SET.contains(text.charAt(idx))) {\n                return idx;\n            }\n        }\n        if (startPos + width >= text.length()) {\n            return text.length();\n        }\n\n        limit = Math.min(startPos + width, text.length() - 1);\n        int pos;\n        // look for the last whitespace character before limit\n        for (pos = limit; pos >= startPos; --pos) {\n            if (Util.isWhitespace(text.charAt(pos))) {\n                break;\n            }\n        }\n        // if we found it return it, otherwise just chop at limit\n        return pos > startPos ? pos : limit - 1;\n    }",
+    "importString": "",
+    "lineNum": 38,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/help/TextHelpAppendable.java"
+  },
+  {
+    "symbolName": "getOptionValues(char)",
+    "totalReferences": 10,
+    "testReferences": 9,
+    "robustnessScore": 100,
+    "sourceCode": "/**\n     * Gets the array of values, if any, of an option.\n     *\n     * @param optionChar character name of the option.\n     * @return Values of the argument if option is set, and has an argument, otherwise null.\n     */\n    public String[] getOptionValues(final char optionChar) {\n        return getOptionValues(String.valueOf(optionChar));\n    }",
+    "importString": "",
+    "lineNum": 8,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/CommandLine.java"
+  },
+  {
+    "symbolName": "setStripLeadingAndTrailingQuotes(Boolean)",
+    "totalReferences": 10,
+    "testReferences": 9,
+    "robustnessScore": 100,
+    "sourceCode": "/**\n         * Sets if balanced leading and trailing double quotes should be stripped from option arguments.\n         *\n         * <p>\n         * If \"stripping of balanced leading and trailing double quotes from option arguments\" is true, the outermost balanced double quotes of option arguments\n         * values will be removed. For example, {@code -o '\"x\"'} getValue() will return {@code x}, instead of {@code \"x\"}\n         * </p>\n         * <p>\n         * If \"stripping of balanced leading and trailing double quotes from option arguments\" is null, then quotes will be stripped from option values\n         * separated by space from the option, but kept in other cases, which is the historic behavior.\n         * </p>\n         *\n         * @param stripLeadingAndTrailingQuotes whether balanced leading and trailing double quotes should be stripped from option arguments.\n         * @return {@code this} instance.\n         * @since 1.5.0\n         */\n        public Builder setStripLeadingAndTrailingQuotes(final Boolean stripLeadingAndTrailingQuotes) {\n            this.stripLeadingAndTrailingQuotes = stripLeadingAndTrailingQuotes;\n            return this;\n        }",
+    "importString": "",
+    "lineNum": 19,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/DefaultParser.java"
+  },
+  {
+    "symbolName": "withValueSeparator()",
+    "totalReferences": 10,
+    "testReferences": 9,
+    "robustnessScore": 100,
+    "sourceCode": "/**\n     * The next Option created uses '{@code =}' as a means to separate argument values.\n     *\n     * <strong>Example:</strong>\n     *\n     * <pre>\n     * Option opt = withValueSeparator().create('D');\n     *\n     * CommandLine line = parser.parse(args);\n     * String propertyName = opt.getValue(0);\n     * String propertyValue = opt.getValue(1);\n     * </pre>\n     *\n     * @return the OptionBuilder instance.\n     */\n    public static OptionBuilder withValueSeparator() {\n        valueSeparator = Char.EQUAL;\n        return INSTANCE;\n    }",
+    "importString": "",
+    "lineNum": 18,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/OptionBuilder.java"
+  },
+  {
+    "symbolName": "createPadding(int)",
+    "totalReferences": 16,
+    "testReferences": 8,
+    "robustnessScore": 96,
+    "sourceCode": "/**\n     * Creates a String of padding of length {@code len}.\n     *\n     * @param len The length of the String of padding to create.\n     * @return The String of padding\n     */\n    protected String createPadding(final int len) {\n        final char[] padding = new char[len];\n        Arrays.fill(padding, ' ');\n        return new String(padding);\n    }",
+    "importString": "",
+    "lineNum": 10,
+    "relativeDocumentPath": "src/main/java/org/apache/commons/cli/HelpFormatter.java"
+  }
+]
