@@ -23,6 +23,7 @@ export function generateTimestampString(): string {
 }
 
 export enum PromptType {
+    NAIVE = 'naive',
     BASIC = 'basic',
     DETAILED = 'detailed',
     WITHCONTEXT = 'withcontext',

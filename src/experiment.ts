@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+
 import * as vscode from 'vscode';
 import path from 'path';
 import fs from 'fs';
@@ -13,7 +14,14 @@ import { SupportedLanguage } from './ast';
 import { ExpLogger } from './log';
 import pLimit from 'p-limit';
 import { genPythonicSrcImportStatement } from './helper';
-const limit = pLimit(4);
+import { resolveCachedDraftTestPath, resolveTestFileNameFromTestFileMap } from './strategy/generators/lsprag_reflect';
+
+function createConcurrencyLimit() {
+    const configured = getConfigInstance().parallelCount;
+    const concurrency = Number.isFinite(configured) ? configured : 4;
+    return pLimit(Math.max(1, concurrency));
+}
+
 interface TaskProgress {
     symbolName: string;
     relativeDocumentPath: string;
@@ -275,7 +283,8 @@ export async function runGenerateTestCodeSuite(
     provider: Provider,
     symbols: any, // Use the correct type if available
     languageId: string,
-    previousExperimentDir?: string // Optional parameter for continuing experiments
+    previousExperimentDir?: string, // Optional parameter for continuing experiments
+    dirForReuse?: string // Optional parameter for continuing experiments
 ) {
     if (process.env.NODE_DEBUG !== 'true') {
         console.log('activate');
@@ -290,7 +299,8 @@ export async function runGenerateTestCodeSuite(
         model: model,
         provider: provider
     });
-
+    console.log("savePath", getConfigInstance().savePath+"/final");
+    console.log("testFileMapPath", getConfigInstance().savePath);
     // If continuing from previous experiment, use its save path
     const savePath = previousExperimentDir || getConfigInstance().genSaveName();;
     getConfigInstance().updateConfig({
@@ -310,6 +320,19 @@ export async function runGenerateTestCodeSuite(
     const symbolFilePairsToTest = getSymbolFilePairsToTest(symbols, languageId);
     const continuityManager = new ExperimentContinuityManager(savePath, workspace);
     
+    // Decide output root ONCE for the whole run (critical for EXPERIMENTAL resume).
+    // const normalizeCacheRoot = (dir: string): string => {
+    //     const trimmed = dir.replace(/[\/\\]+$/, '');
+    //     if (trimmed.endsWith(`${path.sep}initial`) || trimmed.endsWith(`${path.sep}final`)) {
+    //         return path.dirname(trimmed);
+    //     }
+    //     return trimmed;
+    // };
+
+    // const outputSaveRootOverride = (dirForReuse && generationType === GenerationType.EXPERIMENTAL)
+    //     ? `${normalizeCacheRoot(dirForReuse)}_${Date.now()}_${promptType}`
+    //     : getConfigInstance().savePath;
+
 
     let symbolPairsToProcess = symbolFilePairsToTest;
     if (!continuityManager.isFirstTimeExperiment()) {
@@ -357,17 +380,51 @@ export async function runGenerateTestCodeSuite(
     } catch {}
     await fs.promises.writeFile(testFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
     console.log(`#### Test file map has been saved to ${testFileMapPath}`);
+    const limit = createConcurrencyLimit();
     // Generate test promises with progress tracking
     const testGenerationPromises = symbolPairsToProcess.map(symbolFilePair => 
         limit(async () => {
             const { document, symbol, fileName } = symbolFilePair;
             try {
+                // NOTE: `dirForReuse` is EXPERIMENTAL-only and is used for assertion-reflection runs:
+                // we load the cached draft test *here* (where fileName is decided), and pass the code down.
+                let resolvedFileName = fileName;
+                let cachedDraftTestCode: string | undefined;
+                if (dirForReuse && generationType === GenerationType.EXPERIMENTAL) {
+                    const mapped = resolveTestFileNameFromTestFileMap({
+                        dirForReuse,
+                        symbolName: symbol.name,
+                        sourceFile: document.uri.fsPath
+                    });
+                    if (mapped) {
+                        // Use the cached randomized basename for the new run too (stable naming).
+                        resolvedFileName = path.join(path.dirname(fileName), mapped);
+                        const cachedPath = resolveCachedDraftTestPath(dirForReuse, mapped);
+                        if (cachedPath) {
+                            try {
+                                cachedDraftTestCode = fs.readFileSync(cachedPath, 'utf8');
+                                console.log(`[EXPERIMENTAL] Loaded cached draft test: ${cachedPath}`);
+                            } catch (e) {
+                                console.warn('[EXPERIMENTAL] Failed to read cached draft test (continuing):', e);
+                            }
+                        } else {
+                            console.warn(`[EXPERIMENTAL] No cached draft test found under dirForReuse: ${dirForReuse} for ${mapped}`);
+                        }
+                    } else {
+                        console.warn(`[EXPERIMENTAL] No test_file_map.json match for ${symbol.name} (${document.uri.fsPath}); will regenerate draft.`);
+                    }
+                }
+
                 const result = await generateUnitTestForAFunction(
                     currentSrcPath,
                     document, 
                     symbol, 
-                    fileName, 
+                    resolvedFileName, 
                     false,
+                    true,
+                    dirForReuse,
+                    cachedDraftTestCode,
+                    // outputSaveRootOverride
                 );
                 
                 if (result) {

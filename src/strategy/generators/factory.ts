@@ -7,6 +7,7 @@ import { SymPromptTestGenerator } from './symPrompt';
 import { NaiveTestGenerator } from './naive';
 import { CFGTestGenerator } from './cfg';
 import { LSPRAGTestGenerator } from './lsprag';
+import { LSPRAGReflectTestGenerator } from './lsprag_reflect';
 
 // Factory to create the appropriate generator
 export function createTestGenerator(
@@ -18,7 +19,9 @@ export function createTestGenerator(
 	logger: ExpLogger,
 	progress: vscode.Progress<{ message?: string; increment?: number; }>,
 	token: vscode.CancellationToken,
-	srcPath: string // Added srcPath parameter
+	srcPath: string, // Added srcPath parameter
+	cachedDir?: string, // Optional: reuse already-generated tests (used by EXPERIMENTAL reflect)
+	cachedDraftTestCode?: string // Optional: preloaded cached draft test code (used by EXPERIMENTAL reflect)
 ): TestGenerationStrategy {
 	switch (generationType) {
 		case GenerationType.NAIVE:
@@ -32,6 +35,8 @@ export function createTestGenerator(
 			return new CFGTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
 		case GenerationType.LSPRAG:
 			return new LSPRAGTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
+		case GenerationType.EXPERIMENTAL:
+			return new LSPRAGReflectTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath, cachedDir, cachedDraftTestCode);
 		default:
 			throw new Error(`Invalid generation type: ${generationType}`);
 	}

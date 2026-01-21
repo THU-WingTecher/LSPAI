@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
 import { extractUseDefInfo } from "./lsp/token";
 import { DecodedToken } from './lsp/types';
 import {getPackageStatement, DpendenceAnalysisResult, getImportStatement, constructSymbolRelationShip} from "./lsp/definition";
@@ -161,13 +162,30 @@ export async function generateUnitTestForAFunction(
     functionSymbol: vscode.DocumentSymbol,
     fullFileName: string,
     showGeneratedCode: boolean = true,
-    inExperiment: boolean = false
+    inExperiment: boolean = false,
+	cachedDir?: string,
+	cachedDraftTestCode?: string,
+	outputSaveRootOverride?: string
 ): Promise<string> {
 	console.log(`### generating unit test for ${functionSymbol.name} in ${document.uri.fsPath}`);
     const model = getConfigInstance().model;
     const fileName = getFileName(fullFileName);
-    const logger = new ExpLogger([], model, fullFileName, fileName, functionSymbol.name);
+	// If logs already exist for this test case, load them so we can continue/append.
+	let existingLogs: any[] = [];
+	try {
+		const logFilePath = path.join(getConfigInstance().logSavePath, model, `${fileName}.json`);
+		if (fs.existsSync(logFilePath)) {
+			existingLogs = JSON.parse(fs.readFileSync(logFilePath, 'utf8'));
+		}
+	} catch (e) {
+		console.warn('[generateUnitTestForAFunction] Failed to load existing logs (continuing):', e);
+	}
+
+    const logger = new ExpLogger(existingLogs as any, model, fullFileName, fileName, functionSymbol.name);
     const languageId = document.languageId;
+
+	// Output root is decided at a higher level (e.g. experiment runner) and passed down.
+	const outputSaveRoot = outputSaveRootOverride ?? getConfigInstance().savePath;
 
     return vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
@@ -188,7 +206,9 @@ export async function generateUnitTestForAFunction(
                 logger,
                 progress,
                 token,
-				srcPath
+				srcPath,
+				cachedDir,
+				cachedDraftTestCode
             );
 
             const testCode = await generator.generateTest();
@@ -196,7 +216,7 @@ export async function generateUnitTestForAFunction(
                 testCode,
                 srcPath,
                 fileName,
-                path.join(getConfigInstance().savePath, "initial"),
+                path.join(outputSaveRoot, "initial"),
                 languageId
             );
 
@@ -210,11 +230,12 @@ export async function generateUnitTestForAFunction(
                 logger.saveDiagnosticReport(diagnosticReport);
             }
 
+			// this is final output
             await saveToIntermediate(
                 finalCode,
                 srcPath,
                 fileName,
-                path.join(getConfigInstance().savePath, "final"),
+                path.join(outputSaveRoot, "final"),
                 languageId
             );
             
