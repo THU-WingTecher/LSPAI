@@ -10,7 +10,8 @@ import { ChatMessage } from '../../prompts/ChatMessage';
 import { detectRedefinedAssertions, prettyPrintDefTree, RedefinedSymbol } from '../../ut_runner/analysis/assertion_detector';
 import { LLMFixWorkflow } from '../../ut_runner/analysis/llm_fix_workflow';
 import { LSPRAGTestGenerator } from './lsprag';
- 
+import { PromptType } from '../../config';
+
 function getTestFileExtension(languageId: string): string {
 	switch (languageId) {
 		case 'python':
@@ -196,7 +197,7 @@ export function naiveReflectionPrompt(params: {
 }): ChatMessage[] {
 	const system = [
 		'You are an expert unit test engineer.',
-		'You will be given a draft unit test generated for a focal method, plus extra static-analysis context.',
+		'You will be given a draft unit test generated for a focal method.',
 		'Your task is to improve assertion correctness and reduce false-positive assertions.',
 		// '',
 		// 'Critical rules:',
@@ -385,17 +386,31 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
  
 		const reflectionStartTime = Date.now();
 		const logObj: LLMLogs = { tokenUsage: '', result: '', prompt: '', model: getConfigInstance().model };
-		// const promptObj = buildAssertionReflectionPrompt({
-		const promptObj = naiveReflectionPrompt({
-			languageId: this.languageId,
-			sourceFile,
-			focalSymbolName: symbolName,
-			focalMethodSource,
-			draftTestCode: initial,
-			definitionTreePretty,
-			redefinedSymbolsSummary,
-			invokedFunctionSignatures
-		});
+		
+		let promptObj: ChatMessage[] = [];
+		if (getConfigInstance().promptType === PromptType.NAIVE) {
+			promptObj = naiveReflectionPrompt({
+				languageId: this.languageId,
+				sourceFile,
+				focalSymbolName: symbolName,
+				focalMethodSource,
+				draftTestCode: initial,
+				definitionTreePretty,
+				redefinedSymbolsSummary,
+				invokedFunctionSignatures
+			});
+		} else {
+			promptObj = buildAssertionReflectionPrompt({
+				languageId: this.languageId,
+				sourceFile,
+				focalSymbolName: symbolName,
+				focalMethodSource,
+				draftTestCode: initial,
+				definitionTreePretty,
+				redefinedSymbolsSummary,
+				invokedFunctionSignatures
+			});
+		}
  
 		const reflected = await invokeLLM(promptObj, logObj);
 		this.logger.log('reflectAssertions', (Date.now() - reflectionStartTime).toString(), logObj, '');
