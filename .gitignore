@@ -11,6 +11,7 @@ experiments/projects/
 experiments/venv/
 experiments/data
 results/
+logs/
 .env
 *.pyc
 test-results/
