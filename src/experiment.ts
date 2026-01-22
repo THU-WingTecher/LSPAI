@@ -211,7 +211,7 @@ export async function collectPathforSymbols(
         savePath: savePath
     });
     const workspace = getConfigInstance().workspace;
-    const projectName = path.basename(workspace);
+    const projectName = getConfigInstance().getProjectName();
     let currentSrcPath;
     currentSrcPath = getProjectSrcPath(projectName as ProjectConfigName);
     const logPath = getConfigInstance().logSavePath;
@@ -310,7 +310,7 @@ export async function runGenerateTestCodeSuite(
     
     // Setup paths
     const workspace = getConfigInstance().workspace;
-    const projectName = path.basename(workspace);
+    const projectName = getConfigInstance().getProjectName();
     let currentSrcPath;
     currentSrcPath = getProjectSrcPath(projectName as ProjectConfigName);
 

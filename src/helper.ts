@@ -271,9 +271,8 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
         throw new Error("No workspace folders found");
     }
     let testFilesPath: string;
-    const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
-    const projectName = path.basename(workspace);
+    const projectName = getConfigInstance().getProjectName();
     testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
     const srcPathToExclude = getSrcPathToExclude(projectName as ProjectConfigName);
     const suffix = getLanguageSuffix(language); 
@@ -284,16 +283,20 @@ export function randomlySelectOneFileFromWorkspace(language: string) {
 }
 
 export function findAFileFromWorkspace(targetFile: string, language: string) {
+    console.log('targetFile', targetFile);
+    console.log('language', language);
     if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {
         throw new Error("No workspace folders found");
     }
+    console.log('getConfigInstance().workspace', getConfigInstance().workspace);
     let testFilesPath: string;
-    const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
-    const projectName = path.basename(workspace);
+    const projectName = getConfigInstance().getProjectName();
     testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
+    console.log(testFilesPath)
     const suffix = getLanguageSuffix(language); 
     findFiles(testFilesPath, [], Files, language, suffix);	
+    console.log('Files', Files, testFilesPath);
     return Files.filter(f => f.endsWith(targetFile))[0];
 }   
 export async function setupPythonWorkspaceForExperiment(params: {

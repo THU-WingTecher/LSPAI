@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getConfigInstance } from './config';
 
-const ignoreDirNamesToStartWith = ['node_modules', '.git', '.vscode', 'out', 'dist', 'build', '__pycache__', '.pytest_cache', 'lsprag', 'test', 'lspai'];
+const ignoreDirNamesToStartWith = ['node_modules', '.git', '.vscode', 'out', 'dist', 'build', '__pycache__', '.pytest_cache', 'lsprag', 'test', 'lspai', 'data'];
 
 /**
  * Recursively finds files in a directory with a specific suffix

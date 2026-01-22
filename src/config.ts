@@ -26,10 +26,11 @@ export enum PromptType {
     NAIVE = 'naive',
     BASIC = 'basic',
     DETAILED = 'detailed',
-    WITHCONTEXT = 'withcontext',
+    WITHCONTEXT = 'withcontext', // original LSPRAG prompt
     CONCISE = 'concise',
     FASTEST = 'fastest',
-    BEST = 'best'
+    BEST = 'best',
+    CFG = 'cfg' // LSPRAG + CFG based path collection prompt
 }
 
 export enum GenerationType {
@@ -175,6 +176,24 @@ export class Configuration {
 
     public logAllConfig(): void {
         console.log('config::config', this.config);
+    }
+
+    /**
+     * Resolve the configured project name.
+     * Prefer matching by configured workspace roots; fall back to existing basename behavior.
+     */
+    public getProjectName(): ProjectConfigName {
+        const workspace = this.config?.workspace;
+        if (typeof workspace === 'string' && workspace.length > 0) {
+            const normalizedWorkspace = path.resolve(workspace);
+            for (const [name, cfg] of Object.entries(PROJECT_CONFIGS) as [ProjectConfigName, ProjectConfig][]) {
+                if (name === 'DEFAULT') continue;
+                if (path.resolve(cfg.workspace) === normalizedWorkspace) {
+                    return name;
+                }
+            }
+        }
+        return (this.projectName as ProjectConfigName) || 'DEFAULT';
     }
 
     // public reloadSavePath(): void {
@@ -533,6 +552,7 @@ export interface ProjectConfig {
 }
 
 export type ProjectConfigName = 
+    | 'test'
     | 'black' 
     | 'tornado' 
     | 'mimesis'
@@ -546,6 +566,17 @@ export type ProjectConfigName =
 
 // Unified project configurations
 export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
+    "test": {
+        workspace: "/LSPRAG/src/test/fixtures/python",
+        srcPath: "", // where source code is located
+        srcPathToExclude: [],
+        language: 'python',
+        python: {
+            pythonpath: [ // Python extra paths
+            ],
+            pythonExe: "/root/miniconda3/envs/black/bin/python"
+        },
+    },
     "black": {
         workspace: "/LSPRAG/experiments/projects/black",
         srcPath: "/src/black", // where source code is located

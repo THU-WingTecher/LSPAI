@@ -2,13 +2,14 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import path from 'path';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../../helper';
-import { loadAllTargetSymbolsFromWorkspace } from "../../../../lsp/symbol";
+import { loadAllTargetSymbolsFromWorkspace, selectOneSymbolFileFromWorkspace } from "../../../../lsp/symbol";
 import { activate, setupPythonLSP } from '../../../../lsp/helper';
-import { getConfigInstance, GenerationType, PromptType, Provider, FixType } from '../../../../config';
+import { getConfigInstance, GenerationType, PromptType, Provider, FixType, ProjectConfigName, getProjectWorkspace } from '../../../../config';
 import { runGenerateTestCodeSuite } from '../../../../experiment';
 
 suite('Fixtures Test Suite - Python', () => {
-    const projectPath = "/LSPRAG/src/test/fixtures/python";
+    const projectName = "test";
+    const projectPath = getProjectWorkspace(projectName as ProjectConfigName);
     const interpreterPath = "/root/miniconda3/envs/black/bin/python";
     const languageId = "python";
     const currentConfig = {
@@ -50,7 +51,9 @@ suite('Fixtures Test Suite - Python', () => {
         const workspaceFolders = setWorkspaceFolders(projectPath);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
-        symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
+        // symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
+        const symbolDocumentMap = await selectOneSymbolFileFromWorkspace("calculator.py", "compute", languageId);
+        symbols.push(symbolDocumentMap);
 
         assert.ok(symbols.length > 0, 'symbols should not be empty');
         console.log(`#### Number of symbols loaded: ${symbols.length}`);
@@ -61,7 +64,7 @@ suite('Fixtures Test Suite - Python', () => {
         await runGenerateTestCodeSuite(
             GenerationType.LSPRAG,
             FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
+            PromptType.CFG,
             'gpt-4o-mini',
             'openai' as Provider,
             symbols,
