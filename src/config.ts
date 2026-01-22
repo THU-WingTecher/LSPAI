@@ -361,7 +361,7 @@ export class Configuration {
             "lsprag-workspace",
             this.startTimestamp,
             this.projectName,
-            this.generationType + "_" + this.promptType + "_",
+            this.generationType + "_" + this.promptType,
             this.config.model,
         );
     }

@@ -5,8 +5,8 @@ import { generateFileNameForDiffLanguage, findFiles } from "./fileHandler";
 import { getLanguageSuffix } from "./language";
 import { getConfigInstance, getProjectSrcPath, getSrcPathToExclude, ProjectConfigName } from "./config";
 import { generateUnitTestForAFunction } from "./generate";
+import { setupPythonLSP } from "./lsp/helper";
 import assert from "assert";
-
 // Add these constants near the top with other constants
 export const SEED = 12345; // Fixed seed for reproducibility
 export let seededRandom: () => number;
@@ -296,5 +296,29 @@ export function findAFileFromWorkspace(targetFile: string, language: string) {
     findFiles(testFilesPath, [], Files, language, suffix);	
     return Files.filter(f => f.endsWith(targetFile))[0];
 }   
+export async function setupPythonWorkspaceForExperiment(params: {
+    projectPath: string;
+    pythonExtraPaths: string[];
+    pythonInterpreterPath: string;
+}): Promise<void> {
+    const { projectPath, pythonExtraPaths, pythonInterpreterPath } = params;
+
+    const workspaceFolders = setWorkspaceFolders(projectPath);
+    try {
+        await updateWorkspaceFolders(workspaceFolders);
+        console.log('Workspace folders updated to:', vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath));
+    } catch (error) {
+        console.error('Error updating workspace folders:', error);
+    }
+
+    assert.ok(vscode.workspace.workspaceFolders, 'Workspace folders should be set');
+    assert.strictEqual(
+        vscode.workspace.workspaceFolders[0].uri.fsPath,
+        projectPath,
+        'Workspace folder should match project path'
+    );
+
+    await setupPythonLSP(pythonExtraPaths, pythonInterpreterPath);
+}
  
 
