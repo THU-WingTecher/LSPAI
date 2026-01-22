@@ -442,6 +442,45 @@ After running above commands, you can observe that jar files are located at `/LS
 
 Once the environment is set up and the unit tests are prepared, you can proceed to reproduce experiments using the provided dataset.
 
+If you want to generate test cases for java project, you should add below setting to `pom.xml` for static diagnostic report generation.
+```bash
+  <build>
+    <defaultGoal>clean verify apache-rat:check japicmp:cmp checkstyle:check spotbugs:check pmd:check javadoc:javadoc</defaultGoal>
+    <testSourceDirectory>src/test/java</testSourceDirectory>
+    <testResources>
+        <testResource>
+              <directory>src/test/resources</directory>
+        </testResource>
+    </testResources>
+    <testSourceDirectory>src/lsprag/test/java</testSourceDirectory>
+    <plugins> <-- it should be right after <testSourceDirectory>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>add-test-source</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>src/lsprag/test/java</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+    ...
+  </build>
+```
+
+mvn install -DskipTests -Drat.skip=true
+
+change the workspace to other java project, and come back.
 #### Commons-CLI Project Setup
 
 To set up the CLI project, follow these steps:

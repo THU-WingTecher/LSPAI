@@ -165,7 +165,7 @@
     "@github/copilot-language-server": "^1.293.0",
     "@langchain/core": "^0.3.26",
     "@langchain/openai": "^0.3.16",
-    "@opencode-ai/sdk": "^0.15.14",
+    "@opencode-ai/sdk": "^0.15.31",
     "https-proxy-agent": "^7.0.5",
     "ini": "^5.0.0",
     "lru-cache": "^10.1.0",
