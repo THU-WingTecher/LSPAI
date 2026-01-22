@@ -138,23 +138,23 @@ suite('Experiment Test Suite', () => {
             undefined,
             cachedDir
         );
+        // let testsDir = "/LSPRAG/experiments/projects/black/lsprag-workspace/20260121_161212/black/experimental_withcontext_/deepseek-chat/results/final";
+        // let testFileMapPath = "/LSPRAG/experiments/projects/black/lsprag-workspace/20260121_161212/black/experimental_withcontext_/deepseek-chat/results/test_file_map.json"
+        // await runAssertionErrorAnalysis(projectName, testsDir, testFileMapPath);
+
+        // await runGenerateTestCodeSuite(
+        //     GenerationType.EXPERIMENTAL,
+        //     FixType.ORIGINAL,
+        //     PromptType.NAIVE,
+        //     'deepseek-chat',
+        //     'deepseek' as Provider,
+        //     symbols,
+        //     languageId,
+        //     undefined,
+        //     cachedDir
+        // );
         let testsDir = path.join(getConfigInstance().savePath, "final");
         let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-        await runAssertionErrorAnalysis(projectName, testsDir, testFileMapPath);
-
-        await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
-            PromptType.NAIVE,
-            'deepseek-chat',
-            'deepseek' as Provider,
-            symbols,
-            languageId,
-            undefined,
-            cachedDir
-        );
-        testsDir = path.join(getConfigInstance().savePath, "final");
-        testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
         await runAssertionErrorAnalysis(projectName, testsDir, testFileMapPath);
     });
 

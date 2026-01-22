@@ -45,6 +45,23 @@ suite('Analyzer - Java log parsing (new executor format)', () => {
     assert.ok(out.every((r: any) => r.status === 'Passed'));
   });
 
+  test('parses JUnit console logs with tree guide prefixes (│) into per-test Passed results', () => {
+    const analyzer = new Analyzer('java');
+    const { logPath, testFilePath } = stageLogOnly('CommandLine_getArgs_8541Test');
+
+    const out = (analyzer as any).extractJavaTestResults(logPath, testFilePath) as any[];
+    assert.strictEqual(out.length, 3);
+    assert.deepStrictEqual(
+      out.map((r: any) => r.codeName).sort(),
+      [
+        'CommandLine_getArgs_8541Test_0()',
+        'getArgs_preservesOrder_and_updatesWhenArgsChange()',
+        'getArgs_returnsNewArrayAndIsIndependentFromCallerMutation()',
+      ].sort()
+    );
+    assert.ok(out.every((r: any) => r.status === 'Passed'));
+  });
+
   test('parses failed JUnit console logs into Passed/Failed and keeps failure details', () => {
     const analyzer = new Analyzer('java');
     const { logPath, testFilePath } = stageLogOnly('CSVFormat_setAllowMissingColumnNames_4103Test');

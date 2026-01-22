@@ -10,12 +10,12 @@ import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from '../../
 import { readSliceAndSaveTaskList } from '../../../../experiment/utils/helper';
 
 suite('Experiment Test Suite', () => {
-    const projectName = "tornado" as ProjectConfigName;
+    const projectName = "mimesis" as ProjectConfigName;
     const pythonInterpreterPath = getProjectPythonExe(projectName) as string;       
     const pythonExtraPaths = getProjectPythonPath(projectName);
-    const projectPath = getProjectWorkspace("tornado");
+    const projectPath = getProjectWorkspace(projectName);
     const languageId = getProjectLanguage(projectName as ProjectConfigName);
-    const taskListPath = '/LSPRAG/experiments/projects/tornado/symbol_robustness_results.json';
+    const taskListPath = '/LSPRAG/experiments/projects/mimesis/symbol_robustness_results.json';
     const sampleNumber = 100;
     const currentConfig = {
         provider: 'openai' as Provider,
@@ -88,13 +88,13 @@ suite('Experiment Test Suite', () => {
     //     console.log(`#### Number of symbols: ${symbols.length}`);
     // });
 
-    test('LSPRAG - gpt-5', async () => {
+    test('LSPRAG - deepseek-chat', async () => {
         await runGenerateTestCodeSuite(
             GenerationType.LSPRAG,
             FixType.ORIGINAL,
             PromptType.WITHCONTEXT,
-            'gpt-5',
-            'openai' as Provider,
+            'deepseek-chat',
+            'deepseek' as Provider,
             symbols,
             languageId,
         );

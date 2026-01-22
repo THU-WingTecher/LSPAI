@@ -38,6 +38,24 @@ suite('Experiment Test Suite - JAVA', () => {
         assert.ok(vscode.workspace.workspaceFolders, 'Workspace folders should be set');
         assert.strictEqual(vscode.workspace.workspaceFolders[0].uri.fsPath, projectPath, 'Workspace folder should match project path');
 
+        // Ensure test sources are treated as project sources so JDT LS does not flag them as non-project files.
+        const javaConfig = vscode.workspace.getConfiguration('java');
+        const rawSourcePaths = javaConfig.get<any>('project.sourcePaths');
+        const sourcePaths = Array.isArray(rawSourcePaths)
+            ? rawSourcePaths.slice()
+            : rawSourcePaths
+                ? [String(rawSourcePaths)]
+                : [];
+        const relTestSource = 'src/lsprag/test/java';
+        if (!sourcePaths.includes(relTestSource)) {
+            const nextPaths = [...sourcePaths, relTestSource];
+            await javaConfig.update('project.sourcePaths', nextPaths, vscode.ConfigurationTarget.Workspace);
+            console.log('Added java.project.sourcePaths entry for test sources:', nextPaths);
+        }
+
+        const javaOptions = vscode.workspace.getConfiguration().get('java') as Record<string, unknown>;
+        console.log('Reachable java options keys:', Object.keys(javaOptions || {}));
+        console.log('Reachable java options values:', JSON.stringify(javaOptions, null, 2));
         console.log('\n========== Reloading Java Language Server ==========');
         await reloadJavaLanguageServer();
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for Maven import to complete

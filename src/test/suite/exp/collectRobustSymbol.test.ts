@@ -94,7 +94,7 @@ export async function measureSymbolRobustness(
 
 suite('Experiment Test Suite', () => {
     // const projectName = "commons-cli";
-    const projectName = "tornado";
+    const projectName = "black";
     const pythonInterpreterPath = getProjectPythonExe(projectName) as string;
     const pythonExtraPaths = getProjectPythonPath(projectName);
     const languageId = getProjectLanguage(projectName as ProjectConfigName);

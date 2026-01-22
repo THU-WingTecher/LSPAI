@@ -58,6 +58,23 @@ export function computeOutputTestFilePath(outputDir: string, language: string, t
   return path.join(outputDir, testFileName);
 }
 
+/**
+ * Clean hover/signature text for prompt usage.
+ * VSCode hover sometimes includes HTML comments like: <!--moduleHash:1770460346-->
+ */
+export function cleanInvokedSignatureText(input: string): string {
+  if (!input) {
+    return '';
+  }
+  // Remove HTML comment tags (including moduleHash markers) and normalize whitespace a bit.
+  // Example: "<!--moduleHash:1770460346-->" -> ""
+  return input
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
 interface ExaminationResults {
   summary: {
     total_examined: number;
@@ -348,7 +365,7 @@ export class LLMFixWorkflow {
         const hoverText = extractHoverText(hoverResults);
         if (hoverText) {
           const key = `${def.uri.toString()}:${defSymbol.selectionRange.start.line}:${defSymbol.selectionRange.start.character}`;
-          unique.set(key, hoverText.trim());
+          unique.set(key, cleanInvokedSignatureText(hoverText).trim());
         }
       }
 

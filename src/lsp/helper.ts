@@ -184,12 +184,33 @@ export async function getJavaProjectSettings(projectUri: vscode.Uri): Promise<an
 
 export async function reloadJavaLanguageServer() {
     try {
-        // Clean Java Language Server Workspace
-        await vscode.commands.executeCommand(
-            "java.server.restart"
-          );
-        // await vscode.commands.executeCommand('java.clean.workspace');
+        // Ensure Java extension is activated (otherwise commands can race with "starting" state).
+        const javaExt = vscode.extensions.getExtension('redhat.java');
+        if (javaExt) {
+            console.log('Activating Java extension');
+            await javaExt.activate();
+        }
 
+        // Try restart, but tolerate the "starting" state.
+        try {
+            console.log('Executing java.server.restart command');
+            await vscode.commands.executeCommand("java.server.restart");
+            console.log('java.server.restart command executed successfully');
+        } catch (e) {
+            console.warn('[reloadJavaLanguageServer] java.server.restart failed (continuing):', e);
+        }
+
+        // JDT LS often needs an explicit project configuration refresh (Maven import)
+        // before "is not on the classpath..." diagnostics disappear.
+        // await refreshJavaProjectConfigurationIfAvailable();
+        // This is critical for recognizing non-standard source directories like src/lsprag/test/java
+        try {
+            console.log('Refreshing Java project configuration (Maven import)');
+            await vscode.commands.executeCommand("java.project.update");
+            console.log('Java project configuration refreshed successfully');
+        } catch (e) {
+            console.warn('[reloadJavaLanguageServer] java.project.update failed (continuing):', e);
+        }
         console.log('Java Language Server reloaded successfully');
     } catch (error) {
         console.error('Error reloading Java Language Server:', error);

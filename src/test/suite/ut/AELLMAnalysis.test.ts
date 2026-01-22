@@ -15,7 +15,7 @@ interface AELLMAnalysisTestConfig {
 
 suite('EXECUTE - Python', () => {
   /////////////////////////////////////
-  const concurrency = 10;
+  const concurrency = 60;
   const configs: AELLMAnalysisTestConfig[] = [
     // { projectName: "tornado",
     // testsDir: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/gpt-5/codes',
@@ -26,16 +26,16 @@ suite('EXECUTE - Python', () => {
     // testFileMapPath: '/LSPRAG/experiments/data/RA/tornado/lsprag-gpt5/test_file_map.json'
     // },
     // { projectName: "commons-cli",
-    // testsDir: '/LSPRAG/experiments/data/main_result/commons-cli/lsprag/1/gpt-4o/results/final',
-    // testFileMapPath: '/LSPRAG/experiments/config/commons-cli_test_file_map.json'
-    // },
-    // { projectName: "black",
-    // testsDir: '/LSPRAG/experiments/motiv/assertion/opencode/gpt-5/codes',
-    // testFileMapPath: '/LSPRAG/experiments/motiv/assertion/opencode/test_file_map.json'
+    // testsDir: '/LSPRAG/experiments/data/RA/commons-cli/lsprag-gpt5/results/final',
+    // testFileMapPath: '/LSPRAG/experiments/data/RA/commons-cli/lsprag-gpt5/results/test_file_map.json'
     // },
     { projectName: "black",
-    testsDir: '/LSPRAG/experiments/data/main_result/black/lsprag/5/gpt-4o/results/final',
-    testFileMapPath: '/LSPRAG/experiments/config/black_test_file_map.json'
+    testsDir: '/LSPRAG/experiments/projects/black/lsprag-workspace/20260121_092818/black/lsprag_withcontext_/deepseek-chat/results_resumed/final',
+    testFileMapPath: '/LSPRAG/experiments/projects/black/lsprag-workspace/20260121_092818/black/lsprag_withcontext_/deepseek-chat/results/test_file_map.json'
+    },
+    { projectName: "black",
+    testsDir: '/LSPRAG/experiments/projects/black/lsprag-workspace/20260121_092818/black/lsprag_withcontext_/deepseek-chat/results/final',
+    testFileMapPath: '/LSPRAG/experiments/projects/black/lsprag-workspace/20260121_092818/black/lsprag_withcontext_/deepseek-chat/results/test_file_map.json'
     },
     // { projectName: "black",
     // testsDir: '/LSPRAG/experiments/data/motiv/codes-tests',
@@ -77,7 +77,7 @@ suite('EXECUTE - Python', () => {
       getConfigInstance().updateConfig({
         ...currentConfig
       });
-      if (!fs.existsSync(inputJsonPath)) {
+      // if (!fs.existsSync(inputJsonPath)) {
         await runPipeline(testsDir, final_report_path, testFileMapPath, {
           language: language,
           pythonExe: pythonInterpreterPath,
@@ -85,14 +85,14 @@ suite('EXECUTE - Python', () => {
           timeoutSec: 30,
           pythonpath: pythonExtraPaths
         });
-      }
-      await runLLMFixWorkflow(inputJsonPath, outputDir, {
-        language: language,
-        pythonExe: pythonInterpreterPath,
-        jobs: concurrency,
-        timeoutSec: 30,
-        pythonpath: pythonExtraPaths
-      });
+      // }
+      // await runLLMFixWorkflow(inputJsonPath, outputDir, {
+      //   language: language,
+      //   pythonExe: pythonInterpreterPath,
+      //   jobs: concurrency,
+      //   timeoutSec: 30,
+      //   pythonpath: pythonExtraPaths
+      // });
     }
   });
 });

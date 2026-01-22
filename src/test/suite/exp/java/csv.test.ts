@@ -40,11 +40,11 @@ suite('Experiment Test Suite - JAVA', () => {
 
         console.log('\n========== Reloading Java Language Server ==========');
         await reloadJavaLanguageServer();
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for Maven import to complete
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for Maven import to complete
         console.log('Java Language Server reload completed');
         
         // Open the test file to ensure Language Server analyzes it
-        const testFilePath = "/LSPRAG/experiments/projects/commons-csv/src/lsprag/test/java/org/apache/commons/csv/CSVRecord_get_9851Test.java";
+        const testFilePath = "/LSPRAG/experiments/projects/commons-csv/src/lsprag/test/java/org/apache/commons/csv/CSVFormat_clone_8621Test.java";
         const testFileUri = vscode.Uri.file(testFilePath);
         const document = await vscode.workspace.openTextDocument(testFileUri);
         await vscode.window.showTextDocument(document);
@@ -87,34 +87,34 @@ suite('Experiment Test Suite - JAVA', () => {
     //     console.log(`#### Number of symbols: ${symbols.length}`);
     // });
 
-    test('Prepare FUT with robustness scores for assertion generation analysis (commons-csv)', async () => {
+    // test('Prepare FUT with robustness scores for assertion generation analysis (commons-csv)', async () => {
 
-        const taskListPath = '/LSPRAG/experiments/projects/commons-csv/symbol_robustness_results.json';
-        const sampledTaskListPath = await readSliceAndSaveTaskList(taskListPath, 5);
+    //     const taskListPath = '/LSPRAG/experiments/projects/commons-csv/symbol_robustness_results.json';
+    //     const sampledTaskListPath = await readSliceAndSaveTaskList(taskListPath, 5);
         
-        const workspaceFolders = setWorkspaceFolders(projectPath);
-        // await updateWorkspaceFolders(workspaceFolders);
-        console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
+    //     const workspaceFolders = setWorkspaceFolders(projectPath);
+    //     // await updateWorkspaceFolders(workspaceFolders);
+    //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
-        symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
-        symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
+    //     symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
+    //     symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
 
-        // // ==== LOAD SYMBOLS FROM TASK LIST ====
-        assert.ok(symbols.length > 0, 'symbols should not be empty');
-        console.log(`#### Number of symbols: ${symbols.length}`);
-    });
+    //     // // ==== LOAD SYMBOLS FROM TASK LIST ====
+    //     assert.ok(symbols.length > 0, 'symbols should not be empty');
+    //     console.log(`#### Number of symbols: ${symbols.length}`);
+    // });
 
-    test('CFG - LSPRAG - 4o-mini', async () => {
-        await runGenerateTestCodeSuite(
-            GenerationType.LSPRAG,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            'gpt-4o-mini',
-            'openai' as Provider,
-            symbols,
-            languageId
-        );
-    });
+    // test('CFG - LSPRAG - 4o-mini', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.LSPRAG,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'gpt-4o-mini',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
 
     // test('CFG - experimental - deepseek-coder', async () => {
     //     await runGenerateTestCodeSuite(

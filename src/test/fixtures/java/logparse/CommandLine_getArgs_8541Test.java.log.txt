@@ -1,0 +1,18 @@
+Thanks for using JUnit! Support its development at https://junit.org/sponsoring
+
+╷
+├─ JUnit Jupiter ✔
+│  └─ CommandLine_getArgs_8541Test ✔
+│     ├─ getArgs_preservesOrder_and_updatesWhenArgsChange() ✔
+│     ├─ getArgs_returnsNewArrayAndIsIndependentFromCallerMutation() ✔
+│     └─ CommandLine_getArgs_8541Test_0() ✔
+└─ JUnit Vintage ✔
+
+Test run finished after 104 ms
+[         3 tests found           ]
+
+
+
+
+
+
