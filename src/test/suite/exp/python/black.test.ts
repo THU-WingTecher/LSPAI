@@ -9,7 +9,7 @@ import { readSliceAndSaveTaskList } from '../../../../experiment/utils/helper';
 import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from '../../../../experiment';
 import { runPipeline } from '../../../../ut_runner/runner';
 import { setupPythonWorkspaceForExperiment } from '../../../../helper';
-import { getPythonProjectInfo } from '../../utils/projectInfo';
+import { getPythonProjectInfo } from '../../../../config';
 
 suite('Experiment Test Suite', () => {
     const parallelCount = 80;
@@ -97,6 +97,55 @@ suite('Experiment Test Suite', () => {
     //     );
     // });
 
+    test('Existing cache dir fixing by reflect strategy; deepseek-coder; naive-experimental comparative experiment ', async () => {
+        const cachedDir = "/LSPRAG/experiments/data/RA/mimesis/claudecode-deepseek/2026-01-16/codes"
+        const testMap = "/LSPRAG/experiments/config/mimesis-robust-sample100.json"
+
+        await runGenerateTestCodeSuite(
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
+            PromptType.WITHCONTEXT,
+            'deepseek-chat',
+            'deepseek' as Provider,
+            symbols,
+            languageId,
+            undefined,
+            cachedDir
+        );
+        let testsDir = path.join(getConfigInstance().savePath, "final");
+        let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+        let final_report_path = testsDir+'-final-report';
+        await runPipeline(testsDir, final_report_path, testFileMapPath, {
+          language: languageId,
+          pythonExe: pythonInterpreterPath,
+          jobs: getConfigInstance().parallelCount,
+          timeoutSec: 30,
+          pythonpath: pythonExtraPaths
+        });
+
+        await runGenerateTestCodeSuite(
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
+            PromptType.NAIVE,
+            'deepseek-chat',
+            'deepseek' as Provider,
+            symbols,
+            languageId,
+            undefined,
+            cachedDir
+        );
+        testsDir = path.join(getConfigInstance().savePath, "final");
+        testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+        final_report_path = testsDir+'-final-report';
+        await runPipeline(testsDir, final_report_path, testFileMapPath, {
+          language: languageId,
+          pythonExe: pythonInterpreterPath,
+          jobs: getConfigInstance().parallelCount,
+          timeoutSec: 30,
+          pythonpath: pythonExtraPaths
+        });
+
+    });
     test('LSPRAG-reflact; deepseek-coder; naive-experimental comparative experiment ', async () => {
 
         await runGenerateTestCodeSuite(
