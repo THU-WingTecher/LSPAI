@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { getConfigInstance, PromptType } from '../../config';
+import { getConfigInstance } from '../../config';
 import { invokeLLM } from '../../invokeLLM';
 import { ExpLogger, LLMLogs } from '../../log';
 import { constructSourceCodeWithRelatedInfo, parseCode } from '../../lsp/utils';
@@ -10,6 +10,7 @@ import { ChatMessage } from '../../prompts/ChatMessage';
 import { detectRedefinedAssertions, prettyPrintDefTree, RedefinedSymbol } from '../../ut_runner/analysis/assertion_detector';
 import { LLMFixWorkflow } from '../../ut_runner/analysis/llm_fix_workflow';
 import { LSPRAGTestGenerator } from './lsprag';
+import { PromptType } from '../../config';
 
 function getTestFileExtension(languageId: string): string {
 	switch (languageId) {
@@ -262,6 +263,7 @@ export function buildAssertionReflectionPrompt(params: {
 		'- Do NOT redefine constants/functions/classes that already exist in the project; instead, import/reuse the source definitions.',
 		'- Keep test intent and structure as-is when possible; only adjust what is needed to make assertions correct.',
 		'- Prefer assertions that are directly implied by the focal method behavior and inputs/outputs.',
+		'- Checkout whether given test code is satisfied the given path coverage requirements, if not, adjust the test code to satisfy the requirements.',
 		'- Return ONLY the final complete test code wrapped in a single triple-backtick code block.'
 	].join('\n');
  
@@ -275,7 +277,7 @@ export function buildAssertionReflectionPrompt(params: {
 		params.focalMethodSource || '(unavailable)',
 		'```',
 		'',
-		'### Draft test code',
+		'### Draft test code with test prefix path coverage requirements',
 		'```',
 		params.draftTestCode,
 		'```',

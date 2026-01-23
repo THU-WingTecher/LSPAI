@@ -161,7 +161,7 @@ export function conditionToPrompt(analysis: ConditionAnalysis): string {
                     .map(c => c.trim());
     
                 if (conditions.length > 1) {
-                    lines.push('\n\t\tTo cover the above condition, you need to cover below conditions:');
+                    // lines.push('\n\t\tTo cover the above condition, you need to cover below conditions:');
                     // Get all conditions except the last one (which is our target condition)
                     const intermediateConditions = conditions.slice(0, -1);
                     intermediateConditions.forEach((cond, index) => {
