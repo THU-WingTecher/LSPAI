@@ -52,8 +52,9 @@ export async function readSliceAndSaveTaskList(
     const outputPath = path.join(dir, `${basename}-sample${sampleNumber > 0 ? sampleNumber : 'all'}.json`);
     
     // Save to JSON file
-    fs.writeFileSync(outputPath, JSON.stringify(slicedTaskList, null, 2), 'utf-8');
-    console.log(`Task list sliced and saved to: ${outputPath}`);
-    
+    if (sampleNumber > 0) {
+        fs.writeFileSync(outputPath, JSON.stringify(slicedTaskList, null, 2), 'utf-8');
+        console.log(`Task list sliced and saved to: ${outputPath}`);
+    }
     return outputPath;
 }
