@@ -42,24 +42,38 @@ export async function generateTestWithContextWithCFG(
 
     // const systemPrompt = prompts.system_prompt;
     // let userPrompt = prompts.user_prompt;
-    // const conditionsWithIndex = conditionAnalyses.map((p, index) => `${index+1}. ${p.condition}`).join('\n')
     const conditionsWithIndex = [""];
     // Replace variables in the user prompt
-    userPrompt = userPrompt
-        .replace('{focal_method}', source_code_str)
-        // .replace('{conditions}', conditionsWithIndex)
-        .replace('{context}', context_info_str)
-        .replace('{test_format}', LanguageTemplateManager.getUnitTestTemplate(
-            document.languageId,
-            fileName,
-            packageStatement ? packageStatement[0] : "",
-            importString,
-            // conditionAnalyses.map(c=>conditionToPrompt(c))
-            [""]
-        ));
+    if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
+        userPrompt = userPrompt
+            .replace('{focal_method}', source_code_str)
+            // .replace('{conditions}', conditionsWithIndex)
+            .replace('{context}', context_info_str)
+            .replace('{test_format}', LanguageTemplateManager.getUnitTestTemplate(
+                document.languageId,
+                fileName,
+                packageStatement ? packageStatement[0] : "",
+                importString,
+                // conditionAnalyses.map(c=>conditionToPrompt(c))
+                [""]
+            ));
 
-    systemPrompt = systemPrompt
-        .replace('{example}', example);
+        systemPrompt = systemPrompt
+            .replace('{example}', example);
+        } else if (getConfigInstance().promptType === PromptType.CFG) {
+            // const conditionsWithIndex = conditionAnalyses.map((p, index) => `${index+1}. ${p.condition}`).join('\n')
+            userPrompt = userPrompt
+                .replace('{focal_method}', source_code_str)
+                .replace('{context}', context_info_str)
+                .replace('{test_format}', LanguageTemplateManager.getUnitTestTemplate(
+                    document.languageId,
+                    fileName,
+                    packageStatement ? packageStatement[0] : "",
+                    importString,
+                    conditionAnalyses.map(c=>conditionToPrompt(c))
+                )
+            );
+        }
     return [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
@@ -181,12 +195,12 @@ export class LSPRAGTestGenerator extends BaseTestGenerator {
         
         // Gather context if needed
         let enrichedTerms;
-        if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
-            enrichedTerms = await this.collectInfo(conditionAnalyses, builder.getFunctionInfo());
-			if (enrichedTerms === null) {
-				return "";
-			}
-        }
+        // if (getConfigInstance().promptType === PromptType.WITHCONTEXT) {
+        enrichedTerms = await this.collectInfo(conditionAnalyses, builder.getFunctionInfo());
+		// 	if (enrichedTerms === null) {
+		// 		return "";
+		// 	}
+        // }
 
         // Generate test
         const generationStartTime = Date.now();

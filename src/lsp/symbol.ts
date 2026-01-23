@@ -325,7 +325,7 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
     console.log('current workspace', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
     const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
-    const projectName = path.basename(workspace);
+    const projectName = getConfigInstance().getProjectName();
     testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
     const relativeExcludePaths = getSrcPathToExclude(projectName as ProjectConfigName);
     const workspacePath = getProjectWorkspace(projectName as ProjectConfigName);
