@@ -1,19 +1,24 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../../helper';
-import { getConfigInstance, PromptType, Provider, GenerationType, FixType } from '../../../../config';
+import { getConfigInstance, PromptType, Provider, GenerationType, FixType, ProjectConfigName, getProjectWorkspace, getProjectLanguage } from '../../../../config';
 import { runGenerateTestCodeSuite } from '../../../../experiment';
 import { loadAllTargetSymbolsFromWorkspace } from '../../../../lsp/symbol';
 import { findMatchedSymbolsFromTaskList } from '../../../../experiment';
 import { readSliceAndSaveTaskList } from '../../../../experiment/utils/helper';
 import { getDiagnosticsForFilePath } from '../../../../lsp/diagnostic';
 import { reloadJavaLanguageServer } from '../../../../lsp/helper';
+import * as path from 'path';
+import { runPipeline } from '../../../../ut_runner/runner';
 
 suite('Experiment Test Suite - JAVA', () => {
-    const projectPath = "/LSPRAG/experiments/projects/commons-cli";
-    const sampleNumber = 20;
-    const languageId = 'java';
+    const projectName = "commons-cli" as ProjectConfigName;
+    const projectPath = getProjectWorkspace(projectName);
+    const languageId = getProjectLanguage(projectName);
+    const parallelCount = 8;
+    const sampleNumber = 100;
     const currentConfig = {
+        parallelCount: parallelCount,
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
         expProb: 1,
@@ -37,22 +42,6 @@ suite('Experiment Test Suite - JAVA', () => {
         }
         assert.ok(vscode.workspace.workspaceFolders, 'Workspace folders should be set');
         assert.strictEqual(vscode.workspace.workspaceFolders[0].uri.fsPath, projectPath, 'Workspace folder should match project path');
-
-        // Ensure test sources are treated as project sources so JDT LS does not flag them as non-project files.
-        const javaConfig = vscode.workspace.getConfiguration('java');
-        const rawSourcePaths = javaConfig.get<any>('project.sourcePaths');
-        const sourcePaths = Array.isArray(rawSourcePaths)
-            ? rawSourcePaths.slice()
-            : rawSourcePaths
-                ? [String(rawSourcePaths)]
-                : [];
-        const relTestSource = 'src/lsprag/test/java';
-        if (!sourcePaths.includes(relTestSource)) {
-            const nextPaths = [...sourcePaths, relTestSource];
-            await javaConfig.update('project.sourcePaths', nextPaths, vscode.ConfigurationTarget.Workspace);
-            console.log('Added java.project.sourcePaths entry for test sources:', nextPaths);
-        }
-
         const javaOptions = vscode.workspace.getConfiguration().get('java') as Record<string, unknown>;
         console.log('Reachable java options keys:', Object.keys(javaOptions || {}));
         console.log('Reachable java options values:', JSON.stringify(javaOptions, null, 2));
@@ -105,29 +94,94 @@ suite('Experiment Test Suite - JAVA', () => {
     //     console.log(`#### Number of symbols: ${symbols.length}`);
     // });
 
-    // test('Prepare FUT with robustness scores for assertion generation analysis (commons-cli)', async () => {
+    test('Prepare FUT with robustness scores for assertion generation analysis (commons-cli)', async () => {
 
-    //     const taskListPath = '/LSPRAG/experiments/projects/commons-cli/symbol_robustness_results.json';
-    //     const sampledTaskListPath = await readSliceAndSaveTaskList(taskListPath, 5);
+        const taskListPath = '/LSPRAG/experiments/config/commons-cli-robust-sample100.json';
+        const sampledTaskListPath = await readSliceAndSaveTaskList(taskListPath, sampleNumber);
         
-    //     const workspaceFolders = setWorkspaceFolders(projectPath);
-    //     // await updateWorkspaceFolders(workspaceFolders);
-    //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
+        const workspaceFolders = setWorkspaceFolders(projectPath);
+        // await updateWorkspaceFolders(workspaceFolders);
+        console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
-    //     symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
-    //     symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
+        symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
+        symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
 
-    //     // // ==== LOAD SYMBOLS FROM TASK LIST ====
-    //     assert.ok(symbols.length > 0, 'symbols should not be empty');
-    //     console.log(`#### Number of symbols: ${symbols.length}`);
-    // });
+        // // ==== LOAD SYMBOLS FROM TASK LIST ====
+        assert.ok(symbols.length > 0, 'symbols should not be empty');
+        console.log(`#### Number of symbols: ${symbols.length}`);
+    });
 
-    // test('CFG - LSPRAG - 4o-mini', async () => {
+    test('LSPRAG-reflact; deepseek-coder; naive-experimental comparative experiment ', async () => {
+
+        await runGenerateTestCodeSuite(
+            GenerationType.LSPRAG,
+            FixType.ORIGINAL,
+            PromptType.WITHCONTEXT,
+            'deepseek-chat',
+            'deepseek' as Provider,
+            symbols,
+            languageId,
+            undefined,
+        );
+
+        const cachedDir = getConfigInstance().savePath;
+        let testsDir = path.join(getConfigInstance().savePath, "final");
+        let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+        let final_report_path = testsDir+'-final-report';
+
+        await runPipeline(testsDir, final_report_path, testFileMapPath, {
+          language: languageId,
+          jobs: getConfigInstance().parallelCount,
+          timeoutSec: 30,
+        });
+
+        await runGenerateTestCodeSuite(
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
+            PromptType.WITHCONTEXT,
+            'deepseek-chat',
+            'deepseek' as Provider,
+            symbols,
+            languageId,
+            undefined,
+            cachedDir
+        );
+        testsDir = path.join(getConfigInstance().savePath, "final");
+        testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+        final_report_path = testsDir+'-final-report';
+        await runPipeline(testsDir, final_report_path, testFileMapPath, {
+          language: languageId,
+          jobs: getConfigInstance().parallelCount,
+          timeoutSec: 30,
+        });
+
+        await runGenerateTestCodeSuite(
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
+            PromptType.NAIVE,
+            'deepseek-chat',
+            'deepseek' as Provider,
+            symbols,
+            languageId,
+            undefined,
+            cachedDir
+        );
+        testsDir = path.join(getConfigInstance().savePath, "final");
+        testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+        final_report_path = testsDir+'-final-report';
+        await runPipeline(testsDir, final_report_path, testFileMapPath, {
+          language: languageId,
+          jobs: getConfigInstance().parallelCount,
+          timeoutSec: 30,
+        });
+
+    });
+    // test('CFG - LSPRAG - gpt-5', async () => {
     //     await runGenerateTestCodeSuite(
     //         GenerationType.LSPRAG,
     //         FixType.ORIGINAL,
     //         PromptType.WITHCONTEXT,
-    //         'gpt-4o-mini',
+    //         'gpt-5',
     //         'openai' as Provider,
     //         symbols,
     //         languageId

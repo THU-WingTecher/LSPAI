@@ -40,6 +40,10 @@
       {
         "command": "LSPRAG.showSettings",
         "title": "LSPRAG: Show Current Settings"
+      },
+      {
+        "command": "LSPRAG.runCommonsCliExperiment",
+        "title": "LSPRAG: Run Commons-CLI Experiment"
       }
     ],
     "menus": {

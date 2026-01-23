@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../../helper';
-import { getConfigInstance, PromptType, Provider, GenerationType, FixType } from '../../../../config';
+import { getConfigInstance, PromptType, Provider, GenerationType, FixType, ProjectConfigName, getProjectWorkspace, getProjectLanguage } from '../../../../config';
 import { runGenerateTestCodeSuite } from '../../../../experiment';
 import { loadAllTargetSymbolsFromWorkspace } from '../../../../lsp/symbol';
 import { findMatchedSymbolsFromTaskList } from '../../../../experiment';
@@ -10,15 +10,16 @@ import { getDiagnosticsForFilePath } from '../../../../lsp/diagnostic';
 import { reloadJavaLanguageServer } from '../../../../lsp/helper';
 
 suite('Experiment Test Suite - JAVA', () => {
-    const projectPath = "/LSPRAG/experiments/projects/commons-csv";
+    const projectName = "commons-csv" as ProjectConfigName;
+    const projectPath = getProjectWorkspace(projectName);
+    const languageId = getProjectLanguage(projectName);
     const sampleNumber = 20;
-    const languageId = 'java';
     const currentConfig = {
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
         expProb: 1,
         promptType: PromptType.DETAILED,
-        workspace: projectPath,
+        workspace: projectPath
     };
     // let testFilesPath = "/LSPRAG/experiments/projects/commons-csv/src/main/java/org/apache/commons/cli";  
     getConfigInstance().updateConfig({
@@ -95,7 +96,12 @@ suite('Experiment Test Suite - JAVA', () => {
     //     const workspaceFolders = setWorkspaceFolders(projectPath);
     //     // await updateWorkspaceFolders(workspaceFolders);
     //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
+    //     const workspaceFolders = setWorkspaceFolders(projectPath);
+    //     // await updateWorkspaceFolders(workspaceFolders);
+    //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
+    //     symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
+    //     symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
     //     symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
     //     symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
 
@@ -103,7 +109,22 @@ suite('Experiment Test Suite - JAVA', () => {
     //     assert.ok(symbols.length > 0, 'symbols should not be empty');
     //     console.log(`#### Number of symbols: ${symbols.length}`);
     // });
+    //     // // ==== LOAD SYMBOLS FROM TASK LIST ====
+    //     assert.ok(symbols.length > 0, 'symbols should not be empty');
+    //     console.log(`#### Number of symbols: ${symbols.length}`);
+    // });
 
+    // test('CFG - LSPRAG - 4o-mini', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.LSPRAG,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'gpt-4o-mini',
+    //         'openai' as Provider,
+    //         symbols,
+    //         languageId
+    //     );
+    // });
     // test('CFG - LSPRAG - 4o-mini', async () => {
     //     await runGenerateTestCodeSuite(
     //         GenerationType.LSPRAG,

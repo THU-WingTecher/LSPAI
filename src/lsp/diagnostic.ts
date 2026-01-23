@@ -92,7 +92,7 @@ export async function applyCodeActions(targetUri: vscode.Uri, codeActions: vscod
             let commandExecResult = await vscode.commands.executeCommand(fix.command.command, ...(fix.command.arguments || []));
             console.log(`[applyCodeActions] Command executed: "${fix.command.command}" with result:`, commandExecResult);
         }
-        console.log("[applyCodeActions] After fixing:::\n", document.getText())
+        console.log("[applyCodeActions] After fixing:::\n", document.getText());
             
     }
 
@@ -246,11 +246,31 @@ export async function getDiagnosticsForFilePath(filePath: string): Promise<vscod
     // console.log(text)
     await activate(uri);
     // const diagnostics = await getDiagnosticsForUri(uri);
+    const classpathMsg = 'is not on the classpath of project';
+    const maxWaitMs = 30000;
+    const pollIntervalMs = 2000;
+
+    const start = Date.now();
     let diagnostics: vscode.Diagnostic[] = await vscode.languages.getDiagnostics(uri);
-    if (diagnostics.length === 0) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        diagnostics = await vscode.languages.getDiagnostics(uri);
+
+    // Retry while:
+    // - diagnostics are empty (language server still initializing), OR
+    // - we only see the transient JDT LS classpath warning during Maven import.
+    while (Date.now() - start < maxWaitMs) {
+        if (diagnostics.length === 0) {
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+            diagnostics = await vscode.languages.getDiagnostics(uri);
+            continue;
+        }
+        const hasClasspathWarning = diagnostics.some(d => d.message.includes(classpathMsg));
+        if (hasClasspathWarning) {
+            await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+            diagnostics = await vscode.languages.getDiagnostics(uri);
+            continue;
+        }
+        break;
     }
+
     console.log('initial diagnostics', diagnostics.map(diag => diag.message));
     return diagnostics;
 }

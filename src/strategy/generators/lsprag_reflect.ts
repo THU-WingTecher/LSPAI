@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { getConfigInstance } from '../../config';
+import { getConfigInstance, PromptType } from '../../config';
 import { invokeLLM } from '../../invokeLLM';
 import { ExpLogger, LLMLogs } from '../../log';
 import { constructSourceCodeWithRelatedInfo, parseCode } from '../../lsp/utils';
@@ -10,7 +10,6 @@ import { ChatMessage } from '../../prompts/ChatMessage';
 import { detectRedefinedAssertions, prettyPrintDefTree, RedefinedSymbol } from '../../ut_runner/analysis/assertion_detector';
 import { LLMFixWorkflow } from '../../ut_runner/analysis/llm_fix_workflow';
 import { LSPRAGTestGenerator } from './lsprag';
-import { PromptType } from '../../config';
 
 function getTestFileExtension(languageId: string): string {
 	switch (languageId) {
