@@ -289,11 +289,15 @@ class Baseline:
         response = self.invoke_llm(messages)
         code = parse_code(response.content if hasattr(response, 'content') else str(response))
 
+        location = task.get('location')
+        if location is None:
+            location = task.get('line_num', task.get('lineNum'))
+
         return {
             'symbol_name': task['symbolName'],
             'original_source': {
                 'code': task['sourceCode'],
-                'line_num': task['lineNum'],
+                'location': location,
                 'doc_path': task['relativeDocumentPath']
             },
             'retrieved_sources': [

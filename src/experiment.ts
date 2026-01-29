@@ -28,6 +28,7 @@ interface TaskProgress {
     sourceCode: string;
     importString: string;
     lineNum: number;
+    location?: number;
     completed: boolean;
     timestamp?: string;
     error?: string;
@@ -106,6 +107,7 @@ export class ExperimentContinuityManager {
                 sourceCode: document.getText(symbol.range),
                 importString: importString,
                 lineNum: symbol.range.end.line - symbol.range.start.line,
+                location: symbol.range.start.line,
                 relativeDocumentPath: relativePath
             };
         });
@@ -244,22 +246,80 @@ export async function findMatchedSymbolsFromTaskList(
     const taskList = JSON.parse(taskListContent) as Array<{
         symbolName: string;
         relativeDocumentPath: string;
+        lineNum?: number;
+        location?: number;
+        line_num?: number;
     }>;
 
-    // Find matching symbols
-    const matchedSymbols = allSymbols.filter(({ symbol, document }) => {
-        const currentRelativePath = path.relative(workspaceFolderPath, document.uri.fsPath);
-        
-        // Find a matching entry in taskList
-        const matchingTask = taskList.find(task => 
-            task.symbolName === symbol.name && 
-            task.relativeDocumentPath === currentRelativePath
-        );
+    const normalizePath = (p: string) => p.replace(/\\/g, '/').replace(/^\.\//, '');
+    const symbolLineNum = (symbol: vscode.DocumentSymbol) =>
+        symbol.range.end.line - symbol.range.start.line;
+    const symbolStartLine = (symbol: vscode.DocumentSymbol) =>
+        symbol.range.start.line;
 
-        return matchingTask !== undefined;
-    });
+    const index = new Map<string, { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[]>();
+    for (const entry of allSymbols) {
+        const rel = normalizePath(path.relative(workspaceFolderPath, entry.document.uri.fsPath));
+        const key = `${rel}::${entry.symbol.name}`;
+        const list = index.get(key) ?? [];
+        list.push(entry);
+        index.set(key, list);
+    }
 
-    console.log(`Found ${matchedSymbols.length} matching symbols from taskList`);
+    const matchedSymbols: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[] = [];
+    let unmatched = 0;
+    let ambiguous = 0;
+
+    for (const task of taskList) {
+        const rel = normalizePath(task.relativeDocumentPath || '');
+        const key = `${rel}::${task.symbolName}`;
+        const candidates = index.get(key) ?? [];
+        if (candidates.length === 0) {
+            unmatched += 1;
+            continue;
+        }
+
+        const taskLocation =
+            task.location !== undefined && task.location !== null
+                ? Number(task.location)
+                : task.line_num !== undefined && task.line_num !== null
+                    ? Number(task.line_num)
+                    : undefined;
+        const taskLineNum =
+            task.lineNum !== undefined && task.lineNum !== null
+                ? Number(task.lineNum)
+                : undefined;
+
+        let selected = candidates;
+        let disambiguated = false;
+        if (Number.isFinite(taskLocation)) {
+            const locationMatched = candidates.filter(
+                c => symbolStartLine(c.symbol) === taskLocation
+            );
+            if (locationMatched.length > 0) {
+                selected = locationMatched;
+                disambiguated = true;
+            }
+        }
+        if (!disambiguated && Number.isFinite(taskLineNum)) {
+            const lineMatched = candidates.filter(
+                c => symbolLineNum(c.symbol) === taskLineNum
+            );
+            if (lineMatched.length > 0) {
+                selected = lineMatched;
+            }
+        }
+
+        if (selected.length > 1) {
+            ambiguous += 1;
+        }
+        matchedSymbols.push(selected[0]);
+    }
+
+    console.log(
+        `Found ${matchedSymbols.length} matching symbols from taskList ` +
+        `(unmatched: ${unmatched}, ambiguous: ${ambiguous})`
+    );
     return matchedSymbols;
 }
 

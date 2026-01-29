@@ -7,6 +7,7 @@ import * as path from 'path';
 import { Task, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
 import { generateTestsSequential, generateTestsParallel } from '../generators/baselineGenerator';
 import { getCost } from '../utils/costTracker';
+import { assignTaskKeys, buildTaskKey } from '../utils/taskKey';
 
 /**
  * Run baseline unit test generation experiment
@@ -30,6 +31,14 @@ export async function runBaselineExperiment(
     console.log('Loading task list...');
     const tasks = await loadTaskList(config.taskListPath);
     console.log(`Loaded ${tasks.length} tasks\n`);
+    const { duplicateBaseKeys } = assignTaskKeys(tasks);
+    if (duplicateBaseKeys.length > 0) {
+        const sample = duplicateBaseKeys.slice(0, 5);
+        console.warn(
+            `[taskList] Found ${duplicateBaseKeys.length} duplicate task keys (same file+symbol+line). ` +
+            `They will be disambiguated. Sample: ${sample.join(', ')}`
+        );
+    }
 
     // Ensure output directory exists
     if (!fs.existsSync(config.outputDir)) {
@@ -74,6 +83,7 @@ export async function runBaselineExperiment(
             config.outputDir,
             config.model,
             concurrency,
+            options.maxRetries ?? 0,
             (completed: number, total: number, taskName: string) => {
                 console.log(`[${completed}/${total}] Completed: ${taskName}`);
             }
@@ -84,6 +94,7 @@ export async function runBaselineExperiment(
             config.projectRoot,
             config.outputDir,
             config.model,
+            options.maxRetries ?? 0,
             (completed: number, total: number, taskName: string) => {
                 console.log(`[${completed}/${total}] Completed: ${taskName}`);
             }
@@ -136,16 +147,45 @@ export async function runBaselineExperiment(
     // Save test file mapping
     const mappingPath = path.join(config.outputDir, 'test_file_map.json');
     const mapping: any = {};
+    const taskByKey = new Map<string, Task>();
+    for (const task of tasks) {
+        const key = task.taskKey ?? buildTaskKey(task);
+        taskByKey.set(key, task);
+    }
+    const tasksBySymbol = new Map<string, Task[]>();
+    for (const task of tasks) {
+        const list = tasksBySymbol.get(task.symbolName) ?? [];
+        list.push(task);
+        tasksBySymbol.set(task.symbolName, list);
+    }
     results.forEach((result: any) => {
         if (result.success && result.outputFilePath) {
             const testFileName = path.basename(result.outputFilePath);
-            const task = tasks.find(t => t.symbolName === result.taskName);
+            let task: Task | undefined;
+            if (result.taskKey) {
+                task = taskByKey.get(result.taskKey);
+            }
+            if (!task && result.taskName) {
+                const matches = tasksBySymbol.get(result.taskName) ?? [];
+                if (matches.length === 1) {
+                    task = matches[0];
+                } else if (matches.length > 1) {
+                    console.warn(
+                        `[mapping] Ambiguous taskName '${result.taskName}' for ${testFileName}; ` +
+                        `add taskKey to resolve.`
+                    );
+                }
+            }
             if (task) {
                 mapping[testFileName] = {
                     project_name: path.basename(config.projectRoot),
                     file_name: task.relativeDocumentPath,
-                    symbol_name: task.symbolName
+                    symbol_name: task.symbolName,
+                    location: task.location,
+                    task_key: task.taskKey
                 };
+            } else {
+                console.warn(`[mapping] No task match for ${testFileName}; skipping mapping entry.`);
             }
         }
     });
@@ -224,4 +264,3 @@ export async function runBaselineFromArgs(
 
     return await runBaselineExperiment(config, options);
 }
-

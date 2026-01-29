@@ -201,7 +201,7 @@ class ExperimentPipeline:
             'symbol_name': symbol_name,
             'original_source': {
                 'code': source_code,
-                'line_num': line_num,
+                'location': location,
                 'doc_path': doc_path
             },
             'retrieved_sources': [

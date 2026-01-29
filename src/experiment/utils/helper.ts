@@ -45,16 +45,27 @@ export async function readSliceAndSaveTaskList(
     if (sampleNumber > 0 && sampleNumber < filteredTaskList.length) {
         slicedTaskList = filteredTaskList.slice(0, sampleNumber);
     }
+
+    // Normalize location field (rename legacy line_num -> location)
+    const normalizedTaskList = slicedTaskList.map((item: any) => {
+        if (item.line_num !== undefined) {
+            const { line_num, ...rest } = item;
+            const location = item.location ?? line_num;
+            return location !== undefined ? { ...rest, location } : rest;
+        }
+        return item;
+    });
     
     // Generate output path
     const dir = path.dirname(taskListPath);
     const basename = path.basename(taskListPath, path.extname(taskListPath));
-    const outputPath = path.join(dir, `${basename}-sample${sampleNumber > 0 ? sampleNumber : 'all'}.json`);
-    
-    // Save to JSON file
+    let outputPath;
     if (sampleNumber > 0) {
-        fs.writeFileSync(outputPath, JSON.stringify(slicedTaskList, null, 2), 'utf-8');
+        outputPath = path.join(dir, `${basename}-sample${sampleNumber}.json`);
+        fs.writeFileSync(outputPath, JSON.stringify(normalizedTaskList, null, 2), 'utf-8');
         console.log(`Task list sliced and saved to: ${outputPath}`);
+        return outputPath
+    } else {
+        return taskListPath
     }
-    return outputPath;
 }

@@ -12,6 +12,8 @@ export interface Task {
     sourceCode: string;
     importString: string;
     lineNum: number;
+    location?: number;
+    taskKey?: string;
 }
 
 /**
@@ -31,12 +33,14 @@ export interface ExperimentConfig {
  */
 export interface TestResult {
     taskName: string;
+    taskKey?: string;
     success: boolean;
     testCode?: string;
     outputFilePath?: string;
     warnings?: string[];
     error?: string;
     executionTimeMs?: number;
+    attempts?: number;
 }
 
 /**
@@ -63,6 +67,7 @@ export interface ExperimentResult {
 export interface ExperimentOptions {
     useParallel?: boolean;
     concurrency?: number;
+    maxRetries?: number;
 }
 
 /**
@@ -109,4 +114,3 @@ export interface FileNameParams {
     packageString: string;
     relativeFilePath: string;
 }
-

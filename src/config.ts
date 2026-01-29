@@ -229,7 +229,7 @@ export class Configuration {
         if (event?.affectsConfiguration?.('LSPRAG')) {
             console.log('Configuration changed, reloading...');
             this.config = this.loadConfiguration();
-            this.logAllConfig();
+            // this.logAllConfig();
             // Update any other properties or behaviors that depend on the configuration
         }
     }

@@ -138,6 +138,7 @@ export function genPythonicSrcImportStatement(text: string) {
 //             sourceCode: document.getText(symbol.range),
 //             importString: importString,
 //             lineNum: symbol.range.end.line - symbol.range.start.line,
+//             location: symbol.range.start.line,
 //             relativeDocumentPath: relativePath
 //         };
 //     });
@@ -324,4 +325,3 @@ export async function setupPythonWorkspaceForExperiment(params: {
     await setupPythonLSP(pythonExtraPaths, pythonInterpreterPath);
 }
  
-

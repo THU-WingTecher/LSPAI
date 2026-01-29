@@ -116,6 +116,7 @@ npm run experiment -- \
 - `--output-dir`: Output directory (default: `./{type}-tests/{model}/{timestamp}`)
 - `--parallel`: Use parallel execution (default: `true`)
 - `--concurrency`: Concurrency level (default: `4`)
+- `--max-retries`: Retry failed tasks up to N times (default: `0`)
 - `--log-level`: Log level (`debug`, `info`, `warn`, `error`, default: `info`)
 - `--verbose`: Enable verbose output
 

@@ -10,6 +10,8 @@ import { buildTestPrompt, detectLanguage, generateSystemPrompt } from '../prompt
 import { extractCleanCode } from '../utils/codeExtractor';
 import { generateTestFileName } from '../utils/fileNameGenerator';
 import { FileNameParams } from '../core/types';
+import { buildTaskKey, formatTaskLabel } from '../utils/taskKey';
+import { runWithRetries } from '../utils/retry';
 
 /**
  * Generate a single unit test using OpenCode
@@ -24,6 +26,7 @@ export async function generateTest(
     sharedClient?: any
 ): Promise<TestResult> {
     const startTime = Date.now();
+    const taskKey = task.taskKey ?? buildTaskKey(task);
 
 
     try {
@@ -76,6 +79,7 @@ export async function generateTest(
         if (!code) {
             return {
                 taskName: task.symbolName,
+                taskKey,
                 success: false,
                 error: 'Failed to extract code from OpenCode response',
                 warnings,
@@ -91,6 +95,7 @@ export async function generateTest(
 
         return {
             taskName: task.symbolName,
+            taskKey,
             success: true,
             testCode: code,
             outputFilePath: outputPath,
@@ -104,6 +109,7 @@ export async function generateTest(
 
         return {
             taskName: task.symbolName,
+            taskKey,
             success: false,
             error: errorMsg,
             executionTimeMs: Date.now() - startTime
@@ -121,6 +127,7 @@ export async function generateTestsSequential(
     outputDir: string,
     model: string,
     provider: string,
+    maxRetries: number = 0,
     onProgress?: (completed: number, total: number, taskName: string) => void,
     sharedClient?: any
 ): Promise<TestResult[]> {
@@ -129,7 +136,10 @@ export async function generateTestsSequential(
 
     for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
-        const result = await generateTest(task, opencodeOutputDir, projectDir, outputDir, model, provider, sharedClient);
+        const taskLabel = formatTaskLabel(task);
+        const result = await runWithRetries(taskLabel, maxRetries, () =>
+            generateTest(task, opencodeOutputDir, projectDir, outputDir, model, provider, sharedClient)
+        );
         results.push(result);
 
         if (onProgress) {
@@ -153,6 +163,7 @@ export async function generateTestsParallel(
     model: string,
     provider: string,
     concurrency: number = 4,
+    maxRetries: number = 0,
     onProgress?: (completed: number, total: number, taskName: string) => void,
     sharedClient?: any
 ): Promise<TestResult[]> {
@@ -163,7 +174,10 @@ export async function generateTestsParallel(
 
     const taskPromises = tasks.map(task =>
         limit(async () => {
-            const result = await generateTest(task, opencodeOutputDir, projectDir, outputDir, model, provider, sharedClient);
+            const taskLabel = formatTaskLabel(task);
+            const result = await runWithRetries(taskLabel, maxRetries, () =>
+                generateTest(task, opencodeOutputDir, projectDir, outputDir, model, provider, sharedClient)
+            );
             
             completed++;
             if (onProgress) {
@@ -178,4 +192,3 @@ export async function generateTestsParallel(
 
     return await Promise.all(taskPromises);
 }
-

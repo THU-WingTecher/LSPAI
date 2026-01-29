@@ -45,6 +45,7 @@ interface CLIArgs {
     outputDir?: string;
     parallel?: boolean;
     concurrency?: number;
+    maxRetries?: number;
     logLevel?: string;
     verbose?: boolean;
 }
@@ -135,6 +136,7 @@ function parseArgs(): CLIArgs {
         outputDir: parsed['output-dir'],
         parallel: parsed['parallel'] !== 'false',
         concurrency: parseInt(parsed['concurrency'] || '4'),
+        maxRetries: parseInt(parsed['max-retries'] || '0'),
         logLevel: parsed['log-level'] || 'info',
         verbose: parsed['verbose'] === 'true' || parsed['verbose'] === true
     };
@@ -160,6 +162,7 @@ function printUsage() {
     console.log('  --output-dir <path>      Output directory (default: ./{type}-tests/{model}/{timestamp})');
     console.log('  --parallel <bool>        Use parallel execution (default: true)');
     console.log('  --concurrency <num>      Concurrency level (default: 4)');
+    console.log('  --max-retries <num>      Retry failed tasks up to N times (default: 0)');
     console.log('  --log-level <level>      Log level: debug, info, warn, error (default: info)');
     console.log('  --verbose               Enable verbose output');
     console.log('');
@@ -275,6 +278,7 @@ async function main() {
     if (args.parallel) {
         console.log(`  Concurrency: ${args.concurrency}`);
     }
+    console.log(`  Max Retries: ${args.maxRetries}`);
     console.log(`  Log Level: ${args.logLevel}`);
     console.log(`  Session ID: ${sessionId}`);
     console.log(`  Experiment ID: ${experimentId}`);
@@ -308,7 +312,8 @@ async function main() {
             args.outputDir || '',
             {
                 useParallel: args.parallel,
-                concurrency: args.concurrency
+                concurrency: args.concurrency,
+                maxRetries: args.maxRetries
             }
         );
         } else if (args.type === 'opencode') {
@@ -321,7 +326,8 @@ async function main() {
             args.outputDir || '',
             {
                 useParallel: args.parallel,
-                concurrency: args.concurrency
+                concurrency: args.concurrency,
+                maxRetries: args.maxRetries
             }
         );
         } else if (args.type === 'claudecode') {
@@ -334,7 +340,8 @@ async function main() {
             args.outputDir || '',
             {
                 useParallel: args.parallel,
-                concurrency: args.concurrency
+                concurrency: args.concurrency,
+                maxRetries: args.maxRetries
             }
         );
         }
@@ -385,4 +392,3 @@ if (require.main === module) {
         process.exit(1);
     });
 }
-

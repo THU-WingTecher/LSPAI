@@ -10,6 +10,8 @@ import { buildTestPrompt, detectLanguage, generateSystemPrompt } from '../prompt
 import { extractCleanCode } from '../utils/codeExtractor';
 import { generateTestFileName } from '../utils/fileNameGenerator';
 import { FileNameParams } from '../core/types';
+import { buildTaskKey, formatTaskLabel } from '../utils/taskKey';
+import { runWithRetries } from '../utils/retry';
 
 /**
  * Claude SDK is ESM-only, but the VSCode extension host test runner loads code as CommonJS.
@@ -285,6 +287,7 @@ export async function generateTest(
     model: string
 ): Promise<TestResult> {
     const startTime = Date.now();
+    const taskKey = task.taskKey ?? buildTaskKey(task);
     
     try {
         console.log(`#### Generating test for ${task.symbolName}`);
@@ -348,6 +351,7 @@ export async function generateTest(
         if (!code) {
             return {
                 taskName: task.symbolName,
+                taskKey,
                 success: false,
                 error: 'Failed to extract code from Claude Code response',
                 warnings,
@@ -363,6 +367,7 @@ export async function generateTest(
 
         return {
             taskName: task.symbolName,
+            taskKey,
             success: true,
             testCode: code,
             outputFilePath: outputPath,
@@ -392,6 +397,7 @@ export async function generateTest(
 
         return {
             taskName: task.symbolName,
+            taskKey,
             success: false,
             error: errorMsg,
             executionTimeMs: Date.now() - startTime
@@ -408,6 +414,7 @@ export async function generateTestsSequential(
     projectDir: string,
     outputDir: string,
     model: string,
+    maxRetries: number = 0,
     onProgress?: (completed: number, total: number, taskName: string) => void
 ): Promise<TestResult[]> {
     const results: TestResult[] = [];
@@ -415,7 +422,10 @@ export async function generateTestsSequential(
 
     for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
-        const result = await generateTest(task, claudeCodeOutputDir, projectDir, outputDir, model);
+        const taskLabel = formatTaskLabel(task);
+        const result = await runWithRetries(taskLabel, maxRetries, () =>
+            generateTest(task, claudeCodeOutputDir, projectDir, outputDir, model)
+        );
         results.push(result);
 
         if (onProgress) {
@@ -438,6 +448,7 @@ export async function generateTestsParallel(
     outputDir: string,
     model: string,
     concurrency: number = 4,
+    maxRetries: number = 0,
     onProgress?: (completed: number, total: number, taskName: string) => void
 ): Promise<TestResult[]> {
     const pLimit = (await import('p-limit')).default;
@@ -447,7 +458,10 @@ export async function generateTestsParallel(
 
     const taskPromises = tasks.map(task =>
         limit(async () => {
-            const result = await generateTest(task, claudeCodeOutputDir, projectDir, outputDir, model);
+            const taskLabel = formatTaskLabel(task);
+            const result = await runWithRetries(taskLabel, maxRetries, () =>
+                generateTest(task, claudeCodeOutputDir, projectDir, outputDir, model)
+            );
             
             completed++;
             if (onProgress) {
@@ -462,4 +476,3 @@ export async function generateTestsParallel(
 
     return await Promise.all(taskPromises);
 }
-
