@@ -1,4 +1,4 @@
-"""
+r"""
 python /LSPRAG/scripts/robustness_hyperparam_search.py \                                                                                                                                                                                 (base) 
                                            --scoring dual_threshold \
                                            --n-min 1 --n-max 200 --n-step 3 \
@@ -302,6 +302,8 @@ def write_heatmap_svg(
     a_values: List[int],
     b_values: List[int],
     title: str,
+    x_label: str = "A",
+    y_label: str = "B",
 ):
     # Simple heatmap without external deps
     rows = len(b_values)
@@ -336,10 +338,10 @@ def write_heatmap_svg(
 
     # Axis labels
     lines.append(
-        f"<text x='{width/2 - legend_w/2}' y='{height-10}' text-anchor='middle' font-family='Arial' font-size='12'>A</text>"
+        f"<text x='{width/2 - legend_w/2}' y='{height-10}' text-anchor='middle' font-family='Arial' font-size='12'>{x_label}</text>"
     )
     lines.append(
-        f"<text x='20' y='{height/2}' text-anchor='middle' font-family='Arial' font-size='12' transform='rotate(-90 20 {height/2})'>B</text>"
+        f"<text x='20' y='{height/2}' text-anchor='middle' font-family='Arial' font-size='12' transform='rotate(-90 20 {height/2})'>{y_label}</text>"
     )
 
     # Draw cells (B on y-axis, A on x-axis)
@@ -494,6 +496,11 @@ def main() -> int:
         help="Write SVG heatmap for A/B grid (requires --k or --k-ratio)",
     )
     parser.add_argument(
+        "--nm-heatmap-out",
+        default=None,
+        help="Write SVG heatmap for n/m grid (dual_threshold scoring)",
+    )
+    parser.add_argument(
         "--output",
         default="/LSPRAG/experiments/projects/black/robustness_hyperparam_search_results.json",
         help="Output JSON summary path",
@@ -563,8 +570,6 @@ def main() -> int:
                             "B": b,
                             "objective_value": obj_val,
                             "metrics": metrics,
-                            "eligible_count": eligible_count,
-                            "selected_k": k,
                             "delta_vs_overall": baselines["overall_k1"][
                                 "any_error_ratio" if objective == "any_error" else "mean_error_count" if objective == "mean_error_count" else "error_rate_tests"
                             ]
@@ -660,6 +665,28 @@ def main() -> int:
                     )
         candidates.sort(key=lambda x: x["objective_value"])
         top_candidates = candidates[: max(1, args.top_n)]
+
+
+        if args.nm_heatmap_out:
+            if args.scoring != "dual_threshold":
+                raise ValueError("n/m heatmap is only supported for dual_threshold scoring")
+            n_values = resolve_threshold_values(args.n, args.n_min, args.n_max, args.n_step)
+            m_values = resolve_threshold_values(args.m, args.m_min, args.m_max, args.m_step)
+            grid = []
+            for m in m_values:
+                row = []
+                for n in n_values:
+                    sel = topk(rows, "dual_threshold", 0, 0, n, m, k)
+                    metrics = compute_metrics(sel, args.error_definition)
+                    obj_val = {
+                        "any_error": metrics["any_error_ratio"],
+                        "mean_error_count": metrics["mean_error_count"],
+                        "error_rate_tests": metrics["error_rate_tests"],
+                    }[objective]
+                    row.append(obj_val)
+                grid.append(row)
+            title = f"Objective heatmap (k={k}, objective={objective}, errors={args.error_definition})"
+            write_heatmap_svg(args.nm_heatmap_out, grid, n_values, m_values, title, x_label="n", y_label="m")
 
         if args.heatmap_out:
             if args.scoring != "weighted":
