@@ -68,6 +68,10 @@ export interface ExperimentOptions {
     useParallel?: boolean;
     concurrency?: number;
     maxRetries?: number;
+    /** Rerun only previously failed tasks from existing experiment_summary.json */
+    continuous?: boolean;
+    /** Optional focus filter (taskName or taskKey), comma-separated */
+    focusTask?: string;
 }
 
 /**

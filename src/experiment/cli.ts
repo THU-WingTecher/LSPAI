@@ -46,6 +46,8 @@ interface CLIArgs {
     parallel?: boolean;
     concurrency?: number;
     maxRetries?: number;
+    continuous?: boolean;
+    focusTask?: string;
     logLevel?: string;
     verbose?: boolean;
 }
@@ -136,7 +138,9 @@ function parseArgs(): CLIArgs {
         outputDir: parsed['output-dir'],
         parallel: parsed['parallel'] !== 'false',
         concurrency: parseInt(parsed['concurrency'] || '4'),
-        maxRetries: parseInt(parsed['max-retries'] || '0'),
+        maxRetries: parseInt(parsed['max-retries'] || '5'),
+        continuous: parsed['continuous'] === 'true' || parsed['continuous'] === true,
+        focusTask: parsed['focus'] || parsed['focus-task'],
         logLevel: parsed['log-level'] || 'info',
         verbose: parsed['verbose'] === 'true' || parsed['verbose'] === true
     };
@@ -163,6 +167,8 @@ function printUsage() {
     console.log('  --parallel <bool>        Use parallel execution (default: true)');
     console.log('  --concurrency <num>      Concurrency level (default: 4)');
     console.log('  --max-retries <num>      Retry failed tasks up to N times (default: 0)');
+    console.log('  --continuous <bool>      Rerun only failed tasks from existing experiment_summary.json (requires --output-dir)');
+    console.log('  --focus <name|key>       Focus on a specific taskName or taskKey (comma-separated)');
     console.log('  --log-level <level>      Log level: debug, info, warn, error (default: info)');
     console.log('  --verbose               Enable verbose output');
     console.log('');
@@ -279,6 +285,10 @@ async function main() {
         console.log(`  Concurrency: ${args.concurrency}`);
     }
     console.log(`  Max Retries: ${args.maxRetries}`);
+    console.log(`  Continuous: ${args.continuous}`);
+    if (args.focusTask) {
+        console.log(`  Focus Task: ${args.focusTask}`);
+    }
     console.log(`  Log Level: ${args.logLevel}`);
     console.log(`  Session ID: ${sessionId}`);
     console.log(`  Experiment ID: ${experimentId}`);
@@ -313,7 +323,9 @@ async function main() {
             {
                 useParallel: args.parallel,
                 concurrency: args.concurrency,
-                maxRetries: args.maxRetries
+                maxRetries: args.maxRetries,
+                continuous: args.continuous,
+                focusTask: args.focusTask
             }
         );
         } else if (args.type === 'opencode') {
@@ -327,7 +339,9 @@ async function main() {
             {
                 useParallel: args.parallel,
                 concurrency: args.concurrency,
-                maxRetries: args.maxRetries
+                maxRetries: args.maxRetries,
+                continuous: args.continuous,
+                focusTask: args.focusTask
             }
         );
         } else if (args.type === 'claudecode') {
@@ -341,7 +355,9 @@ async function main() {
             {
                 useParallel: args.parallel,
                 concurrency: args.concurrency,
-                maxRetries: args.maxRetries
+                maxRetries: args.maxRetries,
+                continuous: args.continuous,
+                focusTask: args.focusTask
             }
         );
         }

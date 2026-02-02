@@ -117,6 +117,8 @@ npm run experiment -- \
 - `--parallel`: Use parallel execution (default: `true`)
 - `--concurrency`: Concurrency level (default: `4`)
 - `--max-retries`: Retry failed tasks up to N times (default: `0`)
+- `--continuous`: Rerun only failed tasks from an existing `experiment_summary.json` (requires `--output-dir`)
+- `--focus`: Focus on a specific taskName or taskKey (comma-separated)
 - `--log-level`: Log level (`debug`, `info`, `warn`, `error`, default: `info`)
 - `--verbose`: Enable verbose output
 

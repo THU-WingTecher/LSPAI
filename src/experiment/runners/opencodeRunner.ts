@@ -5,8 +5,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
-import { Task, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
+import { Task, TestResult, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
 import { generateTestsSequential, generateTestsParallel } from '../generators/opencodeGenerator';
+import { detectLanguage } from '../prompts/templates';
+import { generateFileNameCore } from '../utils/fileNameGenerator';
 import { assignTaskKeys, buildTaskKey } from '../utils/taskKey';
 
 function withCwd<T>(cwd: string, fn: () => Promise<T>): Promise<T> {
@@ -106,6 +108,26 @@ export async function runOpencodeExperiment(
         );
     }
 
+    const allTasks = tasks;
+    let tasksToRun = tasks;
+    let existingSummary: ExperimentResult | null = null;
+    const focusSet = parseFocusList(options.focusTask);
+
+    if (options.continuous) {
+        existingSummary = await loadExperimentSummary(config.outputDir);
+        warnIfConfigMismatch(existingSummary, config);
+        const failedCount = existingSummary.results?.filter(r => !r.success).length ?? 0;
+        tasksToRun = selectContinuousTasks(allTasks, existingSummary, focusSet);
+        console.log(`[continuous] Found ${failedCount} failed task(s) in summary.`);
+        if (focusSet.size > 0) {
+            console.log(`[continuous] Focus filter: ${Array.from(focusSet).join(', ')}`);
+        }
+        console.log(`[continuous] Rerunning ${tasksToRun.length} task(s).\n`);
+        if (tasksToRun.length === 0) {
+            return existingSummary;
+        }
+    }
+
     // Ensure output directory exists
     if (!fs.existsSync(config.outputDir)) {
         fs.mkdirSync(config.outputDir, { recursive: true });
@@ -178,11 +200,23 @@ export async function runOpencodeExperiment(
 
     console.log(`Generating tests (${useParallel ? `parallel, concurrency=${concurrency}` : 'sequential'})...\n`);
 
-    let results: any[];
+    let existingFileNames: Map<string, string> | undefined;
+    if (options.continuous && existingSummary) {
+        existingFileNames = buildExistingFileNameMap(tasksToRun, existingSummary, opencodeOutputDir);
+        if (existingFileNames.size > 0) {
+            console.log(`[continuous] Reusing ${existingFileNames.size} existing test file name(s).`);
+        }
+        const missingCount = tasksToRun.length - existingFileNames.size;
+        if (missingCount > 0) {
+            console.warn(`[continuous] ${missingCount} task(s) have no prior log file; new filenames will be generated.`);
+        }
+    }
+
+    let results: TestResult[];
     try {
         results = useParallel
             ? await generateTestsParallel(
-                tasks,
+                tasksToRun,
                 opencodeOutputDir,
                 config.projectRoot,
                 config.outputDir,
@@ -193,10 +227,11 @@ export async function runOpencodeExperiment(
                 (completed: number, total: number, taskName: string) => {
                     console.log(`[${completed}/${total}] Completed: ${taskName}`);
                 },
-                sharedClient
+                sharedClient,
+                existingFileNames
             )
             : await generateTestsSequential(
-                tasks,
+                tasksToRun,
                 opencodeOutputDir,
                 config.projectRoot,
                 config.outputDir,
@@ -206,7 +241,8 @@ export async function runOpencodeExperiment(
                 (completed: number, total: number, taskName: string) => {
                     console.log(`[${completed}/${total}] Completed: ${taskName}`);
                 },
-                sharedClient
+                sharedClient,
+                existingFileNames
             );
     } finally {
         if (serverCleanup) {
@@ -216,36 +252,205 @@ export async function runOpencodeExperiment(
         }
     }
 
-    // Calculate statistics
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
-    const warningCount = results.filter(r => r.success && r.warnings && r.warnings.length > 0).length;
+    const summaryPath = path.join(config.outputDir, 'experiment_summary.json');
+    const mappingPath = path.join(config.outputDir, 'test_file_map.json');
+
+    if (options.continuous && existingSummary) {
+        const mergedResults = mergeResultsInTaskOrder(allTasks, existingSummary.results ?? [], results);
+        const mergedStats = summarizeResults(mergedResults);
+        const totalExecutionTimeMs = (existingSummary.totalExecutionTimeMs ?? 0) + (Date.now() - startTime);
+
+        const mergedSummary: ExperimentResult = {
+            ...existingSummary,
+            config: existingSummary.config ?? config,
+            totalTasks: existingSummary.totalTasks || allTasks.length,
+            successCount: mergedStats.successCount,
+            failureCount: mergedStats.failureCount,
+            warningCount: mergedStats.warningCount,
+            outputDir: config.outputDir,
+            totalExecutionTimeMs,
+            results: mergedResults,
+            timestamp: new Date().toISOString()
+        };
+
+        await fs.promises.writeFile(
+            summaryPath,
+            JSON.stringify(mergedSummary, null, 2),
+            'utf8'
+        );
+
+        const mapping = buildTestFileMapping(allTasks, mergedResults, config.projectRoot);
+        await fs.promises.writeFile(
+            mappingPath,
+            JSON.stringify(mapping, null, 2),
+            'utf8'
+        );
+
+        console.log('\n=== Experiment Complete ===');
+        console.log(`Total Tasks: ${mergedSummary.totalTasks}`);
+        console.log(`Successful: ${mergedSummary.successCount}`);
+        console.log(`Failed: ${mergedSummary.failureCount}`);
+        console.log(`Warnings: ${mergedSummary.warningCount}`);
+        console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
+        console.log(`Output Directory: ${config.outputDir}`);
+        console.log(`Summary: ${summaryPath}`);
+        console.log(`Test Mapping: ${mappingPath}\n`);
+
+        return mergedSummary;
+    }
+
+    const stats = summarizeResults(results);
     const totalExecutionTimeMs = Date.now() - startTime;
 
-    // Build experiment result
     const experimentResult: ExperimentResult = {
         config,
-        totalTasks: tasks.length,
-        successCount,
-        failureCount,
-        warningCount,
+        totalTasks: allTasks.length,
+        successCount: stats.successCount,
+        failureCount: stats.failureCount,
+        warningCount: stats.warningCount,
         outputDir: config.outputDir,
         totalExecutionTimeMs,
         results,
         timestamp: new Date().toISOString()
     };
 
-    // Save experiment summary
-    const summaryPath = path.join(config.outputDir, 'experiment_summary.json');
     await fs.promises.writeFile(
         summaryPath,
         JSON.stringify(experimentResult, null, 2),
         'utf8'
     );
 
-    // Save test file mapping
-    const mappingPath = path.join(config.outputDir, 'test_file_map.json');
-    const mapping: any = {};
+    const mapping = buildTestFileMapping(allTasks, results, config.projectRoot);
+    await fs.promises.writeFile(
+        mappingPath,
+        JSON.stringify(mapping, null, 2),
+        'utf8'
+    );
+
+    console.log('\n=== Experiment Complete ===');
+    console.log(`Total Tasks: ${experimentResult.totalTasks}`);
+    console.log(`Successful: ${experimentResult.successCount}`);
+    console.log(`Failed: ${experimentResult.failureCount}`);
+    console.log(`Warnings: ${experimentResult.warningCount}`);
+    console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
+    console.log(`Output Directory: ${config.outputDir}`);
+    console.log(`Summary: ${summaryPath}`);
+    console.log(`Test Mapping: ${mappingPath}\n`);
+
+    return experimentResult;
+}
+
+function parseFocusList(raw?: string): Set<string> {
+    if (!raw) return new Set();
+    const items = raw
+        .split(',')
+        .map(item => item.trim())
+        .filter(item => item.length > 0);
+    return new Set(items);
+}
+
+async function loadExperimentSummary(outputDir: string): Promise<ExperimentResult> {
+    const summaryPath = path.join(outputDir, 'experiment_summary.json');
+    if (!fs.existsSync(summaryPath)) {
+        throw new Error(`[continuous] experiment_summary.json not found in ${outputDir}`);
+    }
+    const content = await fs.promises.readFile(summaryPath, 'utf8');
+    return JSON.parse(content) as ExperimentResult;
+}
+
+function warnIfConfigMismatch(summary: ExperimentResult, config: ExperimentConfig): void {
+    if (!summary?.config) return;
+    if (summary.config.taskListPath && summary.config.taskListPath !== config.taskListPath) {
+        console.warn(
+            `[continuous] Task list mismatch: summary=${summary.config.taskListPath} current=${config.taskListPath}`
+        );
+    }
+    if (summary.config.projectRoot && summary.config.projectRoot !== config.projectRoot) {
+        console.warn(
+            `[continuous] Project root mismatch: summary=${summary.config.projectRoot} current=${config.projectRoot}`
+        );
+    }
+    if (summary.config.model && summary.config.model !== config.model) {
+        console.warn(
+            `[continuous] Model mismatch: summary=${summary.config.model} current=${config.model}`
+        );
+    }
+    if (summary.config.provider && summary.config.provider !== config.provider) {
+        console.warn(
+            `[continuous] Provider mismatch: summary=${summary.config.provider} current=${config.provider}`
+        );
+    }
+}
+
+function selectContinuousTasks(
+    tasks: Task[],
+    summary: ExperimentResult,
+    focusSet: Set<string>
+): Task[] {
+    const failedResults = summary.results?.filter(r => !r.success) ?? [];
+    const failedTaskKeys = new Set<string>();
+    const failedTaskNames = new Set<string>();
+    for (const result of failedResults) {
+        if (result.taskKey) {
+            failedTaskKeys.add(result.taskKey);
+        } else if (result.taskName) {
+            failedTaskNames.add(result.taskName);
+        }
+    }
+
+    const hasFocus = focusSet.size > 0;
+
+    return tasks.filter(task => {
+        const key = task.taskKey ?? buildTaskKey(task);
+        const name = task.symbolName;
+        const failedByKey = failedTaskKeys.has(key);
+        const failedByName = failedTaskNames.has(name);
+        if (!failedByKey && !failedByName) return false;
+        if (!hasFocus) return true;
+        return focusSet.has(key) || focusSet.has(name);
+    });
+}
+
+function mergeResultsInTaskOrder(
+    tasks: Task[],
+    existingResults: TestResult[],
+    newResults: TestResult[]
+): TestResult[] {
+    const mergedByKey = new Map<string, TestResult>();
+    for (const result of existingResults) {
+        if (result.taskKey) {
+            mergedByKey.set(result.taskKey, result);
+        }
+    }
+    for (const result of newResults) {
+        if (result.taskKey) {
+            mergedByKey.set(result.taskKey, result);
+        }
+    }
+
+    const merged: TestResult[] = [];
+    for (const task of tasks) {
+        const key = task.taskKey ?? buildTaskKey(task);
+        const result = mergedByKey.get(key);
+        if (result) {
+            merged.push(result);
+        }
+    }
+
+    const extras = [...existingResults, ...newResults].filter(r => !r.taskKey || !mergedByKey.has(r.taskKey));
+    merged.push(...extras);
+    return merged;
+}
+
+function summarizeResults(results: TestResult[]): { successCount: number; failureCount: number; warningCount: number } {
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+    const warningCount = results.filter(r => r.success && r.warnings && r.warnings.length > 0).length;
+    return { successCount, failureCount, warningCount };
+}
+
+function buildTestFileMapping(tasks: Task[], results: TestResult[], projectRoot: string): Record<string, any> {
+    const mapping: Record<string, any> = {};
     const taskByKey = new Map<string, Task>();
     for (const task of tasks) {
         const key = task.taskKey ?? buildTaskKey(task);
@@ -257,6 +462,7 @@ export async function runOpencodeExperiment(
         list.push(task);
         tasksBySymbol.set(task.symbolName, list);
     }
+
     results.forEach(result => {
         if (result.success && result.outputFilePath) {
             const testFileName = path.basename(result.outputFilePath);
@@ -277,7 +483,7 @@ export async function runOpencodeExperiment(
             }
             if (task) {
                 mapping[testFileName] = {
-                    project_name: path.basename(config.projectRoot),
+                    project_name: path.basename(projectRoot),
                     file_name: task.relativeDocumentPath,
                     symbol_name: task.symbolName,
                     location: task.location,
@@ -288,24 +494,114 @@ export async function runOpencodeExperiment(
             }
         }
     });
-    await fs.promises.writeFile(
-        mappingPath,
-        JSON.stringify(mapping, null, 2),
-        'utf8'
-    );
 
-    // Print summary
-    console.log('\n=== Experiment Complete ===');
-    console.log(`Total Tasks: ${experimentResult.totalTasks}`);
-    console.log(`Successful: ${successCount}`);
-    console.log(`Failed: ${failureCount}`);
-    console.log(`Warnings: ${warningCount}`);
-    console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
-    console.log(`Output Directory: ${config.outputDir}`);
-    console.log(`Summary: ${summaryPath}`);
-    console.log(`Test Mapping: ${mappingPath}\n`);
+    return mapping;
+}
 
-    return experimentResult;
+function buildExistingFileNameMap(
+    tasks: Task[],
+    summary: ExperimentResult,
+    opencodeOutputDir: string
+): Map<string, string> {
+    const existing = new Map<string, string>();
+
+    if (summary.results) {
+        for (const result of summary.results) {
+            if (result.taskKey && result.outputFilePath) {
+                existing.set(result.taskKey, path.basename(result.outputFilePath));
+            }
+        }
+    }
+
+    const logsDir = path.join(opencodeOutputDir, 'logs');
+    if (!fs.existsSync(logsDir)) {
+        return existing;
+    }
+
+    const logFiles = fs.readdirSync(logsDir).filter(file => file.endsWith('.log.json'));
+    if (logFiles.length === 0) {
+        return existing;
+    }
+
+    const logStats = new Map<string, number>();
+    for (const file of logFiles) {
+        try {
+            const stat = fs.statSync(path.join(logsDir, file));
+            logStats.set(file, stat.mtimeMs);
+        } catch {
+            // ignore stat errors
+        }
+    }
+
+    for (const task of tasks) {
+        const taskKey = task.taskKey ?? buildTaskKey(task);
+        if (existing.has(taskKey)) {
+            continue;
+        }
+
+        const languageId = detectLanguage(task.relativeDocumentPath);
+        const baseName = generateFileNameCore({
+            sourceFileName: path.basename(task.relativeDocumentPath),
+            symbolName: task.symbolName,
+            languageId,
+            packageString: '',
+            relativeFilePath: task.relativeDocumentPath
+        });
+        const prefix = `${baseName}_`;
+        const candidates = logFiles.filter(file => file.startsWith(prefix) && file.endsWith('.log.json'));
+
+        if (candidates.length === 0) {
+            continue;
+        }
+
+        let chosen: string | undefined;
+        if (candidates.length === 1) {
+            chosen = candidates[0];
+        } else {
+            const matchedBySource = candidates.filter(file =>
+                logFileContainsSourceCode(path.join(logsDir, file), task.sourceCode)
+            );
+            if (matchedBySource.length === 1) {
+                chosen = matchedBySource[0];
+            } else {
+                chosen = pickMostRecentLogFile(candidates, logStats);
+                console.warn(
+                    `[continuous] Multiple log matches for ${task.symbolName}; using ${chosen}`
+                );
+            }
+        }
+
+        if (chosen) {
+            existing.set(taskKey, chosen.replace(/\.log\.json$/, ''));
+        }
+    }
+
+    return existing;
+}
+
+function logFileContainsSourceCode(logPath: string, sourceCode: string): boolean {
+    try {
+        const raw = fs.readFileSync(logPath, 'utf8');
+        const data = JSON.parse(raw);
+        const prompt = data?.prompt;
+        return typeof prompt === 'string' && prompt.includes(sourceCode);
+    } catch {
+        return false;
+    }
+}
+
+function pickMostRecentLogFile(files: string[], logStats: Map<string, number>): string {
+    let best = files[0];
+    let bestTime = logStats.get(best) ?? 0;
+    for (let i = 1; i < files.length; i++) {
+        const file = files[i];
+        const time = logStats.get(file) ?? 0;
+        if (time >= bestTime) {
+            best = file;
+            bestTime = time;
+        }
+    }
+    return best;
 }
 
 /**
@@ -340,6 +636,9 @@ export async function runOpencodeFromArgs(
     outputDir?: string,
     options: ExperimentOptions = {}
 ): Promise<ExperimentResult> {
+    if (options.continuous && !outputDir) {
+        throw new Error('[continuous] --output-dir is required to reuse an existing experiment_summary.json');
+    }
     if (!outputDir) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         outputDir = path.join(

@@ -23,7 +23,8 @@ export async function generateTest(
     outputDir: string,
     model: string,
     provider: string,
-    sharedClient?: any
+    sharedClient?: any,
+    existingTestFileName?: string
 ): Promise<TestResult> {
     const startTime = Date.now();
     const taskKey = task.taskKey ?? buildTaskKey(task);
@@ -51,7 +52,10 @@ export async function generateTest(
             packageString: '',
             relativeFilePath: task.relativeDocumentPath
         };
-        const testFileName = generateTestFileName(fileNameParams);
+        const testFileName = existingTestFileName || generateTestFileName(fileNameParams);
+        if (existingTestFileName) {
+            console.log(`   Reusing test file name: ${existingTestFileName}`);
+        }
 
         console.log(`   Session ID: ${sessionId}`);
 
@@ -129,7 +133,8 @@ export async function generateTestsSequential(
     provider: string,
     maxRetries: number = 0,
     onProgress?: (completed: number, total: number, taskName: string) => void,
-    sharedClient?: any
+    sharedClient?: any,
+    existingFileNames?: Map<string, string>
 ): Promise<TestResult[]> {
     const results: TestResult[] = [];
     const total = tasks.length;
@@ -137,8 +142,19 @@ export async function generateTestsSequential(
     for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
         const taskLabel = formatTaskLabel(task);
+        const taskKey = task.taskKey ?? buildTaskKey(task);
+        const existingTestFileName = existingFileNames?.get(taskKey);
         const result = await runWithRetries(taskLabel, maxRetries, () =>
-            generateTest(task, opencodeOutputDir, projectDir, outputDir, model, provider, sharedClient)
+            generateTest(
+                task,
+                opencodeOutputDir,
+                projectDir,
+                outputDir,
+                model,
+                provider,
+                sharedClient,
+                existingTestFileName
+            )
         );
         results.push(result);
 
@@ -165,7 +181,8 @@ export async function generateTestsParallel(
     concurrency: number = 4,
     maxRetries: number = 0,
     onProgress?: (completed: number, total: number, taskName: string) => void,
-    sharedClient?: any
+    sharedClient?: any,
+    existingFileNames?: Map<string, string>
 ): Promise<TestResult[]> {
     const pLimit = (await import('p-limit')).default;
     const limit = pLimit(concurrency);
@@ -175,8 +192,19 @@ export async function generateTestsParallel(
     const taskPromises = tasks.map(task =>
         limit(async () => {
             const taskLabel = formatTaskLabel(task);
+            const taskKey = task.taskKey ?? buildTaskKey(task);
+            const existingTestFileName = existingFileNames?.get(taskKey);
             const result = await runWithRetries(taskLabel, maxRetries, () =>
-                generateTest(task, opencodeOutputDir, projectDir, outputDir, model, provider, sharedClient)
+                generateTest(
+                    task,
+                    opencodeOutputDir,
+                    projectDir,
+                    outputDir,
+                    model,
+                    provider,
+                    sharedClient,
+                    existingTestFileName
+                )
             );
             
             completed++;
