@@ -1,6 +1,9 @@
 .env.sh
 new_data
 cc-tests/
+opencode-tests
+claudecode-tests
+lsprag-workspace
 experiments/baselines/rag/embeddings/
 experiments/settings/
 experiments/lsprag_data/
@@ -8,6 +11,7 @@ experiments/projects/
 experiments/venv/
 experiments/data
 results/
+logs/
 .env
 *.pyc
 test-results/
