@@ -10,11 +10,18 @@ export interface Task {
     symbolName: string;
     relativeDocumentPath: string;
     sourceCode: string;
+    /** Optional extra context (e.g., retrieved snippets) */
+    context?: string;
     importString: string;
     lineNum: number;
     location?: number;
     taskKey?: string;
 }
+
+/**
+ * Prompt template mode for experiments
+ */
+export type PromptTemplate = 'default' | 'cfg';
 
 /**
  * Configuration for experiments
@@ -26,6 +33,8 @@ export interface ExperimentConfig {
     model: string;
     provider: string;
     dateStamp?: string;
+    promptTemplate?: PromptTemplate;
+    taskLimit?: number;
 }
 
 /**
@@ -72,6 +81,10 @@ export interface ExperimentOptions {
     continuous?: boolean;
     /** Optional focus filter (taskName or taskKey), comma-separated */
     focusTask?: string;
+    /** Prompt template mode */
+    promptTemplate?: PromptTemplate;
+    /** Limit number of tasks to run */
+    taskLimit?: number;
 }
 
 /**

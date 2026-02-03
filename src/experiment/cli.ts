@@ -27,6 +27,7 @@ import { ExperimentLogger, LogLevel, createExperimentLogger } from './utils/logg
 import { runBaselineFromArgs } from './runners/baselineRunner';
 import { runOpencodeFromArgs } from './runners/opencodeRunner';
 import { runClaudeCodeFromArgs } from './runners/claudeCodeRunner';
+import { PromptTemplate } from './core/types';
 
 /**
  * Supported experiment types
@@ -42,6 +43,8 @@ interface CLIArgs {
     projectRoot: string;
     model: string;
     provider: string;
+    promptTemplate?: PromptTemplate;
+    taskLimit?: number;
     outputDir?: string;
     parallel?: boolean;
     concurrency?: number;
@@ -129,12 +132,25 @@ function parseArgs(): CLIArgs {
         // }
     }
 
+    const defaultPromptTemplate: PromptTemplate = parsed.type === 'baseline' ? 'default' : 'cfg';
+    const promptTemplate = validatePromptTemplate(parsed['prompt-template'] || defaultPromptTemplate);
+
+    const taskLimitRaw = parsed['task-limit'] ?? parsed['task-number'] ?? parsed['task-num'];
+    const taskLimit = taskLimitRaw !== undefined ? parseInt(taskLimitRaw, 10) : undefined;
+    if (taskLimit !== undefined && (isNaN(taskLimit) || taskLimit <= 0)) {
+        console.error(`Error: Invalid task limit '${taskLimitRaw}'. Must be a positive integer.\n`);
+        printUsage();
+        process.exit(1);
+    }
+
     return {
         type: parsed.type as ExperimentType,
         taskList: parsed['task-list'],
         projectRoot: parsed['project-root'],
         model: parsed.model,
         provider: parsed.provider,
+        promptTemplate,
+        taskLimit,
         outputDir: parsed['output-dir'],
         parallel: parsed['parallel'] !== 'false',
         concurrency: parseInt(parsed['concurrency'] || '4'),
@@ -169,6 +185,8 @@ function printUsage() {
     console.log('  --max-retries <num>      Retry failed tasks up to N times (default: 0)');
     console.log('  --continuous <bool>      Rerun only failed tasks from existing experiment_summary.json (requires --output-dir)');
     console.log('  --focus <name|key>       Focus on a specific taskName or taskKey (comma-separated)');
+    console.log('  --prompt-template <mode> Prompt template: cfg or default (default: cfg for claudecode/opencode, default for baseline)');
+    console.log('  --task-limit <num>       Limit number of tasks to run (e.g., 1 to run a single task)');
     console.log('  --log-level <level>      Log level: debug, info, warn, error (default: info)');
     console.log('  --verbose               Enable verbose output');
     console.log('');
@@ -217,6 +235,15 @@ function printUsage() {
     console.log('    --model gpt-4 \\');
     console.log('    --provider openai \\');
     console.log('    --parallel false');
+}
+
+// Helper function to validate prompt template
+function validatePromptTemplate(value: string): PromptTemplate {
+    if (value === 'default' || value === 'cfg') {
+        return value;
+    }
+    console.warn(`Invalid prompt template: ${value}. Using default: cfg`);
+    return 'cfg';
 }
 
 /**
@@ -279,6 +306,10 @@ async function main() {
     console.log(`  Project Root: ${args.projectRoot}`);
     console.log(`  Model: ${args.model}`);
     console.log(`  Provider: ${args.provider}`);
+    console.log(`  Prompt Template: ${args.promptTemplate}`);
+    if (args.taskLimit !== undefined) {
+        console.log(`  Task Limit: ${args.taskLimit}`);
+    }
     console.log(`  Output Dir: ${args.outputDir}`);
     console.log(`  Parallel: ${args.parallel}`);
     if (args.parallel) {
@@ -302,6 +333,8 @@ async function main() {
             projectRoot: args.projectRoot,
             model: args.model,
             provider: args.provider,
+            promptTemplate: args.promptTemplate,
+            taskLimit: args.taskLimit,
             outputDir: args.outputDir || '',
             parallel: args.parallel,
             concurrency: args.concurrency,
@@ -325,7 +358,9 @@ async function main() {
                 concurrency: args.concurrency,
                 maxRetries: args.maxRetries,
                 continuous: args.continuous,
-                focusTask: args.focusTask
+                focusTask: args.focusTask,
+                promptTemplate: args.promptTemplate,
+                taskLimit: args.taskLimit
             }
         );
         } else if (args.type === 'opencode') {
@@ -341,7 +376,9 @@ async function main() {
                 concurrency: args.concurrency,
                 maxRetries: args.maxRetries,
                 continuous: args.continuous,
-                focusTask: args.focusTask
+                focusTask: args.focusTask,
+                promptTemplate: args.promptTemplate,
+                taskLimit: args.taskLimit
             }
         );
         } else if (args.type === 'claudecode') {
@@ -357,7 +394,9 @@ async function main() {
                 concurrency: args.concurrency,
                 maxRetries: args.maxRetries,
                 continuous: args.continuous,
-                focusTask: args.focusTask
+                focusTask: args.focusTask,
+                promptTemplate: args.promptTemplate,
+                taskLimit: args.taskLimit
             }
         );
         }

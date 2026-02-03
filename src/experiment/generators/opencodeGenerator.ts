@@ -5,8 +5,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { OpencodeManager } from '../runners/opencodeManager';
-import { Task, TestResult } from '../core/types';
+import { Task, TestResult, PromptTemplate } from '../core/types';
 import { buildTestPrompt, detectLanguage, generateSystemPrompt } from '../prompts/templates';
+import { buildTestPromptWithCFG } from '../prompts/cfgPrompt';
 import { extractCleanCode } from '../utils/codeExtractor';
 import { generateTestFileName } from '../utils/fileNameGenerator';
 import { FileNameParams } from '../core/types';
@@ -24,7 +25,8 @@ export async function generateTest(
     model: string,
     provider: string,
     sharedClient?: any,
-    existingTestFileName?: string
+    existingTestFileName?: string,
+    promptTemplate: PromptTemplate = 'cfg'
 ): Promise<TestResult> {
     const startTime = Date.now();
     const taskKey = task.taskKey ?? buildTaskKey(task);
@@ -63,9 +65,11 @@ export async function generateTest(
         console.log(`   Language: ${languageId}`);
 
         const systemPrompt = generateSystemPrompt();
-        const prompt = buildTestPrompt(task, languageId);
+        const prompt = promptTemplate === 'cfg'
+            ? await buildTestPromptWithCFG(task, languageId, model)
+            : buildTestPrompt(task, languageId);
         console.log(`   Prompt length: ${prompt.length} chars`);
-
+        console.log(prompt)
         // Run through OpenCode
 
         const logfileName = `${testFileName}.log`;
@@ -134,7 +138,8 @@ export async function generateTestsSequential(
     maxRetries: number = 0,
     onProgress?: (completed: number, total: number, taskName: string) => void,
     sharedClient?: any,
-    existingFileNames?: Map<string, string>
+    existingFileNames?: Map<string, string>,
+    promptTemplate: PromptTemplate = 'cfg'
 ): Promise<TestResult[]> {
     const results: TestResult[] = [];
     const total = tasks.length;
@@ -153,7 +158,8 @@ export async function generateTestsSequential(
                 model,
                 provider,
                 sharedClient,
-                existingTestFileName
+                existingTestFileName,
+                promptTemplate
             )
         );
         results.push(result);
@@ -182,7 +188,8 @@ export async function generateTestsParallel(
     maxRetries: number = 0,
     onProgress?: (completed: number, total: number, taskName: string) => void,
     sharedClient?: any,
-    existingFileNames?: Map<string, string>
+    existingFileNames?: Map<string, string>,
+    promptTemplate: PromptTemplate = 'cfg'
 ): Promise<TestResult[]> {
     const pLimit = (await import('p-limit')).default;
     const limit = pLimit(concurrency);
@@ -203,7 +210,8 @@ export async function generateTestsParallel(
                     model,
                     provider,
                     sharedClient,
-                    existingTestFileName
+                    existingTestFileName,
+                    promptTemplate
                 )
             );
             

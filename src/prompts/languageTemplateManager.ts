@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getImportStatement, getPackageStatement } from '../lsp/definition';
 import { getLanguageSuffix } from '../language';
+import { getUnitTestTemplate as getUnitTestTemplateCore } from './unitTestTemplateManager';
 
 /**
  * Class to manage templates for different programming languages
@@ -17,28 +18,7 @@ export class LanguageTemplateManager {
         paths: string[] = [],
         functionInfo: Map<string, string> = new Map()
     ): string {
-        // if filename has suffix like .py, .go, .java, remove it
-        if (fileName.includes(".")) {
-            fileName = fileName.split(".")[0];
-        }
-        if (fileName.includes("/")) {
-            fileName = fileName.split("/").pop() || fileName;
-        }
-        let signature = "";
-        if (functionInfo.size > 0 && functionInfo.has('signature')) {
-            signature += functionInfo.get('name') || "";
-            signature += functionInfo.get('signature') || "";
-       }
-        switch(languageId) {
-            case 'java':
-                return LanguageTemplateManager.getJavaTemplate(fileName, packageString, paths, signature);
-            case 'go':
-                return LanguageTemplateManager.getGoTemplate(fileName, packageString, paths, signature);
-            case 'python':
-                return LanguageTemplateManager.getPythonTemplate(fileName, packageString, importString, paths, signature);
-            default:
-                return LanguageTemplateManager.getDefaultTemplate();
-        }
+        return getUnitTestTemplateCore(languageId, fileName, packageString, importString, paths, functionInfo);
     }
     
     /**

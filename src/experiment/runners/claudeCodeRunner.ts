@@ -24,6 +24,12 @@ export async function runClaudeCodeExperiment(
     console.log(`  Output Dir: ${config.outputDir}`);
     console.log(`  Model: ${config.model}`);
     console.log(`  Provider: ${config.provider}`);
+    if (config.promptTemplate) {
+        console.log(`  Prompt Template: ${config.promptTemplate}`);
+    }
+    if (config.taskLimit) {
+        console.log(`  Task Limit: ${config.taskLimit}`);
+    }
     console.log('');
 
     // Load task list
@@ -37,6 +43,20 @@ export async function runClaudeCodeExperiment(
             `[taskList] Found ${duplicateBaseKeys.length} duplicate task keys (same file+symbol+line). ` +
             `They will be disambiguated. Sample: ${sample.join(', ')}`
         );
+    }
+    let tasksToRun = tasks;
+    const focusSet = parseFocusList(options.focusTask);
+    if (focusSet.size > 0) {
+        tasksToRun = tasksToRun.filter(task => {
+            const key = task.taskKey ?? buildTaskKey(task);
+            const name = task.symbolName;
+            return focusSet.has(key) || focusSet.has(name);
+        });
+        console.log(`[focus] Running ${tasksToRun.length}/${tasks.length} task(s): ${Array.from(focusSet).join(', ')}`);
+    }
+    if (options.taskLimit && options.taskLimit > 0) {
+        tasksToRun = tasksToRun.slice(0, options.taskLimit);
+        console.log(`Task limit enabled: running ${tasksToRun.length}/${tasks.length} tasks.\n`);
     }
 
     // Ensure output directory exists
@@ -62,7 +82,7 @@ export async function runClaudeCodeExperiment(
 
     const results = useParallel
         ? await generateTestsParallel(
-            tasks,
+            tasksToRun,
             claudeCodeOutputDir,
             config.projectRoot,
             config.outputDir,
@@ -71,10 +91,11 @@ export async function runClaudeCodeExperiment(
             options.maxRetries ?? 0,
             (completed: number, total: number, taskName: string) => {
                 console.log(`[${completed}/${total}] Completed: ${taskName}`);
-            }
+            },
+            options.promptTemplate ?? 'cfg'
         )
         : await generateTestsSequential(
-            tasks,
+            tasksToRun,
             claudeCodeOutputDir,
             config.projectRoot,
             config.outputDir,
@@ -82,7 +103,8 @@ export async function runClaudeCodeExperiment(
             options.maxRetries ?? 0,
             (completed: number, total: number, taskName: string) => {
                 console.log(`[${completed}/${total}] Completed: ${taskName}`);
-            }
+            },
+            options.promptTemplate ?? 'cfg'
         );
 
     // Calculate statistics
@@ -94,7 +116,7 @@ export async function runClaudeCodeExperiment(
     // Build experiment result
     const experimentResult: ExperimentResult = {
         config,
-        totalTasks: tasks.length,
+        totalTasks: tasksToRun.length,
         successCount,
         failureCount,
         warningCount,
@@ -116,12 +138,12 @@ export async function runClaudeCodeExperiment(
     const mappingPath = path.join(config.outputDir, 'test_file_map.json');
     const mapping: any = {};
     const taskByKey = new Map<string, Task>();
-    for (const task of tasks) {
+    for (const task of tasksToRun) {
         const key = task.taskKey ?? buildTaskKey(task);
         taskByKey.set(key, task);
     }
     const tasksBySymbol = new Map<string, Task[]>();
-    for (const task of tasks) {
+    for (const task of tasksToRun) {
         const list = tasksBySymbol.get(task.symbolName) ?? [];
         list.push(task);
         tasksBySymbol.set(task.symbolName, list);
@@ -177,6 +199,15 @@ export async function runClaudeCodeExperiment(
     return experimentResult;
 }
 
+function parseFocusList(raw?: string): Set<string> {
+    if (!raw) return new Set();
+    const items = raw
+        .split(',')
+        .map(item => item.trim())
+        .filter(item => item.length > 0);
+    return new Set(items);
+}
+
 /**
  * Load task list from JSON file
  */
@@ -224,9 +255,10 @@ export async function runClaudeCodeFromArgs(
         projectRoot,
         outputDir,
         model,
-        provider
+        provider,
+        promptTemplate: options.promptTemplate,
+        taskLimit: options.taskLimit
     };
 
     return await runClaudeCodeExperiment(config, options);
 }
-

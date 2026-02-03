@@ -5,8 +5,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
-import { Task, TestResult, LogEntry } from '../core/types';
+import { Task, TestResult, LogEntry, PromptTemplate } from '../core/types';
 import { buildTestPrompt, detectLanguage, generateSystemPrompt } from '../prompts/templates';
+import { buildTestPromptWithCFG } from '../prompts/cfgPrompt';
 import { extractCleanCode } from '../utils/codeExtractor';
 import { generateTestFileName } from '../utils/fileNameGenerator';
 import { FileNameParams } from '../core/types';
@@ -284,7 +285,8 @@ export async function generateTest(
     claudeCodeOutputDir: string,
     projectDir: string,
     outputDir: string,
-    model: string
+    model: string,
+    promptTemplate: PromptTemplate = 'cfg'
 ): Promise<TestResult> {
     const startTime = Date.now();
     const taskKey = task.taskKey ?? buildTaskKey(task);
@@ -322,7 +324,9 @@ export async function generateTest(
         console.log(`   Language: ${languageId}`);
 
         const systemPrompt = generateSystemPrompt();
-        const prompt = buildTestPrompt(task, languageId);
+        const prompt = promptTemplate === 'cfg'
+            ? await buildTestPromptWithCFG(task, languageId, model)
+            : buildTestPrompt(task, languageId);
         const fullPrompt = systemPrompt + "\n\n" + prompt;
         console.log(`   Prompt length: ${fullPrompt.length} chars`);
 
@@ -415,7 +419,8 @@ export async function generateTestsSequential(
     outputDir: string,
     model: string,
     maxRetries: number = 0,
-    onProgress?: (completed: number, total: number, taskName: string) => void
+    onProgress?: (completed: number, total: number, taskName: string) => void,
+    promptTemplate: PromptTemplate = 'cfg'
 ): Promise<TestResult[]> {
     const results: TestResult[] = [];
     const total = tasks.length;
@@ -424,7 +429,7 @@ export async function generateTestsSequential(
         const task = tasks[i];
         const taskLabel = formatTaskLabel(task);
         const result = await runWithRetries(taskLabel, maxRetries, () =>
-            generateTest(task, claudeCodeOutputDir, projectDir, outputDir, model)
+            generateTest(task, claudeCodeOutputDir, projectDir, outputDir, model, promptTemplate)
         );
         results.push(result);
 
@@ -449,7 +454,8 @@ export async function generateTestsParallel(
     model: string,
     concurrency: number = 4,
     maxRetries: number = 0,
-    onProgress?: (completed: number, total: number, taskName: string) => void
+    onProgress?: (completed: number, total: number, taskName: string) => void,
+    promptTemplate: PromptTemplate = 'cfg'
 ): Promise<TestResult[]> {
     const pLimit = (await import('p-limit')).default;
     const limit = pLimit(concurrency);
@@ -460,7 +466,7 @@ export async function generateTestsParallel(
         limit(async () => {
             const taskLabel = formatTaskLabel(task);
             const result = await runWithRetries(taskLabel, maxRetries, () =>
-                generateTest(task, claudeCodeOutputDir, projectDir, outputDir, model)
+                generateTest(task, claudeCodeOutputDir, projectDir, outputDir, model, promptTemplate)
             );
             
             completed++;

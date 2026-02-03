@@ -93,6 +93,12 @@ export async function runOpencodeExperiment(
     console.log(`  Output Dir: ${config.outputDir}`);
     console.log(`  Model: ${config.model}`);
     console.log(`  Provider: ${config.provider}`);
+    if (config.promptTemplate) {
+        console.log(`  Prompt Template: ${config.promptTemplate}`);
+    }
+    if (config.taskLimit) {
+        console.log(`  Task Limit: ${config.taskLimit}`);
+    }
     console.log('');
 
     // Load task list
@@ -126,6 +132,20 @@ export async function runOpencodeExperiment(
         if (tasksToRun.length === 0) {
             return existingSummary;
         }
+    }
+
+    if (!options.continuous && focusSet.size > 0) {
+        tasksToRun = tasksToRun.filter(task => {
+            const key = task.taskKey ?? buildTaskKey(task);
+            const name = task.symbolName;
+            return focusSet.has(key) || focusSet.has(name);
+        });
+        console.log(`[focus] Running ${tasksToRun.length}/${allTasks.length} task(s): ${Array.from(focusSet).join(', ')}`);
+    }
+
+    if (options.taskLimit && options.taskLimit > 0) {
+        tasksToRun = tasksToRun.slice(0, options.taskLimit);
+        console.log(`Task limit enabled: running ${tasksToRun.length}/${allTasks.length} tasks.\n`);
     }
 
     // Ensure output directory exists
@@ -215,35 +235,37 @@ export async function runOpencodeExperiment(
     let results: TestResult[];
     try {
         results = useParallel
-            ? await generateTestsParallel(
-                tasksToRun,
-                opencodeOutputDir,
-                config.projectRoot,
-                config.outputDir,
-                config.model,
-                config.provider,
-                concurrency,
-                options.maxRetries ?? 0,
-                (completed: number, total: number, taskName: string) => {
-                    console.log(`[${completed}/${total}] Completed: ${taskName}`);
-                },
-                sharedClient,
-                existingFileNames
-            )
-            : await generateTestsSequential(
-                tasksToRun,
-                opencodeOutputDir,
-                config.projectRoot,
-                config.outputDir,
-                config.model,
-                config.provider,
-                options.maxRetries ?? 0,
-                (completed: number, total: number, taskName: string) => {
-                    console.log(`[${completed}/${total}] Completed: ${taskName}`);
-                },
-                sharedClient,
-                existingFileNames
-            );
+        ? await generateTestsParallel(
+            tasksToRun,
+            opencodeOutputDir,
+            config.projectRoot,
+            config.outputDir,
+            config.model,
+            config.provider,
+            concurrency,
+            options.maxRetries ?? 0,
+            (completed: number, total: number, taskName: string) => {
+                console.log(`[${completed}/${total}] Completed: ${taskName}`);
+            },
+            sharedClient,
+            existingFileNames,
+            options.promptTemplate ?? 'cfg'
+        )
+        : await generateTestsSequential(
+            tasksToRun,
+            opencodeOutputDir,
+            config.projectRoot,
+            config.outputDir,
+            config.model,
+            config.provider,
+            options.maxRetries ?? 0,
+            (completed: number, total: number, taskName: string) => {
+                console.log(`[${completed}/${total}] Completed: ${taskName}`);
+            },
+            sharedClient,
+            existingFileNames,
+            options.promptTemplate ?? 'cfg'
+        );
     } finally {
         if (serverCleanup) {
             console.log('\nCleaning up shared OpenCode server...');
@@ -301,10 +323,11 @@ export async function runOpencodeExperiment(
 
     const stats = summarizeResults(results);
     const totalExecutionTimeMs = Date.now() - startTime;
+    const tasksForSummary = tasksToRun;
 
     const experimentResult: ExperimentResult = {
         config,
-        totalTasks: allTasks.length,
+        totalTasks: tasksForSummary.length,
         successCount: stats.successCount,
         failureCount: stats.failureCount,
         warningCount: stats.warningCount,
@@ -320,7 +343,7 @@ export async function runOpencodeExperiment(
         'utf8'
     );
 
-    const mapping = buildTestFileMapping(allTasks, results, config.projectRoot);
+    const mapping = buildTestFileMapping(tasksForSummary, results, config.projectRoot);
     await fs.promises.writeFile(
         mappingPath,
         JSON.stringify(mapping, null, 2),
@@ -378,6 +401,16 @@ function warnIfConfigMismatch(summary: ExperimentResult, config: ExperimentConfi
     if (summary.config.provider && summary.config.provider !== config.provider) {
         console.warn(
             `[continuous] Provider mismatch: summary=${summary.config.provider} current=${config.provider}`
+        );
+    }
+    if (summary.config.promptTemplate && summary.config.promptTemplate !== config.promptTemplate) {
+        console.warn(
+            `[continuous] Prompt template mismatch: summary=${summary.config.promptTemplate} current=${config.promptTemplate}`
+        );
+    }
+    if (summary.config.taskLimit && summary.config.taskLimit !== config.taskLimit) {
+        console.warn(
+            `[continuous] Task limit mismatch: summary=${summary.config.taskLimit} current=${config.taskLimit}`
         );
     }
 }
@@ -654,7 +687,9 @@ export async function runOpencodeFromArgs(
         projectRoot,
         outputDir,
         model,
-        provider
+        provider,
+        promptTemplate: options.promptTemplate,
+        taskLimit: options.taskLimit
     };
 
     return await runOpencodeExperiment(config, options);
