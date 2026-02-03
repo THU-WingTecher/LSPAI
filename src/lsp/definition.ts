@@ -191,18 +191,42 @@ export function isBetweenFocalMethod(
     );
 }
 
-export function isInWorkspace(uriString: string): boolean {
-    if (uriString) {
-        if (Configuration.isTestingEnvironment()) {
-            const srcPath = vscode.Uri.parse(getConfigInstance().workspace);
-            return uriString.startsWith(srcPath.fsPath);
-        } else {
-            const workspaceFolders = vscode.workspace.workspaceFolders || [];
-            return workspaceFolders.some(folder => uriString.startsWith(folder.uri.toString()));
-        }
+
+/** Normalize a URI string or filesystem path into an absolute fsPath. */
+function toFsPathNormalized(input: string): string | null {
+  if (!input) return null;
+  try {
+    // URI string like "file://...", "vscode-remote://..."
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(input)) {
+      return path.resolve(vscode.Uri.parse(input).fsPath);
     }
-    return false;
+    // Plain path like "/home/..." or "C:\..."
+    return path.resolve(input);
+  } catch {
+    return null;
+  }
 }
+
+/** Ensure the path ends with the OS separator. */
+function ensureTrailingSep(p: string): string {
+  return p.endsWith(path.sep) ? p : p + path.sep;
+}
+
+/** Check whether `uriOrPath` belongs to any workspace folder. */
+export function isInWorkspace(uriOrPath: string): boolean {
+  // Target file path
+  const target = toFsPathNormalized(uriOrPath);
+  if (!target) return false;
+
+  // Workspace root paths
+  const roots = (vscode.workspace.workspaceFolders || [])
+    .map(f => toFsPathNormalized(f.uri.fsPath))
+    .filter(Boolean) as string[];
+
+  // Prefix match under workspace root
+  return roots.some(root => target.startsWith(ensureTrailingSep(root)));
+}
+
 
 export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMap: DecodedToken[], parentSymbol: vscode.DocumentSymbol | null = null): Promise<Map<string, DecodedToken[]>> {
     // Get all definitions from DefUseMap, but we retreive the method and definition together
