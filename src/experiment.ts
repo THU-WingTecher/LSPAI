@@ -344,7 +344,9 @@ export async function runGenerateTestCodeSuite(
     symbols: any, // Use the correct type if available
     languageId: string,
     previousExperimentDir?: string, // Optional parameter for continuing experiments
-    dirForReuse?: string // Optional parameter for continuing experiments
+    dirForReuse?: string, // Optional parameter for continuing experiments
+    testFileMapPath?: string,
+    saveName?: string,
 ) {
     if (process.env.NODE_DEBUG !== 'true') {
         console.log('activate');
@@ -360,7 +362,7 @@ export async function runGenerateTestCodeSuite(
         provider: provider
     });
     // If continuing from previous experiment, use its save path
-    const savePath = previousExperimentDir || getConfigInstance().genSaveName();;
+    const savePath = previousExperimentDir || getConfigInstance().genSaveName(saveName);
     getConfigInstance().updateConfig({
         savePath: savePath
     });
@@ -420,7 +422,9 @@ export async function runGenerateTestCodeSuite(
     }
 
     // Build/merge test-file mapping for analysis
-    const testFileMapPath = path.join(getConfigInstance().savePath, 'test_file_map.json');
+    // if (testFileMapPath === undefined) {
+    const newtestFileMapPath = path.join(getConfigInstance().savePath, 'test_file_map.json');
+    // }
     const newEntries = Object.fromEntries(
         symbolFilePairsToTest.map(({ document, symbol, fileName }) => [
             path.basename(fileName),
@@ -433,11 +437,11 @@ export async function runGenerateTestCodeSuite(
     );
     let existingEntries: Record<string, any> = {};
     try {
-        const prev = await fs.promises.readFile(testFileMapPath, 'utf8');
+        const prev = await fs.promises.readFile(newtestFileMapPath, 'utf8');
         existingEntries = JSON.parse(prev);
     } catch {}
-    await fs.promises.writeFile(testFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
-    console.log(`#### Test file map has been saved to ${testFileMapPath}`);
+    await fs.promises.writeFile(newtestFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
+    console.log(`#### Test file map has been saved to ${newtestFileMapPath}`);
     const limit = createConcurrencyLimit();
     // Generate test promises with progress tracking
     const testGenerationPromises = symbolPairsToProcess.map(symbolFilePair => 
@@ -448,11 +452,12 @@ export async function runGenerateTestCodeSuite(
                 // we load the cached draft test *here* (where fileName is decided), and pass the code down.
                 let resolvedFileName = fileName;
                 let cachedDraftTestCode: string | undefined;
-                if (dirForReuse && generationType === GenerationType.EXPERIMENTAL) {
+                if (dirForReuse && generationType && testFileMapPath === GenerationType.EXPERIMENTAL) {
                     const mapped = resolveTestFileNameFromTestFileMap({
                         dirForReuse,
                         symbolName: symbol.name,
-                        sourceFile: document.uri.fsPath
+                        sourceFile: document.uri.fsPath,
+                        testFileMapPath
                     });
                     if (mapped) {
                         // Use the cached randomized basename for the new run too (stable naming).

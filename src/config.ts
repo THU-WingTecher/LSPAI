@@ -282,9 +282,9 @@ export class Configuration {
             }
             // savePath should be updated 
             this.config.savePath = savePath;
-            this.createSavePathIfNotExists(savePath);
-            this.createSavePathIfNotExists(path.join(savePath, '..', 'history'));
-            this.createSavePathIfNotExists(path.join(savePath, '..', 'logs'));
+            this.createSavePathIfNotExists(this.getResolvedSavePathAbs());
+            this.createSavePathIfNotExists(this.historyPath);
+            this.createSavePathIfNotExists(this.logSavePath);
         }
     }
 
@@ -375,22 +375,23 @@ export class Configuration {
         }
     }
     
-    private constructResultPath(): string {
+    private constructResultPath(saveName?: string): string {
+        let folderName = saveName || this.generationType + "_" + this.promptType;
         return path.join(
             "lsprag-workspace",
             this.startTimestamp,
             this.projectName,
-            this.generationType + "_" + this.promptType,
+            folderName,
             this.config.model,
         );
     }
-    public genSaveName(): string {
+    public genSaveName(saveName?: string): string {
         // Ensure we have all required parts
         if (!this.config.workspace || !this.startTimestamp || !this.projectName || !this.config.model) {
             throw new Error('Missing required configuration for genSaveName');
         }
         return path.join(
-            this.constructResultPath(),
+            this.constructResultPath(saveName),
             "results"
         );
 
@@ -423,16 +424,28 @@ export class Configuration {
         return this.config.savePath;
     }
 
-    public get historyPath(): string {
-        // Ensure we have all required parts
-        if (!this.config.workspace || !this.startTimestamp || !this.projectName || !this.config.model) {
-            throw new Error('Missing required configuration for historyPath');
+    private getResolvedSavePathAbs(): string {
+        if (!this.config.workspace || !this.config.savePath) {
+            throw new Error('Missing required configuration for savePath');
         }
-        return path.join(
-            this.config.workspace,
-            this.constructResultPath(),
-            'history'
-        );
+        const savePath = this.config.savePath as string;
+        return path.isAbsolute(savePath) ? savePath : path.join(this.config.workspace, savePath);
+    }
+
+    /**
+     * Root directory for a run. If `savePath` points to a `results` directory, the run root is two levels up
+     * (i.e. `<runRoot>/<model>/results` -> `<runRoot>`);
+     * otherwise, the run root is `savePath` itself (legacy/manual save folder).
+     */
+    private getRunRootAbs(): string {
+        const savePathAbs = this.getResolvedSavePathAbs();
+        if (path.basename(savePathAbs) !== 'results') return savePathAbs;
+        // savePathAbs: <runRoot>/<model>/results  -> runRoot: <runRoot>
+        return path.dirname(path.dirname(savePathAbs));
+    }
+
+    public get historyPath(): string {
+        return path.join(this.getRunRootAbs(), 'history');
     }
 
     public get timeStamp(): string {
@@ -440,15 +453,7 @@ export class Configuration {
     }
 
     public get logSavePath(): string {
-        // Ensure we have all required parts
-        if (!this.config.workspace || !this.startTimestamp || !this.projectName || !this.config.model) {
-            throw new Error('Missing required configuration for logSavePath');
-        }
-        return path.join(
-            this.config.workspace,
-            this.constructResultPath(),
-            'logs'
-        );
+        return path.join(this.getRunRootAbs(), 'logs');
     }
 
     public get workspace(): string {

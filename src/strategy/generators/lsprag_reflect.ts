@@ -43,6 +43,7 @@ export function resolveTestFileNameFromTestFileMap(params: {
 	dirForReuse: string;
 	symbolName: string;
 	sourceFile?: string; // absolute path (we match via endsWith against mapping's relative file_name)
+	testFileMapPath: string;
 }): string | null {
 	if (!params.dirForReuse || !params.symbolName) {
 		return null;
@@ -51,46 +52,47 @@ export function resolveTestFileNameFromTestFileMap(params: {
 	// cachedDir might be the experiment root OR a subdir like "initial"/"final".
 	const mappingDirs = [params.dirForReuse, path.dirname(params.dirForReuse)];
 	const sourceNorm = params.sourceFile ? normalizePathLike(params.sourceFile) : '';
+	const raw = fs.readFileSync(params.testFileMapPath, 'utf8');
+	const obj = JSON.parse(raw) as Record<string, TestFileMapEntry>;
+	// for (const d of mappingDirs) {
+	// 	try {
+	// 		const mappingPath = path.join(d, 'test_file_map.json');
+	// 		if (!fs.existsSync(mappingPath) || !fs.statSync(mappingPath).isFile()) {
+	// 			continue;
+	// 		}
 
-	for (const d of mappingDirs) {
-		try {
-			const mappingPath = path.join(d, 'test_file_map.json');
-			if (!fs.existsSync(mappingPath) || !fs.statSync(mappingPath).isFile()) {
-				continue;
-			}
+	// 		const raw = fs.readFileSync(mappingPath, 'utf8');
+	// 		const obj = JSON.parse(raw) as Record<string, TestFileMapEntry>;
+	if (!obj || typeof obj !== 'object') {
+		return null;
+	}
 
-			const raw = fs.readFileSync(mappingPath, 'utf8');
-			const obj = JSON.parse(raw) as Record<string, TestFileMapEntry>;
-			if (!obj || typeof obj !== 'object') {
-				continue;
-			}
+	let fallbackKey: string | null = null;
+	for (const [key, entry] of Object.entries(obj)) {
+		if (!entry || typeof entry !== 'object') {
+			continue;
+		}
+		if (entry.symbol_name !== params.symbolName) {
+			continue;
+		}
 
-			let fallbackKey: string | null = null;
-			for (const [key, entry] of Object.entries(obj)) {
-				if (!entry || typeof entry !== 'object') {
-					continue;
-				}
-				if (entry.symbol_name !== params.symbolName) {
-					continue;
-				}
+		// Prefer a mapping that matches the source file path (absolute vs relative).
+		const mappedFile = entry.file_name ? normalizePathLike(entry.file_name) : '';
+		if (sourceNorm && mappedFile && sourceNorm.endsWith(mappedFile)) {
+			return key;
+		}
 
-				// Prefer a mapping that matches the source file path (absolute vs relative).
-				const mappedFile = entry.file_name ? normalizePathLike(entry.file_name) : '';
-				if (sourceNorm && mappedFile && sourceNorm.endsWith(mappedFile)) {
-					return key;
-				}
-
-				if (!fallbackKey) {
-					fallbackKey = key;
-				}
-			}
-			if (fallbackKey) {
-				return fallbackKey;
-			}
-		} catch {
-			// ignore
+		if (!fallbackKey) {
+			fallbackKey = key;
 		}
 	}
+	if (fallbackKey) {
+		return fallbackKey;
+	}
+// } catch {
+// 	// ignore
+// }
+	// }
 
 	return null;
 }
