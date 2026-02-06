@@ -56,8 +56,33 @@ export function getModelConfigError(): string | undefined {
 				return 'Deepseek API key is not configured. Please set LSPRAG.deepseekApiKey in settings.';
 			}
 			break;
+		case 'claude':
+			if (!getClaudeAuthToken()) {
+				return 'Claude auth token is not configured. Please set ANTHROPIC_AUTH_TOKEN (or ANTHROPIC_API_KEY).';
+			}
+			break;
 	}
 	return undefined;
+}
+
+function normalizeToken(rawValue: string | undefined): string | undefined {
+	const value = rawValue?.trim();
+	if (!value) {
+		return undefined;
+	}
+	return value.endsWith(',') ? value.slice(0, -1).trim() : value;
+}
+
+function getClaudeAuthToken(): string | undefined {
+	return normalizeToken(process.env.ANTHROPIC_AUTH_TOKEN) || normalizeToken(process.env.ANTHROPIC_API_KEY);
+}
+
+function getClaudeBaseUrl(): string {
+	const rawBaseUrl = process.env.ANTHROPIC_BASE_URL?.trim();
+	if (!rawBaseUrl) {
+		return 'https://api.anthropic.com';
+	}
+	return rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 }
 
 function logLLMInteraction(prompt: string, response: string): void {
@@ -154,6 +179,9 @@ export async function invokeLLM(promptObj: any, logObj: any = { prompt: '', resu
 					break;
 				case 'deepseek':
 					response = await callDeepSeek(promptObj, logObj);
+					break;
+				case 'claude':
+					response = await callClaude(promptObj, logObj);
 					break;
 				default:
 					console.error("invokeLLM::provider::Wrong Provider", provider);
@@ -266,4 +294,88 @@ export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
 		console.error('Error generating test code:', e);
 		throw e;
 	}
+}
+
+export async function callClaude(promptObj: any, logObj: any): Promise<string> {
+	const modelName = getModelName();
+	logObj.prompt = promptObj[1]?.content || '';
+
+	const authToken = getClaudeAuthToken();
+	if (!authToken) {
+		throw new Error('Claude auth token not configured. Please set ANTHROPIC_AUTH_TOKEN (or ANTHROPIC_API_KEY).');
+	}
+
+	if (typeof globalThis.fetch !== 'function') {
+		throw new Error('globalThis.fetch is not available in this runtime.');
+	}
+
+	const systemPrompt = promptObj
+		.filter((msg: any) => msg?.role === 'system' && typeof msg?.content === 'string')
+		.map((msg: any) => msg.content)
+		.join('\n\n');
+
+	const messages = promptObj
+		.filter((msg: any) => msg?.role !== 'system' && typeof msg?.content === 'string')
+		.map((msg: any) => ({
+			role: msg.role === 'assistant' ? 'assistant' : 'user',
+			content: msg.content
+		}));
+
+	if (messages.length === 0 && promptObj[1]?.content) {
+		messages.push({
+			role: 'user',
+			content: promptObj[1].content
+		});
+	}
+
+	const payload: Record<string, any> = {
+		model: modelName,
+		max_tokens: 2048,
+		messages
+	};
+	if (systemPrompt) {
+		payload.system = systemPrompt;
+	}
+
+	const response = await globalThis.fetch(`${getClaudeBaseUrl()}/v1/messages`, {
+		method: 'POST',
+		headers: {
+			'content-type': 'application/json',
+			'anthropic-version': '2023-06-01',
+			'x-api-key': authToken,
+			'authorization': `Bearer ${authToken}`
+		},
+		body: JSON.stringify(payload)
+	});
+
+	const responseText = await response.text();
+	let data: any = null;
+	try {
+		data = responseText ? JSON.parse(responseText) : null;
+	} catch {
+		if (!response.ok) {
+			throw new Error(`Claude API request failed (${response.status}): ${responseText}`);
+		}
+		throw new Error(`Claude API returned non-JSON response: ${responseText}`);
+	}
+
+	if (!response.ok) {
+		const apiError = data?.error?.message || data?.message || responseText || 'Unknown Claude API error';
+		throw new Error(`Claude API request failed (${response.status}): ${apiError}`);
+	}
+
+	const contentBlocks = Array.isArray(data?.content) ? data.content : [];
+	const result = contentBlocks
+		.filter((block: any) => block?.type === 'text' && typeof block?.text === 'string')
+		.map((block: any) => block.text)
+		.join('\n')
+		.trim();
+
+	if (!result) {
+		throw new Error('Claude response did not contain any text content.');
+	}
+
+	logObj.tokenUsage = data?.usage?.input_tokens ?? 0;
+	logObj.result = data;
+	return result;
 }

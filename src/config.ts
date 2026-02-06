@@ -120,7 +120,7 @@ export const TIME_FORMAT_OPTIONS = { timeZone: TIME_ZONE, hour12: false };
 const SEED = 12345; // Fixed seed for reproducibility
 let seededRandom: () => number;
 
-export type Provider = 'openai' | 'local' | 'deepseek';
+export type Provider = 'openai' | 'local' | 'deepseek' | 'claude';
 
 // Function to load private configuration
 

@@ -1,7 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { getConfigInstance, GenerationType, PromptType, Provider, Configuration } from '../../../config';
-import path from 'path';
+import { getConfigInstance, Provider, Configuration } from '../../../config';
 import { invokeLLM } from '../../../invokeLLM';
 suite('LLM invoke Test Suite', () => {
 
@@ -27,6 +26,14 @@ suite('LLM invoke Test Suite', () => {
             content: 'What is the capital of the moon?'
         }
     ];
+
+    function normalizeToken(rawValue?: string): string | undefined {
+        const value = rawValue?.trim();
+        if (!value) {
+            return undefined;
+        }
+        return value.endsWith(',') ? value.slice(0, -1).trim() : value;
+    }
 
     test('Check LLM response with API key from environment variable', async () => {
         // Save original environment variable
@@ -122,6 +129,72 @@ suite('LLM invoke Test Suite', () => {
                 await lspragConfig.update('openaiApiKey', originalVSCodeApiKey, vscode.ConfigurationTarget.Workspace);
             } else {
                 await lspragConfig.update('openaiApiKey', undefined, vscode.ConfigurationTarget.Workspace);
+            }
+            Configuration.resetInstance();
+        }
+    });
+
+    test('Check Claude response with ANTHROPIC_AUTH_TOKEN', async function () {
+        this.timeout(120000);
+
+        const originalAuthToken = process.env.ANTHROPIC_AUTH_TOKEN;
+        const originalApiKey = process.env.ANTHROPIC_API_KEY;
+        const originalTestingMode = process.env.TESTING_MODE;
+        const originalNodeEnv = process.env.NODE_ENV;
+
+        const testAuthToken = normalizeToken(originalAuthToken) || normalizeToken(originalApiKey);
+        if (!testAuthToken) {
+            this.skip();
+            return;
+        }
+
+        process.env.TESTING_MODE = 'true';
+        process.env.NODE_ENV = 'test';
+        process.env.ANTHROPIC_AUTH_TOKEN = testAuthToken;
+        process.env.ANTHROPIC_API_KEY = testAuthToken;
+
+        Configuration.resetInstance();
+        getConfigInstance().updateConfig({
+            workspace: projectPath,
+            model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5',
+            provider: 'claude' as Provider,
+        });
+
+        const claudePromptObj = [
+            {
+                role: 'system',
+                content: 'You are a concise assistant.'
+            },
+            {
+                role: 'user',
+                content: 'Reply with only one word: moon'
+            }
+        ];
+
+        try {
+            const response = await invokeLLM(claudePromptObj, []);
+            console.log('response (claude from env var) ::', response);
+            assert.ok(response && response.length > 0, 'response should not be empty');
+        } finally {
+            if (originalAuthToken !== undefined) {
+                process.env.ANTHROPIC_AUTH_TOKEN = originalAuthToken;
+            } else {
+                delete process.env.ANTHROPIC_AUTH_TOKEN;
+            }
+            if (originalApiKey !== undefined) {
+                process.env.ANTHROPIC_API_KEY = originalApiKey;
+            } else {
+                delete process.env.ANTHROPIC_API_KEY;
+            }
+            if (originalTestingMode !== undefined) {
+                process.env.TESTING_MODE = originalTestingMode;
+            } else {
+                delete process.env.TESTING_MODE;
+            }
+            if (originalNodeEnv !== undefined) {
+                process.env.NODE_ENV = originalNodeEnv;
+            } else {
+                delete process.env.NODE_ENV;
             }
             Configuration.resetInstance();
         }
