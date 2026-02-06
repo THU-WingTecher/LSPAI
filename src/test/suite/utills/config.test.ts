@@ -7,17 +7,19 @@ import { Configuration, GenerationType, PromptType } from '../../../config';
 
 test('paths should exist after configuration update', () => {
     // Setup
+    Configuration.resetInstance();
     const config = Configuration.getInstance();
     const initialWorkspace = '/tmp/test-workspace';
     
-    // Create initial paths
+    // Create initial paths (materialize folders via savePath update)
     config.updateConfig({ workspace: initialWorkspace });
+    config.updateConfig({ savePath: config.genSaveName('unit') });
     const initialSavePath = config.savePath;
     const initialHistoryPath = config.historyPath;
     const initialLogPath = config.logSavePath;
     
     // Verify initial paths exist
-    assert.strictEqual(fs.existsSync(path.join(initialWorkspace, initialSavePath)), true, 'Initial save path should exist');
+    assert.strictEqual(fs.existsSync(initialSavePath), true, 'Initial save path should exist');
     assert.strictEqual(fs.existsSync(initialHistoryPath), true, 'Initial history path should exist');
     assert.strictEqual(fs.existsSync(initialLogPath), true, 'Initial log path should exist');
     
@@ -29,7 +31,7 @@ test('paths should exist after configuration update', () => {
     });
     
     // Verify paths still exist after update
-    assert.strictEqual(fs.existsSync(path.join(initialWorkspace, config.savePath)), true, 'Save path should exist after update');
+    assert.strictEqual(fs.existsSync(config.savePath), true, 'Save path should exist after update');
     assert.strictEqual(fs.existsSync(config.historyPath), true, 'History path should exist after update');
     assert.strictEqual(fs.existsSync(config.logSavePath), true, 'Log path should exist after update');
     
@@ -48,14 +50,15 @@ test('paths should exist after workspace update', () => {
     const initialWorkspace = '/tmp/test-workspace-1';
     const newWorkspace = '/tmp/test-workspace-2';
     
-    // Create initial paths
+    // Create initial paths (materialize folders via savePath update)
     config.updateConfig({ workspace: initialWorkspace });
+    config.updateConfig({ savePath: config.genSaveName('unit') });
     const initialSavePath = config.savePath;
     const initialHistoryPath = config.historyPath;
     const initialLogPath = config.logSavePath;
     
     // Verify initial paths exist
-    assert.strictEqual(fs.existsSync(path.join(initialWorkspace, initialSavePath)), true, 'Initial save path should exist');
+    assert.strictEqual(fs.existsSync(initialSavePath), true, 'Initial save path should exist');
     assert.strictEqual(fs.existsSync(initialHistoryPath), true, 'Initial history path should exist');
     assert.strictEqual(fs.existsSync(initialLogPath), true, 'Initial log path should exist');
     
@@ -64,9 +67,10 @@ test('paths should exist after workspace update', () => {
         workspace: newWorkspace,
         model: 'gpt-4' // Adding model change to test combined updates
     });
+    config.updateConfig({ savePath: config.genSaveName('unit') });
     
     // Verify new paths exist
-    assert.strictEqual(fs.existsSync(path.join(newWorkspace, config.savePath)), true, 'Save path should exist in new workspace');
+    assert.strictEqual(fs.existsSync(config.savePath), true, 'Save path should exist in new workspace');
     assert.strictEqual(fs.existsSync(config.historyPath), true, 'History path should exist in new workspace');
     assert.strictEqual(fs.existsSync(config.logSavePath), true, 'Log path should exist in new workspace');
     

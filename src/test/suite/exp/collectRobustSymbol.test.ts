@@ -16,10 +16,26 @@ export interface SymbolRobustnessResult {
     sourceCode: string;
     importString: string;
     lineNum: number;
+    location: number;
     relativeDocumentPath: string;
 }
 
 // comment, number of cross-file dependencies, number of unique CFG   
+
+function dedupeSymbols(
+    symbols: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[]
+): { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[] {
+    const seen = new Set<string>();
+    const result: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[] = [];
+    for (const entry of symbols) {
+        const { symbol, document } = entry;
+        const key = `${document.uri.fsPath}::${symbol.name}::${symbol.range.start.line}:${symbol.range.start.character}-${symbol.range.end.line}:${symbol.range.end.character}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        result.push(entry);
+    }
+    return result;
+}
 
 function isInProjectPath(uri: vscode.Uri, projectPath: string): boolean {
     const refPath = uri.fsPath;
@@ -45,7 +61,7 @@ export async function measureSymbolRobustness(
     // Log references outside project for debugging
     const outsideProject = allReferences.filter(ref => !isInProjectPath(ref.uri, workspacePath));
     if (outsideProject.length > 0) {
-        console.log(`  Filtered out ${outsideProject.length} references outside project path:`);
+        // console.log(`  Filtered out ${outsideProject.length} references outside project path:`);
         outsideProject.forEach(ref => console.log(`    - ${ref.uri.fsPath}`));
     }
     
@@ -71,6 +87,7 @@ export async function measureSymbolRobustness(
         importString = genPythonicSrcImportStatement(document.getText());
     }
     const lineNum = symbol.range.end.line - symbol.range.start.line;
+    const location = symbol.range.start.line;
     const relativeDocumentPath = path.relative(workspacePath, document.uri.fsPath);
     
     // Output the results
@@ -88,13 +105,18 @@ export async function measureSymbolRobustness(
         sourceCode,
         importString,
         lineNum,
+        location,
         relativeDocumentPath
     };
 }
 
 suite('Experiment Test Suite', () => {
     // const projectName = "commons-cli";
-    const projectName = "black";
+    const projectNameEnv = process.env.TEST_PROJECT_NAME;
+    if (!projectNameEnv) {
+        throw new Error('Missing required TEST_PROJECT_NAME. Pass --projectName=<name> when running tests.');
+    }    
+    const projectName = projectNameEnv as ProjectConfigName;
     const pythonInterpreterPath = getProjectPythonExe(projectName) as string;
     const pythonExtraPaths = getProjectPythonPath(projectName);
     const languageId = getProjectLanguage(projectName as ProjectConfigName);
@@ -137,7 +159,11 @@ suite('Experiment Test Suite', () => {
         }
         
         // Load symbols from workspace
-        const testSymbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
+        const rawSymbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
+        const testSymbols = dedupeSymbols(rawSymbols);
+        if (testSymbols.length !== rawSymbols.length) {
+            console.log(`#### Deduped symbols: ${rawSymbols.length} -> ${testSymbols.length}`);
+        }
         assert.ok(testSymbols.length > 0, 'Should have at least one symbol');
         
         // Collect all robustness results

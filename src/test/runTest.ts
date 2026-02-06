@@ -30,10 +30,30 @@ const DEFAULT_TEST_CONFIG = {
   PROVIDER: 'deepseek' as Provider,
   EXP_PROB: '0.2',
   TIMEOUT: '0', // 0 means no timeout
-  PARALLEL_COUNT: '4',
+  PARALLEL_COUNT: '1',
   MAX_ROUND: '5',
   PROMPT_TYPE: PromptType.BASIC
 };
+
+function getCliArgValue(names: string[]): string | undefined {
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    for (const name of names) {
+      const flag = `--${name}`;
+      if (arg === flag) {
+        const next = argv[i + 1];
+        if (next && !next.startsWith('--')) {
+          return next;
+        }
+      }
+      if (arg.startsWith(`${flag}=`)) {
+        return arg.slice(flag.length + 1);
+      }
+    }
+  }
+  return undefined;
+}
 
 // Function to load private configuration strictly from environment variables
 export function loadPrivateConfig(provider?: Provider): PrivateConfig {
@@ -124,7 +144,52 @@ async function main() {
        process.exit(1);
     }
     
-    const privateConfig = loadPrivateConfig();
+    const model =
+      getCliArgValue(['model']) ||
+      process.env.npm_config_model ||
+      process.env.TEST_MODEL ||
+      DEFAULT_TEST_CONFIG.MODEL;
+    const providerRaw =
+      getCliArgValue(['provider']) ||
+      process.env.npm_config_provider ||
+      process.env.TEST_PROVIDER ||
+      DEFAULT_TEST_CONFIG.PROVIDER;
+    const provider = validateProvider(providerRaw);
+    const privateConfig = loadPrivateConfig(provider);
+    const projectName =
+      getCliArgValue(['projectName', 'project-name']) ||
+      process.env.npm_config_projectname ||
+      process.env.npm_config_project_name ||
+      process.env.TEST_PROJECT_NAME;
+    const taskListPath =
+      getCliArgValue(['taskListPath', 'task-list-path', 'taskList', 'task-list']) ||
+      process.env.npm_config_tasklistpath ||
+      process.env.npm_config_task_list_path ||
+      process.env.npm_config_tasklist ||
+      process.env.npm_config_task_list ||
+      process.env.TEST_TASK_LIST_PATH;
+    const parallelCountRaw =
+      getCliArgValue(['parallelCount', 'parallel-count']) ||
+      process.env.npm_config_parallelcount ||
+      process.env.npm_config_parallel_count ||
+      process.env.TEST_PARALLEL_COUNT ||
+      DEFAULT_TEST_CONFIG.PARALLEL_COUNT;
+    const parallelCount = Number.parseInt(parallelCountRaw, 10);
+
+    if (!projectName) {
+      throw new Error('Missing required project name. Pass --projectName=<name> or set TEST_PROJECT_NAME.');
+    }
+    if (!taskListPath) {
+      throw new Error('Missing required task list path. Pass --taskListPath=<path> or set TEST_TASK_LIST_PATH.');
+    }
+    if (!Number.isInteger(parallelCount) || parallelCount < 1) {
+      throw new Error(`Invalid parallel count: ${parallelCountRaw}. Provide a positive integer.`);
+    }
+    console.log(`[test-runner] TEST_PROJECT_NAME=${projectName}`);
+    console.log(`[test-runner] TEST_TASK_LIST_PATH=${taskListPath}`);
+    console.log(`[test-runner] TEST_PARALLEL_COUNT=${parallelCount}`);
+    console.log(`[test-runner] TEST_MODEL=${model}`);
+    console.log(`[test-runner] TEST_PROVIDER=${provider}`);
     // Run the extension test
     await runTests({
       // Use the specified `code` executable
@@ -133,18 +198,20 @@ async function main() {
       extensionTestsPath,
       extensionTestsEnv: {
         NODE_ENV: 'test',
-        TEST_MODEL:  DEFAULT_TEST_CONFIG.MODEL,
-        TEST_PROVIDER: validateProvider(DEFAULT_TEST_CONFIG.PROVIDER),
+        TEST_MODEL: model,
+        TEST_PROVIDER: provider,
         TEST_EXP_PROB:  DEFAULT_TEST_CONFIG.EXP_PROB,
         TEST_TIMEOUT:  DEFAULT_TEST_CONFIG.TIMEOUT,
-        TEST_PARALLEL_COUNT:  DEFAULT_TEST_CONFIG.PARALLEL_COUNT,
+        TEST_PARALLEL_COUNT: String(parallelCount),
         TEST_MAX_ROUND:  DEFAULT_TEST_CONFIG.MAX_ROUND,
         TEST_PROMPT_TYPE:  DEFAULT_TEST_CONFIG.PROMPT_TYPE,
         TEST_OPENAI_API_KEY: privateConfig.openaiApiKey,
         TEST_SUMMARIZE_CONTEXT: 'true', // Add this line
         TEST_DEEPSEEK_API_KEY: privateConfig.deepseekApiKey,
         TEST_LOCAL_LLM_URL: privateConfig.localLLMUrl,
-        TEST_PROXY_URL: privateConfig.proxyUrl
+        TEST_PROXY_URL: privateConfig.proxyUrl,
+        TEST_PROJECT_NAME: projectName,
+        TEST_TASK_LIST_PATH: taskListPath
     }
     });
   } catch (err) {
