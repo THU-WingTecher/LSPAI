@@ -85,7 +85,8 @@
           "enum": [
             "deepseek",
             "openai",
-            "ollama"
+            "ollama",
+            "claude"
           ]
         },
         "LSPRAG.model": {
