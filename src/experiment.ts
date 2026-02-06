@@ -344,7 +344,7 @@ export async function runGenerateTestCodeSuite(
     symbols: any, // Use the correct type if available
     languageId: string,
     previousExperimentDir?: string, // Optional parameter for continuing experiments
-    dirForReuse?: string, // Optional parameter for continuing experiments
+    dirForReuse?: string, // Optional parameter for reflecting experiments
     testFileMapPath?: string,
     saveName?: string,
 ) {
@@ -442,7 +442,44 @@ export async function runGenerateTestCodeSuite(
     } catch {}
     await fs.promises.writeFile(newtestFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
     console.log(`#### Test file map has been saved to ${newtestFileMapPath}`);
+
     const limit = createConcurrencyLimit();
+    const buildExperimentalTaskKey = (symbolName: string, sourceFilePath: string) =>
+        `${symbolName}::${path.normalize(sourceFilePath)}`;
+    const validatedExperimentalMappings = new Map<string, string>();
+
+    if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
+        const missingMappings: string[] = [];
+        for (const { document, symbol } of symbolPairsToProcess) {
+            const mapped = resolveTestFileNameFromTestFileMap({
+                dirForReuse,
+                symbolName: symbol.name,
+                sourceFile: document.uri.fsPath,
+                testFileMapPath
+            });
+            if (!mapped) {
+                missingMappings.push(`${symbol.name} (${document.uri.fsPath}:${symbol.range.start.line + 1})`);
+                continue;
+            }
+            validatedExperimentalMappings.set(
+                buildExperimentalTaskKey(symbol.name, document.uri.fsPath),
+                mapped
+            );
+        }
+
+        if (missingMappings.length > 0) {
+            const preview = missingMappings.slice(0, 20).join('\n- ');
+            throw new Error(
+                `[EXPERIMENTAL] Missing test_file_map mappings for ${missingMappings.length}/${symbolPairsToProcess.length} tasks. ` +
+                `Please ensure all test files are mapped before running reflection.\n- ${preview}`
+            );
+        }
+
+        console.log(
+            `[EXPERIMENTAL] Verified mapping for all ${validatedExperimentalMappings.size} tasks using ${testFileMapPath}`
+        );
+    }
+
     // Generate test promises with progress tracking
     const testGenerationPromises = symbolPairsToProcess.map(symbolFilePair => 
         limit(async () => {
@@ -452,13 +489,9 @@ export async function runGenerateTestCodeSuite(
                 // we load the cached draft test *here* (where fileName is decided), and pass the code down.
                 let resolvedFileName = fileName;
                 let cachedDraftTestCode: string | undefined;
-                if (dirForReuse && generationType && testFileMapPath === GenerationType.EXPERIMENTAL) {
-                    const mapped = resolveTestFileNameFromTestFileMap({
-                        dirForReuse,
-                        symbolName: symbol.name,
-                        sourceFile: document.uri.fsPath,
-                        testFileMapPath
-                    });
+                if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
+                    const taskKey = buildExperimentalTaskKey(symbol.name, document.uri.fsPath);
+                    const mapped = validatedExperimentalMappings.get(taskKey);
                     if (mapped) {
                         // Use the cached randomized basename for the new run too (stable naming).
                         resolvedFileName = path.join(path.dirname(fileName), mapped);
@@ -474,7 +507,10 @@ export async function runGenerateTestCodeSuite(
                             console.warn(`[EXPERIMENTAL] No cached draft test found under dirForReuse: ${dirForReuse} for ${mapped}`);
                         }
                     } else {
-                        console.warn(`[EXPERIMENTAL] No test_file_map.json match for ${symbol.name} (${document.uri.fsPath}); will regenerate draft.`);
+                        throw new Error(
+                            `[EXPERIMENTAL] Missing validated mapping for ${symbol.name} (${document.uri.fsPath}). ` +
+                            `Please ensure all test files are mapped before running reflection.`
+                        );
                     }
                 }
 
