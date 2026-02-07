@@ -168,6 +168,17 @@ async function main() {
       process.env.npm_config_tasklist ||
       process.env.npm_config_task_list ||
       process.env.TEST_TASK_LIST_PATH;
+    const testType =
+      getCliArgValue(['testType', 'test-type']) ||
+      process.env.npm_config_testtype ||
+      process.env.npm_config_test_type ||
+      process.env.TEST_TYPE;
+      process.env.TEST_TASK_LIST_PATH;
+    const testConfigPath =
+      getCliArgValue(['testConfigPath', 'test-config-path']) ||
+      process.env.npm_config_testconfigpath ||
+      process.env.npm_config_test_config_path ||
+      process.env.TEST_CONFIG_PATH;
     const parallelCountRaw =
       getCliArgValue(['parallelCount', 'parallel-count']) ||
       process.env.npm_config_parallelcount ||
@@ -211,7 +222,9 @@ async function main() {
         TEST_LOCAL_LLM_URL: privateConfig.localLLMUrl,
         TEST_PROXY_URL: privateConfig.proxyUrl,
         TEST_PROJECT_NAME: projectName,
-        TEST_TASK_LIST_PATH: taskListPath
+        TEST_TASK_LIST_PATH: taskListPath,
+        TEST_TYPE: testType,
+        TEST_CONFIG_PATH: testConfigPath,
     }
     });
   } catch (err) {
