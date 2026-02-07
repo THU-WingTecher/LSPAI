@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import fs from 'fs';
 import path from 'path';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../../helper';
 import { loadAllTargetSymbolsFromWorkspace } from "../../../../lsp/symbol";
@@ -12,14 +13,23 @@ import { setupPythonWorkspaceForExperiment } from '../../../../helper';
 import { getPythonProjectInfo } from '../../../../config';
 
 suite('Experiment Test Suite', () => {
-    const parallelCount = 80;
+    const parallelCountRaw = process.env.TEST_PARALLEL_COUNT || '1';
+    const parallelCount = Number.parseInt(parallelCountRaw, 10);
     const projectName = "black" as ProjectConfigName;
+    const taskListPath = "/LSPRAG/experiments/config/black-robust-final.json";
+    const model = process.env.TEST_MODEL || 'gpt-4o-mini';
+    const provider = (process.env.TEST_PROVIDER || 'openai') as Provider;
+    console.log(`#### projectName: ${projectName}`);
+    console.log(`#### taskListPath: ${taskListPath}`);
+    console.log(`#### parallelCount: ${parallelCount}`);
+    console.log(`#### model: ${model}`);
+    console.log(`#### provider: ${provider}`);
     const { pythonInterpreterPath, pythonExtraPaths, projectPath, languageId } = getPythonProjectInfo(projectName);
-    const sampleNumber = 100;
+    const sampleNumber = -1;
     const currentConfig = {
         parallelCount: parallelCount,
-        model: 'gpt-4o-mini',
-        provider: 'openai' as Provider,
+        model,
+        provider,
         expProb: 1,
         promptType: PromptType.DETAILED,
         workspace: projectPath,
@@ -43,7 +53,7 @@ suite('Experiment Test Suite', () => {
     //         console.log('activate');
     //         await activate();
     //     }
-    //     const taskListPath = '/LSPRAG/experiments/config/black-taskList.json';
+    //     const taskListPath = '/LSPRAG/experiments/projects/tornado/symbol_robustness_results.json';
     //     const workspaceFolders = setWorkspaceFolders(projectPath);
     //     // await updateWorkspaceFolders(workspaceFolders);
     //     console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
@@ -69,17 +79,21 @@ suite('Experiment Test Suite', () => {
             console.log('activate');
             await activate();
         }
-
-        const taskListPath = '/LSPRAG/experiments/projects/black/symbol_robustness_results.json';
         const sampledTaskListPath = await readSliceAndSaveTaskList(taskListPath, sampleNumber);
-        
+        const sampledTasks = JSON.parse(fs.readFileSync(sampledTaskListPath, 'utf8'));
+
         const workspaceFolders = setWorkspaceFolders(projectPath);
         // await updateWorkspaceFolders(workspaceFolders);
         console.log(`#### Workspace path: ${workspaceFolders[0].uri.fsPath}`);
 
         symbols = await loadAllTargetSymbolsFromWorkspace(languageId, 0);
         symbols = await findMatchedSymbolsFromTaskList(sampledTaskListPath, symbols, projectPath);
-
+        const expectedSymbolCount = sampleNumber < 0 ? sampledTasks.length : sampleNumber;
+        assert.strictEqual(
+            symbols.length,
+            expectedSymbolCount,
+            `symbol count mismatch: expected ${expectedSymbolCount}, got ${symbols.length}`
+        );
         // // ==== LOAD SYMBOLS FROM TASK LIST ====
         assert.ok(symbols.length > 0, 'symbols should not be empty');
         console.log(`#### Number of symbols: ${symbols.length}`);
@@ -97,116 +111,169 @@ suite('Experiment Test Suite', () => {
     //     );
     // });
 
-    test('Existing cache dir fixing by reflect strategy; deepseek-coder; naive-experimental comparative experiment ', async () => {
-        const cachedDir = "/LSPRAG/experiments/data/RA/mimesis/claudecode-deepseek/2026-01-16/codes"
-        const testMap = "/LSPRAG/experiments/config/mimesis-robust-sample100.json"
+    // test('LSPRAG-reflact; deepseek-coder; naive-experimental comparative experiment ', async () => {
 
-        await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            'deepseek-chat',
-            'deepseek' as Provider,
-            symbols,
-            languageId,
-            undefined,
-            cachedDir
-        );
-        let testsDir = path.join(getConfigInstance().savePath, "final");
-        let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-        let final_report_path = testsDir+'-final-report';
-        await runPipeline(testsDir, final_report_path, testFileMapPath, {
-          language: languageId,
-          pythonExe: pythonInterpreterPath,
-          jobs: getConfigInstance().parallelCount,
-          timeoutSec: 30,
-          pythonpath: pythonExtraPaths
-        });
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.LSPRAG,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'deepseek-chat',
+    //         'deepseek' as Provider,
+    //         // 'gpt-5',
+    //         // 'openai' as Provider,
+    //         symbols,
+    //         languageId,
+    //         undefined,
+    //     );
 
-        await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
-            PromptType.NAIVE,
-            'deepseek-chat',
-            'deepseek' as Provider,
-            symbols,
-            languageId,
-            undefined,
-            cachedDir
-        );
-        testsDir = path.join(getConfigInstance().savePath, "final");
-        testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-        final_report_path = testsDir+'-final-report';
-        await runPipeline(testsDir, final_report_path, testFileMapPath, {
-          language: languageId,
-          pythonExe: pythonInterpreterPath,
-          jobs: getConfigInstance().parallelCount,
-          timeoutSec: 30,
-          pythonpath: pythonExtraPaths
-        });
+    //     const cachedDir = getConfigInstance().savePath;
+    //     let testsDir = path.join(getConfigInstance().savePath, "final");
+    //     let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+    //     let final_report_path = testsDir+'-final-report';
+    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
+    //       language: languageId,
+    //       pythonExe: pythonInterpreterPath,
+    //       jobs: getConfigInstance().parallelCount,
+    //       timeoutSec: 30,
+    //       pythonpath: pythonExtraPaths
+    //     });
 
-    });
-    test('LSPRAG-reflact; deepseek-coder; naive-experimental comparative experiment ', async () => {
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.EXPERIMENTAL,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         'deepseek-chat',
+    //         'deepseek' as Provider,
+    //         symbols,
+    //         languageId,
+    //         undefined,
+    //         cachedDir,
+    //         testFileMapPath
+    //     );
+    //     testsDir = path.join(getConfigInstance().savePath, "final");
+    //     testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+    //     final_report_path = testsDir+'-final-report';
+    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
+    //       language: languageId,
+    //       pythonExe: pythonInterpreterPath,
+    //       jobs: getConfigInstance().parallelCount,
+    //       timeoutSec: 30,
+    //       pythonpath: pythonExtraPaths
+    //     });
 
-        await runGenerateTestCodeSuite(
-            GenerationType.LSPRAG,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            'deepseek-chat',
-            'deepseek' as Provider,
-            symbols,
-            languageId,
-            undefined,
-        );
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.EXPERIMENTAL,
+    //         FixType.ORIGINAL,
+    //         PromptType.NAIVE,
+    //         'deepseek-chat',
+    //         'deepseek' as Provider,
+    //         symbols,
+    //         languageId,
+    //         undefined,
+    //         cachedDir
+    //     );
+    //     testsDir = path.join(getConfigInstance().savePath, "final");
+    //     testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+    //     final_report_path = testsDir+'-final-report';
+    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
+    //       language: languageId,
+    //       pythonExe: pythonInterpreterPath,
+    //       jobs: getConfigInstance().parallelCount,
+    //       timeoutSec: 30,
+    //       pythonpath: pythonExtraPaths
+    //     });
 
-        const cachedDir = getConfigInstance().savePath;
-        await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            'deepseek-chat',
-            'deepseek' as Provider,
-            symbols,
-            languageId,
-            undefined,
-            cachedDir
-        );
-        let testsDir = path.join(getConfigInstance().savePath, "final");
-        let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-        let final_report_path = testsDir+'-final-report';
-        await runPipeline(testsDir, final_report_path, testFileMapPath, {
-          language: languageId,
-          pythonExe: pythonInterpreterPath,
-          jobs: getConfigInstance().parallelCount,
-          timeoutSec: 30,
-          pythonpath: pythonExtraPaths
-        });
-
-        await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
-            PromptType.NAIVE,
-            'deepseek-chat',
-            'deepseek' as Provider,
-            symbols,
-            languageId,
-            undefined,
-            cachedDir
-        );
-        testsDir = path.join(getConfigInstance().savePath, "final");
-        testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-        final_report_path = testsDir+'-final-report';
-        await runPipeline(testsDir, final_report_path, testFileMapPath, {
-          language: languageId,
-          pythonExe: pythonInterpreterPath,
-          jobs: getConfigInstance().parallelCount,
-          timeoutSec: 30,
-          pythonpath: pythonExtraPaths
-        });
-
-    });
+    // });
 
 
+    test('Reflect on already generated Agent based test code', async() => {
+
+        const model = 'deepseek-chat';
+        const provider = 'deepseek' as Provider;
+        const DirList = [
+            {
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode/deepseek-chat/2026-02-04/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode/deepseek-chat/test_file_map.json",
+                "savePath": "claudecode_vars",
+                "promptType": PromptType.WITHCONTEXT
+            },
+            {
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode/deepseek-chat/2026-02-04/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode/deepseek-chat/test_file_map.json",
+                "savePath": "claudecode_naive",
+                "promptType": PromptType.NAIVE
+            },
+            {
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode_cfg/deepseek-chat/deepseek/2026-02-04/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode_cfg/deepseek-chat/test_file_map.json",
+                "savePath": "claudecode_cfg_vars",
+                "promptType": PromptType.WITHCONTEXT
+            },
+            {
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/lsprag/deepseek/deepseek-chat/results/final",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/lsprag/deepseek/deepseek-chat/results/test_file_map.json",
+                "savePath": "lsprag_vars",
+                "promptType": PromptType.WITHCONTEXT
+            },
+            {
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode/deepseek-chat/deepseek-chat/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode/deepseek-chat/test_file_map.json",
+                "savePath": "opencode_vars",
+                "promptType": PromptType.WITHCONTEXT
+            },
+            {
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode/deepseek-chat/deepseek-chat/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode/deepseek-chat/test_file_map.json",
+                "savePath": "opencode_naive",
+                "promptType": PromptType.NAIVE
+            },
+            {
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode_cfg/deepseek-chat/deepseek-chat/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode_cfg/deepseek-chat/test_file_map.json",
+                "savePath": "opencode_cfg_vars",
+                "promptType": PromptType.WITHCONTEXT
+            },
+     
+        ]
+        for (const dirInfo of DirList) {
+            let cachedDir = dirInfo.cachedDir;
+            let testsDir = dirInfo.cachedDir;
+            let testFileMapPath = dirInfo.testFileMapPath;
+            let final_report_path = testsDir+'-final-report';
+
+            await runPipeline(testsDir, final_report_path, testFileMapPath, {
+                language: languageId,
+                pythonExe: pythonInterpreterPath,
+                jobs: getConfigInstance().parallelCount,
+                timeoutSec: 30,
+                pythonpath: pythonExtraPaths
+            });
+
+            await runGenerateTestCodeSuite(
+                GenerationType.EXPERIMENTAL,
+                FixType.ORIGINAL,
+                dirInfo.promptType,
+                model,
+                provider,
+                symbols,
+                languageId,
+                undefined,
+                cachedDir,
+                testFileMapPath,
+                dirInfo.savePath
+            );
+            testsDir = path.join(getConfigInstance().savePath, "final");
+            testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+            final_report_path = testsDir+'-final-report';
+            await runPipeline(testsDir, final_report_path, testFileMapPath, {
+                language: languageId,
+                pythonExe: pythonInterpreterPath,
+                jobs: getConfigInstance().parallelCount,
+                timeoutSec: 30,
+                pythonpath: pythonExtraPaths
+            });
+        }
+    })
     // test('Naive - gpt-4o-mini - continueing', async () => {
     //     await runGenerateTestCodeSuite(
     //         GenerationType.NAIVE,

@@ -176,15 +176,15 @@ async function main() {
       DEFAULT_TEST_CONFIG.PARALLEL_COUNT;
     const parallelCount = Number.parseInt(parallelCountRaw, 10);
 
-    if (!projectName) {
-      throw new Error('Missing required project name. Pass --projectName=<name> or set TEST_PROJECT_NAME.');
-    }
-    if (!taskListPath) {
-      throw new Error('Missing required task list path. Pass --taskListPath=<path> or set TEST_TASK_LIST_PATH.');
-    }
-    if (!Number.isInteger(parallelCount) || parallelCount < 1) {
-      throw new Error(`Invalid parallel count: ${parallelCountRaw}. Provide a positive integer.`);
-    }
+    // if (!projectName) {
+    //   throw new Error('Missing required project name. Pass --projectName=<name> or set TEST_PROJECT_NAME.');
+    // }
+    // if (!taskListPath) {
+    //   throw new Error('Missing required task list path. Pass --taskListPath=<path> or set TEST_TASK_LIST_PATH.');
+    // }
+    // if (!Number.isInteger(parallelCount) || parallelCount < 1) {
+    //   throw new Error(`Invalid parallel count: ${parallelCountRaw}. Provide a positive integer.`);
+    // }
     console.log(`[test-runner] TEST_PROJECT_NAME=${projectName}`);
     console.log(`[test-runner] TEST_TASK_LIST_PATH=${taskListPath}`);
     console.log(`[test-runner] TEST_PARALLEL_COUNT=${parallelCount}`);

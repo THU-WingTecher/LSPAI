@@ -76,53 +76,117 @@ suite('Experiment Test Suite', () => {
         console.log(`#### Number of symbols: ${symbols.length}`);
     });
 
-    test(`LSPRAG-reflect; ${model}; naive-experimental comparative experiment`, async () => {
+    // test(`LSPRAG-reflect; ${model}; naive-experimental comparative experiment`, async () => {
 
-        await runGenerateTestCodeSuite(
-            GenerationType.LSPRAG,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            model, 
-            provider,
-            symbols,
-            languageId,
-            undefined,
-        );
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.LSPRAG,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         model, 
+    //         provider,
+    //         symbols,
+    //         languageId,
+    //         undefined,
+    //     );
 
-        const cachedDir = getConfigInstance().savePath;
-        let testsDir = path.join(getConfigInstance().savePath, "final");
-        let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+    //     const cachedDir = getConfigInstance().savePath;
+    //     let testsDir = path.join(getConfigInstance().savePath, "final");
+    //     const originalTestFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+    //     let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+    //     let final_report_path = testsDir+'-final-report';
+    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
+    //       language: languageId,
+    //       pythonExe: pythonInterpreterPath,
+    //       jobs: getConfigInstance().parallelCount,
+    //       timeoutSec: 30,
+    //       pythonpath: pythonExtraPaths
+    //     });
+
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.EXPERIMENTAL,
+    //         FixType.ORIGINAL,
+    //         PromptType.WITHCONTEXT,
+    //         model, 
+    //         provider,
+    //         symbols,
+    //         languageId,
+    //         undefined,
+    //         cachedDir,
+    //         originalTestFileMapPath
+    //     );
+    //     testsDir = path.join(getConfigInstance().savePath, "final");
+    //     testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+    //     final_report_path = testsDir+'-final-report';
+    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
+    //       language: languageId,
+    //       pythonExe: pythonInterpreterPath,
+    //       jobs: getConfigInstance().parallelCount,
+    //       timeoutSec: 30,
+    //       pythonpath: pythonExtraPaths
+    //     });
+
+    //     await runGenerateTestCodeSuite(
+    //         GenerationType.EXPERIMENTAL,
+    //         FixType.ORIGINAL,
+    //         PromptType.NAIVE,
+    //         model, 
+    //         provider,
+    //         symbols,
+    //         languageId,
+    //         undefined,
+    //         cachedDir,
+    //         originalTestFileMapPath
+    //     );
+    //     testsDir = path.join(getConfigInstance().savePath, "final");
+    //     testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+    //     final_report_path = testsDir+'-final-report';
+    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
+    //       language: languageId,
+    //       pythonExe: pythonInterpreterPath,
+    //       jobs: getConfigInstance().parallelCount,
+    //       timeoutSec: 30,
+    //       pythonpath: pythonExtraPaths
+    //     });
+
+    // });
+
+    test(`LSPRAG-reflect; ${model}; with given data directory`, async () => {
+
+        const cachedDir = "/LSPRAG/experiments/data/main_result/tornado/lsprag_deepseek/deepseek-chat/results/final";
+        let testsDir = cachedDir;
+        const originaltestFileMapPath = "/LSPRAG/experiments/data/main_result/tornado/lsprag_deepseek/deepseek-chat/results/test_file_map.json";
+        let testFileMapPath = "/LSPRAG/experiments/data/main_result/tornado/lsprag_deepseek/deepseek-chat/results/test_file_map.json";
         let final_report_path = testsDir+'-final-report';
-        await runPipeline(testsDir, final_report_path, testFileMapPath, {
-          language: languageId,
-          pythonExe: pythonInterpreterPath,
-          jobs: getConfigInstance().parallelCount,
-          timeoutSec: 30,
-          pythonpath: pythonExtraPaths
-        });
+        // await runPipeline(testsDir, final_report_path, testFileMapPath, {
+        //   language: languageId,
+        //   pythonExe: pythonInterpreterPath,
+        //   jobs: getConfigInstance().parallelCount,
+        //   timeoutSec: 30,
+        //   pythonpath: pythonExtraPaths
+        // });
 
-        await runGenerateTestCodeSuite(
-            GenerationType.EXPERIMENTAL,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            model, 
-            provider,
-            symbols,
-            languageId,
-            undefined,
-            cachedDir,
-            testFileMapPath
-        );
-        testsDir = path.join(getConfigInstance().savePath, "final");
-        testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-        final_report_path = testsDir+'-final-report';
-        await runPipeline(testsDir, final_report_path, testFileMapPath, {
-          language: languageId,
-          pythonExe: pythonInterpreterPath,
-          jobs: getConfigInstance().parallelCount,
-          timeoutSec: 30,
-          pythonpath: pythonExtraPaths
-        });
+        // await runGenerateTestCodeSuite(
+        //     GenerationType.EXPERIMENTAL,
+        //     FixType.ORIGINAL,
+        //     PromptType.WITHCONTEXT,
+        //     model, 
+        //     provider,
+        //     symbols,
+        //     languageId,
+        //     undefined,
+        //     cachedDir,
+        //     originaltestFileMapPath
+        // );
+        // testsDir = path.join(getConfigInstance().savePath, "final");
+        // testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
+        // final_report_path = testsDir+'-final-report';
+        // await runPipeline(testsDir, final_report_path, testFileMapPath, {
+        //   language: languageId,
+        //   pythonExe: pythonInterpreterPath,
+        //   jobs: getConfigInstance().parallelCount,
+        //   timeoutSec: 30,
+        //   pythonpath: pythonExtraPaths
+        // });
 
         await runGenerateTestCodeSuite(
             GenerationType.EXPERIMENTAL,
@@ -134,7 +198,7 @@ suite('Experiment Test Suite', () => {
             languageId,
             undefined,
             cachedDir,
-            testFileMapPath
+            originaltestFileMapPath
         );
         testsDir = path.join(getConfigInstance().savePath, "final");
         testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
