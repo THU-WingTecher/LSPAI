@@ -102,6 +102,72 @@ suite('Experiment Test Suite', () => {
         });
     };
 
+    const runPipelineFor = async (testsDir: string, testFileMapPath: string): Promise<void> => {
+        const finalReportPath = `${testsDir}-final-report`;
+        await runPipeline(testsDir, finalReportPath, testFileMapPath, {
+          language: languageId,
+          pythonExe: pythonInterpreterPath,
+          jobs: getConfigInstance().parallelCount,
+          timeoutSec: 30,
+          pythonpath: pythonExtraPaths
+        });
+    };
+
+    const getGeneratedPaths = (): { testsDir: string; testFileMapPath: string } => ({
+        testsDir: path.join(getConfigInstance().savePath, "final"),
+        testFileMapPath: path.join(getConfigInstance().savePath, "test_file_map.json"),
+    });
+
+    const runExperimentalReflect = async (params: {
+        cachedDir: string;
+        testFileMapPath: string;
+        promptType: PromptType;
+        preTestsDir?: string;
+        saveName?: string;
+    }): Promise<void> => {
+        const preTestsDir = params.preTestsDir || params.cachedDir;
+        await runPipelineFor(preTestsDir, params.testFileMapPath);
+
+        await runGenerateTestCodeSuite(
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
+            params.promptType,
+            model, 
+            provider,
+            symbols,
+            languageId,
+            undefined,
+            params.cachedDir,
+            params.testFileMapPath,
+            params.saveName
+        );
+
+        const { testsDir, testFileMapPath } = getGeneratedPaths();
+        await runPipelineFor(testsDir, testFileMapPath);
+    };
+
+    const runLspragReflect = async (): Promise<void> => {
+        await runGenerateTestCodeSuite(
+            GenerationType.LSPRAG,
+            FixType.ORIGINAL,
+            PromptType.WITHCONTEXT,
+            model, 
+            provider,
+            symbols,
+            languageId,
+            undefined,
+        );
+
+        const cachedDir = getConfigInstance().savePath;
+        const { testsDir, testFileMapPath } = getGeneratedPaths();
+        await runExperimentalReflect({
+            cachedDir,
+            testFileMapPath,
+            preTestsDir: testsDir,
+            promptType: PromptType.WITHCONTEXT
+        });
+    };
+
     test('Setup for experiment', async () => {
         await setupPythonWorkspaceForExperiment({
             projectPath,
@@ -136,127 +202,9 @@ suite('Experiment Test Suite', () => {
         console.log(`#### Number of symbols: ${symbols.length}`);
     });
 
-    // test(`LSPRAG-reflect; ${model}; naive-experimental comparative experiment`, async () => {
-
-    //     await runGenerateTestCodeSuite(
-    //         GenerationType.LSPRAG,
-    //         FixType.ORIGINAL,
-    //         PromptType.WITHCONTEXT,
-    //         model, 
-    //         provider,
-    //         symbols,
-    //         languageId,
-    //         undefined,
-    //     );
-
-    //     const cachedDir = getConfigInstance().savePath;
-    //     let testsDir = path.join(getConfigInstance().savePath, "final");
-    //     const originalTestFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-    //     let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-    //     let final_report_path = testsDir+'-final-report';
-    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
-    //       language: languageId,
-    //       pythonExe: pythonInterpreterPath,
-    //       jobs: getConfigInstance().parallelCount,
-    //       timeoutSec: 30,
-    //       pythonpath: pythonExtraPaths
-    //     });
-
-    //     await runGenerateTestCodeSuite(
-    //         GenerationType.EXPERIMENTAL,
-    //         FixType.ORIGINAL,
-    //         PromptType.WITHCONTEXT,
-    //         model, 
-    //         provider,
-    //         symbols,
-    //         languageId,
-    //         undefined,
-    //         cachedDir,
-    //         originalTestFileMapPath
-    //     );
-    //     testsDir = path.join(getConfigInstance().savePath, "final");
-    //     testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-    //     final_report_path = testsDir+'-final-report';
-    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
-    //       language: languageId,
-    //       pythonExe: pythonInterpreterPath,
-    //       jobs: getConfigInstance().parallelCount,
-    //       timeoutSec: 30,
-    //       pythonpath: pythonExtraPaths
-    //     });
-
-    //     await runGenerateTestCodeSuite(
-    //         GenerationType.EXPERIMENTAL,
-    //         FixType.ORIGINAL,
-    //         PromptType.NAIVE,
-    //         model, 
-    //         provider,
-    //         symbols,
-    //         languageId,
-    //         undefined,
-    //         cachedDir,
-    //         originalTestFileMapPath
-    //     );
-    //     testsDir = path.join(getConfigInstance().savePath, "final");
-    //     testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-    //     final_report_path = testsDir+'-final-report';
-    //     await runPipeline(testsDir, final_report_path, testFileMapPath, {
-    //       language: languageId,
-    //       pythonExe: pythonInterpreterPath,
-    //       jobs: getConfigInstance().parallelCount,
-    //       timeoutSec: 30,
-    //       pythonpath: pythonExtraPaths
-    //     });
-
-    // });
-
     test(`Reflect runner; ${model}; ${testType}`, async () => {
         if (testType === 'lsprag') {
-            await runGenerateTestCodeSuite(
-                GenerationType.LSPRAG,
-                FixType.ORIGINAL,
-                PromptType.WITHCONTEXT,
-                model, 
-                provider,
-                symbols,
-                languageId,
-                undefined,
-            );
-
-            const cachedDir = getConfigInstance().savePath;
-            let testsDir = path.join(getConfigInstance().savePath, "final");
-            let testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-            let final_report_path = testsDir+'-final-report';
-            await runPipeline(testsDir, final_report_path, testFileMapPath, {
-              language: languageId,
-              pythonExe: pythonInterpreterPath,
-              jobs: getConfigInstance().parallelCount,
-              timeoutSec: 30,
-              pythonpath: pythonExtraPaths
-            });
-
-            await runGenerateTestCodeSuite(
-                GenerationType.EXPERIMENTAL,
-                FixType.ORIGINAL,
-                PromptType.WITHCONTEXT,
-                model, 
-                provider,
-                symbols,
-                languageId,
-                undefined,
-                cachedDir,
-                testFileMapPath
-            );
-            testsDir = path.join(getConfigInstance().savePath, "final");
-            testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-            final_report_path = testsDir+'-final-report';
-            await runPipeline(testsDir, final_report_path, testFileMapPath, {
-              language: languageId,
-              pythonExe: pythonInterpreterPath,
-              jobs: getConfigInstance().parallelCount,
-              timeoutSec: 30,
-              pythonpath: pythonExtraPaths
-            });
+            await runLspragReflect();
             return;
         }
 
@@ -269,40 +217,11 @@ suite('Experiment Test Suite', () => {
 
         const reflectConfigs = loadReflectConfig(testConfigPath);
         for (const config of reflectConfigs) {
-            const cachedDir = config.cachedDir;
-            let testsDir = cachedDir;
-            let testFileMapPath = config.testFileMapPath;
-            let final_report_path = testsDir+'-final-report';
-            await runPipeline(testsDir, final_report_path, testFileMapPath, {
-              language: languageId,
-              pythonExe: pythonInterpreterPath,
-              jobs: getConfigInstance().parallelCount,
-              timeoutSec: 30,
-              pythonpath: pythonExtraPaths
-            });
-
-            await runGenerateTestCodeSuite(
-                GenerationType.EXPERIMENTAL,
-                FixType.ORIGINAL,
-                resolvePromptType(config.promptType),
-                model, 
-                provider,
-                symbols,
-                languageId,
-                undefined,
-                cachedDir,
-                testFileMapPath,
-                config.savePath || config.saveName
-            );
-            testsDir = path.join(getConfigInstance().savePath, "final");
-            testFileMapPath = path.join(getConfigInstance().savePath, "test_file_map.json");
-            final_report_path = testsDir+'-final-report';
-            await runPipeline(testsDir, final_report_path, testFileMapPath, {
-              language: languageId,
-              pythonExe: pythonInterpreterPath,
-              jobs: getConfigInstance().parallelCount,
-              timeoutSec: 30,
-              pythonpath: pythonExtraPaths
+            await runExperimentalReflect({
+                cachedDir: config.cachedDir,
+                testFileMapPath: config.testFileMapPath,
+                promptType: resolvePromptType(config.promptType),
+                saveName: config.savePath || config.saveName
             });
         }
     });
