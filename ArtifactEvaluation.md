@@ -905,7 +905,7 @@ git clone https://github.com/tornadoweb/tornado.git
 cd /LSPRAG/experiments/projects/tornado
 
 # Python Setup
-conda create -n tornado python=3.9
+conda create -n tornado python=3.10
 conda activate tornado
 
 # Install dependencies
