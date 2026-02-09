@@ -54,6 +54,14 @@ export async function updateWorkspaceFolders(workspaceFolders: vscode.WorkspaceF
         );
         
         if (!result) {
+            const currentPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+            const targetPath = workspaceFolders[0].uri.fsPath;
+            if (currentPath && path.normalize(currentPath) === path.normalize(targetPath)) {
+                console.warn('Workspace already set to target path; skipping update');
+                disposable.dispose();
+                resolve(workspaceFolders);
+                return;
+            }
             console.error('Failed to update workspace folders - invalid operation');
             disposable.dispose();
             reject(new Error('Failed to update workspace folders'));

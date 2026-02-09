@@ -5,10 +5,11 @@ import { getConstructorDetail, getFieldDetail, removeComments } from './utils';
 import { getPackageStatement } from './definition';
 import { VscodeRequestManager } from './vscodeRequestManager';
 import { initializeSeededRandom, SEED, seededRandom } from '../helper';
-import { MIN_FUNCTION_LINES, getConfigInstance, getProjectSrcPath, getSrcPathToExclude, getProjectWorkspace, ProjectConfigName } from '../config';
+import { MIN_FUNCTION_LINES, getConfigInstance, getProjectSrcPath, getSrcPathToExclude, getProjectWorkspace, ProjectConfigName, getSymbolNamesToExclude } from '../config';
 import { findFiles } from '../fileHandler';
 import { getLanguageSuffix } from '../language';
 import {findAFileFromWorkspace} from '../helper';
+import { get } from 'http';
 
 export function getSymbolRange(symbol: vscode.DocumentSymbol): vscode.Range {
     
@@ -327,9 +328,8 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
     const Files: string[] = [];
     const projectName = getConfigInstance().getProjectName();
     testFilesPath = getProjectSrcPath(projectName as ProjectConfigName);
-    const relativeExcludePaths = getSrcPathToExclude(projectName as ProjectConfigName);
-    const workspacePath = getProjectWorkspace(projectName as ProjectConfigName);
-    const srcPathToExclude = relativeExcludePaths.map(excludePath => path.join(workspacePath, excludePath));
+    const srcPathToExclude = getSrcPathToExclude(projectName as ProjectConfigName);
+    const symbolNamesToExclude = getSymbolNamesToExclude(projectName as ProjectConfigName);
     const suffix = getLanguageSuffix(language);
     findFiles(testFilesPath, srcPathToExclude, Files, language, suffix);
     initializeSeededRandom(SEED); // Initialize the seeded random generator
@@ -356,6 +356,15 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
                     if (isSymbolLessThanLines(symbol, minLineNumber)) {
                         continue;
                     }
+                    const isExcludedByName = symbolNamesToExclude.some((symbolName) => symbol.name.includes(symbolName));
+                    if (isExcludedByName) {
+                        continue;
+                    }
+                    const symbolSource = document.getText(symbol.range);
+                    const isExcludedBySource = symbolNamesToExclude.some((symbolName) => symbolSource.includes(symbolName));
+                    if (isExcludedByName || isExcludedBySource) {
+                        continue;
+                    }
                     if (seededRandom() < getConfigInstance().expProb) {
                         symbolDocumentMap.push({ symbol, document });
                     }
@@ -374,4 +383,3 @@ export function isSymbolLessThanLines(symbol: vscode.DocumentSymbol, minLineNumb
     // }
     return symbol.range.end.line - symbol.range.start.line < minLineNumber;
 }
-

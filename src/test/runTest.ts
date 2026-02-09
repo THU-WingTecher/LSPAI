@@ -102,6 +102,7 @@ function validateProvider(value: string): Provider {
 
 async function main() {
   try {
+    delete process.env.ELECTRON_RUN_AS_NODE;
     const extensionDevelopmentPath = path.resolve(__dirname, '../../../');
     const vscodeExecutablePath = await downloadAndUnzipVSCode('1.98.2');
     const [cliPath, ...args] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);

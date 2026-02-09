@@ -1043,6 +1043,29 @@ pytest # for checking whether the setting is complete
 
 ---
 
+#### TheFuck Project Setup
+
+To set up the Thefuck, follow these steps:
+
+```bash
+mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/tqdm/tqdm.git
+cd /LSPRAG/experiments/projects/tqdm
+
+# Python Setup
+git checkout c7e7e1d
+conda create -n thefuck python=3.8
+conda activate thefuck
+pip install -r requirements.txt
+python setup.py develop 
+pip install coverage pytest pytest-json-report
+
+pytest # for checking whether the setting is complete # there will be a symbol named "get_valid_history_without_current" that do not pass unit test 
+```
+
+---
+
 ## Claim 2: Under-Minute Overheads
 
 **"LSPRAG" has under-minute overheads.**

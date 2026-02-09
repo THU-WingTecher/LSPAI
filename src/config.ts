@@ -551,6 +551,7 @@ export interface ProjectConfig {
     workspace: string;
     srcPath: string;
     srcPathToExclude?: string[];
+    symbolNameToExclude?: string[];
     language: 'python' | 'java' | 'go' | 'cpp';
     python?: PythonProjectConfig;
     tasklist?: string;
@@ -562,6 +563,7 @@ export type ProjectConfigName =
     | 'tornado' 
     | 'mimesis'
     | 'dataclasses-json'
+    | 'thefuck'
     | 'tqdm'
     | 'commons-cli' 
     | 'commons-csv'
@@ -653,6 +655,21 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
             pythonExe: "/root/miniconda3/envs/tqdm/bin/python"
         },
     },
+    "thefuck": {
+        workspace: "/LSPRAG/experiments/projects/thefuck",
+        srcPath: "/thefuck",
+        language: 'python',
+        srcPathToExclude: ["/thefuck/system", "/thefuck/**/pacman*", "/thefuck/rules"],
+        symbolNameToExclude: ["get_valid_history_without_current"],
+        python: {
+            // Only include parent directory, not the package directory itself
+            // This prevents name collision with standard library modules like 'concurrent'
+            pythonpath: [
+                "/LSPRAG/experiments/projects/thefuck"
+            ],
+            pythonExe: "/root/miniconda3/envs/thefuck/bin/python"
+        },
+    },
     "commons-cli": {
         workspace: "/LSPRAG/experiments/projects/commons-cli",
         srcPath: "src/main/java/",
@@ -712,8 +729,29 @@ export function getProjectSrcPath(projectName: ProjectConfigName): string {
     return path.join(getProjectWorkspace(projectName), getProjectConfig(projectName).srcPath);
 }
 
+export function getSymbolNamesToExclude(projectName: ProjectConfigName): string[] {
+    const config = getProjectConfig(projectName);
+    return config.symbolNameToExclude || [];
+}
+
 export function getSrcPathToExclude(projectName: ProjectConfigName): string[] {
-    return getProjectConfig(projectName).srcPathToExclude || [];
+    const config = getProjectConfig(projectName);
+    const workspace = config.workspace;
+    const excludes = config.srcPathToExclude || [];
+    return excludes.map((excludePath) => {
+        if (!excludePath) return excludePath;
+        const isGlob = excludePath.includes('*') || excludePath.includes('?');
+        let normalized = excludePath;
+        if (path.isAbsolute(excludePath)) {
+            if (!excludePath.startsWith(workspace)) {
+                // Treat absolute-looking paths as workspace-relative (e.g. "/thefuck/system")
+                normalized = path.join(workspace, excludePath);
+            }
+        } else {
+            normalized = path.join(workspace, excludePath);
+        }
+        return isGlob ? normalized.replace(/\\/g, '/') : normalized;
+    });
 }
 
 export const LANGUAGE_IDS = {

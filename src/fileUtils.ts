@@ -9,6 +9,39 @@ import { getConfigInstance } from './config';
 
 const ignoreDirNamesToStartWith = ['node_modules', '.git', '.vscode', 'out', 'dist', 'build', '__pycache__', '.pytest_cache', 'lsprag', 'test', 'lspai', 'data'];
 
+function normalizePath(p: string): string {
+    return p.replace(/\\/g, '/');
+}
+
+function globToRegex(pattern: string): RegExp {
+    // Normalize to forward slashes before conversion
+    const normalized = normalizePath(pattern);
+    // Protect globs before escaping
+    const withPlaceholders = normalized
+        .replace(/\*\*/g, '__GLOBSTAR__')
+        .replace(/\*/g, '__GLOB__')
+        .replace(/\?/g, '__QMARK__');
+    const escaped = withPlaceholders.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&');
+    const regexSource = escaped
+        .replace(/__GLOBSTAR__/g, '.*')   // ** -> any path segments
+        .replace(/__GLOB__/g, '[^/]*')    // * -> any non-separator chars
+        .replace(/__QMARK__/g, '[^/]');   // ? -> single non-separator char
+    return new RegExp(`^${regexSource}$`);
+}
+
+function isExcluded(fullPath: string, srcPathToExclude: string[]): boolean {
+    const normalizedFullPath = normalizePath(fullPath);
+    return srcPathToExclude.some((excludePath) => {
+        if (!excludePath) return false;
+        const normalizedExclude = normalizePath(excludePath);
+        if (normalizedExclude.includes('*') || normalizedExclude.includes('?')) {
+            return globToRegex(normalizedExclude).test(normalizedFullPath);
+        }
+        return normalizedFullPath === normalizedExclude ||
+            normalizedFullPath.startsWith(`${normalizedExclude}/`);
+    });
+}
+
 /**
  * Recursively finds files in a directory with a specific suffix
  * @param folderPath Root folder to search
@@ -27,7 +60,7 @@ export function findFiles(folderPath: string, srcPathToExclude: string[] = [], F
             if (language === "go" && file.toLowerCase().includes('test')) {
                 // Ignore Go test files when searching for source files
             } else {
-                if (!srcPathToExclude.some(excludePath => fullPath.startsWith(excludePath))) {
+                if (!isExcluded(fullPath, srcPathToExclude)) {
                     Files.push(fullPath);
                 }
             }
@@ -83,4 +116,3 @@ export function saveContextTerms(sourceCode: string, terms: any[], saveFolder: s
 }
 
 // Note: generateTimestampString is defined in fileHandler.ts with VSCode-specific formatting
-
