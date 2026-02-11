@@ -10,6 +10,7 @@ import { findFiles } from '../fileHandler';
 import { getLanguageSuffix } from '../language';
 import {findAFileFromWorkspace} from '../helper';
 import { get } from 'http';
+import pLimit from 'p-limit';
 
 export function getSymbolRange(symbol: vscode.DocumentSymbol): vscode.Range {
     
@@ -332,46 +333,67 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
     const symbolNamesToExclude = getSymbolNamesToExclude(projectName as ProjectConfigName);
     const suffix = getLanguageSuffix(language);
     findFiles(testFilesPath, srcPathToExclude, Files, language, suffix);
-    initializeSeededRandom(SEED); // Initialize the seeded random generator
-    const symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument; }[] = [];
-    // if (language === "go") {
-    //     await goSpecificEnvGen(getConfigInstance().savePath, language, testFilesPath);
-    // }
-    for (const filePath of Files) {
+    const fileConcurrency = getConfigInstance().parallelCount;
+    const limit = pLimit(fileConcurrency);
+    type FileSymbolEntry = {
+        fileIdx: number;
+        symbolIdx: number;
+        symbol: vscode.DocumentSymbol;
+        document: vscode.TextDocument;
+    };
+    const symbolsPerFile = await Promise.all(Files.map((filePath, fileIdx) => limit(async (): Promise<FileSymbolEntry[]> => {
         console.log('filePath', filePath);
         const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
         console.log(`#### Preparing symbols under file: ${filePath}`);
         const symbols = await getAllSymbols(document.uri);
         console.log(`#### Symbols: ${symbols.length}`);
-        if (symbols) {
-            for (const symbol of symbols) {
-                if (maxSymbolNumber > 0 && symbolDocumentMap.length >= maxSymbolNumber) {
-                    console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${minLineNumber} lines`);
-                    return symbolDocumentMap;
-                }
-                if (symbol.kind === vscode.SymbolKind.Function || symbol.kind === vscode.SymbolKind.Method) {
-                    // if (language === 'java' && !isPublic(symbol, document)) {
-                    // 	continue;
-                    // }
-                    if (isSymbolLessThanLines(symbol, minLineNumber)) {
-                        continue;
-                    }
-                    const isExcludedByName = symbolNamesToExclude.some((symbolName) => symbol.name.includes(symbolName));
-                    if (isExcludedByName) {
-                        continue;
-                    }
-                    const symbolSource = document.getText(symbol.range);
-                    const isExcludedBySource = symbolNamesToExclude.some((symbolName) => symbolSource.includes(symbolName));
-                    if (isExcludedByName || isExcludedBySource) {
-                        continue;
-                    }
-                    if (seededRandom() < getConfigInstance().expProb) {
-                        symbolDocumentMap.push({ symbol, document });
-                    }
-                }
-            }
+        if (!symbols || symbols.length === 0) {
+            return [];
         }
-        console.log(`#### Currently ${symbolDocumentMap.length} symbols.`);
+
+        const fileEntries: FileSymbolEntry[] = [];
+        for (let symbolIdx = 0; symbolIdx < symbols.length; symbolIdx++) {
+            const symbol = symbols[symbolIdx];
+            if (symbol.kind !== vscode.SymbolKind.Function && symbol.kind !== vscode.SymbolKind.Method) {
+                continue;
+            }
+            // if (language === 'java' && !isPublic(symbol, document)) {
+            // 	continue;
+            // }
+            if (isSymbolLessThanLines(symbol, minLineNumber)) {
+                continue;
+            }
+            const isExcludedByName = symbolNamesToExclude.some((symbolName) => symbol.name.includes(symbolName));
+            if (isExcludedByName) {
+                continue;
+            }
+            const symbolSource = document.getText(symbol.range);
+            const isExcludedBySource = symbolNamesToExclude.some((symbolName) => symbolSource.includes(symbolName));
+            if (isExcludedBySource) {
+                continue;
+            }
+            fileEntries.push({ fileIdx, symbolIdx, symbol, document });
+        }
+
+        return fileEntries;
+    })));
+
+    initializeSeededRandom(SEED); // Initialize the seeded random generator
+    const symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument; }[] = [];
+    // if (language === "go") {
+    //     await goSpecificEnvGen(getConfigInstance().savePath, language, testFilesPath);
+    // }
+    const orderedEntries = symbolsPerFile
+        .flat()
+        .sort((a, b) => (a.fileIdx - b.fileIdx) || (a.symbolIdx - b.symbolIdx));
+    for (const entry of orderedEntries) {
+        if (maxSymbolNumber > 0 && symbolDocumentMap.length >= maxSymbolNumber) {
+            console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${minLineNumber} lines`);
+            return symbolDocumentMap;
+        }
+        if (seededRandom() < getConfigInstance().expProb) {
+            symbolDocumentMap.push({ symbol: entry.symbol, document: entry.document });
+        }
     }
     console.log(`#### Found ${symbolDocumentMap.length} symbols from ${testFilesPath} that is more than ${minLineNumber} lines`);
     return symbolDocumentMap;
