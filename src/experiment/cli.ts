@@ -91,30 +91,29 @@ function parseArgs(): CLIArgs {
 
     // Validate Claude Code specific requirements
     if (parsed.type === 'claudecode') {
-        if (parsed.provider === "deepseek"){
-            if (!process.env.DEEPSEEK_API_KEY) {
-                console.error(`Error: DeepSeek API key is not set. Please set the DEEPSEEK_API_KEY environment variable.\n`);
+        if (parsed.provider === 'deepseek') {
+            const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim();
+            if (!deepseekApiKey) {
+                console.error('Error: DeepSeek API key is not set. Please set DEEPSEEK_API_KEY.\n');
                 printUsage();
                 process.exit(1);
             }
 
-            process.env.ANTHROPIC_BASE_URL = "https://api.deepseek.com/anthropic";
-            process.env.API_TIMEOUT_MS = "600000";
-            // export API_TIMEOUT_MS=600000
-                // process.env.ANTHROPIC_MODEL = "deepseek-chat";
-                // process.env.ANTHROPIC_SMALL_FAST_MODEL = "deepseek-chat";
-            process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = "1";
-            console.log("using deepseek models")
-            console.log(process.env.DEEPSEEK_API_KEY)
-            console.log(process.env.ANTHROPIC_BASE_URL)
-            console.log(process.env.API_TIMEOUT_MS)
-            console.log(process.env.ANTHROPIC_MODEL)
-            console.log(process.env.ANTHROPIC_SMALL_FAST_MODEL)
-            console.log(process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC)
+            // Claude Agent SDK expects Anthropic-compatible env names, even when targeting DeepSeek.
+            process.env.ANTHROPIC_BASE_URL = 'https://api.deepseek.com/anthropic';
+            process.env.ANTHROPIC_AUTH_TOKEN = deepseekApiKey;
+            process.env.API_TIMEOUT_MS = '600000';
+            process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
 
-        } else if (parsed.provider === "anthropic"){
-            if (!process.env.ANTHROPIC_API_KEY) {
-                console.log("using anthropic models")
+            console.log('[claudecode] using deepseek endpoint');
+            console.log(`[claudecode] ANTHROPIC_BASE_URL=${process.env.ANTHROPIC_BASE_URL}`);
+            console.log(`[claudecode] API_TIMEOUT_MS=${process.env.API_TIMEOUT_MS}`);
+            console.log(`[claudecode] ANTHROPIC_AUTH_TOKEN_SET=${Boolean(process.env.ANTHROPIC_AUTH_TOKEN)}`);
+        } else if (parsed.provider === 'anthropic') {
+            const anthropicAuthToken = process.env.ANTHROPIC_AUTH_TOKEN?.trim();
+            const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
+            if (!anthropicAuthToken && anthropicApiKey) {
+                process.env.ANTHROPIC_AUTH_TOKEN = anthropicApiKey;
             }
         }
         // if (parsed.provider !== 'anthropic') {
