@@ -10,7 +10,9 @@ import { ChatMessage } from '../../prompts/ChatMessage';
 import { detectRedefinedAssertions, prettyPrintDefTree, RedefinedSymbol } from '../../ut_runner/analysis/assertion_detector';
 import { LLMFixWorkflow } from '../../ut_runner/analysis/llm_fix_workflow';
 import { LSPRAGTestGenerator } from './lsprag';
+import { collectMockedObjectDefinitionsSummary } from './mock';
 import { PromptType } from '../../config';
+export { extractMockTargetsFromTestCode } from './mock';
 
 function getTestFileExtension(languageId: string): string {
 	switch (languageId) {
@@ -186,7 +188,7 @@ function formatRedefinedSymbolsSummary(redefined: RedefinedSymbol[]): string {
 		return parts.join('\n');
 	}).join('\n\n');
 }
- 
+
 export function naiveReflectionPrompt(params: {
 	languageId: string;
 	sourceFile: string;
@@ -196,6 +198,7 @@ export function naiveReflectionPrompt(params: {
 	definitionTreePretty: string;
 	redefinedSymbolsSummary: string;
 	invokedFunctionSignatures: string[];
+	mockedObjectDefinitionsSummary?: string;
 }): ChatMessage[] {
 	const system = [
 		'You are an expert unit test engineer.',
@@ -235,6 +238,9 @@ export function naiveReflectionPrompt(params: {
 		// '',
 		// '### Invoked function signatures (functions called by the focal symbol)',
 		// formatInvokedFunctionSignatures(params.invokedFunctionSignatures)
+		'',
+		'### Definitions of objects used in mock-related calls',
+		params.mockedObjectDefinitionsSummary || '(none detected)'
 	].join('\n');
  
 	return [
@@ -252,6 +258,7 @@ export function buildAssertionReflectionPrompt(params: {
 	definitionTreePretty: string;
 	redefinedSymbolsSummary: string;
 	invokedFunctionSignatures: string[];
+	mockedObjectDefinitionsSummary?: string;
 }): ChatMessage[] {
 	const system = [
 		'You are an expert unit test engineer.',
@@ -265,6 +272,8 @@ export function buildAssertionReflectionPrompt(params: {
 		'- Do NOT redefine constants/functions/classes that already exist in the project; instead, import/reuse the source definitions.',
 		'- Keep test intent and structure as-is when possible; only adjust what is needed to make assertions correct.',
 		'- Prefer assertions that are directly implied by the focal method behavior and inputs/outputs.',
+		'- Use the "Definitions of objects used in mock-related calls" section to verify each mocked target resolves to the intended object/type in source code.',
+		'- If a mock target resolves to a different symbol/scope than intended, revise the mock style or target path (e.g., patch path vs patch.object target) before finalizing assertions.',
 		'- Checkout whether given test code is satisfied the given path coverage requirements, if not, adjust the test code to satisfy the requirements.',
 		'- Return ONLY the final complete test code wrapped in a single triple-backtick code block.'
 	].join('\n');
@@ -289,6 +298,9 @@ export function buildAssertionReflectionPrompt(params: {
 		'',
 		'### Symbols that appear redefined in the draft test but exist in the source dependency tree',
 		params.redefinedSymbolsSummary || '(unavailable)',
+		'',
+		'### Definitions of objects used in mock-related calls',
+		params.mockedObjectDefinitionsSummary || '(none detected)',
 		'',
 		'### Invoked function signatures (functions called by the focal symbol)',
 		formatInvokedFunctionSignatures(params.invokedFunctionSignatures)
@@ -382,6 +394,17 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 		} catch (e) {
 			console.warn('[LSPRAG_REFLECT] Invoked function signature extraction failed (continuing):', e);
 		}
+
+		let mockedObjectDefinitionsSummary = '(none detected)';
+		try {
+			mockedObjectDefinitionsSummary = await collectMockedObjectDefinitionsSummary({
+				languageId: this.languageId,
+				draftTestCode: initial,
+				testPath
+			});
+		} catch (e) {
+			console.warn('[LSPRAG_REFLECT] Mocked-object context extraction failed (continuing):', e);
+		}
  
 		if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - reflecting to improve assertions`, 20)) {
 			return initial;
@@ -397,22 +420,24 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 				sourceFile,
 				focalSymbolName: symbolName,
 				focalMethodSource,
-				draftTestCode: initial,
-				definitionTreePretty,
-				redefinedSymbolsSummary,
-				invokedFunctionSignatures
-			});
+					draftTestCode: initial,
+					definitionTreePretty,
+					redefinedSymbolsSummary,
+					invokedFunctionSignatures,
+					mockedObjectDefinitionsSummary
+				});
 		} else {
 			promptObj = buildAssertionReflectionPrompt({
 				languageId: this.languageId,
 				sourceFile,
 				focalSymbolName: symbolName,
 				focalMethodSource,
-				draftTestCode: initial,
-				definitionTreePretty,
-				redefinedSymbolsSummary,
-				invokedFunctionSignatures
-			});
+					draftTestCode: initial,
+					definitionTreePretty,
+					redefinedSymbolsSummary,
+					invokedFunctionSignatures,
+					mockedObjectDefinitionsSummary
+				});
 		}
  
 		const reflected = await invokeLLM(promptObj, logObj);
@@ -420,5 +445,3 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 		return parseCode(reflected);
 	}
 }
-
-

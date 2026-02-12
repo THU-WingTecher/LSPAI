@@ -166,6 +166,32 @@ suite('Experiment Test Suite', () => {
             preTestsDir: testsDir,
             promptType: PromptType.WITHCONTEXT
         });
+        await runExperimentalReflect({
+            cachedDir,
+            testFileMapPath,
+            preTestsDir: testsDir,
+            promptType: PromptType.NAIVE
+        });
+        
+        await runGenerateTestCodeSuite(
+            GenerationType.LSPRAG,
+            FixType.ORIGINAL,
+            PromptType.CFG,
+            model, 
+            provider,
+            symbols,
+            languageId,
+            undefined,
+        );
+
+        const CFGcachedDir = getConfigInstance().savePath;
+        const { testsDir: CFGtestsDir, testFileMapPath: CFGtestFileMapPath } = getGeneratedPaths();
+        await runExperimentalReflect({
+            cachedDir: CFGcachedDir,
+            testFileMapPath: CFGtestFileMapPath,
+            preTestsDir: CFGtestsDir,
+            promptType: PromptType.WITHCONTEXT
+        });
     };
 
     test('Setup for experiment', async () => {
