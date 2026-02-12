@@ -3,7 +3,9 @@
 A unified, clean, and extensible framework for running unit test generation experiments using both baseline (Claude Code Router) and OpenCode approaches.
 
 Ready:
-- Install the CLI once (global is simplest): `npm i -g opencode-ai@latest` (or via bun/pnpm/yarn).
+- Install the CLI once (global is simplest):
+  - Opencode : `npm i -g opencode-ai@latest` (or via bun/pnpm/yarn).
+  - Claudecode : `npm install -g @anthropic-ai/claude-code`.
 - Need to give key through environment variables
 ```
 export DEEPSEEK_API_KEY="sk-4~"
@@ -100,6 +102,15 @@ npm run experiment -- \
   --log-level debug \
   --parallel false \
   --verbose
+
+# Use a custom output folder name under the default path
+npm run experiment -- \
+  --type opencode \
+  --task-list /LSPRAG/experiments/config/black-taskList.json \
+  --project-root /LSPRAG/experiments/projects/black \
+  --model gpt-5-mini \
+  --provider openai \
+  --output-name black-run-01
 ```
 
 ## Arguments
@@ -114,6 +125,7 @@ npm run experiment -- \
 
 ### Optional
 - `--output-dir`: Output directory (default: `./{type}-tests/{model}/{timestamp}`)
+- `--output-name`: Directory name under default output path (alias: `--experiment-name`; ignored if `--output-dir` is set)
 - `--parallel`: Use parallel execution (default: `true`)
 - `--concurrency`: Concurrency level (default: `4`)
 - `--max-retries`: Retry failed tasks up to N times (default: `0`)
