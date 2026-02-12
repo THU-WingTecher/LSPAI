@@ -17,7 +17,7 @@
  *   npm run experiment -- --type opencode --task-list /path/to/taskList.json --project-root /path/to/project --model gpt-4 --provider openai
  *   
  *   # Claude Code experiment
- *   npm run experiment -- --type claudecode --task-list /path/to/taskList.json --project-root /path/to/project --model claude-3-5-sonnet-20241022 --provider anthropic
+ *   npm run experiment -- --type claudecode --task-list /path/to/taskList.json --project-root /path/to/project --model claude-3-5-sonnet-20241022 --provider claude
  */
 
 import * as fs from 'fs';
@@ -46,6 +46,7 @@ interface CLIArgs {
     promptTemplate?: PromptTemplate;
     taskLimit?: number;
     outputDir?: string;
+    outputName?: string;
     parallel?: boolean;
     concurrency?: number;
     maxRetries?: number;
@@ -53,6 +54,56 @@ interface CLIArgs {
     focusTask?: string;
     logLevel?: string;
     verbose?: boolean;
+}
+
+function normalizeToken(rawValue?: string): string | undefined {
+    const value = rawValue?.trim();
+    if (!value) {
+        return undefined;
+    }
+    return value.endsWith(',') ? value.slice(0, -1).trim() : value;
+}
+
+function normalizeProviderForType(provider: string, type: ExperimentType): string {
+    const normalized = provider.toLowerCase();
+    if ((type === 'opencode' || type === 'claudecode') && normalized === 'claude') {
+        return 'anthropic';
+    }
+    return normalized;
+}
+
+function ensureAnthropicCredentials(context: 'opencode' | 'claudecode'): void {
+    const authToken = normalizeToken(process.env.ANTHROPIC_AUTH_TOKEN);
+    const apiKey = normalizeToken(process.env.ANTHROPIC_API_KEY);
+    const credential = authToken || apiKey;
+
+    if (credential && !process.env.ANTHROPIC_API_KEY) {
+        process.env.ANTHROPIC_API_KEY = credential;
+    }
+    if (credential && !process.env.ANTHROPIC_AUTH_TOKEN) {
+        process.env.ANTHROPIC_AUTH_TOKEN = credential;
+    }
+
+    if (!credential) {
+        console.error(
+            `Error: ${context} with Anthropic provider requires ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY.\n`
+        );
+        printUsage();
+        process.exit(1);
+    }
+}
+
+function validateOutputName(rawValue?: string): string | undefined {
+    const value = rawValue?.trim();
+    if (!value) {
+        return undefined;
+    }
+    if (value === '.' || value === '..' || /[\\/]/.test(value)) {
+        console.error(`Error: Invalid output directory name '${rawValue}'. Use a single directory name without path separators.\n`);
+        printUsage();
+        process.exit(1);
+    }
+    return value;
 }
 
 /**
@@ -87,6 +138,18 @@ function parseArgs(): CLIArgs {
         console.error(`Error: Invalid experiment type '${parsed.type}'. Must be 'baseline', 'opencode', or 'claudecode'\n`);
         printUsage();
         process.exit(1);
+    }
+
+    const type = parsed.type as ExperimentType;
+    const originalProvider = String(parsed.provider);
+    const normalizedProvider = normalizeProviderForType(originalProvider, type);
+    if (normalizedProvider !== originalProvider.toLowerCase()) {
+        console.log(`[provider] '${originalProvider}' is treated as '${normalizedProvider}' for ${type} experiments.`);
+    }
+    parsed.provider = normalizedProvider;
+
+    if (parsed.type === 'opencode' && parsed.provider === 'anthropic') {
+        ensureAnthropicCredentials('opencode');
     }
 
     // Validate Claude Code specific requirements
@@ -131,7 +194,7 @@ function parseArgs(): CLIArgs {
         // }
     }
 
-    const defaultPromptTemplate: PromptTemplate = parsed.type === 'baseline' ? 'default' : 'cfg';
+    const defaultPromptTemplate: PromptTemplate = 'default';
     const promptTemplate = validatePromptTemplate(parsed['prompt-template'] || defaultPromptTemplate);
 
     const taskLimitRaw = parsed['task-limit'] ?? parsed['task-number'] ?? parsed['task-num'];
@@ -141,7 +204,11 @@ function parseArgs(): CLIArgs {
         printUsage();
         process.exit(1);
     }
-
+    const outputName = validateOutputName(parsed['output-name'] ?? parsed['experiment-name']);
+    if (parsed['output-dir'] && outputName) {
+        console.warn('[output] --output-name is ignored when --output-dir is provided.');
+    }
+    console.log("promptTampleat", promptTemplate)
     return {
         type: parsed.type as ExperimentType,
         taskList: parsed['task-list'],
@@ -151,6 +218,7 @@ function parseArgs(): CLIArgs {
         promptTemplate,
         taskLimit,
         outputDir: parsed['output-dir'],
+        outputName,
         parallel: parsed['parallel'] !== 'false',
         concurrency: parseInt(parsed['concurrency'] || '4'),
         maxRetries: parseInt(parsed['max-retries'] || '5'),
@@ -175,10 +243,11 @@ function printUsage() {
     console.log('  --task-list <path>       Path to task list JSON file');
     console.log('  --project-root <path>   Path to project root directory');
     console.log('  --model <model>          Model name (e.g., gpt-4, deepseek-chat, claude-3-5-sonnet)');
-    console.log('  --provider <provider>    Provider name (e.g., openai, deepseek, anthropic)');
+    console.log('  --provider <provider>    Provider name (e.g., openai, deepseek, anthropic, claude)');
     console.log('');
     console.log('Optional Options:');
     console.log('  --output-dir <path>      Output directory (default: ./{type}-tests/{model}/{timestamp})');
+    console.log('  --output-name <name>     Output directory name under default path (alias: --experiment-name)');
     console.log('  --parallel <bool>        Use parallel execution (default: true)');
     console.log('  --concurrency <num>      Concurrency level (default: 4)');
     console.log('  --max-retries <num>      Retry failed tasks up to N times (default: 0)');
@@ -218,13 +287,22 @@ function printUsage() {
     console.log('    --log-level debug \\');
     console.log('    --verbose');
     console.log('');
-    console.log('  # Claude Code experiment (requires Anthropic provider and Claude model)');
+    console.log('  # Claude Code experiment (provider can be anthropic or claude)');
     console.log('  npm run experiment -- \\');
     console.log('    --type claudecode \\');
     console.log('    --task-list /path/to/taskList.json \\');
     console.log('    --project-root /path/to/project \\');
     console.log('    --model claude-3-5-sonnet-20241022 \\');
-    console.log('    --provider anthropic');
+    console.log('    --provider claude');
+    console.log('');
+    console.log('  # Named default output directory');
+    console.log('  npm run experiment -- \\');
+    console.log('    --type opencode \\');
+    console.log('    --task-list /path/to/taskList.json \\');
+    console.log('    --project-root /path/to/project \\');
+    console.log('    --model gpt-4 \\');
+    console.log('    --provider openai \\');
+    console.log('    --output-name black-run-01');
     console.log('');
     console.log('  # Sequential execution (for debugging)');
     console.log('  npm run experiment -- \\');
@@ -241,8 +319,8 @@ function validatePromptTemplate(value: string): PromptTemplate {
     if (value === 'default' || value === 'cfg') {
         return value;
     }
-    console.warn(`Invalid prompt template: ${value}. Using default: cfg`);
-    return 'cfg';
+    console.warn(`Invalid prompt template: ${value}. Using default: default`);
+    return 'default';
 }
 
 /**
@@ -282,11 +360,12 @@ async function main() {
     // Generate output directory if not provided
     if (!args.outputDir) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const outputDirectoryName = args.outputName || timestamp;
         args.outputDir = path.join(
             process.cwd(),
             `${args.type}-tests`,
             args.model,
-            timestamp
+            outputDirectoryName
         );
     }
 
@@ -308,6 +387,9 @@ async function main() {
     console.log(`  Prompt Template: ${args.promptTemplate}`);
     if (args.taskLimit !== undefined) {
         console.log(`  Task Limit: ${args.taskLimit}`);
+    }
+    if (args.outputName) {
+        console.log(`  Output Name: ${args.outputName}`);
     }
     console.log(`  Output Dir: ${args.outputDir}`);
     console.log(`  Parallel: ${args.parallel}`);
