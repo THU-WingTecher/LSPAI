@@ -24,6 +24,19 @@ export class VscodeRequestManager {
       return VscodeRequestManager.cache.documentSymbols.get(uriString)!;
     }
   
+    let doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === uriString);
+    if (!doc) {
+      try {
+        doc = await vscode.workspace.openTextDocument(uri);
+      } catch {
+        doc = undefined;
+      }
+    }
+    if (doc && doc.getText().length === 0) {
+      VscodeRequestManager.cache.documentSymbols.set(uriString, []);
+      return [];
+    }
+
     let symbols: vscode.DocumentSymbol[] = [];
     await activate(uri);
     for (let i = 0; i < retries; i++) {
