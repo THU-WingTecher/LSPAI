@@ -294,11 +294,9 @@ export async function generateTest(
     try {
         console.log(`#### Generating test for ${task.symbolName}`);
 
-        // Create date-based directory structure
-        const currentDate = new Date().toISOString().split('T')[0];
-        const dateDir = path.join(claudeCodeOutputDir, currentDate);
-        const logsDir = path.join(dateDir, 'logs');
-        const codesDir = path.join(dateDir, 'codes');
+        // Store outputs directly under the configured Claude Code output dir.
+        const logsDir = path.join(claudeCodeOutputDir, 'logs');
+        const codesDir = path.join(claudeCodeOutputDir, 'codes');
 
         // Create directories
         if (!fs.existsSync(logsDir)) {
