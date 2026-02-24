@@ -73,7 +73,7 @@ async function findReferencesByText(
     const includePattern = new vscode.RelativePattern(workspacePath, includeGlob);
     const excludePattern = new vscode.RelativePattern(
         workspacePath,
-        '**/{.git,node_modules,out,dist,build,__pycache__}/**'
+        '**/{.git,node_modules,out,dist,build,__pycache__,lsprag-workspace}/**'
     );
     const files = await vscode.workspace.findFiles(includePattern, excludePattern);
     const regex = new RegExp(`\\b${escapeRegExp(symbolName)}\\b`, 'g');
@@ -149,7 +149,7 @@ export async function measureSymbolRobustness(
         }
     }
     
-    // 2. Filter references to only include those within the project path
+    // 2. Filter references to only include those within the project path.
     const references = allReferences.filter(ref => isInProjectPath(ref.uri, workspacePath));
     const cappedReferences = maxRefs > 0 ? references.slice(0, maxRefs) : references;
     

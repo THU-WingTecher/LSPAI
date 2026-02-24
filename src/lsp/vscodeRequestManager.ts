@@ -2,6 +2,22 @@ import * as vscode from 'vscode';
 import { activate } from './helper';
 import { LSPCache } from './types';
 
+const DEFAULT_REFERENCE_EXCLUDE_SUBSTRINGS = ['lsprag-workspace'];
+
+function getReferenceExcludeSubstrings(): string[] {
+  const configured = process.env.LSPRAG_REFERENCE_EXCLUDE_SUBSTRINGS;
+  if (!configured) {
+    return DEFAULT_REFERENCE_EXCLUDE_SUBSTRINGS;
+  }
+
+  const parsed = configured
+    .split(',')
+    .map(part => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  return parsed.length > 0 ? parsed : DEFAULT_REFERENCE_EXCLUDE_SUBSTRINGS;
+}
+
 export class VscodeRequestManager {
   private static cache: LSPCache = {
     documentSymbols: new Map(),
@@ -16,6 +32,16 @@ export class VscodeRequestManager {
     codeActions: new Map(),
     typeDefinition: new Map()
   };
+
+  private static shouldExcludeReferenceUri(uri: vscode.Uri): boolean {
+    const normalizedPath = uri.fsPath.toLowerCase();
+    return getReferenceExcludeSubstrings().some(pattern => normalizedPath.includes(pattern));
+  }
+
+  private static filterReferencesByPath(references: vscode.Location[]): vscode.Location[] {
+    return references.filter(ref => !VscodeRequestManager.shouldExcludeReferenceUri(ref.uri));
+  }
+
   static async documentSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
     const uriString = uri.toString();
   
@@ -141,7 +167,7 @@ export class VscodeRequestManager {
       uri,
       position
     );
-    const references = res ?? [];
+    const references = VscodeRequestManager.filterReferencesByPath(res ?? []);
 
     // Cache the result
     if (!VscodeRequestManager.cache.references.has(uriString)) {
