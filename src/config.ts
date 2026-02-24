@@ -564,6 +564,7 @@ export type ProjectConfigName =
     | 'mimesis'
     | 'dataclasses-json'
     | 'thefuck'
+    | 'cookiecutter'
     | 'tqdm'
     | 'commons-cli' 
     | 'commons-csv'
@@ -659,7 +660,7 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
         workspace: "/LSPRAG/experiments/projects/thefuck",
         srcPath: "/thefuck",
         language: 'python',
-        srcPathToExclude: ["/thefuck/system", "/thefuck/**/pacman*", "/thefuck/rules"],
+        srcPathToExclude: ["/thefuck/**/pacman*"],
         symbolNameToExclude: ["get_valid_history_without_current"],
         python: {
             // Only include parent directory, not the package directory itself
@@ -668,6 +669,21 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
                 "/LSPRAG/experiments/projects/thefuck"
             ],
             pythonExe: "/root/miniconda3/envs/thefuck/bin/python"
+        },
+    },
+    "cookiecutter": {
+        workspace: "/LSPRAG/experiments/projects/cookiecutter",
+        srcPath: "/cookiecutter",
+        language: 'python',
+        srcPathToExclude: [],
+        symbolNameToExclude: [],
+        python: {
+            // Only include parent directory, not the package directory itself
+            // This prevents name collision with standard library modules like 'concurrent'
+            pythonpath: [
+                "/LSPRAG/experiments/projects/cookiecutter"
+            ],
+            pythonExe: "/root/miniconda3/envs/cookiecutter/bin/python"
         },
     },
     "commons-cli": {
