@@ -95,12 +95,21 @@ export class ExperimentContinuityManager {
     public async saveTaskList(
         symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[]
     ): Promise<void> {
+        const pythonImportStringCache = new Map<string, string>();
+
         // Build the data to be written
         const data = symbolDocumentMap.map(({ symbol, document }) => {
             const relativePath = path.relative(this.workspacePath, document.uri.fsPath);
             let importString = "";
             if (document.languageId === "python") {
-                importString = genPythonicSrcImportStatement(document.getText());
+                const cacheKey = document.uri.fsPath;
+                const cachedImportString = pythonImportStringCache.get(cacheKey);
+                if (cachedImportString !== undefined) {
+                    importString = cachedImportString;
+                } else {
+                    importString = genPythonicSrcImportStatement(document.getText());
+                    pythonImportStringCache.set(cacheKey, importString);
+                }
             }
             return {
                 symbolName: symbol.name,
