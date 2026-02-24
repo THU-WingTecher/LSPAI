@@ -1,0 +1,802 @@
+[
+  {
+    "symbolName": "changelog",
+    "sourceCode": "@click.command(\n    short_help=\"Generate a changelog\",\n    context_settings={\n        \"help_option_names\": [\"-h\", \"--help\"],\n    },\n)\n@click.option(\n    \"--post-to-release-tag\",\n    \"release_tag\",\n    default=None,\n    help=\"Post the generated release notes to the remote VCS's release for this tag\",\n)\n@click.pass_obj\ndef changelog(cli_ctx: CliContextObj, release_tag: str | None) -> None:\n    \"\"\"Generate and optionally publish a changelog for your project\"\"\"\n    ctx = click.get_current_context()\n    runtime = cli_ctx.runtime_ctx\n    translator = runtime.version_translator\n    hvcs_client = runtime.hvcs_client\n\n    with Repo(str(runtime.repo_dir)) as git_repo:\n        release_history = ReleaseHistory.from_git_history(\n            repo=git_repo,\n            translator=translator,\n            commit_parser=runtime.commit_parser,\n            exclude_commit_patterns=runtime.changelog_excluded_commit_patterns,\n        )\n\n    write_changelog_files(\n        runtime_ctx=runtime,\n        release_history=release_history,\n        hvcs_client=hvcs_client,\n        noop=runtime.global_cli_options.noop,\n    )\n\n    if not release_tag:\n        return\n\n    if not isinstance(hvcs_client, RemoteHvcsBase):\n        click.echo(\n            \"Remote does not support releases. Skipping release notes update...\",\n            err=True,\n        )\n        return\n\n    if not (version := translator.from_tag(release_tag)):\n        click.echo(\n            str.join(\n                \" \",\n                [\n                    f\"Tag {release_tag!r} does not match the tag format\",\n                    repr(translator.tag_format),\n                ],\n            ),\n            err=True,\n        )\n        ctx.exit(1)\n\n    try:\n        release = release_history.released[version]\n    except KeyError:\n        click.echo(f\"tag {release_tag} not in release history\", err=True)\n        ctx.exit(2)\n\n    release_notes = generate_release_notes(\n        hvcs_client,\n        release,\n        runtime.template_dir,\n        release_history,\n        style=runtime.changelog_style,\n        mask_initial_release=runtime.changelog_mask_initial_release,\n        license_name=get_license_name_for_release(\n            tag_name=release_tag,\n            project_root=runtime.repo_dir,\n        ),\n    )\n\n    try:\n        post_release_notes(\n            release_tag=release_tag,\n            release_notes=release_notes,\n            prerelease=version.is_prerelease,\n            hvcs_client=hvcs_client,\n            noop=runtime.global_cli_options.noop,\n        )\n    except Exception as e:  # noqa: BLE001 # TODO: catch specific exceptions\n        logger.exception(e)\n        click.echo(\"Failed to post release notes to remote\", err=True)\n        ctx.exit(1)",
+    "importString": "",
+    "lineNum": 88,
+    "location": 88,
+    "relativeDocumentPath": "src/semantic_release/cli/commands/changelog.py"
+  },
+  {
+    "symbolName": "tag",
+    "sourceCode": "@property\n    def tag(self) -> str | None:\n        return self.version.as_tag() if self.version is not None else None",
+    "importString": "",
+    "lineNum": 2,
+    "location": 62,
+    "relativeDocumentPath": "src/semantic_release/cli/github_actions_output.py"
+  },
+  {
+    "symbolName": "hexsha",
+    "sourceCode": "@property\n    def hexsha(self) -> str:\n        \"\"\"\n        A hex representation of the hash value of the commit.\n\n        This is a pass through property for convience to access the ``hexsha`` attribute of the ``commit``.\n        \"\"\"\n        return self.commit.hexsha",
+    "importString": "",
+    "lineNum": 7,
+    "location": 123,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/token.py"
+  },
+  {
+    "symbolName": "hexsha",
+    "sourceCode": "@property\n    def hexsha(self) -> str:\n        \"\"\"\n        A hex representation of the hash value of the commit.\n\n        This is a pass through property for convience to access the ``hexsha`` attribute of the ``commit``.\n        \"\"\"\n        return self.commit.hexsha",
+    "importString": "",
+    "lineNum": 7,
+    "location": 186,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/token.py"
+  },
+  {
+    "symbolName": "tag_format",
+    "sourceCode": "@tag_format.setter\n    def tag_format(self, new_format: str) -> None:\n        check_tag_format(new_format)\n        self._tag_format = new_format",
+    "importString": "",
+    "lineNum": 3,
+    "location": 91,
+    "relativeDocumentPath": "src/semantic_release/version/version.py"
+  },
+  {
+    "symbolName": "version",
+    "sourceCode": "@click.command(\n    short_help=\"Detect and apply a new version\",\n    context_settings={\n        \"help_option_names\": [\"-h\", \"--help\"],\n    },\n)\n@optgroup.group(\"Print flags\", cls=MutuallyExclusiveOptionGroup)\n@optgroup.option(\n    \"--print\", \"print_only\", is_flag=True, help=\"Print the next version and exit\"\n)\n@optgroup.option(\n    \"--print-tag\",\n    \"print_only_tag\",\n    is_flag=True,\n    help=\"Print the next version tag and exit\",\n)\n@optgroup.option(\n    \"--print-last-released\",\n    is_flag=True,\n    help=\"Print the last released version and exit\",\n)\n@optgroup.option(\n    \"--print-last-released-tag\",\n    is_flag=True,\n    help=\"Print the last released version tag and exit\",\n)\n@click.option(\n    \"--as-prerelease\",\n    \"as_prerelease\",\n    is_flag=True,\n    help=\"Ensure the next version to be released is a prerelease version\",\n)\n@click.option(\n    \"--prerelease-token\",\n    \"prerelease_token\",\n    default=None,\n    help=\"Force the next version to use this prerelease token, if it is a prerelease\",\n)\n@click.option(\n    \"--major\",\n    \"force_level\",\n    flag_value=\"major\",\n    help=\"Force the next version to be a major release\",\n)\n@click.option(\n    \"--minor\",\n    \"force_level\",\n    flag_value=\"minor\",\n    help=\"Force the next version to be a minor release\",\n)\n@click.option(\n    \"--patch\",\n    \"force_level\",\n    flag_value=\"patch\",\n    help=\"Force the next version to be a patch release\",\n)\n@click.option(\n    \"--prerelease\",\n    \"force_level\",\n    flag_value=\"prerelease_revision\",\n    help=\"Force the next version to be a prerelease\",\n)\n@click.option(\n    \"--commit/--no-commit\",\n    \"commit_changes\",\n    default=True,\n    help=\"Whether or not to commit changes locally\",\n)\n@click.option(\n    \"--tag/--no-tag\",\n    \"create_tag\",\n    default=True,\n    help=\"Whether or not to create a tag for the new version\",\n)\n@click.option(\n    \"--changelog/--no-changelog\",\n    \"update_changelog\",\n    default=True,\n    help=\"Whether or not to update the changelog\",\n)\n@click.option(\n    \"--push/--no-push\",\n    \"push_changes\",\n    default=True,\n    help=\"Whether or not to push the new commit and tag to the remote\",\n)\n@click.option(\n    \"--vcs-release/--no-vcs-release\",\n    \"make_vcs_release\",\n    default=True,\n    help=\"Whether or not to create a release in the remote VCS, if supported\",\n)\n@click.option(\n    \"--build-metadata\",\n    \"build_metadata\",\n    default=os.getenv(\"PSR_BUILD_METADATA\"),\n    help=\"Build metadata to append to the new version\",\n)\n@click.option(\n    \"--skip-build\",\n    \"skip_build\",\n    default=False,\n    is_flag=True,\n    help=\"Skip building the current project\",\n)\n@click.pass_obj\ndef version(  # noqa: C901\n    cli_ctx: CliContextObj,\n    print_only: bool,\n    print_only_tag: bool,\n    print_last_released: bool,\n    print_last_released_tag: bool,\n    as_prerelease: bool,\n    prerelease_token: str | None,\n    commit_changes: bool,\n    create_tag: bool,\n    update_changelog: bool,\n    push_changes: bool,\n    make_vcs_release: bool,\n    build_metadata: str | None,\n    skip_build: bool,\n    force_level: str | None = None,\n) -> None:\n    \"\"\"\n    Detect the semantically correct next version that should be applied to your\n    project.\n\n    By default:\n\n    * Write this new version to the project metadata locations specified\n    in the configuration file\n\n    * Create a new commit with these locations and any other assets configured\n    to be included in a release\n\n    * Tag this commit according the configured format, with a tag that uniquely\n    identifies the version being released.\n\n    * Push the new tag and commit to the remote for the repository\n\n    * Create a release (if supported) in the remote VCS for this tag\n    \"\"\"\n    ctx = click.get_current_context()\n\n    # Enable any cli overrides of configuration before asking for the runtime context\n    config = cli_ctx.raw_config\n\n    # We can short circuit updating the release if we are only printing the last released version\n    if print_last_released or print_last_released_tag:\n        # TODO: get tag format a better way\n        if not (\n            last_release := last_released(\n                config.repo_dir,\n                tag_format=config.tag_format,\n                add_partial_tags=config.add_partial_tags,\n            )\n        ):\n            logger.warning(\"No release tags found.\")\n            return\n\n        click.echo(last_release[0] if print_last_released_tag else last_release[1])\n        return\n\n    # TODO: figure out --print of next version with & without branch validation\n    # do you always need a prerelease token if its not --as-prerelease?\n    runtime = cli_ctx.runtime_ctx\n    translator = runtime.version_translator\n\n    parser = runtime.commit_parser\n    hvcs_client = runtime.hvcs_client\n    assets = runtime.assets\n    commit_author = runtime.commit_author\n    commit_message = runtime.commit_message\n    major_on_zero = runtime.major_on_zero\n    no_verify = runtime.no_git_verify\n    opts = runtime.global_cli_options\n    add_partial_tags = config.add_partial_tags\n    gha_output = VersionGitHubActionsOutput(\n        gh_client=hvcs_client if isinstance(hvcs_client, Github) else None,\n        mode=(\n            PersistenceMode.TEMPORARY\n            if opts.noop or (not commit_changes and not create_tag)\n            else PersistenceMode.PERMANENT\n        ),\n        released=False,\n    )\n\n    forced_level_bump = None if not force_level else LevelBump.from_string(force_level)\n    prerelease = is_forced_prerelease(\n        as_prerelease=as_prerelease,\n        forced_level_bump=forced_level_bump,\n        prerelease=runtime.prerelease,\n    )\n\n    if prerelease_token:\n        logger.info(\"Forcing use of %s as the prerelease token\", prerelease_token)\n        translator.prerelease_token = prerelease_token\n\n    # Check if the repository is shallow and unshallow it if necessary\n    # This ensures we have the full history for commit analysis\n    project = GitProject(\n        directory=runtime.repo_dir,\n        commit_author=runtime.commit_author,\n        credential_masker=runtime.masker,\n    )\n    if project.is_shallow_clone():\n        logger.info(\"Repository is a shallow clone, converting to full clone...\")\n        project.git_unshallow(noop=opts.noop)\n\n    # Only push if we're committing changes\n    if push_changes and not commit_changes and not create_tag:\n        logger.info(\"changes will not be pushed because --no-commit disables pushing\")\n        push_changes &= commit_changes\n\n    # Only push if we're creating a tag\n    if push_changes and not create_tag and not commit_changes:\n        logger.info(\"new tag will not be pushed because --no-tag disables pushing\")\n        push_changes &= create_tag\n\n    # Only make a release if we're pushing the changes\n    if make_vcs_release and not push_changes:\n        logger.info(\n            \"No vcs release will be created because pushing changes is disabled\"\n        )\n        make_vcs_release &= push_changes\n\n    if not forced_level_bump:\n        with Repo(str(runtime.repo_dir)) as git_repo:\n            new_version = next_version(\n                repo=git_repo,\n                translator=translator,\n                commit_parser=parser,\n                prerelease=prerelease,\n                major_on_zero=major_on_zero,\n                allow_zero_version=runtime.allow_zero_version,\n            )\n    else:\n        logger.warning(\n            \"Forcing a '%s' release due to '--%s' command-line flag\",\n            force_level,\n            (\n                force_level\n                if forced_level_bump is not LevelBump.PRERELEASE_REVISION\n                else \"prerelease\"\n            ),\n        )\n\n        new_version = version_from_forced_level(\n            repo_dir=runtime.repo_dir,\n            forced_level_bump=forced_level_bump,\n            translator=translator,\n        )\n\n        # We only turn the forced version into a prerelease if the user has specified\n        # that that is what they want on the command-line; otherwise we assume they are\n        # forcing a full release\n        new_version = (\n            new_version.to_prerelease(token=translator.prerelease_token)\n            if prerelease\n            else new_version.finalize_version()\n        )\n\n    if build_metadata:\n        new_version.build_metadata = build_metadata\n\n    # Update GitHub Actions output value with new version & set delayed write\n    gha_output.version = new_version\n    if isinstance(hvcs_client, Github):\n        ctx.call_on_close(gha_output.write_if_possible)\n\n    # Make string variant of version or appropriate tag as necessary\n    version_to_print = str(new_version) if not print_only_tag else new_version.as_tag()\n\n    # Print the new version so that command-line output capture will work\n    click.echo(version_to_print)\n\n    with Repo(str(runtime.repo_dir)) as git_repo:\n        # TODO: performance improvement - cache the result of tags_and_versions (previously done in next_version())\n        previously_released_versions = {\n            v for _, v in tags_and_versions(git_repo.tags, translator)\n        }\n\n    # If the new version has already been released, we fail and abort if strict;\n    # otherwise we exit with 0.\n    if new_version in previously_released_versions:\n        err_msg = str.join(\n            \" \",\n            [\n                \"[bold orange1]No release will be made,\",\n                f\"{new_version!s} has already been released!\",\n            ],\n        )\n\n        if opts.strict:\n            click.echo(err_msg, err=True)\n            ctx.exit(2)\n\n        rprint(err_msg)\n        return\n\n    if print_only or print_only_tag:\n        return\n\n    # TODO: need a better way as this is inconsistent if releasing older version patches\n    if last_release := last_released(config.repo_dir, tag_format=config.tag_format):\n        # If we have a last release, we can set the previous version for the\n        # GitHub Actions output\n        gha_output.prev_version = last_release[1]\n\n    with Repo(str(runtime.repo_dir)) as git_repo:\n        release_history = ReleaseHistory.from_git_history(\n            repo=git_repo,\n            translator=translator,\n            commit_parser=parser,\n            exclude_commit_patterns=runtime.changelog_excluded_commit_patterns,\n        )\n\n    rprint(f\"[bold green]The next version is: [white]{new_version!s}[/white]! :rocket:\")\n\n    commit_date = datetime.now(timezone.utc).astimezone()  # Locale-aware timestamp\n    try:\n        # Create release object for the new version\n        # This will be used to generate the changelog prior to the commit and/or tag\n        release_history = release_history.release(\n            new_version,\n            tagger=commit_author,\n            committer=commit_author,\n            tagged_date=commit_date,\n        )\n    except ValueError as ve:\n        click.echo(str(ve), err=True)\n        ctx.exit(1)\n\n    all_paths_to_add: list[str] = []\n\n    if update_changelog:\n        # Write changelog files & add them to the list of files to commit\n        all_paths_to_add.extend(\n            write_changelog_files(\n                runtime_ctx=runtime,\n                release_history=release_history,\n                hvcs_client=hvcs_client,\n                noop=opts.noop,\n            )\n        )\n\n    # Apply the new version to the source files\n    files_with_new_version_written = apply_version_to_source_files(\n        repo_dir=runtime.repo_dir,\n        version_declarations=runtime.version_declarations,\n        version=new_version,\n        noop=opts.noop,\n    )\n    all_paths_to_add.extend(files_with_new_version_written)\n    all_paths_to_add.extend(assets or [])\n\n    # Build distributions before committing any changes - this way if the\n    # build fails, modifications to the source code won't be committed\n    if skip_build:\n        rprint(\"[bold orange1]Skipping build due to --skip-build flag\")\n    else:\n        try:\n            build_distributions(\n                build_command=runtime.build_command,\n                build_command_env={\n                    # User defined overrides of environment (from config)\n                    **runtime.build_command_env,\n                    # PSR injected environment variables\n                    \"NEW_VERSION\": str(new_version),\n                    \"PACKAGE_NAME\": runtime.project_metadata.get(\"name\", \"\"),\n                },\n                noop=opts.noop,\n            )\n        except BuildDistributionsError as exc:\n            click.echo(str(exc), err=True)\n            click.echo(\"Build failed, aborting release\", err=True)\n            ctx.exit(1)\n\n    license_cfg = runtime.project_metadata.get(\n        \"license-expression\",\n        runtime.project_metadata.get(\n            \"license\",\n            \"\",\n        ),\n    )\n\n    license_cfg = \"\" if not isinstance(license_cfg, (str, dict)) else license_cfg\n    license_cfg = (\n        license_cfg.get(\"text\", \"\") if isinstance(license_cfg, dict) else license_cfg\n    )\n\n    gha_output.release_notes = release_notes = generate_release_notes(\n        hvcs_client,\n        release=release_history.released[new_version],\n        template_dir=runtime.template_dir,\n        history=release_history,\n        style=runtime.changelog_style,\n        mask_initial_release=runtime.changelog_mask_initial_release,\n        license_name=\"\" if not isinstance(license_cfg, str) else license_cfg,\n    )\n\n    # Preparing for committing changes; we always stage files even if we're not committing them in order to support a two-stage commit\n    project.git_add(paths=all_paths_to_add, noop=opts.noop)\n    if commit_changes:\n        # NOTE: If we haven't modified any source code then we skip trying to make a commit\n        # and any tag that we apply will be to the HEAD commit (made outside of\n        # running PSR\n        try:\n            project.git_commit(\n                message=commit_message.format(version=new_version),\n                date=int(commit_date.timestamp()),\n                no_verify=no_verify,\n                noop=opts.noop,\n            )\n        except GitCommitEmptyIndexError:\n            logger.info(\"No local changes to add to any commit, skipping\")\n            commit_changes = False\n\n    # Tag the version after potentially creating a new HEAD commit.\n    # This way if no source code is modified, i.e. all metadata updates\n    # are disabled, and the changelog generation is disabled or it's not\n    # modified, then the HEAD commit will be tagged as a release commit\n    # despite not being made by PSR\n    if create_tag:\n        project.git_tag(\n            tag_name=new_version.as_tag(),\n            message=new_version.as_tag(),\n            isotimestamp=commit_date.isoformat(),\n            noop=opts.noop,\n        )\n\n        with Repo(str(runtime.repo_dir)) as git_repo:\n            gha_output.commit_sha = git_repo.head.commit.hexsha\n\n    if push_changes:\n        remote_url = runtime.hvcs_client.remote_url(\n            use_token=not runtime.ignore_token_for_push\n        )\n\n        if commit_changes:\n            # Verify that the upstream branch has not changed before pushing\n            # This prevents conflicts if another commit was pushed while we were preparing the release\n            # We check HEAD~1 because we just made a release commit\n            try:\n                project.verify_upstream_unchanged(\n                    local_ref=\"HEAD~1\",\n                    upstream_ref=config.remote.name,\n                    remote_url=remote_url,\n                    noop=opts.noop,\n                )\n            except UpstreamBranchChangedError as exc:\n                click.echo(str(exc), err=True)\n                click.echo(\n                    \"Upstream branch has changed. Please pull the latest changes and try again.\",\n                    err=True,\n                )\n                ctx.exit(1)\n            except (\n                DetachedHeadGitError,\n                GitCommandError,\n                UnknownUpstreamBranchError,\n                GitFetchError,\n                LocalGitError,\n            ) as exc:\n                click.echo(str(exc), err=True)\n                click.echo(\"Unable to verify upstream due to error!\", err=True)\n                ctx.exit(1)\n\n            # TODO: integrate into push branch\n            with Repo(str(runtime.repo_dir)) as git_repo:\n                active_branch = git_repo.active_branch.name\n\n            project.git_push_branch(\n                remote_url=remote_url,\n                branch=active_branch,\n                noop=opts.noop,\n            )\n\n        if create_tag:\n            # push specific tag refspec (that we made) to remote\n            project.git_push_tag(\n                remote_url=remote_url,\n                tag=new_version.as_tag(),\n                noop=opts.noop,\n            )\n            # Create or update partial tags for releases\n            if add_partial_tags and not prerelease:\n                partial_tags = [new_version.as_major_tag(), new_version.as_minor_tag()]\n                # If build metadata is set, also retag the version without the metadata\n                if build_metadata:\n                    partial_tags.append(new_version.as_patch_tag())\n\n                for partial_tag in partial_tags:\n                    project.git_tag(\n                        tag_name=partial_tag,\n                        message=f\"{partial_tag} => {new_version.as_tag()}\",\n                        isotimestamp=commit_date.isoformat(),\n                        noop=opts.noop,\n                        force=True,\n                    )\n                    project.git_push_tag(\n                        remote_url=remote_url,\n                        tag=partial_tag,\n                        noop=opts.noop,\n                        force=True,\n                    )\n\n    # Update GitHub Actions output value now that release has occurred\n    gha_output.released = True\n\n    if not make_vcs_release:\n        return\n\n    if not isinstance(hvcs_client, RemoteHvcsBase):\n        logger.info(\"Remote does not support releases. Skipping release creation...\")\n        return\n\n    exception: Exception | None = None\n    help_message = \"\"\n    try:\n        hvcs_client.create_release(\n            tag=new_version.as_tag(),\n            release_notes=release_notes,\n            prerelease=new_version.is_prerelease,\n            assets=assets,\n            noop=opts.noop,\n        )\n    except HTTPError as err:\n        exception = err\n    except UnexpectedResponse as err:\n        exception = err\n        help_message = str.join(\n            \" \",\n            [\n                \"Before re-running, make sure to clean up any artifacts\",\n                \"on the hvcs that may have already been created.\",\n            ],\n        )\n        help_message = str.join(\n            \"\\n\",\n            [\n                \"Unexpected response from remote VCS!\",\n                help_message,\n            ],\n        )\n    except Exception as err:  # noqa: BLE001\n        # TODO: Remove this catch-all exception handler in the future\n        exception = err\n    finally:\n        if exception is not None:\n            logger.exception(exception)\n            click.echo(str(exception), err=True)\n            if help_message:\n                click.echo(help_message, err=True)\n            click.echo(\n                f\"Failed to create release on {hvcs_client.__class__.__name__}!\",\n                err=True,\n            )\n            ctx.exit(1)",
+    "importString": "",
+    "lineNum": 558,
+    "location": 308,
+    "relativeDocumentPath": "src/semantic_release/cli/commands/version.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "@abstractmethod\n    def parse(self, commit: Commit) -> _TT | list[_TT]: ...",
+    "importString": "",
+    "lineNum": 1,
+    "location": 82,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/_base.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "def parse(self, commit: Commit) -> ParseResult | list[ParseResult]:\n        \"\"\"\n        Parse a commit message\n\n        If the commit message is a squashed merge commit, it will be split into\n        multiple commits, each of which will be parsed separately. Single commits\n        will be returned as a list of a single ParseResult.\n        \"\"\"\n        if self.options.ignore_merge_commits and self.is_merge_commit(commit):\n            return self.log_parse_error(\n                commit, \"Ignoring merge commit: %s\" % commit.hexsha[:8]\n            )\n\n        separate_commits: list[Commit] = (\n            self.unsquash_commit(commit)\n            if self.options.parse_squash_commits\n            else [commit]\n        )\n\n        # Parse each commit individually if there were more than one\n        parsed_commits: list[ParseResult] = list(\n            map(self.parse_commit, separate_commits)\n        )\n\n        def add_linked_merge_request(\n            parsed_result: ParseResult, mr_number: str\n        ) -> ParseResult:\n            return (\n                parsed_result\n                if not isinstance(parsed_result, ParsedCommit)\n                else ParsedCommit(\n                    **{\n                        **parsed_result._asdict(),\n                        \"linked_merge_request\": mr_number,\n                    }\n                )\n            )\n\n        # TODO: improve this for other VCS systems other than GitHub & BitBucket\n        # Github works as the first commit in a squash merge commit has the PR number\n        # appended to the first line of the commit message\n        lead_commit = next(iter(parsed_commits))\n\n        if isinstance(lead_commit, ParsedCommit) and lead_commit.linked_merge_request:\n            # If the first commit has linked merge requests, assume all commits\n            # are part of the same PR and add the linked merge requests to all\n            # parsed commits\n            parsed_commits = [\n                lead_commit,\n                *map(\n                    lambda parsed_result, mr=lead_commit.linked_merge_request: (  # type: ignore[misc]\n                        add_linked_merge_request(parsed_result, mr)\n                    ),\n                    parsed_commits[1:],\n                ),\n            ]\n\n        elif isinstance(lead_commit, ParseError) and (\n            mr_match := self.mr_selector.search(force_str(lead_commit.message))\n        ):\n            # Handle BitBucket Squash Merge Commits (see #1085), which have non angular commit\n            # format but include the PR number in the commit subject that we want to extract\n            linked_merge_request = mr_match.group(\"mr_number\")\n\n            # apply the linked MR to all commits\n            parsed_commits = [\n                add_linked_merge_request(parsed_result, linked_merge_request)\n                for parsed_result in parsed_commits\n            ]\n\n        return parsed_commits",
+    "importString": "",
+    "lineNum": 70,
+    "location": 293,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/conventional/parser.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "def parse(self, commit: Commit) -> ParseResult | list[ParseResult]:\n        if self.options.ignore_merge_commits and self._base_parser.is_merge_commit(\n            commit\n        ):\n            return self._base_parser.log_parse_error(\n                commit, \"Ignoring merge commit: %s\" % commit.hexsha[:8]\n            )\n\n        separate_commits: list[Commit] = (\n            self._base_parser.unsquash_commit(commit)\n            if self.options.parse_squash_commits\n            else [commit]\n        )\n\n        # Parse each commit individually if there were more than one\n        parsed_commits: list[ParseResult] = list(\n            map(self.parse_commit, separate_commits)\n        )\n\n        def add_linked_merge_request(\n            parsed_result: ParseResult, mr_number: str\n        ) -> ParseResult:\n            return (\n                parsed_result\n                if not isinstance(parsed_result, ParsedCommit)\n                else ParsedCommit(\n                    **{\n                        **parsed_result._asdict(),\n                        \"linked_merge_request\": mr_number,\n                    }\n                )\n            )\n\n        # TODO: improve this for other VCS systems other than GitHub & BitBucket\n        # Github works as the first commit in a squash merge commit has the PR number\n        # appended to the first line of the commit message\n        lead_commit = next(iter(parsed_commits))\n\n        if isinstance(lead_commit, ParsedCommit) and lead_commit.linked_merge_request:\n            # If the first commit has linked merge requests, assume all commits\n            # are part of the same PR and add the linked merge requests to all\n            # parsed commits\n            parsed_commits = [\n                lead_commit,\n                *map(\n                    lambda parsed_result, mr=lead_commit.linked_merge_request: (  # type: ignore[misc]\n                        add_linked_merge_request(parsed_result, mr)\n                    ),\n                    parsed_commits[1:],\n                ),\n            ]\n\n        elif isinstance(lead_commit, ParseError) and (\n            mr_match := self._base_parser.mr_selector.search(\n                force_str(lead_commit.message)\n            )\n        ):\n            # Handle BitBucket Squash Merge Commits (see #1085), which have non angular commit\n            # format but include the PR number in the commit subject that we want to extract\n            linked_merge_request = mr_match.group(\"mr_number\")\n\n            # apply the linked MR to all commits\n            parsed_commits = [\n                add_linked_merge_request(parsed_result, linked_merge_request)\n                for parsed_result in parsed_commits\n            ]\n\n        return parsed_commits",
+    "importString": "",
+    "lineNum": 67,
+    "location": 246,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/conventional/parser_monorepo.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "def parse(self, commit: Commit) -> ParseResult | list[ParseResult]:\n        \"\"\"\n        Parse a commit message\n\n        If the commit message is a squashed merge commit, it will be split into\n        multiple commits, each of which will be parsed separately. Single commits\n        will be returned as a list of a single ParseResult.\n        \"\"\"\n        if self.options.ignore_merge_commits and self.is_merge_commit(commit):\n            err_msg = \"Ignoring merge commit: %s\" % commit.hexsha[:8]\n            logger.debug(err_msg)\n            return ParseError(commit, err_msg)\n\n        separate_commits: list[Commit] = (\n            self.unsquash_commit(commit)\n            if self.options.parse_squash_commits\n            else [commit]\n        )\n\n        # Parse each commit individually if there were more than one\n        parsed_commits: list[ParseResult] = list(\n            map(self.parse_commit, separate_commits)\n        )\n\n        def add_linked_merge_request(\n            parsed_result: ParseResult, mr_number: str\n        ) -> ParseResult:\n            return (\n                parsed_result\n                if not isinstance(parsed_result, ParsedCommit)\n                else ParsedCommit(\n                    **{\n                        **parsed_result._asdict(),\n                        \"linked_merge_request\": mr_number,\n                    }\n                )\n            )\n\n        # TODO: improve this for other VCS systems other than GitHub & BitBucket\n        # Github works as the first commit in a squash merge commit has the PR number\n        # appended to the first line of the commit message\n        lead_commit = next(iter(parsed_commits))\n\n        if isinstance(lead_commit, ParsedCommit) and lead_commit.linked_merge_request:\n            # If the first commit has linked merge requests, assume all commits\n            # are part of the same PR and add the linked merge requests to all\n            # parsed commits\n            parsed_commits = [\n                lead_commit,\n                *map(\n                    lambda parsed_result, mr=lead_commit.linked_merge_request: (  # type: ignore[misc]\n                        add_linked_merge_request(parsed_result, mr)\n                    ),\n                    parsed_commits[1:],\n                ),\n            ]\n\n        return parsed_commits",
+    "importString": "",
+    "lineNum": 57,
+    "location": 332,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/emoji.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "@abstractmethod\n    def parse(self) -> set[Version]:\n        \"\"\"\n        Return a set of the versions which can be parsed from the file.\n        Because a source can match in multiple places, this method returns a\n        set of matches. Generally, there should only be one element in this\n        set (i.e. even if the version is specified in multiple places, it\n        should be the same version in each place), but enforcing that condition\n        is not mandatory or expected.\n        \"\"\"",
+    "importString": "",
+    "lineNum": 9,
+    "location": 72,
+    "relativeDocumentPath": "src/semantic_release/version/declaration.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "@deprecated(\n        version=\"10.6.0\",\n        reason=\"Function is unused and will be removed in a future release\",\n    )\n    def parse(self) -> set[Version]:\n        raise NotImplementedError",
+    "importString": "",
+    "lineNum": 5,
+    "location": 49,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/file.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "@deprecated(\n        version=\"9.20.0\",\n        reason=\"Function is unused and will be removed in a future release\",\n    )\n    def parse(self) -> set[Version]:  # pragma: no cover\n        \"\"\"\n        Return the versions matching this pattern.\n        Because a pattern can match in multiple places, this method returns a\n        set of matches.  Generally, there should only be one element in this\n        set (i.e. even if the version is specified in multiple places, it\n        should be the same version in each place), but it falls on the caller\n        to check for this condition.\n        \"\"\"\n        versions = {\n            Version.parse(m.group(self._VERSION_GROUP_NAME))\n            for m in self._search_pattern.finditer(self.content)\n        }\n\n        logger.debug(\n            \"Parsing current version: path=%r pattern=%r num_matches=%s\",\n            self._path.resolve(),\n            self._search_pattern,\n            len(versions),\n        )\n        return versions",
+    "importString": "",
+    "lineNum": 24,
+    "location": 90,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/pattern.py"
+  },
+  {
+    "symbolName": "version",
+    "sourceCode": "@version.setter\n    def version(self, value: Version) -> None:\n        if not isinstance(value, Version):\n            raise TypeError(\"output 'released' should be a Version\")\n        self._version = value",
+    "importString": "",
+    "lineNum": 4,
+    "location": 56,
+    "relativeDocumentPath": "src/semantic_release/cli/github_actions_output.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "def parse(self, commit: Commit) -> ParseResult | list[ParseResult]:\n        \"\"\"\n        Parse a commit message\n\n        If the commit message is a squashed merge commit, it will be split into\n        multiple commits, each of which will be parsed separately. Single commits\n        will be returned as a list of a single ParseResult.\n        \"\"\"\n        if self.options.ignore_merge_commits and self.is_merge_commit(commit):\n            return _logged_parse_error(\n                commit, \"Ignoring merge commit: %s\" % commit.hexsha[:8]\n            )\n\n        separate_commits: list[Commit] = (\n            self.unsquash_commit(commit)\n            if self.options.parse_squash_commits\n            else [commit]\n        )\n\n        # Parse each commit individually if there were more than one\n        parsed_commits: list[ParseResult] = list(\n            map(self.parse_commit, separate_commits)\n        )\n\n        def add_linked_merge_request(\n            parsed_result: ParseResult, mr_number: str\n        ) -> ParseResult:\n            return (\n                parsed_result\n                if not isinstance(parsed_result, ParsedCommit)\n                else ParsedCommit(\n                    **{\n                        **parsed_result._asdict(),\n                        \"linked_merge_request\": mr_number,\n                    }\n                )\n            )\n\n        # TODO: improve this for other VCS systems other than GitHub & BitBucket\n        # Github works as the first commit in a squash merge commit has the PR number\n        # appended to the first line of the commit message\n        lead_commit = next(iter(parsed_commits))\n\n        if isinstance(lead_commit, ParsedCommit) and lead_commit.linked_merge_request:\n            # If the first commit has linked merge requests, assume all commits\n            # are part of the same PR and add the linked merge requests to all\n            # parsed commits\n            parsed_commits = [\n                lead_commit,\n                *map(\n                    lambda parsed_result, mr=lead_commit.linked_merge_request: (  # type: ignore[misc]\n                        add_linked_merge_request(parsed_result, mr)\n                    ),\n                    parsed_commits[1:],\n                ),\n            ]\n\n        elif isinstance(lead_commit, ParseError) and (\n            mr_match := self.mr_selector.search(force_str(lead_commit.message))\n        ):\n            # Handle BitBucket Squash Merge Commits (see #1085), which have non angular commit\n            # format but include the PR number in the commit subject that we want to extract\n            linked_merge_request = mr_match.group(\"mr_number\")\n\n            # apply the linked MR to all commits\n            parsed_commits = [\n                add_linked_merge_request(parsed_result, linked_merge_request)\n                for parsed_result in parsed_commits\n            ]\n\n        return parsed_commits",
+    "importString": "",
+    "lineNum": 70,
+    "location": 335,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/angular.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "@deprecated(\n        version=\"9.20.0\",\n        reason=\"Function is unused and will be removed in a future release\",\n    )\n    @abstractmethod\n    def parse(self) -> set[Version]:\n        \"\"\"\n        Return a set of the versions which can be parsed from the file.\n        Because a source can match in multiple places, this method returns a\n        set of matches. Generally, there should only be one element in this\n        set (i.e. even if the version is specified in multiple places, it\n        should be the same version in each place), but enforcing that condition\n        is not mandatory or expected.\n        \"\"\"\n        raise NotImplementedError",
+    "importString": "",
+    "lineNum": 14,
+    "location": 36,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/i_version_replacer.py"
+  },
+  {
+    "symbolName": "release",
+    "sourceCode": "def release(\n        self, version: Version, tagger: Actor, committer: Actor, tagged_date: datetime\n    ) -> ReleaseHistory:\n        if version in self.released:\n            raise ValueError(f\"{version} has already been released!\")\n\n        # return a new instance to avoid potential accidental\n        # mutation\n        return ReleaseHistory(\n            unreleased={},\n            released={\n                version: {\n                    \"tagger\": tagger,\n                    \"committer\": committer,\n                    \"tagged_date\": tagged_date,\n                    \"elements\": self.unreleased,\n                    \"version\": version,\n                },\n                **self.released,\n            },\n        )",
+    "importString": "",
+    "lineNum": 20,
+    "location": 236,
+    "relativeDocumentPath": "src/semantic_release/changelog/release_history.py"
+  },
+  {
+    "symbolName": "repo_name",
+    "sourceCode": "@property\n    def repo_name(self) -> str:\n        if self._name is None:\n            _, name = self._get_repository_owner_and_name()\n            self._name = name\n        return self._name",
+    "importString": "",
+    "lineNum": 5,
+    "location": 46,
+    "relativeDocumentPath": "src/semantic_release/hvcs/_base.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "def parse(self, commit: Commit) -> ParseResult | list[ParseResult]:\n        message = str(commit.message)\n\n        # Attempt to parse the commit message with a regular expression\n        parsed = re_parser.match(message)\n        if not parsed:\n            return _logged_parse_error(\n                commit, error=f\"Unable to parse the given commit message: {message!r}\"\n            )\n\n        subject = parsed.group(\"subject\")\n\n        # Check tags for minor or patch\n        if self.options.minor_tag in message:\n            level = \"feature\"\n            level_bump = LevelBump.MINOR\n            if subject:\n                subject = subject.replace(self.options.minor_tag, \"\")\n\n        elif self.options.patch_tag in message:\n            level = \"fix\"\n            level_bump = LevelBump.PATCH\n            if subject:\n                subject = subject.replace(self.options.patch_tag, \"\")\n\n        else:\n            # We did not find any tags in the commit message\n            return _logged_parse_error(\n                commit, error=f\"Unable to parse the given commit message: {message!r}\"\n            )\n\n        if parsed.group(\"text\"):\n            descriptions = parse_paragraphs(parsed.group(\"text\"))\n        else:\n            descriptions = []\n        descriptions.insert(0, subject.strip())\n\n        # Look for descriptions of breaking changes\n        breaking_descriptions = [\n            match.group(1)\n            for match in (breaking_re.match(p) for p in descriptions[1:])\n            if match\n        ]\n        if breaking_descriptions:\n            level = \"breaking\"\n            level_bump = LevelBump.MAJOR\n            logger.debug(\n                \"commit %s upgraded to a %s level_bump due to included breaking descriptions\",\n                commit.hexsha[:8],\n                level_bump,\n            )\n\n        logger.debug(\n            \"commit %s introduces a %s level_bump\", commit.hexsha[:8], level_bump\n        )\n\n        return ParsedCommit(\n            bump=level_bump,\n            type=level,\n            scope=\"\",\n            descriptions=descriptions,\n            breaking_descriptions=breaking_descriptions,\n            commit=commit,\n        )",
+    "importString": "",
+    "lineNum": 63,
+    "location": 43,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/tag.py"
+  },
+  {
+    "symbolName": "released",
+    "sourceCode": "@released.setter\n    def released(self, value: bool) -> None:\n        if not isinstance(value, bool):\n            raise TypeError(\"output 'released' is boolean\")\n        self._released = value",
+    "importString": "",
+    "lineNum": 4,
+    "location": 46,
+    "relativeDocumentPath": "src/semantic_release/cli/github_actions_output.py"
+  },
+  {
+    "symbolName": "message",
+    "sourceCode": "@property\n    def message(self) -> str:\n        \"\"\"\n        A string representation of the commit message.\n\n        This is a pass through property for convience to access the ``message``\n        attribute of the ``commit`` object.\n\n        If the message is of type ``bytes`` then it will be decoded to a ``UTF-8`` string.\n        \"\"\"\n        return force_str(self.commit.message).replace(\"\\r\", \"\")",
+    "importString": "",
+    "lineNum": 10,
+    "location": 111,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/token.py"
+  },
+  {
+    "symbolName": "bump",
+    "sourceCode": "def bump(self, level: LevelBump) -> Version:\n        \"\"\"\n        Return a new Version instance according to the level specified to bump.\n        Note this will intentionally drop the build metadata - that should be added\n        elsewhere for the specific build producing this version.\n        \"\"\"\n        if type(level) != LevelBump:\n            raise TypeError(f\"Unexpected level {level!r}: expected {LevelBump!r}\")\n\n        logger.debug(\"performing a %s level bump\", level)\n        if level is LevelBump.MAJOR:\n            return Version(\n                self.major + 1,\n                0,\n                0,\n                prerelease_token=self.prerelease_token,\n                prerelease_revision=1 if self.is_prerelease else None,\n                tag_format=self.tag_format,\n            )\n        if level is LevelBump.MINOR:\n            return Version(\n                self.major,\n                self.minor + 1,\n                0,\n                prerelease_token=self.prerelease_token,\n                prerelease_revision=1 if self.is_prerelease else None,\n                tag_format=self.tag_format,\n            )\n        if level is LevelBump.PATCH:\n            return Version(\n                self.major,\n                self.minor,\n                self.patch + 1,\n                prerelease_token=self.prerelease_token,\n                prerelease_revision=1 if self.is_prerelease else None,\n                tag_format=self.tag_format,\n            )\n        if level is LevelBump.PRERELEASE_REVISION:\n            return Version(\n                self.major,\n                self.minor,\n                self.patch,\n                prerelease_token=self.prerelease_token,\n                prerelease_revision=1\n                if not self.is_prerelease\n                else (self.prerelease_revision or 0) + 1,\n                tag_format=self.tag_format,\n            )\n        # for consistency, this creates a new instance regardless\n        # only other option is level is LevelBump.NO_RELEASE\n        return Version(\n            self.major,\n            self.minor,\n            self.patch,\n            prerelease_token=self.prerelease_token,\n            prerelease_revision=self.prerelease_revision,\n            tag_format=self.tag_format,\n        )",
+    "importString": "",
+    "lineNum": 57,
+    "location": 217,
+    "relativeDocumentPath": "src/semantic_release/version/version.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "def parse(self, commit: Commit) -> ParseResult | list[ParseResult]:\n        \"\"\"\n        Parse a commit message\n\n        If the commit message is a squashed merge commit, it will be split into\n        multiple commits, each of which will be parsed separately. Single commits\n        will be returned as a list of a single ParseResult.\n        \"\"\"\n        if self.options.ignore_merge_commits and self.is_merge_commit(commit):\n            return _logged_parse_error(\n                commit, \"Ignoring merge commit: %s\" % commit.hexsha[:8]\n            )\n\n        separate_commits: list[Commit] = (\n            self.unsquash_commit(commit)\n            if self.options.parse_squash_commits\n            else [commit]\n        )\n\n        # Parse each commit individually if there were more than one\n        parsed_commits: list[ParseResult] = list(\n            map(self.parse_commit, separate_commits)\n        )\n\n        def add_linked_merge_request(\n            parsed_result: ParseResult, mr_number: str\n        ) -> ParseResult:\n            return (\n                parsed_result\n                if not isinstance(parsed_result, ParsedCommit)\n                else ParsedCommit(\n                    **{\n                        **parsed_result._asdict(),\n                        \"linked_merge_request\": mr_number,\n                    }\n                )\n            )\n\n        # TODO: improve this for other VCS systems other than GitHub & BitBucket\n        # Github works as the first commit in a squash merge commit has the PR number\n        # appended to the first line of the commit message\n        lead_commit = next(iter(parsed_commits))\n\n        if isinstance(lead_commit, ParsedCommit) and lead_commit.linked_merge_request:\n            # If the first commit has linked merge requests, assume all commits\n            # are part of the same PR and add the linked merge requests to all\n            # parsed commits\n            parsed_commits = [\n                lead_commit,\n                *map(\n                    lambda parsed_result, mr=lead_commit.linked_merge_request: (  # type: ignore[misc]\n                        add_linked_merge_request(parsed_result, mr)\n                    ),\n                    parsed_commits[1:],\n                ),\n            ]\n\n        elif isinstance(lead_commit, ParseError) and (\n            mr_match := self.mr_selector.search(force_str(lead_commit.message))\n        ):\n            # Handle BitBucket Squash Merge Commits (see #1085), which have non angular commit\n            # format but include the PR number in the commit subject that we want to extract\n            linked_merge_request = mr_match.group(\"mr_number\")\n\n            # apply the linked MR to all commits\n            parsed_commits = [\n                add_linked_merge_request(parsed_result, linked_merge_request)\n                for parsed_result in parsed_commits\n            ]\n\n        return parsed_commits",
+    "importString": "",
+    "lineNum": 70,
+    "location": 386,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/scipy.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "@deprecated(\n        version=\"9.20.0\",\n        reason=\"Function is unused and will be removed in a future release\",\n    )\n    def parse(self) -> set[Version]:  # pragma: no cover\n        \"\"\"Look for the version in the source content\"\"\"\n        content = self._load()\n        maybe_version: str = content.get(self._search_text)  # type: ignore[return-value]\n        if maybe_version is not None:\n            logger.debug(\n                \"Found a key %r that looks like a version (%r)\",\n                self._search_text,\n                maybe_version,\n            )\n            valid_version = Version.parse(maybe_version)\n            return {valid_version} if valid_version else set()\n        # Maybe in future raise error if not found?\n        return set()",
+    "importString": "",
+    "lineNum": 17,
+    "location": 42,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/toml.py"
+  },
+  {
+    "symbolName": "parse",
+    "sourceCode": "@classmethod\n    def parse(\n        cls,\n        version_str: str,\n        tag_format: str = \"v{version}\",\n        prerelease_token: str = \"rc\",  # noqa: S107\n    ) -> Version:\n        \"\"\"\n        Parse version string to a Version instance.\n        Inspired by `semver.version:VersionInfo.parse`, this implementation doesn't\n        allow optional minor and patch versions.\n\n        :param prerelease_token: will be ignored if the version string is a prerelease,\n            the parsed token from `version_str` will be used instead.\n        \"\"\"\n        if not isinstance(version_str, str):\n            raise InvalidVersion(f\"{version_str!r} cannot be parsed as a Version\")\n\n        logger.debug(\"attempting to parse string %r as Version\", version_str)\n        match = cls._VERSION_REGEX.fullmatch(version_str)\n        if not match:\n            raise InvalidVersion(f\"{version_str!r} is not a valid Version\")\n\n        prerelease = match.group(\"prerelease\")\n        if prerelease:\n            pm = re.match(r\"(?P<token>[a-zA-Z0-9-\\.]+)\\.(?P<revision>\\d+)\", prerelease)\n            if not pm:\n                raise NotImplementedError(\n                    f\"{cls.__qualname__} currently supports only prereleases \"\n                    r\"of the format (-([a-zA-Z0-9-])\\.\\(\\d+)), for example \"\n                    r\"'1.2.3-my-custom-3rc.4'.\"\n                )\n            prerelease_token, prerelease_revision = pm.groups()\n            logger.debug(\n                \"parsed prerelease_token %s, prerelease_revision %s from version \"\n                \"string %s\",\n                prerelease_token,\n                prerelease_revision,\n                version_str,\n            )\n        else:\n            prerelease_revision = None\n            logger.debug(\"version string %s parsed as a non-prerelease\", version_str)\n\n        build_metadata = match.group(\"buildmetadata\") or \"\"\n        logger.debug(\n            \"parsed build metadata %r from version string %s\",\n            build_metadata,\n            version_str,\n        )\n\n        return Version(\n            int(match.group(\"major\")),\n            int(match.group(\"minor\")),\n            int(match.group(\"patch\")),\n            prerelease_token=prerelease_token,\n            prerelease_revision=(\n                int(prerelease_revision) if prerelease_revision else None\n            ),\n            build_metadata=build_metadata,\n            tag_format=tag_format,\n        )",
+    "importString": "",
+    "lineNum": 61,
+    "location": 97,
+    "relativeDocumentPath": "src/semantic_release/version/version.py"
+  },
+  {
+    "symbolName": "hvcs_domain",
+    "sourceCode": "@property\n    def hvcs_domain(self) -> Url:\n        if self._hvcs_domain is None:\n            raise RuntimeError(\"Property 'hvcs_domain' was used before it was set!\")\n        return self._hvcs_domain",
+    "importString": "",
+    "lineNum": 4,
+    "location": 36,
+    "relativeDocumentPath": "src/semantic_release/hvcs/remote_hvcs_base.py"
+  },
+  {
+    "symbolName": "owner",
+    "sourceCode": "@property\n    def owner(self) -> str:\n        if self._owner is None:\n            _owner, _ = self._get_repository_owner_and_name()\n            self._owner = _owner\n        return self._owner",
+    "importString": "",
+    "lineNum": 5,
+    "location": 53,
+    "relativeDocumentPath": "src/semantic_release/hvcs/_base.py"
+  },
+  {
+    "symbolName": "main",
+    "sourceCode": "def main() -> None:\n    try:\n        cli_main(args=sys.argv[1:])\n        print(\"semantic-release completed successfully.\", file=sys.stderr)\n    except KeyboardInterrupt:\n        print(\"\\n-- User Abort! --\", file=sys.stderr)\n        sys.exit(127)\n    except Exception as err:  # noqa: BLE001, graceful error handling across application\n        if globals.log_level <= SemanticReleaseLogLevels.DEBUG:\n            print(f\"{err.__class__.__name__}: {err}\\n\", file=sys.stderr)\n            etype, value, traceback = sys.exc_info()\n            print(\n                str.join(\n                    \"\",\n                    format_exception(\n                        etype,\n                        value,\n                        traceback,\n                        limit=None,\n                        chain=True,\n                    )[:-1],\n                ),\n                file=sys.stderr,\n            )\n\n        print(\n            str.join(\"\\n\", [f\"::ERROR:: {line}\" for line in str(err).splitlines()]),\n            file=sys.stderr,\n        )\n\n        if globals.log_level > SemanticReleaseLogLevels.DEBUG:\n            print(\n                \"Run semantic-release in very verbose mode (-vv) to see the full traceback.\",\n                file=sys.stderr,\n            )\n\n        sys.exit(1)",
+    "importString": "",
+    "lineNum": 36,
+    "location": 13,
+    "relativeDocumentPath": "src/semantic_release/__main__.py"
+  },
+  {
+    "symbolName": "main",
+    "sourceCode": "@click.command(\n    cls=Cli,\n    context_settings={\n        \"help_option_names\": [\"-h\", \"--help\"],\n    },\n)\n@click.version_option(\n    version=semantic_release.__version__,\n    prog_name=\"semantic-release\",\n    help=\"Show the version of semantic-release and exit\",\n)\n@click.option(\n    \"-c\",\n    \"--config\",\n    \"config_file\",\n    default=DEFAULT_CONFIG_FILE,\n    help=\"Specify a configuration file for semantic-release to use\",\n    type=click.Path(),\n)\n@click.option(\"--noop\", \"noop\", is_flag=True, help=\"Run semantic-release in no-op mode\")\n@click.option(\n    \"-v\",\n    \"--verbose\",\n    \"verbosity\",\n    help=\"Set logging verbosity\",\n    default=0,\n    count=True,\n    show_default=True,\n    type=click.IntRange(0, len(LOG_LEVELS) - 1, clamp=True),\n)\n@click.option(\n    \"--strict\",\n    \"strict\",\n    is_flag=True,\n    default=False,\n    help=\"Enable strict mode\",\n)\n@click.pass_context\ndef main(\n    ctx: click.Context,\n    config_file: str = DEFAULT_CONFIG_FILE,\n    verbosity: int = 0,\n    noop: bool = False,\n    strict: bool = False,\n) -> None:\n    \"\"\"\n    Python Semantic Release\n\n    Automated Semantic Versioning based on version 2.0.0 of the Semantic Versioning\n    specification, which can be found at https://semver.org/spec/v2.0.0.html.\n\n    Detect the next semantically correct version for a project based on the Git\n    history, create and publish a changelog to a remote VCS, build a project.\n\n    For more information, visit https://python-semantic-release.readthedocs.io/\n    \"\"\"\n    globals.log_level = LOG_LEVELS[verbosity]\n\n    # Set up our pretty console formatter\n    rich_handler = RichHandler(\n        console=Console(stderr=True), rich_tracebacks=True, tracebacks_suppress=[click]\n    )\n    rich_handler.setFormatter(logging.Formatter(FORMAT, datefmt=\"[%X]\"))\n\n    # Set up logging with our pretty console formatter\n    logger = globals.logger\n    logger.handlers.clear()\n    logger.filters.clear()\n    logger.addHandler(rich_handler)\n    logger.setLevel(globals.log_level)\n    logger.debug(\"logging level set to: %s\", logging.getLevelName(globals.log_level))\n\n    if noop:\n        rprint(\n            \":shield: [bold cyan]You are running in no-operation mode, because the \"\n            \"'--noop' flag was supplied\"\n        )\n\n    cli_options = GlobalCommandLineOptions(\n        noop=noop, verbosity=verbosity, config_file=config_file, strict=strict\n    )\n\n    logger.debug(\"global cli options: %s\", cli_options)\n\n    ctx.obj = CliContextObj(ctx, logger, cli_options)",
+    "importString": "",
+    "lineNum": 84,
+    "location": 59,
+    "relativeDocumentPath": "src/semantic_release/cli/commands/main.py"
+  },
+  {
+    "symbolName": "environment",
+    "sourceCode": "def environment(\n    template_dir: Path | str = \".\",\n    block_start_string: str = \"{%\",\n    block_end_string: str = \"%}\",\n    variable_start_string: str = \"{{\",\n    variable_end_string: str = \"}}\",\n    comment_start_string: str = \"{#\",\n    comment_end_string: str = \"#}\",\n    line_statement_prefix: str | None = None,\n    line_comment_prefix: str | None = None,\n    trim_blocks: bool = False,\n    lstrip_blocks: bool = False,\n    newline_sequence: Literal[\"\\n\", \"\\r\", \"\\r\\n\"] = \"\\n\",\n    keep_trailing_newline: bool = False,\n    extensions: Iterable[str] = (),\n    autoescape: bool | str = True,\n) -> SandboxedEnvironment:\n    \"\"\"\n    Create a jinja2.sandbox.SandboxedEnvironment with certain parameter resrictions.\n\n    For example the Loader is fixed to FileSystemLoader, although the searchpath\n    is configurable.\n\n    ``autoescape`` can be a string in which case it should follow the convention\n    ``module:attr``, in this instance it will be dynamically imported.\n    See https://jinja.palletsprojects.com/en/3.1.x/api/#jinja2.Environment for full\n    parameter descriptions\n    \"\"\"\n    autoescape_value: bool | Callable[[str | None], bool]\n    if isinstance(autoescape, str):\n        autoescape_value = dynamic_import(autoescape)\n    else:\n        autoescape_value = autoescape\n\n    return ComplexDirectorySandboxedEnvironment(\n        block_start_string=block_start_string,\n        block_end_string=block_end_string,\n        variable_start_string=variable_start_string,\n        variable_end_string=variable_end_string,\n        comment_start_string=comment_start_string,\n        comment_end_string=comment_end_string,\n        line_statement_prefix=line_statement_prefix,\n        line_comment_prefix=line_comment_prefix,\n        trim_blocks=trim_blocks,\n        lstrip_blocks=lstrip_blocks,\n        newline_sequence=newline_sequence,\n        keep_trailing_newline=keep_trailing_newline,\n        extensions=extensions,\n        autoescape=autoescape_value,\n        loader=FileSystemLoader(template_dir, encoding=\"utf-8\"),\n    )",
+    "importString": "",
+    "lineNum": 50,
+    "location": 20,
+    "relativeDocumentPath": "src/semantic_release/changelog/template.py"
+  },
+  {
+    "symbolName": "content",
+    "sourceCode": "@content.deleter\n    def content(self) -> None:\n        logger.debug(\"resetting instance-stored source file contents\")\n        self._content = None",
+    "importString": "",
+    "lineNum": 3,
+    "location": 67,
+    "relativeDocumentPath": "src/semantic_release/version/declaration.py"
+  },
+  {
+    "symbolName": "content",
+    "sourceCode": "@content.deleter\n    def content(self) -> None:\n        self._content = None",
+    "importString": "",
+    "lineNum": 2,
+    "location": 45,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/file.py"
+  },
+  {
+    "symbolName": "content",
+    "sourceCode": "@content.deleter\n    def content(self) -> None:\n        self._content = None",
+    "importString": "",
+    "lineNum": 2,
+    "location": 86,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/pattern.py"
+  },
+  {
+    "symbolName": "content",
+    "sourceCode": "@content.deleter\n    def content(self) -> None:\n        self._content = None",
+    "importString": "",
+    "lineNum": 2,
+    "location": 38,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/toml.py"
+  },
+  {
+    "symbolName": "remote_url",
+    "sourceCode": "@abstractmethod\n    def remote_url(self, use_token: bool) -> str:\n        \"\"\"\n        Return the remote URL for the repository, including the token for\n        authentication if requested by setting the `use_token` parameter to True,\n        \"\"\"\n        self._not_supported(self.remote_url.__name__)\n        return \"\"",
+    "importString": "",
+    "lineNum": 7,
+    "location": 60,
+    "relativeDocumentPath": "src/semantic_release/hvcs/_base.py"
+  },
+  {
+    "symbolName": "remote_url",
+    "sourceCode": "def remote_url(self, use_token: bool = True) -> str:\n        \"\"\"Get the remote url including the token for authentication if requested\"\"\"\n        if not use_token:\n            return self._remote_url\n\n        if not self.token:\n            raise ValueError(\"Requested to use token but no token set.\")\n\n        # If the user is set, assume the token is an user secret. This will work\n        # on any repository the user has access to.\n        # https://support.atlassian.com/bitbucket-cloud/docs/push-back-to-your-repository\n        # If the user variable is not set, assume it is a repository token\n        # which will only work on the repository it was created for.\n        # https://support.atlassian.com/bitbucket-cloud/docs/using-access-tokens\n        user = os.environ.get(\"BITBUCKET_USER\", \"x-token-auth\")\n\n        return self.create_server_url(\n            auth=f\"{user}:{self.token}\" if user else self.token,\n            path=f\"/{self.owner}/{self.repo_name}.git\",\n        )",
+    "importString": "",
+    "lineNum": 19,
+    "location": 165,
+    "relativeDocumentPath": "src/semantic_release/hvcs/bitbucket.py"
+  },
+  {
+    "symbolName": "remote_url",
+    "sourceCode": "def remote_url(self, use_token: bool = True) -> str:\n        \"\"\"Get the remote url including the token for authentication if requested\"\"\"\n        if not (self.token and use_token):\n            return self._remote_url\n\n        return self.create_server_url(\n            auth=self.token,\n            path=f\"{self.owner}/{self.repo_name}.git\",\n        )",
+    "importString": "",
+    "lineNum": 8,
+    "location": 336,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitea.py"
+  },
+  {
+    "symbolName": "remote_url",
+    "sourceCode": "def remote_url(self, use_token: bool = True) -> str:\n        \"\"\"Get the remote url including the token for authentication if requested\"\"\"\n        if not (self.token and use_token):\n            logger.info(\"requested to use token for push but no token set, ignoring...\")\n            return self._remote_url\n\n        actor = os.getenv(\"GITHUB_ACTOR\", None)\n        return self.create_server_url(\n            auth=f\"{actor}:{self.token}\" if actor else self.token,\n            path=f\"/{self.owner}/{self.repo_name}.git\",\n        )",
+    "importString": "",
+    "lineNum": 10,
+    "location": 487,
+    "relativeDocumentPath": "src/semantic_release/hvcs/github.py"
+  },
+  {
+    "symbolName": "remote_url",
+    "sourceCode": "def remote_url(self, use_token: bool = True) -> str:\n        \"\"\"Get the remote url including the token for authentication if requested\"\"\"\n        if not (self.token and use_token):\n            return self._remote_url\n\n        return self.create_server_url(\n            auth=f\"gitlab-ci-token:{self.token}\",\n            path=f\"{self.project_namespace}.git\",\n        )",
+    "importString": "",
+    "lineNum": 8,
+    "location": 220,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitlab.py"
+  },
+  {
+    "symbolName": "project",
+    "sourceCode": "@property\n    def project(self) -> GitLabProject:\n        if self._project is None:\n            self._project = self._client.projects.get(self.project_namespace)\n        return self._project",
+    "importString": "",
+    "lineNum": 4,
+    "location": 73,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitlab.py"
+  },
+  {
+    "symbolName": "commit_hash_url",
+    "sourceCode": "def commit_hash_url(self, commit_hash: str) -> str:\n        return self.create_repo_url(repo_path=f\"/commits/{commit_hash}\")",
+    "importString": "",
+    "lineNum": 1,
+    "location": 197,
+    "relativeDocumentPath": "src/semantic_release/hvcs/bitbucket.py"
+  },
+  {
+    "symbolName": "commit_hash_url",
+    "sourceCode": "def commit_hash_url(self, commit_hash: str) -> str:\n        return self.create_repo_url(repo_path=f\"/commit/{commit_hash}\")",
+    "importString": "",
+    "lineNum": 1,
+    "location": 346,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitea.py"
+  },
+  {
+    "symbolName": "commit_hash_url",
+    "sourceCode": "def commit_hash_url(self, commit_hash: str) -> str:\n        return self.create_repo_url(repo_path=f\"/commit/{commit_hash}\")",
+    "importString": "",
+    "lineNum": 1,
+    "location": 508,
+    "relativeDocumentPath": "src/semantic_release/hvcs/github.py"
+  },
+  {
+    "symbolName": "commit_hash_url",
+    "sourceCode": "def commit_hash_url(self, commit_hash: str) -> str:\n        return self.create_repo_url(repo_path=f\"/-/commit/{commit_hash}\")",
+    "importString": "",
+    "lineNum": 1,
+    "location": 233,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitlab.py"
+  },
+  {
+    "symbolName": "filter",
+    "sourceCode": "def filter(self, record: LogRecord) -> bool:\n        # Note if we blindly mask all types, we will actually cast arguments to\n        # log functions from external libraries to strings before they are\n        # formatted into the message - for example, a dependency calling\n        # log.debug(\"%d\", 15) will raise a TypeError as this filter would\n        # otherwise convert 15 to \"15\", and \"%d\" % \"15\" raises the error.\n        # One may find a specific example of where this issue could manifest itself\n        # here: https://github.com/urllib3/urllib3/blob/a5b29ac1025f9bb30f2c9b756f3b171389c2c039/src/urllib3/connectionpool.py#L1003\n        # Anything which could reasonably be expected to be logged without being\n        # cast to a string should be excluded from the cast here.\n        record.msg = self.mask(record.msg)\n        if record.args is None:\n            pass\n        elif isinstance(record.args, dict):\n            record.args = {\n                k: v if type(v) in (bool, int, float) else self.mask(str(v))\n                for k, v in record.args.items()\n            }\n        else:\n            record.args = tuple(\n                arg if type(arg) in (bool, int, float) else self.mask(str(arg))\n                for arg in record.args\n            )\n        return True",
+    "importString": "",
+    "lineNum": 23,
+    "location": 37,
+    "relativeDocumentPath": "src/semantic_release/cli/masking_filter.py"
+  },
+  {
+    "symbolName": "next_version",
+    "sourceCode": "def next_version(\n    repo: Repo,\n    translator: VersionTranslator,\n    commit_parser: CommitParser[ParseResult, ParserOptions],\n    allow_zero_version: bool,\n    major_on_zero: bool,\n    prerelease: bool = False,\n) -> Version:\n    \"\"\"\n    Evaluate the history within `repo`, and based on the tags and commits in the repo\n    history, identify the next semantic version that should be applied to a release\n    \"\"\"\n    # Default initial version\n    # Since the translator is configured by the user, we can't guarantee that it will\n    # be able to parse the default version. So we first cast it to a tag using the default\n    # value and the users configured tag format, then parse it back to a version object\n    default_initial_version = translator.from_tag(\n        translator.str_to_tag(DEFAULT_VERSION)\n    )\n    if default_initial_version is None:\n        # This should never happen, but if it does, it's a bug\n        raise InternalError(\n            \"Translator was unable to parse the embedded default version\"\n        )\n\n    # Step 1. All tags, sorted descending by semver ordering rules\n    all_git_tags_as_versions = tags_and_versions(repo.tags, translator)\n\n    # Retrieve all commit hashes (regardless of merges) in the current branch's history from repo origin\n    commit_hash_set = {\n        commit.hexsha\n        for commit in _traverse_graph_for_commits(head_commit=repo.active_branch.commit)\n    }\n\n    # Filter all releases that are not found in the current branch's history\n    historic_versions: list[Version] = []\n    for tag, version in all_git_tags_as_versions:\n        # TODO: move this to tags_and_versions() function?\n        # Ignore the error that is raised when tag points to a Blob or Tree object rather\n        # than a commit object (tags that point to tags that then point to commits are resolved automatically)\n        with suppress(ValueError):\n            if tag.commit.hexsha in commit_hash_set:\n                historic_versions.append(version)\n\n    # Step 2. Get the latest final release version in the history of the current branch\n    #  or fallback to the default 0.0.0 starting version value if none are found\n    latest_full_release_version = next(\n        filter(\n            lambda version: not version.is_prerelease,\n            historic_versions,\n        ),\n        default_initial_version,\n    )\n\n    logger.info(\n        f\"The last full version in this branch's history was {latest_full_release_version}\"\n        if latest_full_release_version != default_initial_version\n        else \"No full releases found in this branch's history\"\n    )\n\n    # Step 3. Determine the latest release version in the history of the current branch\n    # If we the desired result is a prerelease, we must determine if there was any previous\n    # prerelease in the history of the current branch beyond the latest_full_release_version.\n    # Important to note that, we only consider prereleases that are of the same prerelease token\n    # as the basis of incrementing the prerelease revision.\n    # If we are not looking for a prerelease, this is the same as the last full release.\n    latest_version = (\n        latest_full_release_version\n        if not prerelease\n        else next(\n            filter(\n                lambda version: all(\n                    [\n                        version.is_prerelease,\n                        version.prerelease_token == translator.prerelease_token,\n                        version >= latest_full_release_version,\n                    ]\n                ),\n                historic_versions,\n            ),\n            latest_full_release_version,  # default\n        )\n    )\n\n    logger.info(\"The latest release in this branch's history was %s\", latest_version)\n\n    # Step 4. Walk the git tree to find all commits that have been made since the last release\n    commits_since_last_release = _traverse_graph_for_commits(\n        head_commit=repo.active_branch.commit,\n        latest_release_tag_str=(\n            # NOTE: the default_initial_version should not actually exist on the repository (ie v0.0.0)\n            # so we provide an empty tag string when there are no tags on the repository yet\n            latest_version.as_tag() if latest_version != default_initial_version else \"\"\n        ),\n    )\n\n    logger.info(\n        f\"Found {len(commits_since_last_release)} commits since the last release!\"\n        if len(commits_since_last_release) > 0\n        else \"No commits found since the last release!\"\n    )\n\n    # Step 5. apply the parser to each commit in the history (could return multiple results per commit)\n    parsed_results = list(map(commit_parser.parse, commits_since_last_release))\n\n    # Step 5A. Accumulate all parsed results into a single list accounting for possible multiple results per commit\n    consolidated_results: list[ParseResult] = reduce(\n        lambda accumulated_results, p_results: [\n            *accumulated_results,\n            *(\n                # Cast to list if not already a list\n                p_results\n                if isinstance(p_results, list) or type(p_results) == tuple\n                else [p_results]\n            ),\n        ],\n        parsed_results,\n        [],\n    )\n\n    # Step 5B. Validation type check for the parser results (important because of possible custom parsers)\n    if not validate_types_in_sequence(consolidated_results, (ParseError, ParsedCommit)):\n        raise TypeError(\"Unexpected type returned from commit_parser.parse\")\n\n    # Step 5C. Parse the commits to determine the bump level that should be applied\n    parsed_levels: set[LevelBump] = {\n        parsed_result.bump  # type: ignore[union-attr] # too complex for type checkers\n        for parsed_result in filter(\n            # Filter out any non-ParsedCommit results (i.e. ParseErrors)\n            lambda parsed_result: isinstance(parsed_result, ParsedCommit),\n            consolidated_results,\n        )\n    }\n\n    logger.debug(\n        \"parsed the following distinct levels from the commits since the last release: %s\",\n        parsed_levels,\n    )\n\n    level_bump = max(parsed_levels, default=LevelBump.NO_RELEASE)\n    logger.info(\"The type of the next release release is: %s\", level_bump)\n\n    if all(\n        [\n            level_bump is LevelBump.NO_RELEASE,\n            latest_version.major != 0 or allow_zero_version,\n        ]\n    ):\n        logger.info(\"No release will be made\")\n        return latest_version\n\n    return _increment_version(\n        latest_version=latest_version,\n        latest_full_version=latest_full_release_version,\n        level_bump=level_bump,\n        prerelease=prerelease,\n        prerelease_token=translator.prerelease_token,\n        major_on_zero=major_on_zero,\n        allow_zero_version=allow_zero_version,\n    )",
+    "importString": "",
+    "lineNum": 159,
+    "location": 243,
+    "relativeDocumentPath": "src/semantic_release/version/algorithm.py"
+  },
+  {
+    "symbolName": "replace",
+    "sourceCode": "@abstractmethod\n    def replace(self, new_version: Version) -> str:\n        \"\"\"\n        Update the versions.\n        This method reads the underlying file, replaces each occurrence of the\n        matched pattern, then writes the updated file.\n        :param new_version: The new version number as a `Version` instance\n        \"\"\"",
+    "importString": "",
+    "lineNum": 7,
+    "location": 83,
+    "relativeDocumentPath": "src/semantic_release/version/declaration.py"
+  },
+  {
+    "symbolName": "replace",
+    "sourceCode": "def replace(self, new_version: Version) -> str:\n        \"\"\"\n        Replace the file content with the new version string.\n\n        :param new_version: The new version number as a `Version` instance\n        :return: The new content (just the version string)\n        \"\"\"\n        new_content = (\n            new_version.as_tag()\n            if self._stamp_format == VersionStampType.TAG_FORMAT\n            else str(new_version)\n        )\n\n        logger.debug(\n            \"Replacing entire file content: path=%r old_content=%r new_content=%r\",\n            self._path,\n            self.content.strip(),\n            new_content,\n        )\n\n        return new_content",
+    "importString": "",
+    "lineNum": 20,
+    "location": 56,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/file.py"
+  },
+  {
+    "symbolName": "replace",
+    "sourceCode": "@abstractmethod\n    def replace(self, new_version: Version) -> str:\n        \"\"\"\n        Replace the version in the source content with `new_version`, and return\n        the updated content.\n\n        :param new_version: The new version number as a `Version` instance\n        \"\"\"\n        raise NotImplementedError",
+    "importString": "",
+    "lineNum": 8,
+    "location": 52,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/i_version_replacer.py"
+  },
+  {
+    "symbolName": "replace",
+    "sourceCode": "def replace(self, new_version: Version) -> str:\n        \"\"\"\n        Replace the version in the source content with `new_version`, and return\n        the updated content.\n\n        :param new_version: The new version number as a `Version` instance\n        \"\"\"\n        new_content, n_matches = self._search_pattern.subn(\n            VersionSwapper(\n                new_version_str=(\n                    new_version.as_tag()\n                    if self._stamp_format == VersionStampType.TAG_FORMAT\n                    else str(new_version)\n                ),\n                group_match_name=self._VERSION_GROUP_NAME,\n            ),\n            self.content,\n        )\n\n        logger.debug(\n            \"path=%r pattern=%r num_matches=%r\",\n            self._path,\n            self._search_pattern,\n            n_matches,\n        )\n\n        return new_content",
+    "importString": "",
+    "lineNum": 26,
+    "location": 116,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/pattern.py"
+  },
+  {
+    "symbolName": "replace",
+    "sourceCode": "def replace(self, new_version: Version) -> str:\n        \"\"\"\n        Replace the version in the source content with `new_version`, and return the\n        updated content.\n        \"\"\"\n        content = self._load()\n        if self._search_text in content:\n            logger.info(\n                \"found %r in source file contents, replacing with %s\",\n                self._search_text,\n                new_version,\n            )\n            content[self._search_text] = (\n                new_version.as_tag()\n                if self._stamp_format == VersionStampType.TAG_FORMAT\n                else str(new_version)\n            )\n\n        return tomlkit.dumps(cast(Dict[str, Any], content))",
+    "importString": "",
+    "lineNum": 18,
+    "location": 61,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/toml.py"
+  },
+  {
+    "symbolName": "as_tag",
+    "sourceCode": "def as_tag(self) -> str:\n        return self.tag_format.format(version=str(self))",
+    "importString": "",
+    "lineNum": 1,
+    "location": 202,
+    "relativeDocumentPath": "src/semantic_release/version/version.py"
+  },
+  {
+    "symbolName": "api_url",
+    "sourceCode": "@property\n    def api_url(self) -> Url:\n        if self._api_url is None:\n            raise RuntimeError(\"Property 'api_url' was used before it was set!\")\n        return self._api_url",
+    "importString": "",
+    "lineNum": 4,
+    "location": 42,
+    "relativeDocumentPath": "src/semantic_release/hvcs/remote_hvcs_base.py"
+  },
+  {
+    "symbolName": "message",
+    "sourceCode": "@property\n    def message(self) -> str:\n        \"\"\"\n        A string representation of the commit message.\n\n        This is a pass through property for convience to access the ``message``\n        attribute of the ``commit`` object.\n\n        If the message is of type ``bytes`` then it will be decoded to a ``UTF-8`` string.\n        \"\"\"\n        return force_str(self.commit.message).replace(\"\\r\", \"\")",
+    "importString": "",
+    "lineNum": 10,
+    "location": 174,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/token.py"
+  },
+  {
+    "symbolName": "prev_version",
+    "sourceCode": "@prev_version.setter\n    def prev_version(self, value: Version) -> None:\n        if not isinstance(value, Version):\n            raise TypeError(\"output 'prev_version' should be a Version\")\n        self._prev_version = value",
+    "importString": "",
+    "lineNum": 4,
+    "location": 102,
+    "relativeDocumentPath": "src/semantic_release/cli/github_actions_output.py"
+  },
+  {
+    "symbolName": "release_notes",
+    "sourceCode": "@release_notes.setter\n    def release_notes(self, value: str) -> None:\n        if not isinstance(value, str):\n            raise TypeError(\"output 'release_notes' should be a string\")\n        self._release_notes = value",
+    "importString": "",
+    "lineNum": 4,
+    "location": 90,
+    "relativeDocumentPath": "src/semantic_release/cli/github_actions_output.py"
+  },
+  {
+    "symbolName": "short_hash",
+    "sourceCode": "@property\n    def short_hash(self) -> str:\n        \"\"\"A short representation of the hash value (in hex) of the commit.\"\"\"\n        return self.hexsha[:7]",
+    "importString": "",
+    "lineNum": 3,
+    "location": 132,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/token.py"
+  },
+  {
+    "symbolName": "short_hash",
+    "sourceCode": "@property\n    def short_hash(self) -> str:\n        \"\"\"A short representation of the hash value (in hex) of the commit.\"\"\"\n        return self.hexsha[:7]",
+    "importString": "",
+    "lineNum": 3,
+    "location": 195,
+    "relativeDocumentPath": "src/semantic_release/commit_parser/token.py"
+  },
+  {
+    "symbolName": "make_changelog_context",
+    "sourceCode": "def make_changelog_context(\n    hvcs_client: HvcsBase,\n    release_history: ReleaseHistory,\n    mode: ChangelogMode,\n    prev_changelog_file: Path,\n    insertion_flag: str,\n    mask_initial_release: bool,\n) -> ChangelogContext:\n    return ChangelogContext(\n        repo_name=hvcs_client.repo_name,\n        repo_owner=hvcs_client.owner,\n        history=release_history,\n        changelog_mode=mode.value,\n        changelog_insertion_flag=insertion_flag,\n        mask_initial_release=mask_initial_release,\n        prev_changelog_file=str(prev_changelog_file),\n        hvcs_type=hvcs_client.__class__.__name__.lower(),\n        filters=(\n            *hvcs_client.get_changelog_context_filters(),\n            create_pypi_url,\n            read_file,\n            convert_md_to_rst,\n            autofit_text_width,\n            sort_numerically,\n        ),\n    )",
+    "importString": "",
+    "lineNum": 25,
+    "location": 73,
+    "relativeDocumentPath": "src/semantic_release/changelog/context.py"
+  },
+  {
+    "symbolName": "update_file_w_version",
+    "sourceCode": "def update_file_w_version(\n        self, new_version: Version, noop: bool = False\n    ) -> Path | None:\n        if noop:\n            if not self._path.exists():\n                logger.warning(\n                    f\"FILE NOT FOUND: file '{self._path}' does not exist but it will be created\"\n                )\n\n            return self._path\n\n        new_content = self.replace(new_version)\n        if new_content == self.content.strip():\n            return None\n\n        self._path.write_text(f\"{new_content}\\n\")\n        del self.content\n\n        return self._path",
+    "importString": "",
+    "lineNum": 18,
+    "location": 78,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/file.py"
+  },
+  {
+    "symbolName": "update_file_w_version",
+    "sourceCode": "@abstractmethod\n    def update_file_w_version(\n        self, new_version: Version, noop: bool = False\n    ) -> Path | None:\n        \"\"\"\n        This method reads the underlying file, replaces each occurrence of the\n        matched pattern, then writes the updated file.\n\n        :param new_version: The new version number as a `Version` instance\n        \"\"\"\n        raise NotImplementedError",
+    "importString": "",
+    "lineNum": 10,
+    "location": 62,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/i_version_replacer.py"
+  },
+  {
+    "symbolName": "update_file_w_version",
+    "sourceCode": "def update_file_w_version(\n        self, new_version: Version, noop: bool = False\n    ) -> Path | None:\n        if noop:\n            if not self._path.exists():\n                noop_report(\n                    f\"FILE NOT FOUND: cannot stamp version in non-existent file {self._path}\",\n                )\n                return None\n\n            if len(self._search_pattern.findall(self.content)) < 1:\n                noop_report(\n                    f\"VERSION PATTERN NOT FOUND: no version to stamp in file {self._path}\",\n                )\n                return None\n\n            return self._path\n\n        new_content = self.replace(new_version)\n        if new_content == self.content:\n            return None\n\n        self._path.write_text(new_content)\n        del self.content\n\n        return self._path",
+    "importString": "",
+    "lineNum": 25,
+    "location": 144,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/pattern.py"
+  },
+  {
+    "symbolName": "update_file_w_version",
+    "sourceCode": "def update_file_w_version(\n        self, new_version: Version, noop: bool = False\n    ) -> Path | None:\n        if noop:\n            if not self._path.exists():\n                noop_report(\n                    f\"FILE NOT FOUND: cannot stamp version in non-existent file {self._path!r}\",\n                )\n                return None\n\n            if self._search_text not in self._load():\n                noop_report(\n                    f\"VERSION PATTERN NOT FOUND: no version to stamp in file {self._path!r}\",\n                )\n                return None\n\n            return self._path\n\n        new_content = self.replace(new_version)\n        if new_content == self.content:\n            return None\n\n        self._path.write_text(new_content)\n        del self.content\n\n        return self._path",
+    "importString": "",
+    "lineNum": 25,
+    "location": 85,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/toml.py"
+  },
+  {
+    "symbolName": "logger",
+    "sourceCode": "@property\n    def logger(self) -> Logger:\n        return self._logger",
+    "importString": "",
+    "lineNum": 2,
+    "location": 51,
+    "relativeDocumentPath": "src/semantic_release/gitproject.py"
+  },
+  {
+    "symbolName": "verify_upstream_unchanged",
+    "sourceCode": "def verify_upstream_unchanged(  # noqa: C901\n        self,\n        local_ref: str = \"HEAD\",\n        upstream_ref: str = \"origin\",\n        remote_url: str | None = None,\n        noop: bool = False,\n    ) -> None:\n        \"\"\"\n        Verify that the upstream branch has not changed since the given local reference.\n\n        :param local_ref: The local reference to compare against upstream (default: HEAD)\n        :param upstream_ref: The name of the upstream remote or specific remote branch (default: origin)\n        :param remote_url: Optional authenticated remote URL to use for fetching (default: None, uses configured remote)\n        :param noop: Whether to skip the actual verification (for dry-run mode)\n\n        :raises UpstreamBranchChangedError: If the upstream branch has changed\n        \"\"\"\n        if not local_ref.strip():\n            raise ValueError(\"Local reference cannot be empty\")\n        if not upstream_ref.strip():\n            raise ValueError(\"Upstream reference cannot be empty\")\n\n        if noop:\n            noop_report(\n                indented(\n                    \"\"\"\\\n                    would have verified that upstream branch has not changed\n                    \"\"\"\n                )\n            )\n            return\n\n        with Repo(str(self.project_root)) as repo:\n            # Get the current active branch\n            try:\n                active_branch = repo.active_branch\n            except TypeError:\n                # When in detached HEAD state, active_branch raises TypeError\n                err_msg = (\n                    \"Repository is in detached HEAD state, cannot verify upstream state\"\n                )\n                raise DetachedHeadGitError(err_msg) from None\n\n            # Get the tracking branch (upstream branch)\n            if (tracking_branch := active_branch.tracking_branch()) is not None:\n                upstream_full_ref_name = tracking_branch.name\n                self.logger.info(\"Upstream branch name: %s\", upstream_full_ref_name)\n            else:\n                # If no tracking branch is set, derive it\n                upstream_name = (\n                    upstream_ref.strip()\n                    if upstream_ref.find(\"/\") == -1\n                    else upstream_ref.strip().split(\"/\", maxsplit=1)[0]\n                )\n\n                if not repo.remotes or upstream_name not in repo.remotes:\n                    err_msg = \"No remote found; cannot verify upstream state!\"\n                    raise UnknownUpstreamBranchError(err_msg)\n\n                upstream_full_ref_name = (\n                    f\"{upstream_name}/{active_branch.name}\"\n                    if upstream_ref.find(\"/\") == -1\n                    else upstream_ref.strip()\n                )\n\n                if upstream_full_ref_name not in repo.refs:\n                    err_msg = f\"No upstream branch found for '{active_branch.name}'; cannot verify upstream state!\"\n                    raise UnknownUpstreamBranchError(err_msg)\n\n            # Extract the remote name from the tracking branch\n            # tracking_branch.name is in the format \"remote/branch\"\n            remote_name, remote_branch_name = upstream_full_ref_name.split(\n                \"/\", maxsplit=1\n            )\n            remote_ref_obj = repo.remotes[remote_name]\n\n            # Fetch the latest changes from the remote\n            self.logger.info(\"Fetching latest changes from remote '%s'\", remote_name)\n            try:\n                # Check if we should use authenticated URL for fetch\n                # Only use remote_url if:\n                # 1. It's provided and different from the configured remote URL\n                # 2. It contains authentication credentials (@ symbol)\n                # 3. The configured remote is NOT a local path, file:// URL, or test URL (example.com)\n                #    This ensures we don't break tests or local development\n                configured_url = remote_ref_obj.url\n                is_local_or_test_remote = (\n                    configured_url.startswith((\"file://\", \"/\", \"C:/\", \"H:/\"))\n                    or \"example.com\" in configured_url\n                    or not configured_url.startswith(\n                        (\n                            \"https://\",\n                            \"http://\",\n                            \"git://\",\n                            \"git@\",\n                            \"ssh://\",\n                            \"git+ssh://\",\n                        )\n                    )\n                )\n\n                use_authenticated_fetch = (\n                    remote_url\n                    and \"@\" in remote_url\n                    and remote_url != configured_url\n                    and not is_local_or_test_remote\n                )\n\n                if use_authenticated_fetch:\n                    # Use authenticated remote URL for fetch\n                    # Fetch the remote branch and update the local tracking ref\n                    repo.git.fetch(\n                        remote_url,\n                        f\"refs/heads/{remote_branch_name}:refs/remotes/{upstream_full_ref_name}\",\n                    )\n                else:\n                    # Use the default remote configuration for local paths,\n                    # file:// URLs, test URLs, or when no authentication is needed\n                    remote_ref_obj.fetch()\n            except GitCommandError as err:\n                self.logger.exception(str(err))\n                err_msg = f\"Failed to fetch from remote '{remote_name}'\"\n                raise GitFetchError(err_msg) from err\n\n            # Get the SHA of the upstream branch\n            try:\n                upstream_commit_ref = remote_ref_obj.refs[remote_branch_name].commit\n                upstream_sha = upstream_commit_ref.hexsha\n            except AttributeError as err:\n                self.logger.exception(str(err))\n                err_msg = f\"Unable to determine upstream branch SHA for '{upstream_full_ref_name}'\"\n                raise GitFetchError(err_msg) from err\n\n            # Get the SHA of the specified ref (default: HEAD)\n            try:\n                local_commit = repo.commit(repo.git.rev_parse(local_ref))\n            except GitCommandError as err:\n                self.logger.exception(str(err))\n                err_msg = f\"Unable to determine the SHA for local ref '{local_ref}'\"\n                raise LocalGitError(err_msg) from err\n\n            # Compare the two SHAs\n            if local_commit.hexsha != upstream_sha and not any(\n                commit.hexsha == upstream_sha for commit in local_commit.iter_parents()\n            ):\n                err_msg = str.join(\n                    \"\\n\",\n                    (\n                        f\"[LOCAL SHA] {local_commit.hexsha} != {upstream_sha} [UPSTREAM SHA].\",\n                        f\"Upstream branch '{upstream_full_ref_name}' has changed!\",\n                    ),\n                )\n                raise UpstreamBranchChangedError(err_msg)\n\n            self.logger.info(\n                \"Verified upstream branch '%s' has not changed\",\n                upstream_full_ref_name,\n            )",
+    "importString": "",
+    "lineNum": 157,
+    "location": 337,
+    "relativeDocumentPath": "src/semantic_release/gitproject.py"
+  },
+  {
+    "symbolName": "from_string_definition",
+    "sourceCode": "@classmethod\n    def from_string_definition(cls, replacement_def: str) -> FileVersionDeclaration:\n        \"\"\"\n        Create an instance of self from a string representing one item\n        of the \"version_variables\" list in the configuration.\n\n        This method expects a definition in the format:\n        \"file:*:format_type\"\n\n        where:\n        - file is the path to the file\n        - * is the literal asterisk character indicating file replacement\n        - format_type is either \"nf\" (number format) or \"tf\" (tag format)\n        \"\"\"\n        parts = replacement_def.split(\":\", maxsplit=2)\n\n        if len(parts) <= 1:\n            raise ValueError(\n                f\"Invalid replacement definition {replacement_def!r}, missing ':'\"\n            )\n\n        if len(parts) == 2:\n            # apply default version_type of \"number_format\" (ie. \"1.2.3\")\n            parts = [*parts, VersionStampType.NUMBER_FORMAT.value]\n\n        path, pattern, version_type = parts\n\n        # Validate that the pattern is exactly \"*\"\n        if pattern != \"*\":\n            raise ValueError(\n                f\"Invalid pattern {pattern!r} for FileVersionDeclaration, expected '*'\"\n            )\n\n        try:\n            stamp_type = VersionStampType(version_type)\n        except ValueError as err:\n            raise ValueError(\n                str.join(\n                    \" \",\n                    [\n                        \"Invalid stamp type, must be one of:\",\n                        str.join(\", \", [e.value for e in VersionStampType]),\n                    ],\n                )\n            ) from err\n\n        return cls(path, stamp_type)",
+    "importString": "",
+    "lineNum": 46,
+    "location": 98,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/file.py"
+  },
+  {
+    "symbolName": "from_string_definition",
+    "sourceCode": "@classmethod\n    def from_string_definition(\n        cls, replacement_def: str, tag_format: str\n    ) -> PatternVersionDeclaration:\n        \"\"\"\n        create an instance of self from a string representing one item\n        of the \"version_variables\" list in the configuration\n        \"\"\"\n        parts = replacement_def.split(\":\", maxsplit=2)\n\n        if len(parts) <= 1:\n            raise ValueError(\n                f\"Invalid replacement definition {replacement_def!r}, missing ':'\"\n            )\n\n        if len(parts) == 2:\n            # apply default version_type of \"number_format\" (ie. \"1.2.3\")\n            parts = [*parts, VersionStampType.NUMBER_FORMAT.value]\n\n        path, variable, version_type = parts\n\n        try:\n            stamp_type = VersionStampType(version_type)\n        except ValueError as err:\n            raise ValueError(\n                str.join(\n                    \" \",\n                    [\n                        \"Invalid stamp type, must be one of:\",\n                        str.join(\", \", [e.value for e in VersionStampType]),\n                    ],\n                )\n            ) from err\n\n        # DEFAULT: naked (no v-prefixed) semver version\n        value_replace_pattern_str = (\n            f\"(?P<{cls._VERSION_GROUP_NAME}>{SEMVER_REGEX.pattern})\"\n        )\n\n        if version_type == VersionStampType.TAG_FORMAT.value:\n            tag_parts = tag_format.strip().split(r\"{version}\", maxsplit=1)\n            value_replace_pattern_str = str.join(\n                \"\",\n                [\n                    f\"(?P<{cls._VERSION_GROUP_NAME}>\",\n                    regex_escape(tag_parts[0]),\n                    SEMVER_REGEX.pattern,\n                    (regex_escape(tag_parts[1]) if len(tag_parts) > 1 else \"\"),\n                    \")\",\n                ],\n            )\n\n        search_text = str.join(\n            \"\",\n            [\n                # Supports optional matching quotations around variable name\n                # Negative lookbehind to ensure we don't match part of a variable name\n                f\"\"\"(?x)(?P<quote1>['\"])?(?<![\\\\w.-]){regex_escape(variable)}(?P=quote1)?\"\"\",\n                # Supports walrus, equals sign, double-equals, colon, or @ as assignment operator\n                # ignoring whitespace separation. Also allows a space as the separator for c-macro style definitions.\n                r\"\\s*(:=|==|[:=@ ])\\s*\",\n                # Supports optional matching quotations around a version pattern (tag or raw format)\n                f\"\"\"(?P<quote2>['\"])?{value_replace_pattern_str}(?P=quote2)?\"\"\",\n            ],\n        )\n\n        return cls(path, search_text, stamp_type)",
+    "importString": "",
+    "lineNum": 66,
+    "location": 171,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/pattern.py"
+  },
+  {
+    "symbolName": "from_string_definition",
+    "sourceCode": "@classmethod\n    def from_string_definition(cls, replacement_def: str) -> TomlVersionDeclaration:\n        \"\"\"\n        create an instance of self from a string representing one item\n        of the \"version_toml\" list in the configuration\n        \"\"\"\n        parts = replacement_def.split(\":\", maxsplit=2)\n\n        if len(parts) <= 1:\n            raise ValueError(\n                f\"Invalid TOML replacement definition {replacement_def!r}, missing ':'\"\n            )\n\n        if len(parts) == 2:\n            # apply default version_type of \"number_format\" (ie. \"1.2.3\")\n            parts = [*parts, VersionStampType.NUMBER_FORMAT.value]\n\n        path, search_text, version_type = parts\n\n        try:\n            stamp_type = VersionStampType(version_type)\n        except ValueError as err:\n            raise ValueError(\n                str.join(\n                    \" \",\n                    [\n                        \"Invalid stamp type, must be one of:\",\n                        str.join(\", \", [e.value for e in VersionStampType]),\n                    ],\n                )\n            ) from err\n\n        return cls(path, search_text, stamp_type)",
+    "importString": "",
+    "lineNum": 32,
+    "location": 112,
+    "relativeDocumentPath": "src/semantic_release/version/declarations/toml.py"
+  },
+  {
+    "symbolName": "write",
+    "sourceCode": "def write(self, content: str) -> None:\n        r\"\"\"\n        Write new content back to the source path.\n        Use alongside .replace():\n        >>> class MyVD(VersionDeclarationABC):\n        ...     def parse(self): ...\n        ...     def replace(self, new_version: Version): ...\n        ...     def write(self, content: str): ...\n\n        >>> new_version = Version.parse(\"1.2.3\")\n        >>> vd = MyVD(\"path\", r\"__version__ = (?P<version>\\d+\\d+\\d+)\")\n        >>> vd.write(vd.replace(new_version))\n        \"\"\"\n        logger.debug(\"writing content to %r\", self.path.resolve())\n        self.path.write_text(content)\n        self._content = None",
+    "importString": "",
+    "lineNum": 15,
+    "location": 92,
+    "relativeDocumentPath": "src/semantic_release/version/declaration.py"
+  },
+  {
+    "symbolName": "create_release",
+    "sourceCode": "def create_release(\n        self,\n        tag: str,\n        release_notes: str,\n        prerelease: bool = False,\n        assets: list[str] | None = None,\n        noop: bool = False,\n    ) -> int | str:\n        return super().create_release(tag, release_notes, prerelease, assets, noop)",
+    "importString": "",
+    "lineNum": 8,
+    "location": 246,
+    "relativeDocumentPath": "src/semantic_release/hvcs/bitbucket.py"
+  },
+  {
+    "symbolName": "create_release",
+    "sourceCode": "@logged_function(logger)\n    def create_release(\n        self,\n        tag: str,\n        release_notes: str,\n        prerelease: bool = False,\n        assets: list[str] | None = None,\n        noop: bool = False,\n    ) -> int:\n        \"\"\"\n        Create a new release\n\n        Ref: https://gitea.com/api/swagger#/repository/repoCreateRelease\n\n        :param tag: Tag to create release for\n        :param release_notes: The release notes for this version\n        :param prerelease: Whether or not this release should be specified as a\n            prerelease\n\n        :return: Whether the request succeeded\n        \"\"\"\n        if noop:\n            noop_report(\n                str.join(\n                    \" \",\n                    [\n                        f\"would have created a release for tag {tag}\",\n                        \"with the following notes:\\n\",\n                        release_notes,\n                    ],\n                )\n            )\n            if assets:\n                noop_report(\n                    str.join(\n                        \"\\n\",\n                        [\n                            \"would have uploaded the following assets to the release:\",\n                            *assets,\n                        ],\n                    )\n                )\n            return -1\n\n        logger.info(\"Creating release for tag %s\", tag)\n        releases_endpoint = self.create_api_url(\n            endpoint=f\"/repos/{self.owner}/{self.repo_name}/releases\",\n        )\n        response = self.session.post(\n            releases_endpoint,\n            json={\n                \"tag_name\": tag,\n                \"name\": tag,\n                \"body\": release_notes,\n                \"draft\": False,\n                \"prerelease\": prerelease,\n            },\n        )\n\n        # Raise an error if the request was not successful\n        response.raise_for_status()\n\n        try:\n            release_id: int = response.json()[\"id\"]\n            logger.info(\"Successfully created release with ID: %s\", release_id)\n        except JSONDecodeError as err:\n            raise UnexpectedResponse(\"Unreadable json response\") from err\n        except KeyError as err:\n            raise UnexpectedResponse(\"JSON response is missing an id\") from err\n\n        errors = []\n        for asset in assets or []:\n            logger.info(\"Uploading asset %s\", asset)\n            try:\n                self.upload_release_asset(release_id, asset)\n            except HTTPError as err:\n                errors.append(\n                    AssetUploadError(f\"Failed asset upload for {asset}\").with_traceback(\n                        err.__traceback__\n                    )\n                )\n\n        if len(errors) < 1:\n            return release_id\n\n        for error in errors:\n            logger.exception(error)\n\n        raise IncompleteReleaseError(\n            f\"Failed to upload asset{'s' if len(errors) > 1 else ''} to release!\"\n        )",
+    "importString": "",
+    "lineNum": 90,
+    "location": 80,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitea.py"
+  },
+  {
+    "symbolName": "create_release",
+    "sourceCode": "@logged_function(logger)\n    def create_release(\n        self,\n        tag: str,\n        release_notes: str,\n        prerelease: bool = False,\n        assets: list[str] | None = None,\n        noop: bool = False,\n    ) -> int:\n        \"\"\"\n        Create a new release\n\n        REF: https://docs.github.com/rest/reference/repos#create-a-release\n\n        :param tag: Tag to create release for\n\n        :param release_notes: The release notes for this version\n\n        :param prerelease: Whether or not this release should be created as a prerelease\n\n        :param assets: a list of artifacts to upload to the release\n\n        :return: the ID of the release\n        \"\"\"\n        if noop:\n            noop_report(\n                str.join(\n                    \" \",\n                    [\n                        f\"would have created a release for tag {tag}\",\n                        \"with the following notes:\\n\",\n                        release_notes,\n                    ],\n                )\n            )\n            if assets:\n                noop_report(\n                    str.join(\n                        \"\\n\",\n                        [\n                            \"would have uploaded the following assets to the release:\",\n                            *assets,\n                        ],\n                    )\n                )\n            return -1\n\n        logger.info(\"Creating release for tag %s\", tag)\n        releases_endpoint = self.create_api_url(\n            endpoint=f\"/repos/{self.owner}/{self.repo_name}/releases\",\n        )\n        response = self.session.post(\n            releases_endpoint,\n            json={\n                \"tag_name\": tag,\n                \"name\": tag,\n                \"body\": release_notes,\n                \"draft\": False,\n                \"prerelease\": prerelease,\n            },\n        )\n\n        # Raise an error if the request was not successful\n        response.raise_for_status()\n\n        try:\n            release_id: int = response.json()[\"id\"]\n            logger.info(\"Successfully created release with ID: %s\", release_id)\n        except JSONDecodeError as err:\n            raise UnexpectedResponse(\"Unreadable json response\") from err\n        except KeyError as err:\n            raise UnexpectedResponse(\"JSON response is missing an id\") from err\n\n        errors = []\n        for asset in assets or []:\n            logger.info(\"Uploading asset %s\", asset)\n            try:\n                self.upload_release_asset(release_id, asset)\n            except HTTPError as err:\n                errors.append(\n                    AssetUploadError(f\"Failed asset upload for {asset}\").with_traceback(\n                        err.__traceback__\n                    )\n                )\n\n        if len(errors) < 1:\n            return release_id\n\n        for error in errors:\n            logger.exception(error)\n\n        raise IncompleteReleaseError(\n            f\"Failed to upload asset{'s' if len(errors) > 1 else ''} to release!\"\n        )",
+    "importString": "",
+    "lineNum": 93,
+    "location": 204,
+    "relativeDocumentPath": "src/semantic_release/hvcs/github.py"
+  },
+  {
+    "symbolName": "create_release",
+    "sourceCode": "@logged_function(logger)\n    def create_release(\n        self,\n        tag: str,\n        release_notes: str,\n        prerelease: bool = False,  # noqa: ARG002\n        assets: list[str] | None = None,  # noqa: ARG002\n        noop: bool = False,\n    ) -> str:\n        \"\"\"\n        Create a release in a remote VCS, adding any release notes and assets to it\n\n        :param tag: The tag to create the release for\n        :param release_notes: The changelog description for this version only\n        :param prerelease: This parameter has no effect in GitLab\n        :param assets: A list of paths to files to upload as assets (TODO: not implemented)\n        :param noop: If True, do not perform any actions, only logger intents\n\n        :return: The tag of the release\n\n        :raises: GitlabAuthenticationError: If authentication is not correct\n        :raises: GitlabCreateError: If the server cannot perform the request\n        \"\"\"\n        if noop:\n            noop_report(f\"would have created a release for tag {tag}\")\n            return tag\n\n        logger.info(\"Creating release for %s\", tag)\n        # ref: https://docs.gitlab.com/ee/api/releases/index.html#create-a-release\n        self.project.releases.create(\n            {\n                \"name\": tag,\n                \"tag_name\": tag,\n                \"tag_message\": tag,\n                \"description\": release_notes,\n            }\n        )\n        logger.info(\"Successfully created release for %s\", tag)\n        return tag",
+    "importString": "",
+    "lineNum": 38,
+    "location": 91,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitlab.py"
+  },
+  {
+    "symbolName": "create_release",
+    "sourceCode": "@abstractmethod\n    def create_release(\n        self,\n        tag: str,\n        release_notes: str,\n        prerelease: bool = False,\n        assets: list[str] | None = None,\n        noop: bool = False,\n    ) -> int | str:\n        \"\"\"\n        Create a release in a remote VCS, if supported\n\n        Which includes uploading any assets as part of the release\n        \"\"\"\n        self._not_supported(self.create_release.__name__)\n        return -1",
+    "importString": "",
+    "lineNum": 15,
+    "location": 57,
+    "relativeDocumentPath": "src/semantic_release/hvcs/remote_hvcs_base.py"
+  },
+  {
+    "symbolName": "from_string",
+    "sourceCode": "@classmethod\n    def from_string(cls, val: str) -> LevelBump:\n        \"\"\"\n        Get the level from string representation. For backwards-compatibility,\n        dashes are replaced with underscores so that:\n        >>> LevelBump.from_string(\"no-release\") == LevelBump.NO_RELEASE\n        Equally,\n        >>> LevelBump.from_string(\"minor\") == LevelBump.MINOR\n        \"\"\"\n        return cls[val.upper().replace(\"-\", \"_\")]",
+    "importString": "",
+    "lineNum": 9,
+    "location": 30,
+    "relativeDocumentPath": "src/semantic_release/enums.py"
+  },
+  {
+    "symbolName": "from_string",
+    "sourceCode": "def from_string(self, version_str: str) -> Version:\n        \"\"\"\n        Return a Version instance from a string. Delegates directly to Version.parse,\n        using the translator's own stored values for tag_format and prerelease\n        \"\"\"\n        return Version.parse(\n            version_str,\n            tag_format=self.tag_format,\n            prerelease_token=self.prerelease_token,\n        )",
+    "importString": "",
+    "lineNum": 9,
+    "location": 64,
+    "relativeDocumentPath": "src/semantic_release/version/translator.py"
+  },
+  {
+    "symbolName": "get_release_id_by_tag",
+    "sourceCode": "@logged_function(logger)\n    @suppress_not_found\n    def get_release_id_by_tag(self, tag: str) -> int | None:\n        \"\"\"\n        Get a release by its tag name\n        https://gitea.com/api/swagger#/repository/repoGetReleaseByTag\n        :param tag: Tag to get release for\n\n        :return: ID of found release\n        \"\"\"\n        tag_endpoint = self.create_api_url(\n            endpoint=f\"/repos/{self.owner}/{self.repo_name}/releases/tags/{tag}\",\n        )\n        response = self.session.get(tag_endpoint)\n\n        # Raise an error if the request was not successful\n        response.raise_for_status()\n\n        try:\n            data = response.json()\n            return data[\"id\"]\n        except JSONDecodeError as err:\n            raise UnexpectedResponse(\"Unreadable json response\") from err\n        except KeyError as err:\n            raise UnexpectedResponse(\"JSON response is missing an id\") from err",
+    "importString": "",
+    "lineNum": 24,
+    "location": 172,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitea.py"
+  },
+  {
+    "symbolName": "get_release_id_by_tag",
+    "sourceCode": "@logged_function(logger)\n    @suppress_not_found\n    def get_release_id_by_tag(self, tag: str) -> int | None:\n        \"\"\"\n        Get a release by its tag name\n        https://docs.github.com/rest/reference/repos#get-a-release-by-tag-name\n        :param tag: Tag to get release for\n        :return: ID of release, if found, else None\n        \"\"\"\n        tag_endpoint = self.create_api_url(\n            endpoint=f\"/repos/{self.owner}/{self.repo_name}/releases/tags/{tag}\",\n        )\n        response = self.session.get(tag_endpoint)\n\n        # Raise an error if the request was not successful\n        response.raise_for_status()\n\n        try:\n            data = response.json()\n            return data[\"id\"]\n        except JSONDecodeError as err:\n            raise UnexpectedResponse(\"Unreadable json response\") from err\n        except KeyError as err:\n            raise UnexpectedResponse(\"JSON response is missing an id\") from err",
+    "importString": "",
+    "lineNum": 23,
+    "location": 299,
+    "relativeDocumentPath": "src/semantic_release/hvcs/github.py"
+  },
+  {
+    "symbolName": "compare_url",
+    "sourceCode": "def compare_url(self, from_rev: str, to_rev: str) -> str:\n        \"\"\"\n        Get the Bitbucket comparison link between two version tags.\n        :param from_rev: The older version to compare.\n        :param to_rev: The newer version to compare.\n        :return: Link to view a comparison between the two versions.\n        \"\"\"\n        return self.create_repo_url(\n            repo_path=f\"/branches/compare/{from_rev}%0D{to_rev}\"\n        )",
+    "importString": "",
+    "lineNum": 9,
+    "location": 186,
+    "relativeDocumentPath": "src/semantic_release/hvcs/bitbucket.py"
+  },
+  {
+    "symbolName": "compare_url",
+    "sourceCode": "def compare_url(self, from_rev: str, to_rev: str) -> str:\n        \"\"\"\n        Get the GitHub comparison link between two version tags.\n        :param from_rev: The older version to compare.\n        :param to_rev: The newer version to compare.\n        :return: Link to view a comparison between the two versions.\n        \"\"\"\n        return self.create_repo_url(repo_path=f\"/compare/{from_rev}...{to_rev}\")",
+    "importString": "",
+    "lineNum": 7,
+    "location": 499,
+    "relativeDocumentPath": "src/semantic_release/hvcs/github.py"
+  },
+  {
+    "symbolName": "compare_url",
+    "sourceCode": "def compare_url(self, from_rev: str, to_rev: str) -> str:\n        return self.create_repo_url(repo_path=f\"/-/compare/{from_rev}...{to_rev}\")",
+    "importString": "",
+    "lineNum": 1,
+    "location": 230,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitlab.py"
+  },
+  {
+    "symbolName": "shell",
+    "sourceCode": "def shell(\n    cmd: str, *, env: Mapping[str, str] | None = None, check: bool = True\n) -> subprocess.CompletedProcess:\n    shell: str | None\n    try:\n        shell, _ = shellingham.detect_shell()\n    except shellingham.ShellDetectionFailure:\n        logger.warning(\"failed to detect shell, using default shell: %s\", DEFAULT_SHELL)\n        logger.debug(\"stack trace\", exc_info=True)\n        shell = DEFAULT_SHELL\n\n    if not shell:\n        raise TypeError(\"'shell' is None\")\n\n    shell_cmd_param = defaultdict(\n        lambda: \"-c\",\n        {\n            \"cmd\": \"/c\",\n            \"powershell\": \"-Command\",\n            \"pwsh\": \"-Command\",\n        },\n    )\n\n    return subprocess.run(  # noqa: S603\n        [shell, shell_cmd_param[shell], cmd],\n        env=(env or {}),\n        check=check,\n    )",
+    "importString": "",
+    "lineNum": 27,
+    "location": 181,
+    "relativeDocumentPath": "src/semantic_release/cli/commands/version.py"
+  },
+  {
+    "symbolName": "commit_sha",
+    "sourceCode": "@commit_sha.setter\n    def commit_sha(self, value: str) -> None:\n        if not isinstance(value, str):\n            raise TypeError(\"output 'commit_sha' should be a string\")\n\n        if not regexp(r\"^[0-9a-f]{40}$\").match(value):\n            raise ValueError(\n                \"output 'commit_sha' should be a valid 40-hex-character SHA\"\n            )\n\n        self._commit_sha = value",
+    "importString": "",
+    "lineNum": 10,
+    "location": 74,
+    "relativeDocumentPath": "src/semantic_release/cli/github_actions_output.py"
+  },
+  {
+    "symbolName": "pull_request_url",
+    "sourceCode": "def pull_request_url(self, pr_number: str | int) -> str:\n        # Strips off any character prefix like '#' that usually exists\n        if isinstance(pr_number, str) and (\n            match := regexp(r\"(\\d+)$\").search(pr_number)\n        ):\n            try:\n                pr_number = int(match.group(1))\n            except ValueError:\n                return \"\"\n\n        if isinstance(pr_number, int):\n            return self.create_repo_url(repo_path=f\"/pull-requests/{pr_number}\")\n\n        return \"\"",
+    "importString": "",
+    "lineNum": 13,
+    "location": 200,
+    "relativeDocumentPath": "src/semantic_release/hvcs/bitbucket.py"
+  },
+  {
+    "symbolName": "pull_request_url",
+    "sourceCode": "def pull_request_url(self, pr_number: str | int) -> str:\n        # Strips off any character prefix like '#' that usually exists\n        if isinstance(pr_number, str) and (\n            match := regexp(r\"(\\d+)$\").search(pr_number)\n        ):\n            try:\n                pr_number = int(match.group(1))\n            except ValueError:\n                return \"\"\n\n        if isinstance(pr_number, int):\n            return self.create_repo_url(repo_path=f\"/pulls/{pr_number}\")\n\n        return \"\"",
+    "importString": "",
+    "lineNum": 13,
+    "location": 364,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitea.py"
+  },
+  {
+    "symbolName": "pull_request_url",
+    "sourceCode": "def pull_request_url(self, pr_number: str | int) -> str:\n        # Strips off any character prefix like '#' that usually exists\n        if isinstance(pr_number, str) and (\n            match := regexp(r\"(\\d+)$\").search(pr_number)\n        ):\n            try:\n                pr_number = int(match.group(1))\n            except ValueError:\n                return \"\"\n\n        if isinstance(pr_number, int):\n            return self.create_repo_url(repo_path=f\"/pull/{pr_number}\")\n\n        return \"\"",
+    "importString": "",
+    "lineNum": 13,
+    "location": 526,
+    "relativeDocumentPath": "src/semantic_release/hvcs/github.py"
+  },
+  {
+    "symbolName": "pull_request_url",
+    "sourceCode": "def pull_request_url(self, pr_number: str | int) -> str:\n        return self.merge_request_url(mr_number=pr_number)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 266,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitlab.py"
+  },
+  {
+    "symbolName": "edit_release_notes",
+    "sourceCode": "@logged_function(logger)\n    def edit_release_notes(self, release_id: int, release_notes: str) -> int:\n        \"\"\"\n        Edit a release with updated change notes\n        https://gitea.com/api/swagger#/repository/repoEditRelease\n        :param id: ID of release to update\n        :param release_notes: The release notes for this version\n\n        :return: The ID of the release that was edited\n        \"\"\"\n        logger.info(\"Updating release %s\", release_id)\n        release_endpoint = self.create_api_url(\n            endpoint=f\"/repos/{self.owner}/{self.repo_name}/releases/{release_id}\",\n        )\n\n        response = self.session.patch(\n            release_endpoint,\n            json={\"body\": release_notes},\n        )\n\n        # Raise an error if the request was not successful\n        response.raise_for_status()\n\n        return release_id",
+    "importString": "",
+    "lineNum": 23,
+    "location": 198,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitea.py"
+  },
+  {
+    "symbolName": "edit_release_notes",
+    "sourceCode": "@logged_function(logger)\n    def edit_release_notes(self, release_id: int, release_notes: str) -> int:\n        \"\"\"\n        Edit a release with updated change notes\n        https://docs.github.com/rest/reference/repos#update-a-release\n        :param release_id: ID of release to update\n        :param release_notes: The release notes for this version\n        :return: The ID of the release that was edited\n        \"\"\"\n        logger.info(\"Updating release %s\", release_id)\n        release_endpoint = self.create_api_url(\n            endpoint=f\"/repos/{self.owner}/{self.repo_name}/releases/{release_id}\",\n        )\n\n        response = self.session.post(\n            release_endpoint,\n            json={\"body\": release_notes},\n        )\n\n        # Raise an error if the update was unsuccessful\n        response.raise_for_status()\n\n        return release_id",
+    "importString": "",
+    "lineNum": 22,
+    "location": 324,
+    "relativeDocumentPath": "src/semantic_release/hvcs/github.py"
+  },
+  {
+    "symbolName": "edit_release_notes",
+    "sourceCode": "@logged_function(logger)\n    def edit_release_notes(  # type: ignore[override]\n        self,\n        release: gitlab.v4.objects.ProjectRelease,\n        release_notes: str,\n    ) -> str:\n        \"\"\"\n        Update the release notes for a given release.\n\n        :param release: The release object to update\n        :param release_notes: The new release notes\n\n        :return: The release id\n\n        :raises: GitlabAuthenticationError: If authentication is not correct\n        :raises: GitlabUpdateError: If the server cannot perform the request\n\n        \"\"\"\n        logger.info(\n            \"Updating release %s [%s]\",\n            release.name,\n            release.attributes.get(\"commit\", {}).get(\"id\"),\n        )\n        release.description = release_notes\n        release.save()\n        return str(release.get_id())",
+    "importString": "",
+    "lineNum": 25,
+    "location": 151,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitlab.py"
+  },
+  {
+    "symbolName": "bind_to_environment",
+    "sourceCode": "def bind_to_environment(self, env: Environment) -> Environment:\n        env_globals = dict(\n            filter(lambda k_v: k_v[0] != \"filters\", self.__dict__.items())\n        )\n\n        for g, v in env_globals.items():\n            env.globals[g] = v\n\n        for f in self.filters:\n            env.filters[f.__name__] = f\n\n        return env",
+    "importString": "",
+    "lineNum": 11,
+    "location": 34,
+    "relativeDocumentPath": "src/semantic_release/changelog/context.py"
+  },
+  {
+    "symbolName": "bind_to_environment",
+    "sourceCode": "def bind_to_environment(self, env: Environment) -> Environment:\n        env.globals[\"context\"] = self\n        env.globals[\"ctx\"] = self\n        for f in self.filters:\n            env.filters[f.__name__] = f\n        return env",
+    "importString": "",
+    "lineNum": 5,
+    "location": 65,
+    "relativeDocumentPath": "src/semantic_release/changelog/context.py"
+  },
+  {
+    "symbolName": "generate_release_notes",
+    "sourceCode": "def generate_release_notes(\n    hvcs_client: HvcsBase,\n    release: Release,\n    template_dir: Path,\n    history: ReleaseHistory,\n    style: str,\n    mask_initial_release: bool,\n    license_name: str = \"\",\n) -> str:\n    users_tpl_file = template_dir / DEFAULT_RELEASE_NOTES_TPL_FILE\n\n    # Determine if the user has a custom release notes template or we should use\n    # the default template directory with our default release notes template\n    tpl_dir = (\n        template_dir\n        if users_tpl_file.is_file()\n        else get_default_tpl_dir(\n            style=style, sub_dir=ChangelogOutputFormat.MARKDOWN.value\n        )\n    )\n\n    release_notes_tpl_file = (\n        users_tpl_file.name\n        if users_tpl_file.is_file()\n        else DEFAULT_RELEASE_NOTES_TPL_FILE\n    )\n\n    release_notes_env = ReleaseNotesContext(\n        repo_name=hvcs_client.repo_name,\n        repo_owner=hvcs_client.owner,\n        hvcs_type=hvcs_client.__class__.__name__.lower(),\n        version=release[\"version\"],\n        release=release,\n        mask_initial_release=mask_initial_release,\n        license_name=license_name,\n        filters=(\n            *hvcs_client.get_changelog_context_filters(),\n            create_pypi_url,\n            autofit_text_width,\n            sort_numerically,\n        ),\n    ).bind_to_environment(\n        # Use a new, non-configurable environment for release notes -\n        # not user-configurable at the moment\n        environment(autoescape=False, template_dir=tpl_dir)\n    )\n\n    # TODO: Remove in v11\n    release_notes_env.globals[\"context\"] = release_notes_env.globals[\"ctx\"] = {\n        \"history\": history,\n        \"mask_initial_release\": mask_initial_release,\n    }\n\n    return render_release_notes(\n        release_notes_template_file=release_notes_tpl_file,\n        template_env=release_notes_env,\n    )",
+    "importString": "",
+    "lineNum": 56,
+    "location": 224,
+    "relativeDocumentPath": "src/semantic_release/cli/changelog_writer.py"
+  },
+  {
+    "symbolName": "is_prerelease",
+    "sourceCode": "@property\n    def is_prerelease(self) -> bool | None:\n        return self.version.is_prerelease if self.version is not None else None",
+    "importString": "",
+    "lineNum": 2,
+    "location": 66,
+    "relativeDocumentPath": "src/semantic_release/cli/github_actions_output.py"
+  },
+  {
+    "symbolName": "mask",
+    "sourceCode": "def mask(self, msg: str) -> str:\n        if not isinstance(msg, str):\n            logger.debug(\"cannot mask object of type %s\", type(msg))\n            return msg\n        for mask, values in self._redact_patterns.items():\n            repl_string = (\n                self.REPLACE_STR\n                if not self._use_named_masks\n                else f\"<{mask!r} (value removed)>\"\n            )\n            for data in values:\n                if isinstance(data, str):\n                    msg = msg.replace(data, repl_string)\n                elif isinstance(data, re.Pattern):\n                    msg = data.sub(repl_string, msg)\n        return msg",
+    "importString": "",
+    "lineNum": 15,
+    "location": 62,
+    "relativeDocumentPath": "src/semantic_release/cli/masking_filter.py"
+  },
+  {
+    "symbolName": "is_prerelease",
+    "sourceCode": "@property\n    def is_prerelease(self) -> bool:\n        return self.prerelease_revision is not None",
+    "importString": "",
+    "lineNum": 2,
+    "location": 160,
+    "relativeDocumentPath": "src/semantic_release/version/version.py"
+  },
+  {
+    "symbolName": "upload_release_asset",
+    "sourceCode": "@logged_function(logger)\n    def upload_release_asset(\n        self,\n        release_id: int,\n        file: str,\n        label: str | None = None,  # noqa: ARG002\n    ) -> bool:\n        \"\"\"\n        Upload an asset to an existing release\n        https://gitea.com/api/swagger#/repository/repoCreateReleaseAttachment\n        :param release_id: ID of the release to upload to\n        :param file: Path of the file to upload\n        :param label: this parameter has no effect\n\n        :return: The status of the request\n        \"\"\"\n        url = self.asset_upload_url(release_id)\n\n        with open(file, \"rb\") as attachment:\n            name = os.path.basename(file)\n            content_type = \"application/octet-stream\"\n            response = self.session.post(\n                url,\n                params={\"name\": name},\n                data={},\n                files={\n                    \"attachment\": (\n                        name,\n                        attachment,\n                        content_type,\n                    ),\n                },\n            )\n\n            # Raise an error if the request was not successful\n            response.raise_for_status()\n\n        logger.info(\n            \"Successfully uploaded %s to Gitea, url: %s, status code: %s\",\n            file,\n            response.url,\n            response.status_code,\n        )\n\n        return True",
+    "importString": "",
+    "lineNum": 44,
+    "location": 262,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitea.py"
+  },
+  {
+    "symbolName": "upload_release_asset",
+    "sourceCode": "@logged_function(logger)\n    def upload_release_asset(\n        self, release_id: int, file: str, label: str | None = None\n    ) -> bool:\n        \"\"\"\n        Upload an asset to an existing release\n        https://docs.github.com/rest/reference/repos#upload-a-release-asset\n        :param release_id: ID of the release to upload to\n        :param file: Path of the file to upload\n        :param label: Optional custom label for this file\n        :return: The status of the request\n        \"\"\"\n        url = self.asset_upload_url(release_id)\n        if url is None:\n            raise ValueError(\n                \"There is no associated url for uploading asset for release \"\n                f\"{release_id}. Release url: \"\n                f\"{self.api_url}/repos/{self.owner}/{self.repo_name}/releases/{release_id}\"\n            )\n\n        content_type = (\n            mimetypes.guess_type(file, strict=False)[0] or \"application/octet-stream\"\n        )\n\n        with open(file, \"rb\") as data:\n            response = self.session.post(\n                url,\n                params={\"name\": os.path.basename(file), \"label\": label},\n                headers={\n                    \"Content-Type\": content_type,\n                },\n                data=data.read(),\n            )\n\n            # Raise an error if the upload was unsuccessful\n            response.raise_for_status()\n\n        logger.debug(\n            \"Successfully uploaded %s to Github, url: %s, status code: %s\",\n            file,\n            response.url,\n            response.status_code,\n        )\n\n        return True",
+    "importString": "",
+    "lineNum": 44,
+    "location": 403,
+    "relativeDocumentPath": "src/semantic_release/hvcs/github.py"
+  },
+  {
+    "symbolName": "upload_dists",
+    "sourceCode": "def upload_dists(self, tag: str, dist_glob: str) -> int:\n        return super().upload_dists(tag, dist_glob)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 238,
+    "relativeDocumentPath": "src/semantic_release/hvcs/bitbucket.py"
+  },
+  {
+    "symbolName": "upload_dists",
+    "sourceCode": "@logged_function(logger)\n    def upload_dists(self, tag: str, dist_glob: str) -> int:\n        \"\"\"\n        Upload distributions to a release\n        :param tag: Tag to upload for\n        :param path: Path to the dist directory\n\n        :return: The number of distributions successfully uploaded\n        \"\"\"\n        # Find the release corresponding to this tag\n        release_id = self.get_release_id_by_tag(tag=tag)\n        if not release_id:\n            logger.warning(\"No release corresponds to tag %s, can't upload dists\", tag)\n            return 0\n\n        # Upload assets\n        n_succeeded = 0\n        for file_path in (\n            f for f in glob.glob(dist_glob, recursive=True) if os.path.isfile(f)\n        ):\n            try:\n                self.upload_release_asset(release_id, file_path)\n                n_succeeded += 1\n            except HTTPError:  # noqa: PERF203\n                logger.exception(\"error uploading asset %s\", file_path)\n\n        return n_succeeded",
+    "importString": "",
+    "lineNum": 26,
+    "location": 308,
+    "relativeDocumentPath": "src/semantic_release/hvcs/gitea.py"
+  }
+]
