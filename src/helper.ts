@@ -95,37 +95,95 @@ export function setWorkspaceFolders(projectPath: string): vscode.WorkspaceFolder
 }
 
 export function genPythonicSrcImportStatement(text: string) {
-    let importString = "";
-    // Find import statements including multi-line parenthesized imports
-    const importRegex = /^(?:from\s+[\w.]+\s+import\s+(?:\(\s*[\w,.\s]+(?:[\w,.\s]+\s*)*\)|[\w,.\s]+)|import\s+(?:[\w.]+(?:\s*,\s*[\w.]+)*))(?:\s*\))?(?=\s*$|\s*#)/gm;
+    const lines = text.split(/\r?\n/);
+    const importStatements: string[] = [];
 
-    // Get all matches
-    let matches = text.match(importRegex);
-    if (matches) {
-        // Process each match to ensure proper parenthesis closure
-        importString = matches
-            .map(stmt => {
-                let lines = stmt.split('\n').map(line => line.trim());
-                
-                // Clean up each line
-                lines = lines.map(line => {
-                    // Remove trailing comma
-                    line = line.replace(/,\s*$/, '');
-                    return line;
-                });
-                
-                stmt = lines.join('\n');
-                stmt = stmt.trim();
-                // If statement has opening parenthesis but no closing one, add it
-                if ((stmt.match(/\(/g) || []).length > (stmt.match(/\)/g) || []).length) {
-                    stmt += ')';
-                }
-                return stmt;
-            })
-            .filter(stmt => !stmt.match(/^.*(?:import\s+(?:and|in|or|is|not|as)\s*|^\s*and\s*|^\s*,\s*|\s+$)/))
-            .join('\n');
+    const countParenthesisDelta = (line: string): number => {
+        const noComment = line.split('#', 1)[0];
+        let delta = 0;
+        for (let i = 0; i < noComment.length; i++) {
+            const ch = noComment[i];
+            if (ch === '(') {
+                delta += 1;
+            } else if (ch === ')') {
+                delta -= 1;
+            }
+        }
+        return delta;
+    };
+
+    const endsWithContinuation = (line: string): boolean => {
+        const noComment = line.split('#', 1)[0].trimEnd();
+        return noComment.endsWith("\\");
+    };
+
+    const isValidImportStart = (line: string): boolean => {
+        if (line.startsWith('import ')) {
+            return !/^import\s+(and|in|or|is|not|as)\b/.test(line);
+        }
+        if (line.startsWith('from ')) {
+            return /\simport\s/.test(line);
+        }
+        return false;
+    };
+
+    const normalizeStatement = (statementLines: string[]): string => {
+        let statement = statementLines
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .join('\n')
+            .trim();
+
+        if (!statement || /^\s*(and\b|,)/.test(statement)) {
+            return "";
+        }
+        if (/^\s*import\s+(and|in|or|is|not|as)\b/.test(statement)) {
+            return "";
+        }
+
+        const openCount = (statement.match(/\(/g) || []).length;
+        const closeCount = (statement.match(/\)/g) || []).length;
+        if (openCount > closeCount) {
+            statement += ')'.repeat(openCount - closeCount);
+        }
+        return statement;
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+
+        if (!rawLine || rawLine.length === 0) {
+            continue;
+        }
+        // Keep behavior close to previous regex: only top-level statements (no indentation).
+        if (rawLine[0] === ' ' || rawLine[0] === '\t') {
+            continue;
+        }
+
+        const trimmedLine = rawLine.trim();
+        if (!trimmedLine || trimmedLine.startsWith('#') || !isValidImportStart(trimmedLine)) {
+            continue;
+        }
+
+        const statementLines: string[] = [trimmedLine];
+        let parenDepth = countParenthesisDelta(trimmedLine);
+        let continued = endsWithContinuation(trimmedLine);
+
+        while (i + 1 < lines.length && (parenDepth > 0 || continued)) {
+            i += 1;
+            const continuationLine = lines[i].trim();
+            statementLines.push(continuationLine);
+            parenDepth += countParenthesisDelta(continuationLine);
+            continued = endsWithContinuation(continuationLine);
+        }
+
+        const normalizedStatement = normalizeStatement(statementLines);
+        if (normalizedStatement.length > 0) {
+            importStatements.push(normalizedStatement);
+        }
     }
-    return importString;
+
+    return importStatements.join('\n');
 }
 // export async function saveTaskList(
 //     symbolDocumentMap: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[],

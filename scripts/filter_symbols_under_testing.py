@@ -1,12 +1,8 @@
 r"""
 python scripts/filter_symbols_under_testing.py \
-                                           --input experiments/projects/thefuck/symbol_robustness_results.json \
-                                           --min-test-refs 0 \
-                                           --top-pct-scope all_valid \
-                                           --top-non-test-pct 0.10 \
-                                           --top-test-pct 0.10 \
-                                           --top-pct-mode or \
-                                           --format tasklist --output thefuck_pct.json --max-results 100
+        --input experiments/projects/thefuck/symbol_robustness_results.json \
+        --min-test-refs 1 \
+        --format tasklist --output thefuck_pct.json --max-results 100
 """
 
 from __future__ import annotations

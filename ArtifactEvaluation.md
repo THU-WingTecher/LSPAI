@@ -1064,6 +1064,24 @@ pip install coverage pytest pytest-json-report
 pytest # for checking whether the setting is complete # there will be a symbol named "get_valid_history_without_current" that do not pass unit test 
 ```
 
+#### Python-Semantic-Release Project Setup
+
+To set up the Thefuck, follow these steps:
+
+```bash
+mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/tqdm/tqdm.git
+cd /LSPRAG/experiments/projects/tqdm
+
+# Python Setup
+git checkout 95ce7ec
+conda create -n python-semantic-release python=3.8
+conda activate python-semantic-release
+pip install -e .[dev,mypy,test]
+pytest 
+```
+
 ---
 
 ## Claim 2: Under-Minute Overheads

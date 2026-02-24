@@ -563,6 +563,7 @@ export type ProjectConfigName =
     | 'tornado' 
     | 'mimesis'
     | 'dataclasses-json'
+    | 'python-semantic-release'
     | 'thefuck'
     | 'cookiecutter'
     | 'tqdm'
@@ -640,6 +641,20 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
                 "/LSPRAG/experiments/projects/dataclasses-json"
             ],
             pythonExe: "/root/miniconda3/envs/dataclasses-json/bin/python"
+        },
+    },
+    "python-semantic-release": {
+        workspace: "/LSPRAG/experiments/projects/python-semantic-release",
+        srcPath: "/src",
+        language: 'python',
+        srcPathToExclude: [],
+        python: {
+            // Only include parent directory, not the package directory itself
+            // This prevents name collision with standard library modules like 'concurrent'
+            pythonpath: [
+                "/LSPRAG/experiments/projects/python-semantic-release"
+            ],
+            pythonExe: "/root/miniconda3/envs/python-semantic-release/bin/python"
         },
     },
     "tqdm": {
