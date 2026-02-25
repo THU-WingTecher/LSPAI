@@ -13,6 +13,10 @@ python /LSPRAG/scripts/robustness_hyperparam_search.py \                        
                                            
 Grid search robustness selection against error outcomes.
 
+robustness_hyperparam_search.py where score is testReferences * A + nonTestReferences * B
+A_only baseline uses (A=1, B=0)
+B_only baseline uses (A=0, B=1)
+
 Features:
 - Supports multiple datasets (test_file_map + file_results) with aggregation.
 - Supports fixed k (count) or k-ratio selection.
@@ -26,6 +30,7 @@ import argparse
 import json
 import os
 import sys
+import math
 from typing import Dict, Iterable, List, Tuple
 
 
@@ -424,6 +429,44 @@ def resolve_threshold_values(n: int | None, n_min: int, n_max: int, n_step: int)
     return list(range(n_min, n_max + 1, n_step))
 
 
+def resolve_percent_values(p: float | None, p_min: float, p_max: float, p_step: float) -> List[float]:
+    if p is not None:
+        if p <= 0 or p > 1:
+            raise ValueError("percentile must be in (0,1]")
+        return [float(p)]
+    if p_step <= 0:
+        raise ValueError("p-step must be > 0")
+    if p_min <= 0 or p_max <= 0 or p_min > 1 or p_max > 1:
+        raise ValueError("p-min and p-max must be in (0,1]")
+    if p_min > p_max:
+        raise ValueError("p-min must be <= p-max")
+    out: List[float] = []
+    cur = p_min
+    # Floating steps accumulate error; round to 10 dp for stable lists.
+    while cur <= p_max + 1e-12:
+        out.append(round(cur, 10))
+        cur += p_step
+    return out
+
+
+def topk_index_by_metric(rows: List[dict], metric: str, k: int) -> set[int]:
+    # Deterministic tie-break: prefer larger other metric, then stable by symbol/file.
+    if metric == "nonTestReferences":
+        key_fn = lambda r: (r["nonTestReferences"], r["testReferences"], r["symbol"], r["file_name"])
+    elif metric == "testReferences":
+        key_fn = lambda r: (r["testReferences"], r["nonTestReferences"], r["symbol"], r["file_name"])
+    else:
+        raise ValueError(f"Unknown metric: {metric}")
+    idx = sorted(range(len(rows)), key=lambda i: key_fn(rows[i]), reverse=True)
+    return set(idx[:k])
+
+
+def pct_to_k(total: int, pct: float) -> int:
+    if pct <= 0 or pct > 1:
+        raise ValueError("percentile must be in (0,1]")
+    return max(1, int(math.ceil(total * pct)))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Grid search robustness selection against error outcomes.")
     parser.add_argument("--run-config", default=None, help="Path to JSON config that overrides CLI args")
@@ -458,7 +501,12 @@ def main() -> int:
     parser.add_argument("--a-max", type=int, default=30)
     parser.add_argument("--b-min", type=int, default=1)
     parser.add_argument("--b-max", type=int, default=10)
-    parser.add_argument("--scoring", choices=["weighted", "threshold", "dual_threshold"], default="weighted")
+    parser.add_argument(
+        "--scoring",
+        choices=["weighted", "threshold", "dual_threshold", "dual_threshold_pct"],
+        default="weighted",
+        help="Selection scoring mode",
+    )
     parser.add_argument("--n", type=int, default=None, help="Threshold for non-test references (threshold scoring)")
     parser.add_argument("--n-min", type=int, default=1)
     parser.add_argument("--n-max", type=int, default=20)
@@ -467,6 +515,24 @@ def main() -> int:
     parser.add_argument("--m-min", type=int, default=1)
     parser.add_argument("--m-max", type=int, default=20)
     parser.add_argument("--m-step", type=int, default=1)
+    parser.add_argument(
+        "--n-pct",
+        type=float,
+        default=None,
+        help="Top-percentile for non-test references (dual_threshold_pct scoring, e.g. 0.15 for top 15%)",
+    )
+    parser.add_argument("--n-pct-min", type=float, default=0.05)
+    parser.add_argument("--n-pct-max", type=float, default=0.5)
+    parser.add_argument("--n-pct-step", type=float, default=0.05)
+    parser.add_argument(
+        "--m-pct",
+        type=float,
+        default=None,
+        help="Top-percentile for test references (dual_threshold_pct scoring, e.g. 0.15 for top 15%)",
+    )
+    parser.add_argument("--m-pct-min", type=float, default=0.05)
+    parser.add_argument("--m-pct-max", type=float, default=0.5)
+    parser.add_argument("--m-pct-step", type=float, default=0.05)
     parser.add_argument("--k", type=int, default=None, help="Top-k count (overrides ratios)")
     parser.add_argument("--k-ratio", type=float, default=None, help="Top-k ratio (overrides ratios)")
     parser.add_argument("--ratios", type=parse_ratios, default="0.1,0.2,0.3,0.5")
@@ -498,7 +564,7 @@ def main() -> int:
     parser.add_argument(
         "--nm-heatmap-out",
         default=None,
-        help="Write SVG heatmap for n/m grid (dual_threshold scoring)",
+        help="Write SVG heatmap for n/m grid (dual_threshold or dual_threshold_pct scoring)",
     )
     parser.add_argument(
         "--output",
@@ -616,7 +682,7 @@ def main() -> int:
                         - obj_val,
                     }
                 )
-        else:
+        elif args.scoring == "dual_threshold":
             n_values = resolve_threshold_values(args.n, args.n_min, args.n_max, args.n_step)
             m_values = resolve_threshold_values(args.m, args.m_min, args.m_max, args.m_step)
             for n_val in n_values:
@@ -663,30 +729,133 @@ def main() -> int:
                             - obj_val,
                         }
                     )
-        candidates.sort(key=lambda x: x["objective_value"])
-        top_candidates = candidates[: max(1, args.top_n)]
+        else:
+            # dual_threshold_pct: top p_n by nonTestReferences OR top p_m by testReferences
+            n_pcts = resolve_percent_values(args.n_pct, args.n_pct_min, args.n_pct_max, args.n_pct_step)
+            m_pcts = resolve_percent_values(args.m_pct, args.m_pct_min, args.m_pct_max, args.m_pct_step)
+            for p_n in n_pcts:
+                k_n = pct_to_k(len(rows), p_n)
+                top_prod = topk_index_by_metric(rows, "nonTestReferences", k_n)
+                for p_m in m_pcts:
+                    k_m = pct_to_k(len(rows), p_m)
+                    top_test = topk_index_by_metric(rows, "testReferences", k_m)
+                    eligible_idx = top_prod | top_test
 
+                    # Order: eligible first, then by usage (production then test), then stable.
+                    def order_key(i: int) -> tuple:
+                        r = rows[i]
+                        return (
+                            1 if i in eligible_idx else 0,
+                            r["nonTestReferences"],
+                            r["testReferences"],
+                            r["symbol"],
+                            r["file_name"],
+                        )
 
-        if args.nm_heatmap_out:
-            if args.scoring != "dual_threshold":
-                raise ValueError("n/m heatmap is only supported for dual_threshold scoring")
-            n_values = resolve_threshold_values(args.n, args.n_min, args.n_max, args.n_step)
-            m_values = resolve_threshold_values(args.m, args.m_min, args.m_max, args.m_step)
-            grid = []
-            for m in m_values:
-                row = []
-                for n in n_values:
-                    sel = topk(rows, "dual_threshold", 0, 0, n, m, k)
+                    idx = sorted(range(len(rows)), key=order_key, reverse=True)
+                    sel = [rows[i] for i in idx[:k]]
                     metrics = compute_metrics(sel, args.error_definition)
                     obj_val = {
                         "any_error": metrics["any_error_ratio"],
                         "mean_error_count": metrics["mean_error_count"],
                         "error_rate_tests": metrics["error_rate_tests"],
                     }[objective]
-                    row.append(obj_val)
-                grid.append(row)
-            title = f"Objective heatmap (k={k}, objective={objective}, errors={args.error_definition})"
-            write_heatmap_svg(args.nm_heatmap_out, grid, n_values, m_values, title, x_label="n", y_label="m")
+                    candidates.append(
+                        {
+                            "n_pct": p_n,
+                            "m_pct": p_m,
+                            "n_k": k_n,
+                            "m_k": k_m,
+                            "objective_value": obj_val,
+                            "metrics": metrics,
+                            "eligible_count": len(eligible_idx),
+                            "selected_k": k,
+                            "delta_vs_overall": baselines["overall_k1"][
+                                "any_error_ratio"
+                                if objective == "any_error"
+                                else "mean_error_count"
+                                if objective == "mean_error_count"
+                                else "error_rate_tests"
+                            ]
+                            - obj_val,
+                            "delta_vs_A_only": baselines["A_only"][
+                                "any_error_ratio"
+                                if objective == "any_error"
+                                else "mean_error_count"
+                                if objective == "mean_error_count"
+                                else "error_rate_tests"
+                            ]
+                            - obj_val,
+                            "delta_vs_B_only": baselines["B_only"][
+                                "any_error_ratio"
+                                if objective == "any_error"
+                                else "mean_error_count"
+                                if objective == "mean_error_count"
+                                else "error_rate_tests"
+                            ]
+                            - obj_val,
+                        }
+                    )
+        candidates.sort(key=lambda x: x["objective_value"])
+        top_candidates = candidates[: max(1, args.top_n)]
+
+
+        if args.nm_heatmap_out:
+            if args.scoring == "dual_threshold":
+                n_values = resolve_threshold_values(args.n, args.n_min, args.n_max, args.n_step)
+                m_values = resolve_threshold_values(args.m, args.m_min, args.m_max, args.m_step)
+                grid = []
+                for m in m_values:
+                    row = []
+                    for n in n_values:
+                        sel = topk(rows, "dual_threshold", 0, 0, n, m, k)
+                        metrics = compute_metrics(sel, args.error_definition)
+                        obj_val = {
+                            "any_error": metrics["any_error_ratio"],
+                            "mean_error_count": metrics["mean_error_count"],
+                            "error_rate_tests": metrics["error_rate_tests"],
+                        }[objective]
+                        row.append(obj_val)
+                    grid.append(row)
+                title = f"Objective heatmap (k={k}, objective={objective}, errors={args.error_definition})"
+                write_heatmap_svg(args.nm_heatmap_out, grid, n_values, m_values, title, x_label="n", y_label="m")
+            elif args.scoring == "dual_threshold_pct":
+                n_pcts = resolve_percent_values(args.n_pct, args.n_pct_min, args.n_pct_max, args.n_pct_step)
+                m_pcts = resolve_percent_values(args.m_pct, args.m_pct_min, args.m_pct_max, args.m_pct_step)
+                grid = []
+                for p_m in m_pcts:
+                    k_m = pct_to_k(len(rows), p_m)
+                    top_test = topk_index_by_metric(rows, "testReferences", k_m)
+                    row = []
+                    for p_n in n_pcts:
+                        k_n = pct_to_k(len(rows), p_n)
+                        top_prod = topk_index_by_metric(rows, "nonTestReferences", k_n)
+                        eligible_idx = top_prod | top_test
+
+                        def order_key(i: int) -> tuple:
+                            r = rows[i]
+                            return (
+                                1 if i in eligible_idx else 0,
+                                r["nonTestReferences"],
+                                r["testReferences"],
+                                r["symbol"],
+                                r["file_name"],
+                            )
+
+                        idx = sorted(range(len(rows)), key=order_key, reverse=True)
+                        sel = [rows[i] for i in idx[:k]]
+                        metrics = compute_metrics(sel, args.error_definition)
+                        obj_val = {
+                            "any_error": metrics["any_error_ratio"],
+                            "mean_error_count": metrics["mean_error_count"],
+                            "error_rate_tests": metrics["error_rate_tests"],
+                        }[objective]
+                        row.append(obj_val)
+                    grid.append(row)
+                title = f"Objective heatmap (k={k}, objective={objective}, errors={args.error_definition})"
+                write_heatmap_svg(args.nm_heatmap_out, grid, n_pcts, m_pcts, title, x_label="n_pct", y_label="m_pct")
+            else:
+                raise ValueError("n/m heatmap is only supported for dual_threshold or dual_threshold_pct scoring")
 
         if args.heatmap_out:
             if args.scoring != "weighted":
@@ -720,6 +889,10 @@ def main() -> int:
                 "m": args.m,
                 "n_range": [args.n_min, args.n_max, args.n_step],
                 "m_range": [args.m_min, args.m_max, args.m_step],
+                "n_pct": args.n_pct,
+                "m_pct": args.m_pct,
+                "n_pct_range": [args.n_pct_min, args.n_pct_max, args.n_pct_step],
+                "m_pct_range": [args.m_pct_min, args.m_pct_max, args.m_pct_step],
                 "k": k,
                 "total_rows": len(rows),
                 "objective": objective,
@@ -754,11 +927,21 @@ def main() -> int:
                     f"Δ vs A-only {item['delta_vs_A_only']:.4f}, "
                     f"Δ vs B-only {item['delta_vs_B_only']:.4f})"
                 )
-        else:
+        elif args.scoring == "dual_threshold":
             print("Top (n,m) threshold candidates (lower is better):")
             for item in top_candidates:
                 print(
                     f" n={item['n']} m={item['m']} obj={item['objective_value']:.4f} "
+                    f"eligible={item['eligible_count']}/{len(rows)} selected={item['selected_k']} "
+                    f"(Δ vs overall {item['delta_vs_overall']:.4f}, "
+                    f"Δ vs A-only {item['delta_vs_A_only']:.4f}, "
+                    f"Δ vs B-only {item['delta_vs_B_only']:.4f})"
+                )
+        else:
+            print("Top (n_pct,m_pct) threshold candidates (lower is better):")
+            for item in top_candidates:
+                print(
+                    f" n_pct={item['n_pct']:.4f} m_pct={item['m_pct']:.4f} obj={item['objective_value']:.4f} "
                     f"eligible={item['eligible_count']}/{len(rows)} selected={item['selected_k']} "
                     f"(Δ vs overall {item['delta_vs_overall']:.4f}, "
                     f"Δ vs A-only {item['delta_vs_A_only']:.4f}, "
