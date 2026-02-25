@@ -1,62 +1,11 @@
 # LSPRAG 任务交接执行手册
 
-更新时间: 2026-02-24
+更新时间: 2026-02-25
 
 ## 1. 目标与范围
 
 - 目标: 在服务器容器中复现 LSPRAG 的 Python 实验流程，并产出可对比的 `FP rate / coverage` 结果。
 - 当前优先项目: `black`、`tornado`、`thefuck`
-
-## 2. 一次性准备
-
-### 2.1 SSH 登录（先到服务器，再进容器）
-
-在本地 `~/.ssh/config` 增加:
-
-```sshconfig
-Host heyuan
-       HostName 192.168.102.133
-       User youshuo
-       Port 18022
-       ProxyCommand ssh -W %h:%p jump
-
-Host jump
-       HostName 166.111.80.238
-       Port 2249
-       User root
-```
-
-限制:
-- 不要在 `jump` 上安装任何驱动或软件。
-- `youshuo` 默认无 sudo，如需提权联系交接人。
-
-### 2.2 容器启动
-
-```bash
-docker pull gwihwan/lsprag:latest
-docker run -it --name lsprag -p 3305:22 gwihwan/lsprag:latest /bin/bash
-```
-
-容器内启用 SSH:
-
-```bash
-apt-get update
-apt-get install -y openssh-server
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-# 把你的公钥追加到 ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-service ssh start
-```
-
-IDE 连接容器可用:
-
-```sshconfig
-Host heyuan_artifact
-       HostName 192.168.102.133
-       User root
-       Port 3305
-       ProxyJump jump
-```
 
 ### 2.3 拉仓库 + Node 依赖
 
@@ -97,6 +46,7 @@ source /LSPRAG/.env.sh
 - `tornado` -> workspace: `/LSPRAG/experiments/projects/tornado`，python: `/root/miniconda3/envs/tornado/bin/python`
 - `tqdm` -> workspace: `/LSPRAG/experiments/projects/tqdm`，python: `/root/miniconda3/envs/tqdm/bin/python`
 - `thefuck` -> workspace: `/LSPRAG/experiments/projects/thefuck`，python: `/root/miniconda3/envs/thefuck/bin/python`
+...
 
 ## 5. 项目环境安装（建议先配 black）
 
@@ -129,27 +79,58 @@ cd /LSPRAG/experiments/projects
 git clone https://github.com/tornadoweb/tornado.git
 cd /LSPRAG/experiments/projects/tornado
 
-conda create -n tornado python=3.10 -y
+conda create -n tornado python=3.11 -y
 conda activate tornado
 
 pip install coverage pytest pytest-json-report
 pip install -r requirements.txt
 ```
 
-### 5.3 tqdm
+### 5.3 thefuck
 
 ```bash
 mkdir -p /LSPRAG/experiments/projects
 cd /LSPRAG/experiments/projects
 git clone https://github.com/nvbn/thefuck.git
-cd /LSPRAG/experiments/projects/tqdm
-git checkout 0ed5d7f
+cd /LSPRAG/experiments/projects/thefuck
 
-conda create -n tqdm python=3.10 -y
-conda activate tqdm
-
+git checkout c7e7e1d
+conda create -n thefuck python=3.8
+conda activate thefuck
+pip install -r requirements.txt
+python setup.py develop 
 pip install coverage pytest pytest-json-report
-pip install -e ".[dev]"
+pytest # for checking whether the setting is complete # there will be a symbol named "get_valid_history_without_current" that do not pass unit test 
+```
+#### 5.4 Youtube-dl
+
+To set up the coocki-cutter, follow these steps:
+
+```bash
+cd /LSPRAG/experiments/projects
+git clone https://github.com/ytdl-org/youtube-dl.git
+
+# Python Setup
+# (env already existed)
+git checkout 
+conda create -n youtube-dl python=3.10
+conda activate youtube-dl
+
+pip install -U pip setuptools wheel
+pip install -e .
+pip install pytest nose pynose brotli pycryptodome
+
+# Test run (as requested)
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+export NO_PROXY=127.0.0.1,localhost
+pytest test \
+  --ignore=test/test_download.py \
+  --ignore=test/test_age_restriction.py \
+  --ignore=test/test_subtitles.py \
+  --ignore=test/test_write_annotations.py \
+  --ignore=test/test_youtube_lists.py \
+  --ignore=test/test_iqiyi_sdk_interpreter.py \
+  --ignore=test/test_socks.py
 ```
 
 ## 6. 实验执行流程（black + deepseek 示例）
@@ -239,13 +220,14 @@ xvfb-run -a npm run test \
   - `ratios.failed_testcases`
   - `ratios.failed_files`
 
-## 8. 已知问题（交接时重点确认）
+## 8. Task List 
 
-- 文档历史中有“TheFuck setup 但 clone tqdm”这类冲突，属于文档错误，不是执行标准。
-- 真实执行前，以 `src/config.ts` 的路径/env 名和 `experiments/config/*.json` 的 task-list 为准。
-- 现有 `.env.sh` 含敏感密钥，建议第一天完成密钥轮换。
+- black : /LSPRAG/experiments/config/black-robust-final.json
+- tornado : /LSPRAG/experiments/config/tornado-robust-final.json
+- youtube-dl : /LSPRAG/experiments/config/youtube-dl-robust-final.json
+- thefuck : /LSPRAG/experiments/config/thefuck-dl-robust-final.json
 
-## 9. 检查清单
+## 8. 检查清单
 
 1. 能通过 `heyuan -> 容器(3305)` 完成 SSH 登录。
 2. `npm run compile` 成功。
