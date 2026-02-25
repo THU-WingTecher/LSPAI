@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { getAllSymbols } from '../../../lsp/symbol';
+import { getAllSymbols, getSymbolFromDocument } from '../../../lsp/symbol';
 import { getConfigInstance, Provider, GenerationType, PromptType } from '../../../config';
 import { activate, setPythonExtraPaths } from '../../../lsp/helper';
 import { setWorkspaceFolders } from '../../../helper';
@@ -78,6 +78,31 @@ suite('LSP-Features: Symbol Finding Test', () => {
         assert.ok(sumArraySymbol, 'Should find sumArray method');
     });
 
+    test('Java - getSymbolFromDocument should resolve plain name against signature symbol', async function() {
+        this.timeout(30000);
+        if (process.env.NODE_DEBUG !== 'true') {
+            await activate();
+        }
+
+        getConfigInstance().updateConfig({
+            workspace: javaProjectPath
+        });
+
+        setWorkspaceFolders(javaProjectPath);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const fileUri = vscode.Uri.file(path.join(javaProjectPath, 'src/main/java/com/example/Calculator.java'));
+        const document = await vscode.workspace.openTextDocument(fileUri);
+
+        const byPlainName = await getSymbolFromDocument(document, 'compute');
+        assert.ok(byPlainName, 'Should resolve compute by plain name');
+        assert.equal(byPlainName?.name, 'compute(String, int, int)');
+
+        const bySignatureName = await getSymbolFromDocument(document, 'compute(String, int, int)');
+        assert.ok(bySignatureName, 'Should resolve compute by signature name');
+        assert.equal(bySignatureName?.name, 'compute(String, int, int)');
+    });
+
     test('Go - Symbol Finding All Test', async function() {
         this.timeout(60000);
         if (process.env.NODE_DEBUG !== 'true') {
@@ -121,6 +146,31 @@ suite('LSP-Features: Symbol Finding Test', () => {
         const sumSliceSymbol = symbols.find(s => s.name === '(*Calculator).SumSlice');
         assert.ok(sumSliceSymbol, 'Should find SumSlice method');
     });
+
+    test('Go - getSymbolFromDocument should resolve plain name against receiver-style symbol', async function() {
+        this.timeout(60000);
+        if (process.env.NODE_DEBUG !== 'true') {
+            await activate();
+        }
+
+        getConfigInstance().updateConfig({
+            workspace: goProjectPath
+        });
+
+        setWorkspaceFolders(goProjectPath);
+
+        const fileUri = vscode.Uri.file(path.join(goProjectPath, 'calculator.go'));
+        const document = await vscode.workspace.openTextDocument(fileUri);
+        await vscode.window.showTextDocument(document);
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
+        const byPlainName = await getSymbolFromDocument(document, 'Compute');
+        assert.ok(byPlainName, 'Should resolve Compute by plain name');
+        assert.equal(byPlainName?.name, '(*Calculator).Compute');
+
+        const byReceiverName = await getSymbolFromDocument(document, '(*Calculator).Compute');
+        assert.ok(byReceiverName, 'Should resolve receiver-style symbol name');
+        assert.equal(byReceiverName?.name, '(*Calculator).Compute');
+    });
     
 });
-

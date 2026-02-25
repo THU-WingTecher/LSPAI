@@ -1050,17 +1050,15 @@ To set up the Thefuck, follow these steps:
 ```bash
 mkdir -p /LSPRAG/experiments/projects
 cd /LSPRAG/experiments/projects
-git clone https://github.com/tqdm/tqdm.git
-cd /LSPRAG/experiments/projects/tqdm
+git clone https://github.com/nvbn/thefuck.git
+cd /LSPRAG/experiments/projects/thefuck
 
-# Python Setup
 git checkout c7e7e1d
 conda create -n thefuck python=3.8
 conda activate thefuck
 pip install -r requirements.txt
 python setup.py develop 
 pip install coverage pytest pytest-json-report
-
 pytest # for checking whether the setting is complete # there will be a symbol named "get_valid_history_without_current" that do not pass unit test 
 ```
 
@@ -1083,6 +1081,38 @@ pytest
 ```
 
 ---
+
+
+#### Youtube-dl Project Setup
+
+To set up the coocki-cutter, follow these steps:
+
+```bash
+cd /LSPRAG/experiments/projects
+git clone https://github.com/ytdl-org/youtube-dl.git
+
+# Python Setup
+# (env already existed)
+git checkout 
+conda create -n youtube-dl python=3.10
+conda activate youtube-dl
+
+pip install -U pip setuptools wheel
+pip install -e .
+pip install pytest nose pynose brotli pycryptodome
+
+# Test run (as requested)
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+export NO_PROXY=127.0.0.1,localhost
+pytest test \
+  --ignore=test/test_download.py \
+  --ignore=test/test_age_restriction.py \
+  --ignore=test/test_subtitles.py \
+  --ignore=test/test_write_annotations.py \
+  --ignore=test/test_youtube_lists.py \
+  --ignore=test/test_iqiyi_sdk_interpreter.py \
+  --ignore=test/test_socks.py
+```
 
 ## Claim 2: Under-Minute Overheads
 

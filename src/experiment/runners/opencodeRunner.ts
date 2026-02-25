@@ -41,7 +41,7 @@ function getProviderApiKey(providerID: string): string {
     const p = providerID.toLowerCase();
     if (p === 'openai') return process.env.OPENAI_API_KEY ?? '';
     if (p === 'deepseek') return process.env.DEEPSEEK_API_KEY ?? '';
-    if (p === 'anthropic') return process.env.ANTHROPIC_API_KEY ?? '';
+    if (p === 'anthropic' || p === 'claude') return process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_AUTH_TOKEN ?? '';
     return process.env.OPENAI_API_KEY ?? '';
 }
 
@@ -49,12 +49,13 @@ async function ensureProviderAuth(sharedClient: any, providerID: string): Promis
     const skipAuthSet = process.env.OPENCODE_SKIP_AUTH_SET === '1';
     if (skipAuthSet) return;
 
-    const apiKey = getProviderApiKey(providerID);
+    const normalizedProviderID = providerID.toLowerCase() === 'claude' ? 'anthropic' : providerID;
+    const apiKey = getProviderApiKey(normalizedProviderID);
     if (!apiKey) return;
 
     try {
         const result = await sharedClient.auth.set({
-            path: { id: providerID },
+            path: { id: normalizedProviderID },
             body: { type: 'api', key: apiKey }
         });
         if (result && typeof result === 'object' && 'error' in result && (result as any).error) {

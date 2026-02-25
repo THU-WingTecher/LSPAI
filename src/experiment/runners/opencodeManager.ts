@@ -39,7 +39,7 @@ export class OpencodeManager {
         this.sessionId = config.sessionId || randomUUID();
         this.projectDir = config.projectDir || '/LSPRAG';
         this.model = config.model || 'o3-mini';
-        this.provider = config.provider || process.env.OPENCODE_PROVIDER || 'openai';
+        this.provider = this.normalizeProviderID(config.provider || process.env.OPENCODE_PROVIDER || 'openai');
         this.sharedClient = config.sharedClient;
         
         // Create date-based directory structure
@@ -56,6 +56,11 @@ export class OpencodeManager {
         if (!fs.existsSync(this.codesDir)) {
             fs.mkdirSync(this.codesDir, { recursive: true });
         }
+    }
+
+    private normalizeProviderID(providerID: string): string {
+        const normalized = (providerID || '').toLowerCase();
+        return normalized === 'claude' ? 'anthropic' : normalized;
     }
 
     /**
@@ -102,10 +107,10 @@ export class OpencodeManager {
     }
 
     private getProviderApiKey(): string {
-        const p = (this.provider || '').toLowerCase();
+        const p = this.normalizeProviderID(this.provider || '');
         if (p === 'openai') return process.env.OPENAI_API_KEY ?? '';
         if (p === 'deepseek') return process.env.DEEPSEEK_API_KEY ?? '';
-        if (p === 'anthropic') return process.env.ANTHROPIC_API_KEY ?? '';
+        if (p === 'anthropic') return process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_AUTH_TOKEN ?? '';
         return process.env.OPENAI_API_KEY ?? '';
     }
 
@@ -120,8 +125,9 @@ export class OpencodeManager {
         if (!apiKey) return;
 
         try {
+            const providerID = this.normalizeProviderID(this.provider);
             const result = await this.sharedClient?.auth?.set?.({
-                path: { id: this.provider },
+                path: { id: providerID },
                 body: { type: 'api', key: apiKey }
             });
             if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
@@ -195,7 +201,7 @@ export class OpencodeManager {
             
             // Parse model string
             const modelParts = this.model.includes('/') ? this.model.split('/') : [this.provider, this.model];
-            const providerID = modelParts[0] || this.provider;
+            const providerID = this.normalizeProviderID(modelParts[0] || this.provider);
             const modelID = modelParts[1] || this.model;
             
             console.log(`   Provider ID: ${providerID}, Model ID: ${modelID}`);
@@ -396,4 +402,3 @@ Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}
 export function generateUUID(): string {
     return randomUUID();
 }
-

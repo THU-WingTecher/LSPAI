@@ -130,22 +130,18 @@ async function processReferences(
     options: ReferenceProcessingOptions
 ): Promise<string[]> {
     const retreiveTime = Date.now();
-    
-    // Filter out unwanted references by URI before processing
-    const filteredReferences = references.filter(ref => !isNoNeedLocation(ref));
-    console.log(`[processReferences] Filtered ${references.length} references to ${filteredReferences.length} valid references`);
-    
+
     const referenceCodes: string[] = [];
     let totalLines = 0;
     
     const testFileMap = new Map<string, boolean>();
-    for (const ref of filteredReferences) {
+    for (const ref of references) {
         const refDocument = await vscode.workspace.openTextDocument(ref.uri);
         testFileMap.set(ref.uri.toString(), isTestFile(ref.uri, refDocument));
     }
 
     // Sort references by test files first, then by range size
-    filteredReferences.sort((a, b) => {
+    references.sort((a, b) => {
         const aIsTest = testFileMap.get(a.uri.toString()) || false;
         const bIsTest = testFileMap.get(b.uri.toString()) || false;
         
@@ -165,7 +161,7 @@ async function processReferences(
     console.log("sort references time:", (Date.now() - retreiveTime).toString());
     const processTime = Date.now();
     // Process references in order
-    for (const ref of filteredReferences) {
+    for (const ref of references) {
         // Early exit if we've hit the window limit
         if (options.refWindow !== -1 && totalLines >= options.refWindow) {
             break;
@@ -262,12 +258,6 @@ function isSameLocation(
     // overlap
     return ref.uri.toString() === originalDocument.uri.toString() &&
            !(refSymbol.range.end.isBefore(start) || refSymbol.range.start.isAfter(end));
-}
-
-    const noNeedLocation = "/lsprag"; // "lsprag-workspace", "lsprag"
-
-function isNoNeedLocation(ref: vscode.Location): boolean {
-    return ref.uri.toString().includes(noNeedLocation);
 }
 
 async function determineTargetTokenUsageByLocation(uri: vscode.Uri, location: vscode.Range, targetToken: string): Promise<string[]> {

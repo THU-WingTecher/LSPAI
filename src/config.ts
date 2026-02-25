@@ -567,6 +567,7 @@ export type ProjectConfigName =
     | 'thefuck'
     | 'cookiecutter'
     | 'tqdm'
+    | 'youtube-dl'
     | 'commons-cli' 
     | 'commons-csv'
     | 'logrus'
@@ -661,7 +662,8 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
         workspace: "/LSPRAG/experiments/projects/tqdm",
         srcPath: "/tqdm",
         language: 'python',
-        srcPathToExclude: ["/tqdm/contrib"],
+        srcPathToExclude: ["/tqdm/contrib", "/tqdm/keras.py", "/tqdm/dask.py"],
+        symbolNameToExclude: ["pandas"],
         python: {
             // Only include parent directory, not the package directory itself
             // This prevents name collision with standard library modules like 'concurrent'
@@ -686,19 +688,19 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
             pythonExe: "/root/miniconda3/envs/thefuck/bin/python"
         },
     },
-    "cookiecutter": {
-        workspace: "/LSPRAG/experiments/projects/cookiecutter",
-        srcPath: "/cookiecutter",
+    "youtube-dl": {
+        workspace: "/LSPRAG/experiments/projects/youtube-dl",
+        srcPath: "/youtube_dl",
         language: 'python',
-        srcPathToExclude: [],
+        srcPathToExclude: ["/youtube_dl/swfinterp.py", "/youtube_dl/downloader/external.py", "/youtube-dl/youtube_dl/jsinterp.py"],
         symbolNameToExclude: [],
         python: {
             // Only include parent directory, not the package directory itself
             // This prevents name collision with standard library modules like 'concurrent'
             pythonpath: [
-                "/LSPRAG/experiments/projects/cookiecutter"
+                "/LSPRAG/experiments/projects/youtube_dl"
             ],
-            pythonExe: "/root/miniconda3/envs/cookiecutter/bin/python"
+            pythonExe: "/root/miniconda3/envs/youtube-dl/bin/python"
         },
     },
     "commons-cli": {
