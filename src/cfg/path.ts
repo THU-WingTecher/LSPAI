@@ -68,6 +68,9 @@ export class PathCollector {
     private paths: Path[] = [];
     private visitedLoops: Map<string, number> = new Map(); // Track loop iterations
     private MAX_LOOP_ITERATIONS = 2; // Limit loop traversal
+    private MAX_COLLECTED_PATHS = 1000; // Hard cap to prevent path explosion
+    private MAX_TRAVERSAL_STEPS = 50000; // Hard cap to prevent runaway recursion
+    private traversalSteps = 0;
     private exceptionExtractor: ExceptionTypeExtractor;
     private conditionAnalysis: Map<string, ConditionAnalysis> = new Map();
 
@@ -77,6 +80,7 @@ export class PathCollector {
 
     collect(cfg: CFGNode): PathResult[] {
         this.paths = [];
+        this.traversalSteps = 0;
         this.traverse(cfg, new Path());
         return this. paths.map(p => p.toResult());
     }
@@ -449,7 +453,11 @@ export class PathCollector {
     }
 
     private traverse(node: CFGNode, currentPath: Path) {
-        if (!node) {
+        if (!node || this.paths.length >= this.MAX_COLLECTED_PATHS) {
+            return;
+        }
+        this.traversalSteps++;
+        if (this.traversalSteps >= this.MAX_TRAVERSAL_STEPS) {
             return;
         }
         // console.log('traverse', node.type, 'currentPath', node.astNode.text);
@@ -606,6 +614,9 @@ export class PathCollector {
                 if (node.successors.length > 0) {
                     // Normal statement processing
                     for (const successor of node.successors) {
+                        if (this.paths.length >= this.MAX_COLLECTED_PATHS || this.traversalSteps >= this.MAX_TRAVERSAL_STEPS) {
+                            break;
+                        }
                         // Skip back edges if we've reached max iterations
                         if (successor.type === CFGNodeType.LOOP) {
                             const loopCount = currentPath.getVisitedLoops().get(successor.id) || 0;

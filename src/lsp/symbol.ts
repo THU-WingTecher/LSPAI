@@ -85,10 +85,42 @@ export async function getSymbolByLocation(document: vscode.TextDocument, locatio
 
 }
 
+function normalizeSymbolNameForMatching(name: string): string {
+    return name.trim().toLocaleLowerCase().split('(')[0].trim();
+}
+
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export async function getSymbolFromDocument(document: vscode.TextDocument, symbolName: string): Promise<vscode.DocumentSymbol | null> {
     const symbols = await getAllSymbols(document.uri);
-    const symbol = symbols.find(s => s.name.toLocaleLowerCase().includes(symbolName.toLowerCase()));
-    return symbol || null;
+    const targetRaw = symbolName.trim().toLocaleLowerCase();
+    const targetBase = normalizeSymbolNameForMatching(symbolName);
+    if (!targetRaw && !targetBase) {
+        return null;
+    }
+
+    const exact = symbols.find(s => {
+        const nameRaw = s.name.trim().toLocaleLowerCase();
+        return nameRaw === targetRaw || normalizeSymbolNameForMatching(s.name) === targetBase;
+    });
+    if (exact) {
+        return exact;
+    }
+
+    if (targetBase) {
+        const boundary = new RegExp(`(^|[^\\w])${escapeRegExp(targetBase)}([^\\w]|$)`);
+        const bounded = symbols.find(s => boundary.test(s.name.toLocaleLowerCase()));
+        if (bounded) {
+            return bounded;
+        }
+    }
+
+    return symbols.find(s => {
+        const name = s.name.toLocaleLowerCase();
+        return name.includes(targetRaw) || (targetBase && name.includes(targetBase));
+    }) || null;
 }
 
 export async function getOuterSymbols(uri: vscode.Uri, retries = 10, delayMs = 500): Promise<vscode.DocumentSymbol[]> {
