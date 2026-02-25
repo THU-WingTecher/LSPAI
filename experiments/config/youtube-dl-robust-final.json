@@ -1,0 +1,802 @@
+[
+  {
+    "symbolName": "f",
+    "sourceCode": "def f(m):\n                l = []\n                o = 0\n                b = False\n                m_len = len(m)\n                while ((not b) and o < m_len):\n                    n = m[o] << 2\n                    o += 1\n                    k = -1\n                    j = -1\n                    if o < m_len:\n                        n += m[o] >> 4\n                        o += 1\n                        if o < m_len:\n                            k = (m[o - 1] << 4) & 255\n                            k += m[o] >> 2\n                            o += 1\n                            if o < m_len:\n                                j = (m[o - 1] << 6) & 255\n                                j += m[o]\n                                o += 1\n                            else:\n                                b = True\n                        else:\n                            b = True\n                    else:\n                        b = True\n                    l.append(n)\n                    if k != -1:\n                        l.append(k)\n                    if j != -1:\n                        l.append(j)\n                return l",
+    "importString": "",
+    "lineNum": 32,
+    "location": 128,
+    "relativeDocumentPath": "youtube_dl/extractor/vvvvid.py"
+  },
+  {
+    "symbolName": "msg",
+    "sourceCode": "def msg(fmt, lbl):\n            return fmt % (lbl + ' metadata',)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 2661,
+    "relativeDocumentPath": "youtube_dl/YoutubeDL.py"
+  },
+  {
+    "symbolName": "traverse_obj",
+    "sourceCode": "def traverse_obj(obj, *paths, **kwargs):\n    \"\"\"\n    Safely traverse nested `dict`s and `Iterable`s, etc\n\n    >>> obj = [{}, {\"key\": \"value\"}]\n    >>> traverse_obj(obj, (1, \"key\"))\n    'value'\n\n    Each of the provided `paths` is tested and the first producing a valid result will be returned.\n    The next path will also be tested if the path branched but no results could be found.\n    Supported values for traversal are `Mapping`, `Iterable`, `re.Match`, `xml.etree.ElementTree`\n    (xpath) and `http.cookies.Morsel`.\n    Unhelpful values (`{}`, `None`) are treated as the absence of a value and discarded.\n\n    The paths will be wrapped in `variadic`, so that `'key'` is conveniently the same as `('key', )`.\n\n    The keys in the path can be one of:\n        - `None`:           Return the current object.\n        - `set`:            Requires the only item in the set to be a type or function,\n                            like `{type}`/`{type, type, ...}`/`{func}`. If one or more `type`s,\n                            return only values that have one of the types. If a function,\n                            return `func(obj)`.\n        - `str`/`int`:      Return `obj[key]`. For `re.Match`, return `obj.group(key)`.\n        - `slice`:          Branch out and return all values in `obj[key]`.\n        - `Ellipsis`:       Branch out and return a list of all values.\n        - `tuple`/`list`:   Branch out and return a list of all matching values.\n                            Read as: `[traverse_obj(obj, branch) for branch in branches]`.\n        - `function`:       Branch out and return values filtered by the function.\n                            Read as: `[value for key, value in obj if function(key, value)]`.\n                            For `Sequence`s, `key` is the index of the value.\n                            For `Iterable`s, `key` is the enumeration count of the value.\n                            For `re.Match`es, `key` is the group number (0 = full match)\n                            as well as additionally any group names, if given.\n        - `dict`:           Transform the current object and return a matching dict.\n                            Read as: `{key: traverse_obj(obj, path) for key, path in dct.items()}`.\n        - `any`-builtin:    Take the first matching object and return it, resetting branching.\n        - `all`-builtin:    Take all matching objects and return them as a list, resetting branching.\n        - `filter`-builtin: Return the value if it is truthy, `None` otherwise.\n\n        `tuple`, `list`, and `dict` all support nested paths and branches.\n\n    @params paths           Paths which to traverse by.\n    Keyword arguments:\n    @param default          Value to return if the paths do not match.\n                            If the last key in the path is a `dict`, it will apply to each value inside\n                            the dict instead, depth first. Try to avoid if using nested `dict` keys.\n    @param expected_type    If a `type`, only accept final values of this type.\n                            If any other callable, try to call the function on each result.\n                            If the last key in the path is a `dict`, it will apply to each value inside\n                            the dict instead, recursively. This does respect branching paths.\n    @param get_all          If `False`, return the first matching result, otherwise all matching ones.\n    @param casesense        If `False`, consider string dictionary keys as case insensitive.\n\n    The following is only meant to be used by YoutubeDL.prepare_outtmpl and is not part of the API\n\n    @param _traverse_string  Whether to traverse into objects as strings.\n                            If `True`, any non-compatible object will first be\n                            converted into a string and then traversed into.\n                            The return value of that path will be a string instead,\n                            not respecting any further branching.\n\n\n    @returns                The result of the object traversal.\n                            If successful, `get_all=True`, and the path branches at least once,\n                            then a list of results is returned instead.\n                            A list is always returned if the last path branches and no `default` is given.\n                            If a path ends on a `dict` that result will always be a `dict`.\n    \"\"\"\n\n    # parameter defaults\n    default = kwargs.get('default', NO_DEFAULT)\n    expected_type = kwargs.get('expected_type')\n    get_all = kwargs.get('get_all', True)\n    casesense = kwargs.get('casesense', True)\n    _traverse_string = kwargs.get('_traverse_string', False)\n\n    # instant compat\n    str = compat_str\n\n    from .compat import (\n        compat_builtins_dict as dict_,  # the basic dict type\n        compat_dict as dict,            # dict preserving imsertion order\n    )\n\n    casefold = lambda k: compat_casefold(k) if isinstance(k, str) else k\n\n    if isinstance(expected_type, type):\n        type_test = lambda val: val if isinstance(val, expected_type) else None\n    else:\n        type_test = lambda val: try_call(expected_type or IDENTITY, args=(val,))\n\n    def lookup_or_none(v, k, getter=None):\n        with compat_contextlib_suppress(LookupError):\n            return getter(v, k) if getter else v[k]\n\n    def from_iterable(iterables):\n        # chain.from_iterable(['ABC', 'DEF']) --> A B C D E F\n        for it in iterables:\n            for item in it:\n                yield item\n\n    def apply_key(key, obj, is_last):\n        branching = False\n\n        if obj is None and _traverse_string:\n            if key is Ellipsis or callable(key) or isinstance(key, slice):\n                branching = True\n                result = ()\n            else:\n                result = None\n\n        elif key is None:\n            result = obj\n\n        elif isinstance(key, set):\n            assert len(key) >= 1, 'At least one item is required in a `set` key'\n            if all(isinstance(item, type) for item in key):\n                result = obj if isinstance(obj, tuple(key)) else None\n            else:\n                item = next(iter(key))\n                assert len(key) == 1, 'Multiple items in a `set` key must all be types'\n                result = try_call(item, args=(obj,)) if not isinstance(item, type) else None\n\n        elif isinstance(key, (list, tuple)):\n            branching = True\n            result = from_iterable(\n                apply_path(obj, branch, is_last)[0] for branch in key)\n\n        elif key is Ellipsis:\n            branching = True\n            if isinstance(obj, compat_http_cookies.Morsel):\n                obj = dict(obj, key=obj.key, value=obj.value)\n            if isinstance(obj, compat_collections_abc.Mapping):\n                result = obj.values()\n            elif is_iterable_like(obj, (compat_collections_abc.Iterable, compat_etree_Element)):\n                result = obj\n            elif isinstance(obj, compat_re_Match):\n                result = obj.groups()\n            elif _traverse_string:\n                branching = False\n                result = str(obj)\n            else:\n                result = ()\n\n        elif callable(key):\n            branching = True\n            if isinstance(obj, compat_http_cookies.Morsel):\n                obj = dict(obj, key=obj.key, value=obj.value)\n            if isinstance(obj, compat_collections_abc.Mapping):\n                iter_obj = obj.items()\n            elif is_iterable_like(obj, (compat_collections_abc.Iterable, compat_etree_Element)):\n                iter_obj = enumerate(obj)\n            elif isinstance(obj, compat_re_Match):\n                iter_obj = itertools.chain(\n                    enumerate(itertools.chain((obj.group(),), obj.groups())),\n                    obj.groupdict().items())\n            elif _traverse_string:\n                branching = False\n                iter_obj = enumerate(str(obj))\n            else:\n                iter_obj = ()\n\n            result = (v for k, v in iter_obj if try_call(key, args=(k, v)))\n            if not branching:  # string traversal\n                result = ''.join(result)\n\n        elif isinstance(key, dict_):\n            iter_obj = ((k, _traverse_obj(obj, v, False, is_last)) for k, v in key.items())\n            result = dict((k, v if v is not None else default) for k, v in iter_obj\n                          if v is not None or default is not NO_DEFAULT) or None\n\n        elif isinstance(obj, compat_collections_abc.Mapping):\n            if isinstance(obj, compat_http_cookies.Morsel):\n                obj = dict(obj, key=obj.key, value=obj.value)\n            result = (try_call(obj.get, args=(key,))\n                      if casesense or try_call(obj.__contains__, args=(key,))\n                      else next((v for k, v in obj.items() if casefold(k) == key), None))\n\n        elif isinstance(obj, compat_re_Match):\n            result = None\n            if isinstance(key, int) or casesense:\n                # Py 2.6 doesn't have methods in the Match class/type\n                result = lookup_or_none(obj, key, getter=lambda _, k: obj.group(k))\n\n            elif isinstance(key, str):\n                result = next((v for k, v in obj.groupdict().items()\n                              if casefold(k) == key), None)\n\n        else:\n            result = None\n            if isinstance(key, (int, slice)):\n                if is_iterable_like(obj, (compat_collections_abc.Sequence, compat_etree_Element)):\n                    branching = isinstance(key, slice)\n                    result = lookup_or_none(obj, key)\n                elif _traverse_string:\n                    result = lookup_or_none(str(obj), key)\n\n            elif isinstance(obj, compat_etree_Element) and isinstance(key, str):\n                xpath, _, special = key.rpartition('/')\n                if not special.startswith('@') and not special.endswith('()'):\n                    xpath = key\n                    special = None\n\n                # Allow abbreviations of relative paths, absolute paths error\n                if xpath.startswith('/'):\n                    xpath = '.' + xpath\n                elif xpath and not xpath.startswith('./'):\n                    xpath = './' + xpath\n\n                def apply_specials(element):\n                    if special is None:\n                        return element\n                    if special == '@':\n                        return element.attrib\n                    if special.startswith('@'):\n                        return try_call(element.attrib.get, args=(special[1:],))\n                    if special == 'text()':\n                        return element.text\n                    raise SyntaxError('apply_specials is missing case for {0!r}'.format(special))\n\n                if xpath:\n                    result = list(map(apply_specials, compat_etree_iterfind(obj, xpath)))\n                else:\n                    result = apply_specials(obj)\n\n        return branching, result if branching else (result,)\n\n    def lazy_last(iterable):\n        iterator = iter(iterable)\n        prev = next(iterator, NO_DEFAULT)\n        if prev is NO_DEFAULT:\n            return\n\n        for item in iterator:\n            yield False, prev\n            prev = item\n\n        yield True, prev\n\n    def apply_path(start_obj, path, test_type):\n        objs = (start_obj,)\n        has_branched = False\n\n        key = None\n        for last, key in lazy_last(variadic(path, (str, bytes, dict_, set))):\n            if not casesense and isinstance(key, str):\n                key = compat_casefold(key)\n\n            if key in (any, all):\n                has_branched = False\n                filtered_objs = (obj for obj in objs if obj not in (None, {}))\n                if key is any:\n                    objs = (next(filtered_objs, None),)\n                else:\n                    objs = (list(filtered_objs),)\n                continue\n\n            # filter might be from __builtin__, future_builtins, or itertools.ifilter\n            if key in compat_filter_fns:\n                objs = filter(None, objs)\n                continue\n\n            if __debug__ and callable(key):\n                # Verify function signature\n                _try_bind_args(key, None, None)\n\n            new_objs = []\n            for obj in objs:\n                branching, results = apply_key(key, obj, last)\n                has_branched |= branching\n                new_objs.append(results)\n\n            objs = from_iterable(new_objs)\n\n        if test_type and not isinstance(key, (dict_, list, tuple)):\n            objs = map(type_test, objs)\n\n        return objs, has_branched, isinstance(key, dict_)\n\n    def _traverse_obj(obj, path, allow_empty, test_type):\n        results, has_branched, is_dict = apply_path(obj, path, test_type)\n        results = LazyList(x for x in results if x not in (None, {}))\n\n        if get_all and has_branched:\n            if results:\n                return results.exhaust()\n            if allow_empty:\n                return [] if default is NO_DEFAULT else default\n            return None\n\n        return results[0] if results else {} if allow_empty and is_dict else None\n\n    for index, path in enumerate(paths, 1):\n        result = _traverse_obj(obj, path, index == len(paths), True)\n        if result is not None:\n            return result\n\n    return None if default is NO_DEFAULT else default",
+    "importString": "",
+    "lineNum": 297,
+    "location": 6309,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "data",
+    "sourceCode": "def data(section, field, type_):\n            return try_get(video, lambda x: x[section][field], type_)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 583,
+    "relativeDocumentPath": "youtube_dl/extractor/peertube.py"
+  },
+  {
+    "symbolName": "data",
+    "sourceCode": "def data(self, data):\n            self._out += data",
+    "importString": "",
+    "lineNum": 1,
+    "location": 5061,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "value",
+    "sourceCode": "def value(value):\n    return lambda _: value",
+    "importString": "",
+    "lineNum": 1,
+    "location": 6609,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "manifest_url",
+    "sourceCode": "def manifest_url(manifest):\n            m_url = '%s/%s' % (http_base_url, manifest)\n            if query:\n                m_url += '?%s' % query\n            return m_url",
+    "importString": "",
+    "lineNum": 4,
+    "location": 2975,
+    "relativeDocumentPath": "youtube_dl/extractor/common.py"
+  },
+  {
+    "symbolName": "process_ie_result",
+    "sourceCode": "def process_ie_result(self, ie_result, download=True, extra_info={}):\n        \"\"\"\n        Take the result of the ie (may be modified) and resolve all unresolved\n        references (URLs, playlist items).\n\n        It will also download the videos if 'download'.\n        Returns the resolved ie_result.\n        \"\"\"\n        result_type = ie_result.get('_type', 'video')\n\n        if result_type in ('url', 'url_transparent'):\n            ie_result['url'] = sanitize_url(ie_result['url'])\n            extract_flat = self.params.get('extract_flat', False)\n            if ((extract_flat == 'in_playlist' and 'playlist' in extra_info)\n                    or extract_flat is True):\n                self.__forced_printings(\n                    ie_result, self.prepare_filename(ie_result),\n                    incomplete=True)\n                return ie_result\n\n        if result_type == 'video':\n            self.add_extra_info(ie_result, extra_info)\n            return self.process_video_result(ie_result, download=download)\n        elif result_type == 'url':\n            # We have to add extra_info to the results because it may be\n            # contained in a playlist\n            return self.extract_info(ie_result['url'],\n                                     download,\n                                     ie_key=ie_result.get('ie_key'),\n                                     extra_info=extra_info)\n        elif result_type == 'url_transparent':\n            # Use the information from the embedding page\n            info = self.extract_info(\n                ie_result['url'], ie_key=ie_result.get('ie_key'),\n                extra_info=extra_info, download=False, process=False)\n\n            # extract_info may return None when ignoreerrors is enabled and\n            # extraction failed with an error, don't crash and return early\n            # in this case\n            if not info:\n                return info\n\n            force_properties = dict(\n                (k, v) for k, v in ie_result.items() if v is not None)\n            for f in ('_type', 'url', 'id', 'extractor', 'extractor_key', 'ie_key'):\n                if f in force_properties:\n                    del force_properties[f]\n            new_result = info.copy()\n            new_result.update(force_properties)\n\n            # Extracted info may not be a video result (i.e.\n            # info.get('_type', 'video') != video) but rather an url or\n            # url_transparent. In such cases outer metadata (from ie_result)\n            # should be propagated to inner one (info). For this to happen\n            # _type of info should be overridden with url_transparent. This\n            # fixes issue from https://github.com/ytdl-org/youtube-dl/pull/11163.\n            if new_result.get('_type') == 'url':\n                new_result['_type'] = 'url_transparent'\n\n            return self.process_ie_result(\n                new_result, download=download, extra_info=extra_info)\n        elif result_type in ('playlist', 'multi_video'):\n            # Protect from infinite recursion due to recursively nested playlists\n            # (see https://github.com/ytdl-org/youtube-dl/issues/27833)\n            webpage_url = ie_result.get('webpage_url')  # not all pl/mv have this\n            if webpage_url and webpage_url in self._playlist_urls:\n                self.to_screen(\n                    '[download] Skipping already downloaded playlist: %s'\n                    % ie_result.get('title') or ie_result.get('id'))\n                return\n\n            self._playlist_level += 1\n            self._playlist_urls.add(webpage_url)\n            new_result = dict((k, v) for k, v in extra_info.items() if k not in ie_result)\n            if new_result:\n                new_result.update(ie_result)\n                ie_result = new_result\n            try:\n                return self.__process_playlist(ie_result, download)\n            finally:\n                self._playlist_level -= 1\n                if not self._playlist_level:\n                    self._playlist_urls.clear()\n        elif result_type == 'compat_list':\n            self.report_warning(\n                'Extractor %s returned a compat_list result. '\n                'It needs to be updated.' % ie_result.get('extractor'))\n\n            def _fixup(r):\n                self.add_extra_info(\n                    r,\n                    {\n                        'extractor': ie_result['extractor'],\n                        'webpage_url': ie_result['webpage_url'],\n                        'webpage_url_basename': url_basename(ie_result['webpage_url']),\n                        'extractor_key': ie_result['extractor_key'],\n                    }\n                )\n                return r\n            ie_result['entries'] = [\n                self.process_ie_result(_fixup(r), download, extra_info)\n                for r in ie_result['entries']\n            ]\n            return ie_result\n        else:\n            raise Exception('Invalid result type: %s' % result_type)",
+    "importString": "",
+    "lineNum": 105,
+    "location": 1000,
+    "relativeDocumentPath": "youtube_dl/YoutubeDL.py"
+  },
+  {
+    "symbolName": "get",
+    "sourceCode": "def get(key, name):\n            return int_or_none(self._search_regex(\n                r'%s[\"\\']\\s*:\\s*[\"\\'](\\d+)' % key, webpage, name,\n                default=None))",
+    "importString": "",
+    "lineNum": 3,
+    "location": 75,
+    "relativeDocumentPath": "youtube_dl/extractor/breakcom.py"
+  },
+  {
+    "symbolName": "get",
+    "sourceCode": "def get(section, field):\n            return feed.get(section, {}).get(field)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 41,
+    "relativeDocumentPath": "youtube_dl/extractor/huajiao.py"
+  },
+  {
+    "symbolName": "get",
+    "sourceCode": "def get(self, url, html=None, video_id=None, note=None, note2='Executing JS on webpage', headers={}, jscode='saveAndExit();'):\n        \"\"\"\n        Downloads webpage (if needed) and executes JS\n\n        Params:\n            url: website url\n            html: optional, html code of website\n            video_id: video id\n            note: optional, displayed when downloading webpage\n            note2: optional, displayed when executing JS\n            headers: custom http headers\n            jscode: code to be executed when page is loaded\n\n        Returns tuple with:\n            * downloaded website (after JS execution)\n            * anything you print with `console.log` (but not inside `page.execute`!)\n\n        In most cases you don't need to add any `jscode`.\n        It is executed in `page.onLoadFinished`.\n        `saveAndExit();` is mandatory, use it instead of `phantom.exit()`\n        It is possible to wait for some element on the webpage, for example:\n            var check = function() {\n              var elementFound = page.evaluate(function() {\n                return document.querySelector('#b.done') !== null;\n              });\n              if(elementFound)\n                saveAndExit();\n              else\n                window.setTimeout(check, 500);\n            }\n\n            page.evaluate(function(){\n              document.querySelector('#a').click();\n            });\n            check();\n        \"\"\"\n        if 'saveAndExit();' not in jscode:\n            raise ExtractorError('`saveAndExit();` not found in `jscode`')\n        if not html:\n            html = self.extractor._download_webpage(url, video_id, note=note, headers=headers)\n        with open(self._TMP_FILES['html'].name, 'wb') as f:\n            f.write(html.encode('utf-8'))\n\n        self._save_cookies(url)\n\n        replaces = self.options\n        replaces['url'] = url\n        user_agent = headers.get('User-Agent') or std_headers['User-Agent']\n        replaces['ua'] = user_agent.replace('\"', '\\\\\"')\n        replaces['jscode'] = jscode\n\n        for x in self._TMP_FILE_NAMES:\n            replaces[x] = self._TMP_FILES[x].name.replace('\\\\', '\\\\\\\\').replace('\"', '\\\\\"')\n\n        with open(self._TMP_FILES['script'].name, 'wb') as f:\n            f.write(self._TEMPLATE.format(**replaces).encode('utf-8'))\n\n        if video_id is None:\n            self.extractor.to_screen('%s' % (note2,))\n        else:\n            self.extractor.to_screen('%s: %s' % (video_id, note2))\n\n        p = subprocess.Popen([\n            self.exe, '--ssl-protocol=any',\n            self._TMP_FILES['script'].name\n        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)\n        out, err = process_communicate_or_kill(p)\n        if p.returncode != 0:\n            raise ExtractorError(\n                'Executing JS failed\\n:' + encodeArgument(err))\n        with open(self._TMP_FILES['html'].name, 'rb') as f:\n            html = f.read().decode('utf-8')\n\n        self._load_cookies()\n\n        return (html, encodeArgument(out))",
+    "importString": "",
+    "lineNum": 75,
+    "location": 164,
+    "relativeDocumentPath": "youtube_dl/extractor/openload.py"
+  },
+  {
+    "symbolName": "get",
+    "sourceCode": "def get(key):\n            return xpath_text(\n                sts, './/{https://sts.amazonaws.com/doc/2011-06-15/}%s' % key,\n                fatal=True)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 88,
+    "relativeDocumentPath": "youtube_dl/extractor/scrippsnetworks.py"
+  },
+  {
+    "symbolName": "get",
+    "sourceCode": "def get(getter):\n            for src in (data, clip_data):\n                v = try_get(src, getter, compat_str)\n                if v:\n                    return v",
+    "importString": "",
+    "lineNum": 4,
+    "location": 114,
+    "relativeDocumentPath": "youtube_dl/extractor/sixplay.py"
+  },
+  {
+    "symbolName": "get",
+    "sourceCode": "def get(meta, default=NO_DEFAULT, fatal=True):\n            return self._search_regex(\n                r'set%s\\s*\\(\\s*([\"\\'])(?P<value>(?:(?!\\1).)+)\\1' % meta,\n                webpage, meta, default=default, fatal=fatal, group='value')",
+    "importString": "",
+    "lineNum": 3,
+    "location": 41,
+    "relativeDocumentPath": "youtube_dl/extractor/xnxx.py"
+  },
+  {
+    "symbolName": "dl",
+    "sourceCode": "def dl(name, info):\n                    fd = checked_get_suitable_downloader(info, self.params)(self, self.params)\n                    for ph in self._progress_hooks:\n                        fd.add_progress_hook(ph)\n                    if self.params.get('verbose'):\n                        self.to_screen('[debug] Invoking downloader on %r' % info.get('url'))\n\n                    new_info = dict((k, v) for k, v in info.items() if not k.startswith('__p'))\n                    new_info['http_headers'] = self._calc_headers(new_info)\n\n                    return fd.download(name, new_info)",
+    "importString": "",
+    "lineNum": 10,
+    "location": 2084,
+    "relativeDocumentPath": "youtube_dl/YoutubeDL.py"
+  },
+  {
+    "symbolName": "dl",
+    "sourceCode": "def dl(*args, **kwargs):\n            return super(PornHubBaseIE, self)._download_webpage_handle(*args, **kwargs)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 35,
+    "relativeDocumentPath": "youtube_dl/extractor/pornhub.py"
+  },
+  {
+    "symbolName": "js_to_json",
+    "sourceCode": "def js_to_json(code, *args, **kwargs):\n\n    # vars is a dict of (var, val) pairs to substitute\n    vars = args[0] if len(args) > 0 else kwargs.get('vars', {})\n    strict = kwargs.get('strict', False)\n\n    STRING_QUOTES = '\\'\"`'\n    STRING_RE = '|'.join(r'{0}(?:\\\\.|[^\\\\{0}])*{0}'.format(q) for q in STRING_QUOTES)\n    COMMENT_RE = r'/\\*(?:(?!\\*/).)*?\\*/|//[^\\n]*\\n'\n    SKIP_RE = r'\\s*(?:{comment})?\\s*'.format(comment=COMMENT_RE)\n    INTEGER_TABLE = (\n        (r'(?s)^(0[xX][0-9a-fA-F]+){skip}:?$'.format(skip=SKIP_RE), 16),\n        (r'(?s)^(0+[0-7]+){skip}:?$'.format(skip=SKIP_RE), 8),\n        (r'(?s)^(\\d+){skip}:?$'.format(skip=SKIP_RE), 10),\n    )\n    # compat candidate\n    JSONDecodeError = json.JSONDecodeError if 'JSONDecodeError' in dir(json) else ValueError\n\n    def process_escape(match):\n        JSON_PASSTHROUGH_ESCAPES = r'\"\\bfnrtu'\n        escape = match.group(1) or match.group(2)\n\n        return ('\\\\' + escape if escape in JSON_PASSTHROUGH_ESCAPES\n                else '\\\\u00' if escape == 'x'\n                else '' if escape == '\\n'\n                else escape)\n\n    def template_substitute(match):\n        evaluated = js_to_json(match.group(1), vars, strict=strict)\n        if evaluated[0] == '\"':\n            return json.loads(evaluated)\n        return evaluated\n\n    def fix_kv(m):\n        v = m.group(0)\n        if v in ('true', 'false', 'null'):\n            return v\n        elif v in ('undefined', 'void 0'):\n            return 'null'\n        elif v.startswith('/*') or v.startswith('//') or v == ',':\n            return ''\n\n        if v[0] in STRING_QUOTES:\n            v = re.sub(r'(?s)\\${([^}]+)}', template_substitute, v[1:-1]) if v[0] == '`' else v[1:-1]\n            escaped = re.sub(r'(?s)(\")|\\\\(.)', process_escape, v)\n            return '\"{0}\"'.format(escaped)\n\n        inv = IDENTITY\n        im = re.split(r'^!+', v)\n        if len(im) > 1 and not im[-1].endswith(':'):\n            if (len(v) - len(im[1])) % 2 == 1:\n                inv = lambda x: 'true' if x == 0 else 'false'\n            else:\n                inv = lambda x: 'false' if x == 0 else 'true'\n        if not any(x for x in im):\n            return\n        v = im[-1]\n\n        for regex, base in INTEGER_TABLE:\n            im = re.match(regex, v)\n            if im:\n                i = int(im.group(1), base)\n                return ('\"%s\":' if v.endswith(':') else '%s') % inv(i)\n\n        if v in vars:\n            try:\n                if not strict:\n                    json.loads(vars[v])\n            except JSONDecodeError:\n                return inv(json.dumps(vars[v]))\n            else:\n                return inv(vars[v])\n\n        if not strict:\n            v = try_call(inv, args=(v,), default=v)\n            if v in ('true', 'false'):\n                return v\n            return '\"{0}\"'.format(v)\n\n        raise ValueError('Unknown value: ' + v)\n\n    def create_map(mobj):\n        return json.dumps(dict(json.loads(js_to_json(mobj.group(1) or '[]', vars=vars))))\n\n    code = re.sub(r'new Map\\((\\[.*?\\])?\\)', create_map, code)\n    if not strict:\n        code = re.sub(r'new Date\\((\".+\")\\)', r'\\g<1>', code)\n        code = re.sub(r'new \\w+\\((.*?)\\)', lambda m: json.dumps(m.group(0)), code)\n        code = re.sub(r'parseInt\\([^\\d]+(\\d+)[^\\d]+\\)', r'\\1', code)\n        code = re.sub(r'\\(function\\([^)]*\\)\\s*\\{[^}]*\\}\\s*\\)\\s*\\(\\s*([\"\\'][^)]*[\"\\'])\\s*\\)', r'\\1', code)\n\n    return re.sub(r'''(?sx)\n        {str_}|\n        {comment}|\n        ,(?={skip}[\\]}}])|\n        void\\s0|\n        !*(?:(?<!\\d)[eE]|[a-df-zA-DF-Z_$])[.a-zA-Z_$0-9]*|\n        (?:\\b|!+)0(?:[xX][\\da-fA-F]+|[0-7]+)(?:{skip}:)?|\n        !+\\d+(?:\\.\\d*)?(?:{skip}:)?|\n        [0-9]+(?:{skip}:)|\n        !+\n        '''.format(comment=COMMENT_RE, skip=SKIP_RE, str_=STRING_RE), fix_kv, code)",
+    "importString": "",
+    "lineNum": 101,
+    "location": 4547,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n            featured_video = story.get('featuredVideo') or {}\n            feed = try_get(featured_video, lambda x: x['video']['feed'])\n            if feed:\n                yield {\n                    '_type': 'url',\n                    'id': featured_video.get('id'),\n                    'title': featured_video.get('name'),\n                    'url': feed,\n                    'thumbnail': featured_video.get('images'),\n                    'description': featured_video.get('description'),\n                    'timestamp': parse_iso8601(featured_video.get('uploadDate')),\n                    'duration': parse_duration(featured_video.get('duration')),\n                    'ie_key': AbcNewsVideoIE.ie_key(),\n                }\n\n            for inline in (article_contents.get('inlines') or []):\n                inline_type = inline.get('type')\n                if inline_type == 'iframe':\n                    iframe_url = try_get(inline, lambda x: x['attrs']['src'])\n                    if iframe_url:\n                        yield self.url_result(iframe_url)\n                elif inline_type == 'video':\n                    video_id = inline.get('id')\n                    if video_id:\n                        yield {\n                            '_type': 'url',\n                            'id': video_id,\n                            'url': 'http://abcnews.go.com/video/embed?id=' + video_id,\n                            'thumbnail': inline.get('imgSrc') or inline.get('imgDefault'),\n                            'description': inline.get('description'),\n                            'duration': parse_duration(inline.get('duration')),\n                            'ie_key': AbcNewsVideoIE.ie_key(),\n                        }",
+    "importString": "",
+    "lineNum": 33,
+    "location": 120,
+    "relativeDocumentPath": "youtube_dl/extractor/abcnews.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n            for episode in (season_search.get('hits') or []):\n                search_url = episode.get('search_url')  # always formatted like '/episode/123-title-of-episode'\n                if not search_url:\n                    continue\n                yield {\n                    '_type': 'url',\n                    'url': 'https://www.americastestkitchen.com%s%s' % (show_path, search_url),\n                    'id': try_get(episode, lambda e: e['objectID'].rsplit('_', 1)[-1]),\n                    'title': episode.get('title'),\n                    'description': episode.get('description'),\n                    'timestamp': unified_timestamp(episode.get('search_document_date')),\n                    'season_number': season_number,\n                    'episode_number': int_or_none(episode.get('search_%s_episode_number' % slug)),\n                    'ie_key': AmericasTestKitchenIE.ie_key(),\n                }",
+    "importString": "",
+    "lineNum": 15,
+    "location": 201,
+    "relativeDocumentPath": "youtube_dl/extractor/americastestkitchen.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n            has_episodes = False\n            for e in extract_episodes(webpage):\n                has_episodes = True\n                yield e\n\n            if not has_episodes:\n                for e in extract_film(webpage, anime_id):\n                    yield e",
+    "importString": "",
+    "lineNum": 8,
+    "location": 287,
+    "relativeDocumentPath": "youtube_dl/extractor/animeondemand.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n                for player in traverse_obj(\n                        nextjs_data,\n                        ('props', 'apolloState', 'ROOT_QUERY', lambda k, _: k.startswith('videoPlayerProps('), '__ref')):\n                    # skip promo links (which may not always be served, eg GH CI servers)\n                    if traverse_obj(nextjs_data,\n                                    ('props', 'apolloState', player.replace('PlayerProps', 'ModernContent')),\n                                    expected_type=dict):\n                        continue\n                    video = traverse_obj(nextjs_data, ('props', 'apolloState', player), expected_type=dict) or {}\n                    info = self._extract_video_info(video, fatal=False)\n                    if info:\n                        yield merge_dicts({\n                            'display_id': display_id,\n                        }, info)",
+    "importString": "",
+    "lineNum": 14,
+    "location": 395,
+    "relativeDocumentPath": "youtube_dl/extractor/ign.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n\n            for data in content or []:\n                video_id = data.get('id')\n                if not video_id:\n                    continue\n                account = data.get('accountId') or self.BRIGHTCOVE_ACCOUNT\n                player = data.get('playerId') or self.BRIGHTCOVE_PLAYER\n                yield self.url_result(\n                    smuggle_url(self.BRIGHTCOVE_URL_TEMPLATE % (account, player, video_id), contraband),\n                    ie=BrightcoveNewIE.ie_key(), video_id=video_id)\n\n            # obsolete ?\n            for video_id in re.findall(r'''data-video-id=[\"'](\\d+)''', webpage):\n                yield self.url_result(\n                    smuggle_url(self.BRIGHTCOVE_URL_TEMPLATE % (self.BRIGHTCOVE_ACCOUNT, self.BRIGHTCOVE_PLAYER, video_id), contraband),\n                    ie=BrightcoveNewIE.ie_key(), video_id=video_id)",
+    "importString": "",
+    "lineNum": 16,
+    "location": 373,
+    "relativeDocumentPath": "youtube_dl/extractor/itv.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n            for music in traverse_obj(artist, (\n                    'musics', 'nodes', lambda _, m: m['musicID'])):\n                yield self._parse_music(music)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 119,
+    "relativeDocumentPath": "youtube_dl/extractor/palcomp3.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n            episodes = self._call_api('podcasts/%s/episodes', podcast_id)\n            for episode in (episodes.get('collection') or []):\n                info = self._parse_episode(episode)\n                info['series'] = podcast_title\n                yield info",
+    "importString": "",
+    "lineNum": 5,
+    "location": 152,
+    "relativeDocumentPath": "youtube_dl/extractor/simplecast.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n                for i, video in enumerate(videos, 1):\n                    video_id = video.get('uuid')\n                    video_url = video.get('url')\n                    if not (video_id and video_url):\n                        continue\n                    formats = self._extract_m3u8_formats(\n                        video_url.replace('.smil', '.m3u8'), video_id, 'mp4', fatal=False)\n                    if not formats:\n                        continue\n                    yield {\n                        'id': video_id,\n                        'formats': formats,\n                        'title': title + ' - ' + (video.get('label') or 'Teil %d' % i),\n                        'duration': float_or_none(video.get('duration')),\n                    }",
+    "importString": "",
+    "lineNum": 15,
+    "location": 71,
+    "relativeDocumentPath": "youtube_dl/extractor/sportdeutschland.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries(page_url, html=None):\n            for page in itertools.count(1):\n                if not html:\n                    html = self._download_webpage(\n                        page_url, pl_id, note='Downloading page %d' % (page, ),\n                        fatal=False) or ''\n                for u in self._urls(html):\n                    yield u\n                next_page = get_element_by_class('pagination-next', html) or ''\n                if next_page:\n                    # member list page\n                    next_page = urljoin(url, self._search_regex(\n                        r'''<a\\b[^>]+\\bhref\\s*=\\s*(\"|')(?P<url>(?!#)(?:(?!\\1).)+)''',\n                        next_page, 'next page link', group='url', default=None))\n                # in case a member page should have pagination-next with empty link, not just `else:`\n                if next_page is None:\n                    # playlist page\n                    parsed_url = compat_urlparse.urlparse(page_url)\n                    base_path, num = parsed_url.path.rsplit('/', 1)\n                    num = int_or_none(num)\n                    if num is None:\n                        base_path, num = parsed_url.path.rstrip('/'), 1\n                    parsed_url = parsed_url._replace(path=base_path + ('/%d' % (num + 1, )))\n                    next_page = compat_urlparse.urlunparse(parsed_url)\n                    if page_url == next_page:\n                        next_page = None\n                if not next_page:\n                    break\n                page_url, html = next_page, None",
+    "importString": "",
+    "lineNum": 28,
+    "location": 130,
+    "relativeDocumentPath": "youtube_dl/extractor/thisvid.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n            for video in (article.get('videos') or []):\n                video_type = video.get('videotype')\n                video_url = video.get('url')\n                if not (video_url and video_type in ('katsomo', 'youtube')):\n                    continue\n                yield self.url_result(\n                    video_url, video_type.capitalize(), video.get('video_id'))",
+    "importString": "",
+    "lineNum": 7,
+    "location": 237,
+    "relativeDocumentPath": "youtube_dl/extractor/tv2.py"
+  },
+  {
+    "symbolName": "entries",
+    "sourceCode": "def entries():\n            for item in (data.get('items') or []):\n                entry = self._extract_item(item, False)\n                if entry:\n                    yield entry",
+    "importString": "",
+    "lineNum": 4,
+    "location": 153,
+    "relativeDocumentPath": "youtube_dl/extractor/zingmp3.py"
+  },
+  {
+    "symbolName": "parse_duration",
+    "sourceCode": "def parse_duration(s):\n    if not isinstance(s, compat_basestring):\n        return None\n\n    s = s.strip()\n    if not s:\n        return None\n\n    days, hours, mins, secs, ms = [None] * 5\n    m = re.match(r'''(?x)\n            (?P<before_secs>\n                (?:(?:(?P<days>[0-9]+):)?(?P<hours>[0-9]+):)?\n                (?P<mins>[0-9]+):)?\n                (?P<secs>(?(before_secs)[0-9]{1,2}|[0-9]+))\n            (?:[.:](?P<ms>[0-9]+))?Z?$\n        ''', s)\n    if m:\n        days, hours, mins, secs, ms = m.group('days', 'hours', 'mins', 'secs', 'ms')\n    else:\n        m = re.match(\n            r'''(?ix)(?:P?\n                (?:\n                    [0-9]+\\s*y(?:ears?)?,?\\s*\n                )?\n                (?:\n                    [0-9]+\\s*m(?:onths?)?,?\\s*\n                )?\n                (?:\n                    [0-9]+\\s*w(?:eeks?)?,?\\s*\n                )?\n                (?:\n                    (?P<days>[0-9]+)\\s*d(?:ays?)?,?\\s*\n                )?\n                T)?\n                (?:\n                    (?P<hours>[0-9]+)\\s*h(?:(?:ou)?rs?)?,?\\s*\n                )?\n                (?:\n                    (?P<mins>[0-9]+)\\s*m(?:in(?:ute)?s?)?,?\\s*\n                )?\n                (?:\n                    (?P<secs>[0-9]+)(?:\\.(?P<ms>[0-9]+))?\\s*s(?:ec(?:ond)?s?)?\\s*\n                )?Z?$''', s)\n        if m:\n            days, hours, mins, secs, ms = m.group('days', 'hours', 'mins', 'secs', 'ms')\n        else:\n            m = re.match(r'(?i)(?:(?P<hours>[0-9.]+)\\s*(?:hours?)|(?P<mins>[0-9.]+)\\s*(?:mins?\\.?|minutes?)\\s*)Z?$', s)\n            if m:\n                hours, mins = m.groups()\n            else:\n                return None\n\n    duration = (\n        ((((float(days) * 24) if days else 0)\n          + (float(hours) if hours else 0)) * 60\n         + (float(mins) if mins else 0)) * 60\n        + (float(secs) if secs else 0)\n        + (float(ms) / 10 ** len(ms) if ms else 0))\n\n    return duration",
+    "importString": "",
+    "lineNum": 59,
+    "location": 3928,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "copy",
+    "sourceCode": "def copy(self):\n        return type(self)(self)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 3513,
+    "relativeDocumentPath": "youtube_dl/compat.py"
+  },
+  {
+    "symbolName": "main",
+    "sourceCode": "def main(argv=None):\n    try:\n        _real_main(argv)\n    except DownloadError:\n        sys.exit(1)\n    except SameFileError:\n        sys.exit('ERROR: fixed output name but more than one file to download')\n    except KeyboardInterrupt:\n        sys.exit('\\nERROR: Interrupted by user')",
+    "importString": "",
+    "lineNum": 8,
+    "location": 476,
+    "relativeDocumentPath": "youtube_dl/__init__.py"
+  },
+  {
+    "symbolName": "download",
+    "sourceCode": "def download(self, url_list):\n        \"\"\"Download a given list of URLs.\"\"\"\n        outtmpl = self.params.get('outtmpl', DEFAULT_OUTTMPL)\n        if (len(url_list) > 1\n                and outtmpl != '-'\n                and '%' not in outtmpl\n                and self.params.get('max_downloads') != 1):\n            raise SameFileError(outtmpl)\n\n        for url in url_list:\n            try:\n                # It also downloads the videos\n                res = self.extract_info(\n                    url, force_generic_extractor=self.params.get('force_generic_extractor', False))\n            except UnavailableVideoError:\n                self.report_error('unable to download video')\n            except MaxDownloadsReached:\n                self.to_screen('[info] Maximum number of downloaded files reached.')\n                raise\n            else:\n                if self.params.get('dump_single_json', False):\n                    self.to_stdout(json.dumps(self.sanitize_info(res)))\n\n        return self._download_retcode",
+    "importString": "",
+    "lineNum": 23,
+    "location": 2247,
+    "relativeDocumentPath": "youtube_dl/YoutubeDL.py"
+  },
+  {
+    "symbolName": "download",
+    "sourceCode": "def download(self, filename, info_dict):\n        \"\"\"Download to a filename using the info from info_dict\n        Return True on success and False otherwise\n\n        This method filters the `Cookie` header from the info_dict to prevent leaks.\n        Downloaders have their own way of handling cookies.\n        See: https://github.com/yt-dlp/yt-dlp/security/advisories/GHSA-v8mc-9377-rwjj\n        \"\"\"\n\n        nooverwrites_and_exists = (\n            self.params.get('nooverwrites', False)\n            and os.path.exists(encodeFilename(filename))\n        )\n\n        if not hasattr(filename, 'write'):\n            continuedl_and_exists = (\n                self.params.get('continuedl', True)\n                and os.path.isfile(encodeFilename(filename))\n                and not self.params.get('nopart', False)\n            )\n\n            # Check file already present\n            if filename != '-' and (nooverwrites_and_exists or continuedl_and_exists):\n                self.report_file_already_downloaded(filename)\n                self._hook_progress({\n                    'filename': filename,\n                    'status': 'finished',\n                    'total_bytes': os.path.getsize(encodeFilename(filename)),\n                })\n                return True\n\n        min_sleep_interval, max_sleep_interval = (\n            float_or_none(self.params.get(interval), default=0)\n            for interval in ('sleep_interval', 'max_sleep_interval'))\n\n        sleep_note = ''\n        available_at = info_dict.get('available_at')\n        if available_at:\n            forced_sleep_interval = available_at - int(time.time())\n            if forced_sleep_interval > min_sleep_interval:\n                sleep_note = 'as required by the site'\n                min_sleep_interval = forced_sleep_interval\n            if forced_sleep_interval > max_sleep_interval:\n                max_sleep_interval = forced_sleep_interval\n\n        sleep_interval = random.uniform(\n            min_sleep_interval, max_sleep_interval or min_sleep_interval)\n\n        if sleep_interval > 0:\n            self.to_screen(\n                '[download] Sleeping %.2f seconds %s...' % (\n                    sleep_interval, sleep_note))\n            time.sleep(sleep_interval)\n\n        return self.real_download(filename, info_dict)",
+    "importString": "",
+    "lineNum": 54,
+    "location": 339,
+    "relativeDocumentPath": "youtube_dl/downloader/common.py"
+  },
+  {
+    "symbolName": "download",
+    "sourceCode": "def download():\n            data_len = ctx.data.info().get('Content-length', None)\n\n            # Range HTTP header may be ignored/unsupported by a webserver\n            # (e.g. extractor/scivee.py, extractor/bambuser.py).\n            # However, for a test we still would like to download just a piece of a file.\n            # To achieve this we limit data_len to _TEST_FILE_SIZE and manually control\n            # block size when downloading a file.\n            if is_test and (data_len is None or int(data_len) > self._TEST_FILE_SIZE):\n                data_len = self._TEST_FILE_SIZE\n\n            if data_len is not None:\n                data_len = int(data_len) + ctx.resume_len\n                min_data_len = self.params.get('min_filesize')\n                max_data_len = self.params.get('max_filesize')\n                if min_data_len is not None and data_len < min_data_len:\n                    self.to_screen('\\r[download] File is smaller than min-filesize (%s bytes < %s bytes). Aborting.' % (data_len, min_data_len))\n                    return False\n                if max_data_len is not None and data_len > max_data_len:\n                    self.to_screen('\\r[download] File is larger than max-filesize (%s bytes > %s bytes). Aborting.' % (data_len, max_data_len))\n                    return False\n\n            byte_counter = 0 + ctx.resume_len\n            block_size = ctx.block_size\n            start = time.time()\n\n            # measure time over whole while-loop, so slow_down() and best_block_size() work together properly\n            now = None  # needed for slow_down() in the first loop run\n            before = start  # start measuring\n\n            def retry(e):\n                to_stdout = ctx.tmpfilename == '-'\n                if ctx.stream is not None:\n                    if not to_stdout:\n                        ctx.stream.close()\n                    ctx.stream = None\n                ctx.resume_len = byte_counter if to_stdout else os.path.getsize(encodeFilename(ctx.tmpfilename))\n                raise RetryDownload(e)\n\n            while True:\n                try:\n                    # Download and write\n                    data_block = ctx.data.read(block_size if data_len is None else min(block_size, data_len - byte_counter))\n                # socket.timeout is a subclass of socket.error but may not have\n                # errno set\n                except socket.timeout as e:\n                    retry(e)\n                except socket.error as e:\n                    # SSLError on python 2 (inherits socket.error) may have\n                    # no errno set but this error message\n                    if e.errno in (errno.ECONNRESET, errno.ETIMEDOUT) or getattr(e, 'message', None) == 'The read operation timed out':\n                        retry(e)\n                    raise\n\n                byte_counter += len(data_block)\n\n                # exit loop when download is finished\n                if len(data_block) == 0:\n                    break\n\n                # Open destination file just in time\n                if ctx.stream is None:\n                    try:\n                        ctx.stream, ctx.tmpfilename = sanitize_open(\n                            ctx.tmpfilename, ctx.open_mode)\n                        assert ctx.stream is not None\n                        ctx.filename = self.undo_temp_name(ctx.tmpfilename)\n                        self.report_destination(ctx.filename)\n                    except (OSError, IOError) as err:\n                        self.report_error('unable to open for writing: %s' % str(err))\n                        return False\n\n                    if self.params.get('xattr_set_filesize', False) and data_len is not None:\n                        try:\n                            write_xattr(ctx.tmpfilename, 'user.ytdl.filesize', str(data_len).encode('utf-8'))\n                        except (XAttrUnavailableError, XAttrMetadataError) as err:\n                            self.report_error('unable to set filesize xattr: %s' % str(err))\n\n                try:\n                    ctx.stream.write(data_block)\n                except (IOError, OSError) as err:\n                    self.to_stderr('\\n')\n                    self.report_error('unable to write data: %s' % str(err))\n                    return False\n\n                # Apply rate limit\n                self.slow_down(start, now, byte_counter - ctx.resume_len)\n\n                # end measuring of one loop run\n                now = time.time()\n                after = now\n\n                # Adjust block size\n                if not self.params.get('noresizebuffer', False):\n                    block_size = self.best_block_size(after - before, len(data_block))\n\n                before = after\n\n                # Progress message\n                speed = self.calc_speed(start, now, byte_counter - ctx.resume_len)\n                eta = self.calc_eta(speed, ctx.data_len and (ctx.data_len - byte_counter))\n\n                self._hook_progress({\n                    'status': 'downloading',\n                    'downloaded_bytes': byte_counter,\n                    'total_bytes': ctx.data_len,\n                    'tmpfilename': ctx.tmpfilename,\n                    'filename': ctx.filename,\n                    'eta': eta,\n                    'speed': speed,\n                    'elapsed': now - ctx.start_time,\n                })\n\n                if data_len is not None and byte_counter == data_len:\n                    break\n\n            if not is_test and ctx.chunk_size and ctx.data_len is not None and byte_counter < ctx.data_len:\n                ctx.resume_len = byte_counter\n                # ctx.block_size = block_size\n                raise NextFragment()\n\n            if ctx.stream is None:\n                self.to_stderr('\\n')\n                self.report_error('Did not get any data blocks')\n                return False\n            if ctx.tmpfilename != '-':\n                ctx.stream.close()\n\n            if data_len is not None and byte_counter != data_len:\n                err = ContentTooShortError(byte_counter, int(data_len))\n                if count <= retries:\n                    retry(err)\n                raise err\n\n            self.try_rename(ctx.tmpfilename, ctx.filename)\n\n            # Update file modification time\n            if self.params.get('updatetime', True):\n                info_dict['filetime'] = self.try_utime(ctx.filename, ctx.data.info().get('last-modified', None))\n\n            self._hook_progress({\n                'downloaded_bytes': byte_counter,\n                'total_bytes': byte_counter,\n                'filename': ctx.filename,\n                'status': 'finished',\n                'elapsed': time.time() - ctx.start_time,\n            })\n\n            return True",
+    "importString": "",
+    "lineNum": 148,
+    "location": 196,
+    "relativeDocumentPath": "youtube_dl/downloader/http.py"
+  },
+  {
+    "symbolName": "T",
+    "sourceCode": "def T(*x):\n    \"\"\" For use in yt-dl instead of {type, ...} or set((type, ...)) \"\"\"\n    return set(x)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 6679,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "cookiejar",
+    "sourceCode": "@property\n    def cookiejar(self):\n        return self._downloader.cookiejar",
+    "importString": "",
+    "lineNum": 2,
+    "location": 611,
+    "relativeDocumentPath": "youtube_dl/extractor/common.py"
+  },
+  {
+    "symbolName": "read",
+    "sourceCode": "def read(self, *args):\n        return self.f.read(*args)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 3579,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "start",
+    "sourceCode": "def start(self, tag, attrib):\n            if tag in (_x('ttml:br'), 'br'):\n                self._out += '\\n'\n            else:\n                unclosed_elements = []\n                style = {}\n                element_style_id = attrib.get('style')\n                if default_style:\n                    style.update(default_style)\n                if element_style_id:\n                    style.update(styles.get(element_style_id, {}))\n                for prop in SUPPORTED_STYLING:\n                    prop_val = attrib.get(_x('tts:' + prop))\n                    if prop_val:\n                        style[prop] = prop_val\n                if style:\n                    font = ''\n                    for k, v in sorted(style.items()):\n                        if self._applied_styles and self._applied_styles[-1].get(k) == v:\n                            continue\n                        if k == 'color':\n                            font += ' color=\"%s\"' % v\n                        elif k == 'fontSize':\n                            font += ' size=\"%s\"' % v\n                        elif k == 'fontFamily':\n                            font += ' face=\"%s\"' % v\n                        elif k == 'fontWeight' and v == 'bold':\n                            self._out += '<b>'\n                            unclosed_elements.append('b')\n                        elif k == 'fontStyle' and v == 'italic':\n                            self._out += '<i>'\n                            unclosed_elements.append('i')\n                        elif k == 'textDecoration' and v == 'underline':\n                            self._out += '<u>'\n                            unclosed_elements.append('u')\n                    if font:\n                        self._out += '<font' + font + '>'\n                        unclosed_elements.append('font')\n                    applied_style = {}\n                    if self._applied_styles:\n                        applied_style.update(self._applied_styles[-1])\n                    applied_style.update(style)\n                    self._applied_styles.append(applied_style)\n                self._unclosed_elements.append(unclosed_elements)",
+    "importString": "",
+    "lineNum": 43,
+    "location": 5008,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "end",
+    "sourceCode": "def end(self, tag):\n            if tag not in (_x('ttml:br'), 'br'):\n                unclosed_elements = self._unclosed_elements.pop()\n                for element in reversed(unclosed_elements):\n                    self._out += '</%s>' % element\n                if unclosed_elements and self._applied_styles:\n                    self._applied_styles.pop()",
+    "importString": "",
+    "lineNum": 6,
+    "location": 5053,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "extract_attributes",
+    "sourceCode": "def extract_attributes(html_element):\n    \"\"\"Given a string for an HTML element such as\n    <el\n         a=\"foo\" B=\"bar\" c=\"&98;az\" d=boz\n         empty= noval entity=\"&amp;\"\n         sq='\"' dq=\"'\"\n    >\n    Decode and return a dictionary of attributes.\n    {\n        'a': 'foo', 'b': 'bar', c: 'baz', d: 'boz',\n        'empty': '', 'noval': None, 'entity': '&',\n        'sq': '\"', 'dq': '\\''\n    }.\n    NB HTMLParser is stricter in Python 2.6 & 3.2 than in later versions,\n    but the cases in the unit test will work for all of 2.6, 2.7, 3.2-3.5.\n    \"\"\"\n    ret = None\n    # Older Python may throw HTMLParseError in case of malformed HTML (and on .close()!)\n    with compat_contextlib_suppress(compat_HTMLParseError):\n        with contextlib.closing(HTMLAttributeParser()) as parser:\n            parser.feed(html_element)\n            ret = parser.attrs\n    return ret or {}",
+    "importString": "",
+    "lineNum": 22,
+    "location": 2036,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "sanitize_filename",
+    "sourceCode": "def sanitize_filename(s, restricted=False, is_id=False):\n    \"\"\"Sanitizes a string so it could be used as part of a filename.\n    If restricted is set, use a stricter subset of allowed characters.\n    Set is_id if this is not an arbitrary string, but an ID that should be kept\n    if possible.\n    \"\"\"\n    def replace_insane(char):\n        if restricted and char in ACCENT_CHARS:\n            return ACCENT_CHARS[char]\n        if char == '?' or ord(char) < 32 or ord(char) == 127:\n            return ''\n        elif char == '\"':\n            return '' if restricted else '\\''\n        elif char == ':':\n            return '_-' if restricted else ' -'\n        elif char in '\\\\/|*<>':\n            return '_'\n        if restricted and (char in '!&\\'()[]{}$;`^,#' or char.isspace()):\n            return '_'\n        if restricted and ord(char) > 127:\n            return '' if unicodedata.category(char)[0] in 'CM' else '_'\n\n        return char\n\n    # Replace look-alike Unicode glyphs\n    if restricted and not is_id:\n        s = unicodedata.normalize('NFKC', s)\n    # Handle timestamps\n    s = re.sub(r'[0-9]+(?::[0-9]+)+', lambda m: m.group(0).replace(':', '_'), s)\n    result = ''.join(map(replace_insane, s))\n    if not is_id:\n        while '__' in result:\n            result = result.replace('__', '_')\n        result = result.strip('_')\n        # Common case of \"Foreign band name - English song title\"\n        if restricted and result.startswith('-_'):\n            result = result[2:]\n        if result.startswith('-'):\n            result = '_' + result[len('-'):]\n        result = result.lstrip('.')\n        if not result:\n            result = '_'\n    return result",
+    "importString": "",
+    "lineNum": 42,
+    "location": 2119,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "unified_timestamp",
+    "sourceCode": "def unified_timestamp(date_str, day_first=True):\n    if date_str is None:\n        return None\n\n    date_str = re.sub(r'\\s+', ' ', re.sub(\n        r'(?i)[,|]|(mon|tues?|wed(nes)?|thu(rs)?|fri|sat(ur)?)(day)?', '', date_str))\n\n    pm_delta = 12 if re.search(r'(?i)PM', date_str) else 0\n    timezone, date_str = extract_timezone(date_str)\n\n    # Remove AM/PM + timezone\n    date_str = re.sub(r'(?i)\\s*(?:AM|PM)(?:\\s+[A-Z]+)?', '', date_str)\n\n    # Remove unrecognized timezones from ISO 8601 alike timestamps\n    m = re.search(r'\\d{1,2}:\\d{1,2}(?:\\.\\d+)?(?P<tz>\\s*[A-Z]+)$', date_str)\n    if m:\n        date_str = date_str[:-len(m.group('tz'))]\n\n    # Python only supports microseconds, so remove nanoseconds\n    m = re.search(r'^([0-9]{4,}-[0-9]{1,2}-[0-9]{1,2}T[0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}\\.[0-9]{6})[0-9]+$', date_str)\n    if m:\n        date_str = m.group(1)\n\n    for expression in date_formats(day_first):\n        with compat_contextlib_suppress(ValueError):\n            dt = datetime.datetime.strptime(date_str, expression) - timezone + datetime.timedelta(hours=pm_delta)\n            return calendar.timegm(dt.timetuple())\n    timetuple = email.utils.parsedate_tz(date_str)\n    if timetuple:\n        return calendar.timegm(timetuple) + pm_delta * 3600 - compat_datetime_timedelta_total_seconds(timezone)",
+    "importString": "",
+    "lineNum": 29,
+    "location": 3235,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "cache",
+    "sourceCode": "@property\n    def cache(self):\n        return self._downloader.cache",
+    "importString": "",
+    "lineNum": 2,
+    "location": 607,
+    "relativeDocumentPath": "youtube_dl/extractor/common.py"
+  },
+  {
+    "symbolName": "urljoin",
+    "sourceCode": "@partial_application\ndef urljoin(base, path):\n    path = _decode_compat_str(path, encoding='utf-8', or_none=True)\n    if not path:\n        return None\n    if re.match(r'^(?:[a-zA-Z][a-zA-Z0-9+-.]*:)?//', path):\n        return path\n    base = _decode_compat_str(base, encoding='utf-8', or_none=True)\n    if not base:\n        return None\n    return (\n        re.match(r'^(?:https?:)?//', base)\n        and compat_urllib_parse.urljoin(base, path))",
+    "importString": "",
+    "lineNum": 12,
+    "location": 3846,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "encode",
+    "sourceCode": "def encode(self, s):\n        if isinstance(s, bytes):\n            return s  # Already encoded\n\n        try:\n            return s.encode(self.get_encoding())\n        except UnicodeEncodeError as err:\n            err.reason = err.reason + '. Check your system encoding configuration or use the --encoding option.'\n            raise",
+    "importString": "",
+    "lineNum": 8,
+    "location": 2641,
+    "relativeDocumentPath": "youtube_dl/YoutubeDL.py"
+  },
+  {
+    "symbolName": "match_str",
+    "sourceCode": "def match_str(filter_str, dct):\n    \"\"\" Filter a dictionary with a simple string syntax. Returns True (=passes filter) or false \"\"\"\n\n    return all(\n        _match_one(filter_part, dct) for filter_part in filter_str.split('&'))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 4935,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "fail",
+    "sourceCode": "def fail(text):\n            raise ExtractorError(\n                '%s returned error: %s' % (self.IE_NAME, text),\n                expected=True)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 67,
+    "relativeDocumentPath": "youtube_dl/extractor/pladform.py"
+  },
+  {
+    "symbolName": "fail",
+    "sourceCode": "def fail(message):\n            raise ExtractorError(\n                'Unable to login. Twitch said: %s' % message, expected=True)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 64,
+    "relativeDocumentPath": "youtube_dl/extractor/twitch.py"
+  },
+  {
+    "symbolName": "is_live",
+    "sourceCode": "def is_live(v_type):\n            return (v_type == 'live') if v_type is not None else None",
+    "importString": "",
+    "lineNum": 1,
+    "location": 70,
+    "relativeDocumentPath": "youtube_dl/extractor/cpac.py"
+  },
+  {
+    "symbolName": "sanitized_Request",
+    "sourceCode": "def sanitized_Request(url, *args, **kwargs):\n    url, auth_header = extract_basic_auth(escape_url(sanitize_url(url)))\n    if auth_header is not None:\n        headers = args[1] if len(args) > 1 else kwargs.get('headers')\n        headers = headers or {}\n        headers['Authorization'] = auth_header\n        if len(args) <= 1 and kwargs.get('headers') is None:\n            kwargs['headers'] = headers\n            kwargs = compat_kwargs(kwargs)\n    return compat_urllib_request.Request(url, *args, **kwargs)",
+    "importString": "",
+    "lineNum": 9,
+    "location": 2212,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "unified_strdate",
+    "sourceCode": "def unified_strdate(date_str, day_first=True):\n    \"\"\"Return a string with the date in the format YYYYMMDD\"\"\"\n\n    if date_str is None:\n        return None\n    upload_date = None\n    # Replace commas\n    date_str = date_str.replace(',', ' ')\n    # Remove AM/PM + timezone\n    date_str = re.sub(r'(?i)\\s*(?:AM|PM)(?:\\s+[A-Z]+)?', '', date_str)\n    _, date_str = extract_timezone(date_str)\n\n    for expression in date_formats(day_first):\n        with compat_contextlib_suppress(ValueError):\n            upload_date = datetime.datetime.strptime(date_str, expression).strftime('%Y%m%d')\n    if upload_date is None:\n        timetuple = email.utils.parsedate_tz(date_str)\n        if timetuple:\n            with compat_contextlib_suppress(ValueError):\n                upload_date = datetime.datetime(*timetuple[:6]).strftime('%Y%m%d')\n    if upload_date is not None:\n        return compat_str(upload_date)",
+    "importString": "",
+    "lineNum": 21,
+    "location": 3211,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "duration",
+    "sourceCode": "def duration(key):\n        return float_or_none(data.get(key), scale=1000)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 36,
+    "relativeDocumentPath": "youtube_dl/extractor/spreaker.py"
+  },
+  {
+    "symbolName": "split",
+    "sourceCode": "def split(self, chunksize):\n        modulus_map = {\n            4: 256,\n            5: 10,\n            8: 100,\n        }\n\n        chunks, ip = self.preprocess(chunksize)\n        ret = ''\n        for i in range(len(chunks)):\n            ip_part = compat_str(ip[i] % modulus_map[chunksize]) if i < 4 else ''\n            if chunksize == 8:\n                ret += ip_part + chunks[i]\n            else:\n                ret += chunks[i] + ip_part\n        self.target = ret",
+    "importString": "",
+    "lineNum": 15,
+    "location": 62,
+    "relativeDocumentPath": "youtube_dl/extractor/iqiyi.py"
+  },
+  {
+    "symbolName": "urlopen",
+    "sourceCode": "def urlopen(self, req):\n        \"\"\" Start an HTTP download \"\"\"\n        if isinstance(req, compat_basestring):\n            req = sanitized_Request(req)\n        return self._opener.open(req, timeout=self._socket_timeout)",
+    "importString": "",
+    "lineNum": 4,
+    "location": 2490,
+    "relativeDocumentPath": "youtube_dl/YoutubeDL.py"
+  },
+  {
+    "symbolName": "ie_key",
+    "sourceCode": "@classmethod\n    def ie_key(cls):\n        \"\"\"A string for getting the InfoExtractor with get_info_extractor\"\"\"\n        return compat_str(cls.__name__[:-2])",
+    "importString": "",
+    "lineNum": 3,
+    "location": 623,
+    "relativeDocumentPath": "youtube_dl/extractor/common.py"
+  },
+  {
+    "symbolName": "url_or_none",
+    "sourceCode": "def url_or_none(url):\n    if not url or not isinstance(url, compat_str):\n        return None\n    url = url.strip()\n    return url if re.match(r'^(?:(?:https?|rt(?:m(?:pt?[es]?|fp)|sp[su]?)|mms|ftps?):)?//', url) else None",
+    "importString": "",
+    "lineNum": 4,
+    "location": 3921,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "int_or_none",
+    "sourceCode": "@partial_application\ndef int_or_none(v, scale=1, default=None, get_attr=None, invscale=1, base=None):\n    if get_attr:\n        if v is not None:\n            v = getattr(v, get_attr, None)\n    if v in (None, ''):\n        return default\n    try:\n        # like int, raise if base is specified and v is not a string\n        return (int(v) if base is None else int(v, base=base)) * invscale // scale\n    except (ValueError, TypeError, OverflowError):\n        return default",
+    "importString": "",
+    "lineNum": 11,
+    "location": 3871,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "req",
+    "sourceCode": "def req(url, f_req, note, errnote):\n            data = login_form.copy()\n            data.update({\n                'pstMsg': 1,\n                'checkConnection': 'youtube',\n                'checkedDomains': 'youtube',\n                'hl': 'en',\n                'deviceinfo': '[null,null,null,[],null,\"US\",null,null,[],\"GlifWebSignIn\",null,[null,null,[]]]',\n                'f.req': json.dumps(f_req),\n                'flowName': 'GlifWebSignIn',\n                'flowEntry': 'ServiceLogin',\n                # TODO: reverse actual botguard identifier generation algo\n                'bgRequest': '[\"identifier\",\"\"]',\n            })\n            return self._download_json(\n                url, None, note=note, errnote=errnote,\n                transform_source=lambda s: re.sub(r'^[^[]*', '', s),\n                fatal=False,\n                data=urlencode_postdata(data), headers={\n                    'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',\n                    'Google-Accounts-XSRF': 1,\n                })",
+    "importString": "",
+    "lineNum": 21,
+    "location": 235,
+    "relativeDocumentPath": "youtube_dl/extractor/youtube.py"
+  },
+  {
+    "symbolName": "load",
+    "sourceCode": "def load(self, section, key, dtype='json', default=None, **kw_min_ver):\n        assert dtype in ('json',)\n        min_ver = kw_min_ver.get('min_ver')\n\n        if not self.enabled:\n            return default\n\n        cache_fn = self._get_cache_fn(section, key, dtype)\n        try:\n            with open(cache_fn, encoding='utf-8') as cachef:\n                self._write_debug('Loading {section}.{key} from cache'.format(section=section, key=key), only_once=True)\n                return self._validate(json.load(cachef), min_ver)\n        except (ValueError, KeyError):\n            try:\n                file_size = 'size: %d' % os.path.getsize(cache_fn)\n            except (OSError, IOError) as oe:\n                file_size = error_to_compat_str(oe)\n            self._report_warning('Cache retrieval from %s failed (%s)' % (cache_fn, file_size))\n        except Exception as e:\n            if getattr(e, 'errno') == errno.ENOENT:\n                # no cache available\n                return\n            self._report_warning('Cache retrieval from %s failed' % (cache_fn,))\n\n        return default",
+    "importString": "",
+    "lineNum": 24,
+    "location": 104,
+    "relativeDocumentPath": "youtube_dl/cache.py"
+  },
+  {
+    "symbolName": "load",
+    "sourceCode": "def load(self, filename=None, ignore_discard=False, ignore_expires=False):\n        \"\"\"Load cookies from a file.\"\"\"\n        if filename is None:\n            if self.filename is not None:\n                filename = self.filename\n            else:\n                raise ValueError(compat_cookiejar.MISSING_FILENAME_TEXT)\n\n        def prepare_line(line):\n            if line.startswith(self._HTTPONLY_PREFIX):\n                line = line[len(self._HTTPONLY_PREFIX):]\n            # comments and empty lines are fine\n            if line.startswith('#') or not line.strip():\n                return line\n            cookie_list = line.split('\\t')\n            if len(cookie_list) != self._ENTRY_LEN:\n                raise compat_cookiejar.LoadError('invalid length %d' % len(cookie_list))\n            cookie = self._CookieFileEntry(*cookie_list)\n            if cookie.expires_at and not cookie.expires_at.isdigit():\n                raise compat_cookiejar.LoadError('invalid expires at %s' % cookie.expires_at)\n            return line\n\n        cf = io.StringIO()\n        with io.open(filename, encoding='utf-8') as f:\n            for line in f:\n                try:\n                    cf.write(prepare_line(line))\n                except compat_cookiejar.LoadError as e:\n                    write_string(\n                        'WARNING: skipping cookie file entry due to %s: %r\\n'\n                        % (e, line), sys.stderr)\n                    continue\n        cf.seek(0)\n        self._really_load(cf, filename, ignore_discard, ignore_expires)\n        # Session cookies are denoted by either `expires` field set to\n        # an empty string or 0. MozillaCookieJar only recognizes the former\n        # (see [1]). So we need force the latter to be recognized as session\n        # cookies on our own.\n        # Session cookies may be important for cookies-based authentication,\n        # e.g. usually, when user does not check 'Remember me' check box while\n        # logging in on a site, some important cookies are stored as session\n        # cookies so that not recognizing them will result in failed login.\n        # 1. https://bugs.python.org/issue17164\n        for cookie in self:\n            # Treat `expires=0` cookies as session cookies\n            if cookie.expires == 0:\n                cookie.expires = None\n                cookie.discard = True",
+    "importString": "",
+    "lineNum": 47,
+    "location": 3002,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "determine_ext",
+    "sourceCode": "@partial_application\ndef determine_ext(url, default_ext='unknown_video'):\n    if url is None or '.' not in url:\n        return default_ext\n    guess = url.partition('?')[0].rpartition('.')[2]\n    if re.match(r'^[A-Za-z0-9]+$', guess):\n        return guess\n    # Try extract ext from URLs like http://example.com/foo/bar.mp4/?download\n    elif guess.rstrip('/') in KNOWN_EXTENSIONS:\n        return guess.rstrip('/')\n    else:\n        return default_ext",
+    "importString": "",
+    "lineNum": 11,
+    "location": 3267,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "report_warning",
+    "sourceCode": "def report_warning(self, message, only_once=False):\n        '''\n        Print the message to stderr, it will be prefixed with 'WARNING:'\n        If stderr is a tty file the 'WARNING:' will be colored\n        '''\n        if self.params.get('logger') is not None:\n            self.params['logger'].warning(message)\n        else:\n            if self.params.get('no_warnings'):\n                return\n            if not self.params.get('no_color') and self._err_file.isatty() and compat_os_name != 'nt':\n                _msg_header = '\\033[0;33mWARNING:\\033[0m'\n            else:\n                _msg_header = 'WARNING:'\n            warning_message = '%s %s' % (_msg_header, message)\n            self.to_stderr(warning_message, only_once=only_once)",
+    "importString": "",
+    "lineNum": 15,
+    "location": 647,
+    "relativeDocumentPath": "youtube_dl/YoutubeDL.py"
+  },
+  {
+    "symbolName": "report_warning",
+    "sourceCode": "def report_warning(self, *args, **kargs):\n        self.ydl.report_warning(*args, **kargs)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 171,
+    "relativeDocumentPath": "youtube_dl/downloader/common.py"
+  },
+  {
+    "symbolName": "report_warning",
+    "sourceCode": "def report_warning(self, msg, *args, **kwargs):\n        if len(args) > 0:\n            video_id = args[0]\n            args = args[1:]\n        else:\n            video_id = kwargs.pop('video_id', None)\n        idstr = '' if video_id is None else '%s: ' % video_id\n        self._downloader.report_warning(\n            self.__ie_msg(idstr, msg), *args, **kwargs)",
+    "importString": "",
+    "lineNum": 8,
+    "location": 965,
+    "relativeDocumentPath": "youtube_dl/extractor/common.py"
+  },
+  {
+    "symbolName": "parse_qs",
+    "sourceCode": "def parse_qs(url, **kwargs):\n    return compat_parse_qs(compat_urllib_parse.urlparse(url).query, **kwargs)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 4274,
+    "relativeDocumentPath": "youtube_dl/utils.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if ACastIE.suitable(url) else super(ACastChannelIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 113,
+    "relativeDocumentPath": "youtube_dl/extractor/acast.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if ARDBetaMediathekIE.suitable(url) else super(ARDMediathekIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 156,
+    "relativeDocumentPath": "youtube_dl/extractor/ard.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return (\n            not any(ie.suitable(url) for ie in (ArteTVIE, ArteTVPlaylistIE, ))\n            and super(ArteTVCategoryIE, cls).suitable(url))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 270,
+    "relativeDocumentPath": "youtube_dl/extractor/arte.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return (False\n                if BandcampWeeklyIE.suitable(url) or BandcampIE.suitable(url)\n                else super(BandcampAlbumIE, cls).suitable(url))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 289,
+    "relativeDocumentPath": "youtube_dl/extractor/bandcamp.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        EXCLUDE_IE = (BBCCoUkIE, BBCCoUkArticleIE, BBCCoUkIPlayerEpisodesIE, BBCCoUkIPlayerGroupIE, BBCCoUkPlaylistIE)\n        return (False if any(ie.suitable(url) for ie in EXCLUDE_IE)\n                else super(BBCIE, cls).suitable(url))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 849,
+    "relativeDocumentPath": "youtube_dl/extractor/bbc.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if BiliBiliIE.suitable(url) else super(BiliBiliBangumiIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 299,
+    "relativeDocumentPath": "youtube_dl/extractor/bilibili.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if CBCPlayerIE.suitable(url) else super(CBCIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 112,
+    "relativeDocumentPath": "youtube_dl/extractor/cbc.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if CiscoLiveSessionIE.suitable(url) else super(CiscoLiveSearchIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 111,
+    "relativeDocumentPath": "youtube_dl/extractor/ciscolive.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        \"\"\"Receives a URL and returns True if suitable for this IE.\"\"\"\n        # This function must import everything it needs (except other extractors),\n        # so that lazy_extractors works correctly\n        return cls.__match_valid_url(url) is not None",
+    "importString": "",
+    "lineNum": 5,
+    "location": 451,
+    "relativeDocumentPath": "youtube_dl/extractor/common.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return re.match(cls._make_valid_url(), url) is not None",
+    "importString": "",
+    "lineNum": 2,
+    "location": 3375,
+    "relativeDocumentPath": "youtube_dl/extractor/common.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if DaumPlaylistIE.suitable(url) or DaumUserIE.suitable(url) else super(DaumClipIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 122,
+    "relativeDocumentPath": "youtube_dl/extractor/daum.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if DaumUserIE.suitable(url) else super(DaumPlaylistIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 195,
+    "relativeDocumentPath": "youtube_dl/extractor/daum.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if DiscoveryGoIE.suitable(url) else super(\n            DiscoveryGoPlaylistIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 146,
+    "relativeDocumentPath": "youtube_dl/extractor/discoverygo.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if ESPNIE.suitable(url) else super(ESPNArticleIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 196,
+    "relativeDocumentPath": "youtube_dl/extractor/espn.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if FrontendMastersLessonIE.suitable(url) else super(\n            FrontendMastersBaseIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 236,
+    "relativeDocumentPath": "youtube_dl/extractor/frontendmasters.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if GloboIE.suitable(url) else super(GloboArticleIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 224,
+    "relativeDocumentPath": "youtube_dl/extractor/globo.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if HitboxIE.suitable(url) else super(HitboxLiveIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 155,
+    "relativeDocumentPath": "youtube_dl/extractor/hitbox.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if LeIE.suitable(url) else super(LePlaylistIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 236,
+    "relativeDocumentPath": "youtube_dl/extractor/leeco.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if LinkedInLearningIE.suitable(url) else super(LinkedInLearningCourseIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 151,
+    "relativeDocumentPath": "youtube_dl/extractor/linkedin.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if MarkizaIE.suitable(url) else super(MarkizaPageIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 105,
+    "relativeDocumentPath": "youtube_dl/extractor/markiza.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if MicrosoftVirtualAcademyIE.suitable(url) else super(\n            MicrosoftVirtualAcademyCourseIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 148,
+    "relativeDocumentPath": "youtube_dl/extractor/microsoftvirtualacademy.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if MLBIE.suitable(url) else super(MLBVideoIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 222,
+    "relativeDocumentPath": "youtube_dl/extractor/mlb.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return (False if MotherlessIE.suitable(url)\n                else super(MotherlessGroupIE, cls).suitable(url))",
+    "importString": "",
+    "lineNum": 3,
+    "location": 187,
+    "relativeDocumentPath": "youtube_dl/extractor/motherless.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if MyviIE.suitable(url) else super(MyviEmbedIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 96,
+    "relativeDocumentPath": "youtube_dl/extractor/myvi.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return (False if any(ie.suitable(url)\n                for ie in (NPOLiveIE, NPORadioIE, NPORadioFragmentIE))\n                else super(NPOIE, cls).suitable(url))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 175,
+    "relativeDocumentPath": "youtube_dl/extractor/npo.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if NPORadioFragmentIE.suitable(url) else super(NPORadioIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 539,
+    "relativeDocumentPath": "youtube_dl/extractor/npo.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return (False if NRKTVIE.suitable(url) or NRKTVEpisodeIE.suitable(url) or NRKRadioPodkastIE.suitable(url)\n                else super(NRKTVSeasonIE, cls).suitable(url))",
+    "importString": "",
+    "lineNum": 3,
+    "location": 589,
+    "relativeDocumentPath": "youtube_dl/extractor/nrk.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return (\n            False if any(ie.suitable(url)\n                         for ie in (NRKTVIE, NRKTVEpisodeIE, NRKRadioPodkastIE, NRKTVSeasonIE))\n            else super(NRKTVSeriesIE, cls).suitable(url))",
+    "importString": "",
+    "lineNum": 5,
+    "location": 685,
+    "relativeDocumentPath": "youtube_dl/extractor/nrk.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if PacktPubIE.suitable(url) else super(\n            PacktPubCourseIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 119,
+    "relativeDocumentPath": "youtube_dl/extractor/packtpub.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if PalcoMP3VideoIE.suitable(url) else super(PalcoMP3IE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 87,
+    "relativeDocumentPath": "youtube_dl/extractor/palcomp3.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if re.match(PalcoMP3IE._VALID_URL, url) else super(PalcoMP3ArtistIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 111,
+    "relativeDocumentPath": "youtube_dl/extractor/palcomp3.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if PicartoVodIE.suitable(url) else super(PicartoIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 24,
+    "relativeDocumentPath": "youtube_dl/extractor/picarto.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if PinterestIE.suitable(url) else super(\n            PinterestCollectionIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 162,
+    "relativeDocumentPath": "youtube_dl/extractor/pinterest.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if PlatziIE.suitable(url) else super(PlatziCourseIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 179,
+    "relativeDocumentPath": "youtube_dl/extractor/platzi.py"
+  },
+  {
+    "symbolName": "suitable",
+    "sourceCode": "@classmethod\n    def suitable(cls, url):\n        return False if PolskieRadioIE.suitable(url) else super(PolskieRadioCategoryIE, cls).suitable(url)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 145,
+    "relativeDocumentPath": "youtube_dl/extractor/polskieradio.py"
+  }
+]
