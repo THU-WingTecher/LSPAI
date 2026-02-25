@@ -1,0 +1,210 @@
+[
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    if command.script_parts[0] == 'cs':\n        return True",
+    "importString": "",
+    "lineNum": 2,
+    "location": 11,
+    "relativeDocumentPath": "thefuck/rules/cd_cs.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    broken = command.script_parts[1]\n    fix = re.findall(r'Did you mean `([^`]*)`', command.output)[0]\n\n    return replace_argument(command.script, broken, fix)",
+    "importString": "",
+    "lineNum": 4,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/cargo_no_command.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return command.script",
+    "importString": "",
+    "lineNum": 1,
+    "location": 22,
+    "relativeDocumentPath": "thefuck/rules/ssh_known_hosts.py"
+  },
+  {
+    "symbolName": "app_alias",
+    "sourceCode": "def app_alias(self, alias_name):\n        return (\"alias {0} 'setenv TF_SHELL tcsh && setenv TF_ALIAS {0} && \"\n                \"set fucked_cmd=`history -h 2 | head -n 1` && \"\n                \"eval `thefuck ${{fucked_cmd}}`'\").format(alias_name)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/shells/tcsh.py"
+  },
+  {
+    "symbolName": "color",
+    "sourceCode": "def color(color_):\n    \"\"\"Utility for ability to disabling colored output.\"\"\"\n    if settings.no_colors:\n        return ''\n    else:\n        return color_",
+    "importString": "",
+    "lineNum": 5,
+    "location": 11,
+    "relativeDocumentPath": "thefuck/logs.py"
+  },
+  {
+    "symbolName": "and_",
+    "sourceCode": "def and_(self, *commands):\n        return u' && '.join(commands)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 72,
+    "relativeDocumentPath": "thefuck/shells/generic.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    return 'apt upgrade'",
+    "importString": "",
+    "lineNum": 2,
+    "location": 13,
+    "relativeDocumentPath": "thefuck/rules/apt_upgrade.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    mistake = re.search(INVALID_CHOICE, command.output).group(1)\n    options = re.findall(OPTIONS, command.output, flags=re.MULTILINE)\n    return [replace_argument(command.script, mistake, o) for o in options]",
+    "importString": "",
+    "lineNum": 3,
+    "location": 13,
+    "relativeDocumentPath": "thefuck/rules/az_cli.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    match = re.findall(r\"'conda ([^']*)'\", command.output)\n    broken_cmd = match[0]\n    correct_cmd = match[1]\n    return replace_command(command, broken_cmd, [correct_cmd])",
+    "importString": "",
+    "lineNum": 4,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/conda_mistype.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    missing_file = re.findall(\n        r\"error: pathspec '([^']*)' \"\n        r\"did not match any file\\(s\\) known to git\", command.output)[0]\n    closest_branch = utils.get_closest(missing_file, get_branches(),\n                                       fallback_to_first=False)\n\n    new_commands = []\n\n    if closest_branch:\n        new_commands.append(replace_argument(command.script, missing_file, closest_branch))\n    if command.script_parts[1] == 'checkout':\n        new_commands.append(replace_argument(command.script, 'checkout', 'checkout -b'))\n\n    if not new_commands:\n        new_commands.append(shell.and_('git branch {}', '{}').format(\n            missing_file, command.script))\n\n    return new_commands",
+    "importString": "",
+    "lineNum": 19,
+    "location": 29,
+    "relativeDocumentPath": "thefuck/rules/git_checkout.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    return shell.and_('git stash', 'git pull', 'git stash pop')",
+    "importString": "",
+    "lineNum": 2,
+    "location": 11,
+    "relativeDocumentPath": "thefuck/rules/git_pull_uncommitted_changes.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    broken = re.findall(r\"env: no such command ['`]([^']*)'\", command.output)[0]\n    matched = [replace_argument(command.script, broken, common_typo)\n               for common_typo in COMMON_TYPOS.get(broken, [])]\n\n    app = command.script_parts[0]\n    app_commands = cache(which(app))(get_app_commands)(app)\n    matched.extend(replace_command(command, broken, app_commands))\n    return matched",
+    "importString": "",
+    "lineNum": 8,
+    "location": 26,
+    "relativeDocumentPath": "thefuck/rules/omnienv_no_such_command.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return command.script.lstrip(\"$ \")",
+    "importString": "",
+    "lineNum": 1,
+    "location": 21,
+    "relativeDocumentPath": "thefuck/rules/remove_shell_prompt_literal.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return 'ls'",
+    "importString": "",
+    "lineNum": 1,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/sl_ls.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    cmd = re.match(r\"ambiguous command: (.*), could be: (.*)\",\n                   command.output)\n\n    old_cmd = cmd.group(1)\n    suggestions = [c.strip() for c in cmd.group(2).split(',')]\n\n    return replace_command(command, old_cmd, suggestions)",
+    "importString": "",
+    "lineNum": 7,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/tmux.py"
+  },
+  {
+    "symbolName": "load_source",
+    "sourceCode": "def load_source(name, pathname, _file=None):\n        module_spec = importlib.util.spec_from_file_location(name, pathname)\n        module = importlib.util.module_from_spec(module_spec)\n        module_spec.loader.exec_module(module)\n        return module",
+    "importString": "",
+    "lineNum": 4,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/conf.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    return (is_app(command, 'adb')\n            and command.output.startswith('Android Debug Bridge version'))",
+    "importString": "",
+    "lineNum": 2,
+    "location": 42,
+    "relativeDocumentPath": "thefuck/rules/adb_unknown_command.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    return 'manage.py' in command.script and \\\n           'migrate' in command.script \\\n           and 'or pass --delete-ghost-migrations' in command.output",
+    "importString": "",
+    "lineNum": 3,
+    "location": 0,
+    "relativeDocumentPath": "thefuck/rules/django_south_ghost.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@sudo_support\ndef match(command):\n    return ('command not found' in command.output.lower()\n            and u' ' in command.script)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 6,
+    "relativeDocumentPath": "thefuck/rules/fix_alt_space.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@git_support\ndef match(command):\n    # catches \"git branch list\" in place of \"git branch\"\n    return (command.script_parts\n            and command.script_parts[1:] == 'branch list'.split())",
+    "importString": "",
+    "lineNum": 4,
+    "location": 4,
+    "relativeDocumentPath": "thefuck/rules/git_branch_list.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@git_support\ndef match(command):\n    return (' rm ' in command.script and\n            'error: the following file has changes staged in the index' in command.output and\n            'use --cached to keep the file, or -f to force removal' in command.output)",
+    "importString": "",
+    "lineNum": 4,
+    "location": 3,
+    "relativeDocumentPath": "thefuck/rules/git_rm_staged.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@for_app('tsuru')\ndef match(command):\n    return (' is not a tsuru command. See \"tsuru help\".' in command.output\n            and '\\nDid you mean?\\n\\t' in command.output)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 4,
+    "relativeDocumentPath": "thefuck/rules/tsuru_not_command.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@for_app('whois', at_least=1)\ndef match(command):\n    \"\"\"\n    What the `whois` command returns depends on the 'Whois server' it contacted\n    and is not consistent through different servers. But there can be only two\n    types of errors I can think of with `whois`:\n        - `whois https://en.wikipedia.org/` → `whois en.wikipedia.org`;\n        - `whois en.wikipedia.org` → `whois wikipedia.org`.\n    So we match any `whois` command and then:\n        - if there is a slash: keep only the FQDN;\n        - if there is no slash but there is a point: removes the left-most\n          subdomain.\n\n    We cannot either remove all subdomains because we cannot know which part is\n    the subdomains and which is the domain, consider:\n        - www.google.fr → subdomain: www, domain: 'google.fr';\n        - google.co.uk → subdomain: None, domain; 'google.co.uk'.\n    \"\"\"\n    return True",
+    "importString": "",
+    "lineNum": 18,
+    "location": 5,
+    "relativeDocumentPath": "thefuck/rules/whois.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@for_app('workon')\ndef match(command):\n    return (len(command.script_parts) >= 2\n            and command.script_parts[1] not in _get_all_environments())",
+    "importString": "",
+    "lineNum": 3,
+    "location": 16,
+    "relativeDocumentPath": "thefuck/rules/workon_doesnt_exists.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    return (command.script.startswith(u'man')\n            and u'command not found' in command.output.lower())",
+    "importString": "",
+    "lineNum": 2,
+    "location": 0,
+    "relativeDocumentPath": "thefuck/rules/man_no_space.py"
+  },
+  {
+    "symbolName": "git_support",
+    "sourceCode": "@decorator\ndef git_support(fn, command):\n    \"\"\"Resolves git aliases and supports testing for both git and hub.\"\"\"\n    # supports GitHub's `hub` command\n    # which is recommended to be used with `alias git=hub`\n    # but at this point, shell aliases have already been resolved\n    if not is_app(command, 'git', 'hub'):\n        return False\n\n    # perform git aliases expansion\n    if command.output and 'trace: alias expansion:' in command.output:\n        search = re.search(\"trace: alias expansion: ([^ ]*) => ([^\\n]*)\",\n                           command.output)\n        alias = search.group(1)\n\n        # by default git quotes everything, for example:\n        #     'commit' '--amend'\n        # which is surprising and does not allow to easily test for\n        # eg. 'git commit'\n        expansion = ' '.join(shell.quote(part)\n                             for part in shell.split_command(search.group(2)))\n        new_script = re.sub(r\"\\b{}\\b\".format(alias), expansion, command.script)\n\n        command = command.update(script=new_script)\n\n    return fn(command)",
+    "importString": "",
+    "lineNum": 25,
+    "location": 6,
+    "relativeDocumentPath": "thefuck/specific/git.py"
+  }
+]
