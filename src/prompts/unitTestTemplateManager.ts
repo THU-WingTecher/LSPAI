@@ -119,8 +119,8 @@ function getPythonTemplate(
     return `
 Based on the provided information, you need to generate a unit test using Python's unittest framework.
 \`\`\`
-import unittest
 ${importString}
+import unittest
 from {Replace with needed imports}
 
 class Test${fileName}(unittest.TestCase):
