@@ -112,7 +112,7 @@ git clone https://github.com/ytdl-org/youtube-dl.git
 
 # Python Setup
 # (env already existed)
-git checkout 
+git checkout 956b8c585
 conda create -n youtube-dl python=3.10
 conda activate youtube-dl
 
@@ -131,6 +131,30 @@ pytest test \
   --ignore=test/test_youtube_lists.py \
   --ignore=test/test_iqiyi_sdk_interpreter.py \
   --ignore=test/test_socks.py
+```
+
+### 5.5 dataclass-json
+
+To set up the dataclass-json, follow these steps:
+
+```bash
+mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/lidatong/dataclasses-json.git
+cd /LSPRAG/experiments/projects/dataclasses-json
+
+# Python Setup
+conda create -n dataclasses-json python=3.10
+conda activate dataclasses-json
+
+# Install dependencies
+# Don't forget to activate venv environment
+git checkout dc63902
+
+pip install coverage pytest pytest-json-report
+pip install -e . 
+pip install mypy hypothesis 
+pytest # for checking whether the setting is complete
 ```
 
 ## 6. 实验执行流程（black + deepseek 示例）
@@ -226,6 +250,7 @@ xvfb-run -a npm run test \
 - tornado : /LSPRAG/experiments/config/tornado-robust-final.json
 - youtube-dl : /LSPRAG/experiments/config/youtube-dl-robust-final.json
 - thefuck : /LSPRAG/experiments/config/thefuck-dl-robust-final.json
+- dataclass-json : /LSPRAG/experiments/config/dataclass-json-robust-final.json
 
 ## 8. 检查清单
 

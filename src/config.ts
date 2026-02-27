@@ -565,7 +565,6 @@ export type ProjectConfigName =
     | 'dataclasses-json'
     | 'python-semantic-release'
     | 'thefuck'
-    | 'cookiecutter'
     | 'tqdm'
     | 'youtube-dl'
     | 'commons-cli' 

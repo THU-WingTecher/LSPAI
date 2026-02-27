@@ -1,0 +1,122 @@
+[
+  {
+    "symbolName": "dataclass_json",
+    "sourceCode": "def dataclass_json(_cls: Optional[Type[T]] = None, *, letter_case: Optional[LetterCase] = None,\n                   undefined: Optional[Union[str, Undefined]] = None) -> Union[Callable[[Type[T]], Type[T]], Type[T]]:\n    \"\"\"\n    Based on the code in the `dataclasses` module to handle optional-parens\n    decorators. See example below:\n\n    @dataclass_json\n    @dataclass_json(letter_case=LetterCase.CAMEL)\n    class Example:\n        ...\n    \"\"\"\n\n    def wrap(cls: Type[T]) -> Type[T]:\n        return _process_class(cls, letter_case, undefined)\n\n    if _cls is None:\n        return wrap\n    return wrap(_cls)",
+    "importString": "import abc\nimport json\nfrom typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload\nfrom dataclasses_json.cfg import config, LetterCase\nfrom dataclasses_json.core import (Json, _ExtendedEncoder, _asdict,\n_decode_dataclass)\nfrom dataclasses_json.mm import (JsonData, SchemaType, build_schema)\nfrom dataclasses_json.undefined import Undefined\nfrom dataclasses_json.utils import (_handle_undefined_parameters_safe,\n_undefined_parameter_action_safe)",
+    "lineNum": 17,
+    "location": 114,
+    "relativeDocumentPath": "dataclasses_json/api.py"
+  },
+  {
+    "symbolName": "to_json",
+    "sourceCode": "def to_json(self,\n                *,\n                skipkeys: bool = False,\n                ensure_ascii: bool = True,\n                check_circular: bool = True,\n                allow_nan: bool = True,\n                indent: Optional[Union[int, str]] = None,\n                separators: Optional[Tuple[str, str]] = None,\n                default: Optional[Callable] = None,\n                sort_keys: bool = False,\n                **kw) -> str:\n        return json.dumps(self.to_dict(encode_json=False),\n                          cls=_ExtendedEncoder,\n                          skipkeys=skipkeys,\n                          ensure_ascii=ensure_ascii,\n                          check_circular=check_circular,\n                          allow_nan=allow_nan,\n                          indent=indent,\n                          separators=separators,\n                          default=default,\n                          sort_keys=sort_keys,\n                          **kw)",
+    "importString": "import abc\nimport json\nfrom typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload\nfrom dataclasses_json.cfg import config, LetterCase\nfrom dataclasses_json.core import (Json, _ExtendedEncoder, _asdict,\n_decode_dataclass)\nfrom dataclasses_json.mm import (JsonData, SchemaType, build_schema)\nfrom dataclasses_json.undefined import Undefined\nfrom dataclasses_json.utils import (_handle_undefined_parameters_safe,\n_undefined_parameter_action_safe)",
+    "lineNum": 21,
+    "location": 25,
+    "relativeDocumentPath": "dataclasses_json/api.py"
+  },
+  {
+    "symbolName": "schema",
+    "sourceCode": "@classmethod\n    def schema(cls: Type[A],\n               *,\n               infer_missing: bool = False,\n               only=None,\n               exclude=(),\n               many: bool = False,\n               context=None,\n               load_only=(),\n               dump_only=(),\n               partial: bool = False,\n               unknown=None) -> \"SchemaType[A]\":\n        Schema = build_schema(cls, DataClassJsonMixin, infer_missing, partial)\n\n        if unknown is None:\n            undefined_parameter_action = _undefined_parameter_action_safe(cls)\n            if undefined_parameter_action is not None:\n                # We can just make use of the same-named mm keywords\n                unknown = undefined_parameter_action.name.lower()\n\n        return Schema(only=only,\n                      exclude=exclude,\n                      many=many,\n                      context=context,\n                      load_only=load_only,\n                      dump_only=dump_only,\n                      partial=partial,\n                      unknown=unknown)",
+    "importString": "import abc\nimport json\nfrom typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload\nfrom dataclasses_json.cfg import config, LetterCase\nfrom dataclasses_json.core import (Json, _ExtendedEncoder, _asdict,\n_decode_dataclass)\nfrom dataclasses_json.mm import (JsonData, SchemaType, build_schema)\nfrom dataclasses_json.undefined import Undefined\nfrom dataclasses_json.utils import (_handle_undefined_parameters_safe,\n_undefined_parameter_action_safe)",
+    "lineNum": 27,
+    "location": 74,
+    "relativeDocumentPath": "dataclasses_json/api.py"
+  },
+  {
+    "symbolName": "schema",
+    "sourceCode": "def schema(cls, mixin, infer_missing):\n    schema = {}\n    overrides = _user_overrides_or_exts(cls)\n    # TODO check the undefined parameters and add the proper schema action\n    #  https://marshmallow.readthedocs.io/en/stable/quickstart.html\n    for field in dc_fields(cls):\n        metadata = overrides[field.name]\n        if metadata.mm_field is not None:\n            schema[field.name] = metadata.mm_field\n        else:\n            type_ = field.type\n            options: typing.Dict[str, typing.Any] = {}\n            missing_key = 'missing' if infer_missing else 'default'\n            if field.default is not MISSING:\n                options[missing_key] = field.default\n            elif field.default_factory is not MISSING:\n                options[missing_key] = field.default_factory()\n            else:\n                options['required'] = True\n\n            if options.get(missing_key, ...) is None:\n                options['allow_none'] = True\n\n            if _is_optional(type_):\n                options.setdefault(missing_key, None)\n                options['allow_none'] = True\n                if len(type_.__args__) == 2:\n                    # Union[str, int, None] is optional too, but it has more than 1 typed field.\n                    type_ = [tp for tp in type_.__args__ if tp is not type(None)][0]\n\n            if metadata.letter_case is not None:\n                options['data_key'] = metadata.letter_case(field.name)\n\n            t = build_type(type_, options, mixin, field, cls)\n            if field.metadata.get('dataclasses_json', {}).get('decoder'):\n                # If the field defines a custom decoder, it should completely replace the Marshmallow field's conversion\n                # logic.\n                # From Marshmallow's documentation for the _deserialize method:\n                # \"Deserialize value. Concrete :class:`Field` classes should implement this method. \"\n                # This is the method that Field implementations override to perform the actual deserialization logic.\n                # In this case we specifically override this method instead of `deserialize` to minimize potential\n                # side effects, and only cancel the actual value deserialization.\n                t._deserialize = lambda v, *_a, **_kw: v\n\n            # if type(t) is not fields.Field:  # If we use `isinstance` we would return nothing.\n            if field.type != typing.Optional[CatchAllVar]:\n                schema[field.name] = t\n\n    return schema",
+    "importString": "import typing\nimport warnings\nimport sys\nfrom copy import deepcopy\nfrom dataclasses import MISSING, is_dataclass, fields as dc_fields\nfrom datetime import datetime\nfrom decimal import Decimal\nfrom uuid import UUID\nfrom enum import Enum\nfrom typing_inspect import is_union_type  # type: ignore\nfrom marshmallow import fields, Schema, post_load  # type: ignore\nfrom marshmallow.exceptions import ValidationError  # type: ignore\nfrom dataclasses_json.core import (_is_supported_generic, _decode_dataclass,\n_ExtendedEncoder, _user_overrides_or_exts)\nfrom dataclasses_json.utils import (_is_collection, _is_optional,\n_issubclass_safe, _timestamp_to_dt_aware,\n_is_new_type, _get_type_origin,\n_handle_undefined_parameters_safe,\nCatchAllVar)",
+    "lineNum": 48,
+    "location": 295,
+    "relativeDocumentPath": "dataclasses_json/mm.py"
+  },
+  {
+    "symbolName": "from_json",
+    "sourceCode": "@classmethod\n    def from_json(cls: Type[A],\n                  s: JsonData,\n                  *,\n                  parse_float=None,\n                  parse_int=None,\n                  parse_constant=None,\n                  infer_missing=False,\n                  **kw) -> A:\n        kvs = json.loads(s,\n                         parse_float=parse_float,\n                         parse_int=parse_int,\n                         parse_constant=parse_constant,\n                         **kw)\n        return cls.from_dict(kvs, infer_missing=infer_missing)",
+    "importString": "import abc\nimport json\nfrom typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload\nfrom dataclasses_json.cfg import config, LetterCase\nfrom dataclasses_json.core import (Json, _ExtendedEncoder, _asdict,\n_decode_dataclass)\nfrom dataclasses_json.mm import (JsonData, SchemaType, build_schema)\nfrom dataclasses_json.undefined import Undefined\nfrom dataclasses_json.utils import (_handle_undefined_parameters_safe,\n_undefined_parameter_action_safe)",
+    "lineNum": 14,
+    "location": 48,
+    "relativeDocumentPath": "dataclasses_json/api.py"
+  },
+  {
+    "symbolName": "loads",
+    "sourceCode": "def loads(self, json_data: JsonData,\n                  many: typing.Optional[bool] = None, partial: typing.Optional[bool] = None, unknown: typing.Optional[str] = None,\n                  **kwargs) -> TOneOrMulti:\n            pass",
+    "importString": "import typing\nimport warnings\nimport sys\nfrom copy import deepcopy\nfrom dataclasses import MISSING, is_dataclass, fields as dc_fields\nfrom datetime import datetime\nfrom decimal import Decimal\nfrom uuid import UUID\nfrom enum import Enum\nfrom typing_inspect import is_union_type  # type: ignore\nfrom marshmallow import fields, Schema, post_load  # type: ignore\nfrom marshmallow.exceptions import ValidationError  # type: ignore\nfrom dataclasses_json.core import (_is_supported_generic, _decode_dataclass,\n_ExtendedEncoder, _user_overrides_or_exts)\nfrom dataclasses_json.utils import (_is_collection, _is_optional,\n_issubclass_safe, _timestamp_to_dt_aware,\n_is_new_type, _get_type_origin,\n_handle_undefined_parameters_safe,\nCatchAllVar)",
+    "lineNum": 3,
+    "location": 226,
+    "relativeDocumentPath": "dataclasses_json/mm.py"
+  },
+  {
+    "symbolName": "dump",
+    "sourceCode": "def dump(self, obj: TOneOrMulti,    # type: ignore\n                 many: typing.Optional[bool] = None) -> TOneOrMultiEncoded:\n            pass",
+    "importString": "import typing\nimport warnings\nimport sys\nfrom copy import deepcopy\nfrom dataclasses import MISSING, is_dataclass, fields as dc_fields\nfrom datetime import datetime\nfrom decimal import Decimal\nfrom uuid import UUID\nfrom enum import Enum\nfrom typing_inspect import is_union_type  # type: ignore\nfrom marshmallow import fields, Schema, post_load  # type: ignore\nfrom marshmallow.exceptions import ValidationError  # type: ignore\nfrom dataclasses_json.core import (_is_supported_generic, _decode_dataclass,\n_ExtendedEncoder, _user_overrides_or_exts)\nfrom dataclasses_json.utils import (_is_collection, _is_optional,\n_issubclass_safe, _timestamp_to_dt_aware,\n_is_new_type, _get_type_origin,\n_handle_undefined_parameters_safe,\nCatchAllVar)",
+    "lineNum": 2,
+    "location": 181,
+    "relativeDocumentPath": "dataclasses_json/mm.py"
+  },
+  {
+    "symbolName": "dump",
+    "sourceCode": "def dump(self, obj, *, many=None):\n        many = self.many if many is None else bool(many)\n        dumped = Schema.dump(self, obj, many=many)\n        # TODO This is hacky, but the other option I can think of is to generate a different schema\n        #  depending on dump and load, which is even more hacky\n\n        # The only problem is the catch-all field, we can't statically create a schema for it,\n        # so we just update the dumped dict\n        if many:\n            for i, _obj in enumerate(obj):\n                dumped[i].update(\n                    _handle_undefined_parameters_safe(cls=_obj, kvs={},\n                                                      usage=\"dump\"))\n        else:\n            dumped.update(_handle_undefined_parameters_safe(cls=obj, kvs={},\n                                                            usage=\"dump\"))\n        return dumped",
+    "importString": "import typing\nimport warnings\nimport sys\nfrom copy import deepcopy\nfrom dataclasses import MISSING, is_dataclass, fields as dc_fields\nfrom datetime import datetime\nfrom decimal import Decimal\nfrom uuid import UUID\nfrom enum import Enum\nfrom typing_inspect import is_union_type  # type: ignore\nfrom marshmallow import fields, Schema, post_load  # type: ignore\nfrom marshmallow.exceptions import ValidationError  # type: ignore\nfrom dataclasses_json.core import (_is_supported_generic, _decode_dataclass,\n_ExtendedEncoder, _user_overrides_or_exts)\nfrom dataclasses_json.utils import (_is_collection, _is_optional,\n_issubclass_safe, _timestamp_to_dt_aware,\n_is_new_type, _get_type_origin,\n_handle_undefined_parameters_safe,\nCatchAllVar)",
+    "lineNum": 16,
+    "location": 370,
+    "relativeDocumentPath": "dataclasses_json/mm.py"
+  },
+  {
+    "symbolName": "from_dict",
+    "sourceCode": "@classmethod\n    def from_dict(cls: Type[A],\n                  kvs: Json,\n                  *,\n                  infer_missing=False) -> A:\n        return _decode_dataclass(cls, kvs, infer_missing)",
+    "importString": "import abc\nimport json\nfrom typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload\nfrom dataclasses_json.cfg import config, LetterCase\nfrom dataclasses_json.core import (Json, _ExtendedEncoder, _asdict,\n_decode_dataclass)\nfrom dataclasses_json.mm import (JsonData, SchemaType, build_schema)\nfrom dataclasses_json.undefined import Undefined\nfrom dataclasses_json.utils import (_handle_undefined_parameters_safe,\n_undefined_parameter_action_safe)",
+    "lineNum": 5,
+    "location": 64,
+    "relativeDocumentPath": "dataclasses_json/api.py"
+  },
+  {
+    "symbolName": "to_dict",
+    "sourceCode": "def to_dict(self, encode_json=False) -> Dict[str, Json]:\n        return _asdict(self, encode_json=encode_json)",
+    "importString": "import abc\nimport json\nfrom typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload\nfrom dataclasses_json.cfg import config, LetterCase\nfrom dataclasses_json.core import (Json, _ExtendedEncoder, _asdict,\n_decode_dataclass)\nfrom dataclasses_json.mm import (JsonData, SchemaType, build_schema)\nfrom dataclasses_json.undefined import Undefined\nfrom dataclasses_json.utils import (_handle_undefined_parameters_safe,\n_undefined_parameter_action_safe)",
+    "lineNum": 1,
+    "location": 71,
+    "relativeDocumentPath": "dataclasses_json/api.py"
+  },
+  {
+    "symbolName": "dumps",
+    "sourceCode": "def dumps(self, obj: TOneOrMulti, many: typing.Optional[bool] = None, *args,   # type: ignore\n                  **kwargs) -> str:\n            pass",
+    "importString": "import typing\nimport warnings\nimport sys\nfrom copy import deepcopy\nfrom dataclasses import MISSING, is_dataclass, fields as dc_fields\nfrom datetime import datetime\nfrom decimal import Decimal\nfrom uuid import UUID\nfrom enum import Enum\nfrom typing_inspect import is_union_type  # type: ignore\nfrom marshmallow import fields, Schema, post_load  # type: ignore\nfrom marshmallow.exceptions import ValidationError  # type: ignore\nfrom dataclasses_json.core import (_is_supported_generic, _decode_dataclass,\n_ExtendedEncoder, _user_overrides_or_exts)\nfrom dataclasses_json.utils import (_is_collection, _is_optional,\n_issubclass_safe, _timestamp_to_dt_aware,\n_is_new_type, _get_type_origin,\n_handle_undefined_parameters_safe,\nCatchAllVar)",
+    "lineNum": 2,
+    "location": 194,
+    "relativeDocumentPath": "dataclasses_json/mm.py"
+  },
+  {
+    "symbolName": "dumps",
+    "sourceCode": "def dumps(self, *args, **kwargs):\n        if 'cls' not in kwargs:\n            kwargs['cls'] = _ExtendedEncoder\n\n        return Schema.dumps(self, *args, **kwargs)",
+    "importString": "import typing\nimport warnings\nimport sys\nfrom copy import deepcopy\nfrom dataclasses import MISSING, is_dataclass, fields as dc_fields\nfrom datetime import datetime\nfrom decimal import Decimal\nfrom uuid import UUID\nfrom enum import Enum\nfrom typing_inspect import is_union_type  # type: ignore\nfrom marshmallow import fields, Schema, post_load  # type: ignore\nfrom marshmallow.exceptions import ValidationError  # type: ignore\nfrom dataclasses_json.core import (_is_supported_generic, _decode_dataclass,\n_ExtendedEncoder, _user_overrides_or_exts)\nfrom dataclasses_json.utils import (_is_collection, _is_optional,\n_issubclass_safe, _timestamp_to_dt_aware,\n_is_new_type, _get_type_origin,\n_handle_undefined_parameters_safe,\nCatchAllVar)",
+    "lineNum": 4,
+    "location": 364,
+    "relativeDocumentPath": "dataclasses_json/mm.py"
+  },
+  {
+    "symbolName": "config",
+    "sourceCode": "def config(metadata: Optional[dict] = None, *,\n           # TODO: these can be typed more precisely\n           # Specifically, a Callable[A, B], where `B` is bound as a JSON type\n           encoder: Optional[Callable] = None,\n           decoder: Optional[Callable] = None,\n           mm_field: Optional[MarshmallowField] = None,\n           letter_case: Union[Callable[[str], str], LetterCase, None] = None,\n           undefined: Optional[Union[str, Undefined]] = None,\n           field_name: Optional[str] = None,\n           exclude: Optional[Callable[[T], bool]] = None,\n           ) -> Dict[str, dict]:\n    if metadata is None:\n        metadata = {}\n\n    lib_metadata = metadata.setdefault('dataclasses_json', {})\n\n    if encoder is not None:\n        lib_metadata['encoder'] = encoder\n\n    if decoder is not None:\n        lib_metadata['decoder'] = decoder\n\n    if mm_field is not None:\n        lib_metadata['mm_field'] = mm_field\n\n    if field_name is not None:\n        if letter_case is not None:\n            @functools.wraps(letter_case)  # type:ignore\n            def override(_, _letter_case=letter_case, _field_name=field_name):\n                return _letter_case(_field_name)\n        else:\n            def override(_, _field_name=field_name):  # type:ignore\n                return _field_name\n        letter_case = override\n\n    if letter_case is not None:\n        lib_metadata['letter_case'] = letter_case\n\n    if undefined is not None:\n        # Get the corresponding action for undefined parameters\n        if isinstance(undefined, str):\n            if not hasattr(Undefined, undefined.upper()):\n                valid_actions = list(action.name for action in Undefined)\n                raise UndefinedParameterError(\n                    f\"Invalid undefined parameter action, \"\n                    f\"must be one of {valid_actions}\")\n            undefined = Undefined[undefined.upper()]\n\n        lib_metadata['undefined'] = undefined\n\n    if exclude is not None:\n        lib_metadata['exclude'] = exclude\n\n    return metadata",
+    "importString": "import functools\nfrom enum import Enum\nfrom typing import Callable, Dict, Optional, TypeVar, Union\nfrom marshmallow.fields import Field as MarshmallowField  # type: ignore\nfrom dataclasses_json.stringcase import (camelcase, pascalcase, snakecase,\nspinalcase)  # type: ignore\nfrom dataclasses_json.undefined import Undefined, UndefinedParameterError",
+    "lineNum": 53,
+    "location": 56,
+    "relativeDocumentPath": "dataclasses_json/cfg.py"
+  },
+  {
+    "symbolName": "load",
+    "sourceCode": "def load(self, data: TOneOrMultiEncoded,\n                 many: typing.Optional[bool] = None, partial: typing.Optional[bool] = None,\n                 unknown: typing.Optional[str] = None) -> TOneOrMulti:\n            pass",
+    "importString": "import typing\nimport warnings\nimport sys\nfrom copy import deepcopy\nfrom dataclasses import MISSING, is_dataclass, fields as dc_fields\nfrom datetime import datetime\nfrom decimal import Decimal\nfrom uuid import UUID\nfrom enum import Enum\nfrom typing_inspect import is_union_type  # type: ignore\nfrom marshmallow import fields, Schema, post_load  # type: ignore\nfrom marshmallow.exceptions import ValidationError  # type: ignore\nfrom dataclasses_json.core import (_is_supported_generic, _decode_dataclass,\n_ExtendedEncoder, _user_overrides_or_exts)\nfrom dataclasses_json.utils import (_is_collection, _is_optional,\n_issubclass_safe, _timestamp_to_dt_aware,\n_is_new_type, _get_type_origin,\n_handle_undefined_parameters_safe,\nCatchAllVar)",
+    "lineNum": 3,
+    "location": 212,
+    "relativeDocumentPath": "dataclasses_json/mm.py"
+  },
+  {
+    "symbolName": "override",
+    "sourceCode": "def override(_, _field_name=field_name):  # type:ignore\n                return _field_name",
+    "importString": "import functools\nfrom enum import Enum\nfrom typing import Callable, Dict, Optional, TypeVar, Union\nfrom marshmallow.fields import Field as MarshmallowField  # type: ignore\nfrom dataclasses_json.stringcase import (camelcase, pascalcase, snakecase,\nspinalcase)  # type: ignore\nfrom dataclasses_json.undefined import Undefined, UndefinedParameterError",
+    "lineNum": 1,
+    "location": 87,
+    "relativeDocumentPath": "dataclasses_json/cfg.py"
+  }
+]
