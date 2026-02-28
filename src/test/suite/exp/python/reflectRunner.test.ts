@@ -160,12 +160,12 @@ suite('Experiment Test Suite', () => {
 
         const cachedDir = getConfigInstance().savePath;
         const { testsDir, testFileMapPath } = getGeneratedPaths();
-        await runExperimentalReflect({
-            cachedDir,
-            testFileMapPath,
-            preTestsDir: testsDir,
-            promptType: PromptType.WITHCONTEXT
-        });
+        // await runExperimentalReflect({
+        //     cachedDir,
+        //     testFileMapPath,
+        //     preTestsDir: testsDir,
+        //     promptType: PromptType.WITHCONTEXT
+        // });
         await runExperimentalReflect({
             cachedDir,
             testFileMapPath,
