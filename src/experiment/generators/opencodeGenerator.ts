@@ -68,12 +68,14 @@ export async function generateTest(
         const prompt = promptTemplate === 'cfg'
             ? await buildTestPromptWithCFG(task, languageId, model)
             : buildTestPrompt(task, languageId);
-        console.log(`   Prompt length: ${prompt.length} chars`);
-        console.log(prompt)
+        const fullPrompt = systemPrompt + "\n\n" + prompt;
+        console.log(`   Prompt body length: ${prompt.length} chars`);
+        console.log(`   Full prompt length: ${fullPrompt.length} chars`);
+        console.log(fullPrompt)
         // Run through OpenCode
 
         const logfileName = `${testFileName}.log`;
-        const response = await opencodeManager.runPrompt(systemPrompt + "\n\n" + prompt, logfileName);
+        const response = await opencodeManager.runPrompt(fullPrompt, logfileName);
         console.log(`   Response length: ${response.length} chars`);
         // console.log(`   Response: ${response}`);
 

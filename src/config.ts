@@ -73,8 +73,9 @@ const MODEL_TOKEN_LIMITS: Record<string, number> = {
     'gpt-4o-mini': 16384,
     'gpt-4o': 128000,
     'deepseek-chat': 32768,
+    'gpt-5': 128000,
     // Add more models as needed
-    'default': 8192 // fallback for unknown models
+    'default': 128000 // fallback for unknown models
 };
 
 
