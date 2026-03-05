@@ -7,10 +7,11 @@
  */
 
 import { createCFGBuilder } from '../../cfg/builderFactory';
-import { PathCollector, ConditionAnalysis } from '../../cfg/path';
+import { PathCollector } from '../../cfg/path';
 import { SupportedLanguage } from '../../ast';
 import { getConfigInstance } from '../../config';
 import { getUnitTestTemplate } from '../../prompts/unitTestTemplateManager';
+import { conditionToPrompt } from '../../prompts/conditionPrompt';
 import { Task } from '../core/types';
 import { generateSystemPrompt } from './templates';
 
@@ -33,35 +34,6 @@ function truncateContextString(context: string, maxTokens: number): string {
     }
 
     return words.slice(0, maxTokens).join(' ') + '...';
-}
-
-// Same logic as `src/prompts/promptBuilder.ts:conditionToPrompt`, but copied here to avoid
-// importing VSCode-dependent modules in standalone experiment runners.
-function conditionToPrompt(analysis: ConditionAnalysis): string {
-    const lines: string[] = [];
-
-    // Add the target condition
-    lines.push(`GOAL : COVER BELOW CONDITION\n\t\t${analysis.condition}`);
-
-    // Add intermediate conditions if there are any paths
-    if (analysis.minimumPathToCondition.length > 0) {
-        const path = analysis.minimumPathToCondition[0];
-        const conditions = path.path
-            .split('\n\t')
-            .filter(c => c && c.trim() !== 'where (' && c.trim() !== ')')
-            .map(c => c.trim());
-
-        if (conditions.length > 1) {
-            const intermediateConditions = conditions.slice(0, -1);
-            intermediateConditions.forEach((cond, index) => {
-                lines.push(`\t\t${index + 1}. ${cond}`);
-            });
-        }
-    } else {
-        lines.push('\nNo path information available for this condition.');
-    }
-
-    return lines.join('\n');
 }
 
 async function buildConditionPrompts(sourceCode: string, languageId: string): Promise<string[]> {

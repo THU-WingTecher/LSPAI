@@ -21,6 +21,29 @@ def foo():
     assert.equal(paths.length, 1, "Should have exactly 0 paths");
 });
 
+test('Python CFG Path - Should Include Return Value', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+def classify(x):
+    if x > 0:
+        return x + 1
+    return 0
+    `;
+    const cfg = await builder.buildFromCode(code);
+    const pathCollector = new PathCollector('python');
+    const paths = pathCollector.collect(cfg.entry);
+
+    assert.equal(paths.length, 2, "Should have exactly 2 return paths");
+    assert.ok(
+        paths.some(p => p.path === 'where (\n\tx > 0\n)' && p.returnValue === 'x + 1'),
+        "True branch path should include return value `x + 1`"
+    );
+    assert.ok(
+        paths.some(p => p.path === 'where (\n\t!(x > 0)\n)' && p.returnValue === '0'),
+        "False branch path should include return value `0`"
+    );
+});
+
 test('Python CFG Path - Simple If-Else', async function() {
     const builder = new PythonCFGBuilder('python');
     const code = `

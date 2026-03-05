@@ -8,10 +8,14 @@ export class PythonCFGBuilder extends CFGBuilder {
         
         switch (node.type) {
             case 'function_definition':  // Add this case
+            case 'class_definition':
             case 'module':
             case 'block':
                 // Process each child in sequence
                 return this.processBlock(node, current);
+
+            case 'decorated_definition':
+                return this.processDecoratedDefinition(node, current);
 
             case 'parameters':
                 return this.processFunctionArgument(node, current);
@@ -47,6 +51,16 @@ export class PythonCFGBuilder extends CFGBuilder {
                 console.log(`Skipping unhandled node type: ${node.type}`);
                 return current;
         }
+    }
+
+    private processDecoratedDefinition(node: Parser.SyntaxNode, current: CFGNode): CFGNode | null {
+        // tree-sitter-python wraps decorated classes/functions in `decorated_definition`.
+        // We ignore decorator metadata for CFG and process the underlying definition.
+        const definitionNode = node.childForFieldName('definition');
+        if (definitionNode) {
+            return this.processNode(definitionNode, current);
+        }
+        return current;
     }
 
     protected processIfStatement(

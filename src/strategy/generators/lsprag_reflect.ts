@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getConfigInstance } from '../../config';
-import { invokeLLM } from '../../invokeLLM';
+import { invokeLLM, isSkipLLMModeEnabled } from '../../invokeLLM';
 import { ExpLogger, LLMLogs } from '../../log';
 import { constructSourceCodeWithRelatedInfo, parseCode } from '../../lsp/utils';
 import { ChatMessage } from '../../prompts/ChatMessage';
@@ -153,6 +153,11 @@ function truncateLines(input: string, maxLines: number, maxChars: number): strin
 	return truncateText(kept, maxChars);
 }
 
+function hasDetectedContent(input?: string): boolean {
+	const value = (input || '').trim();
+	return !!value && value.toLowerCase() !== '(none detected)';
+}
+
 function formatInvokedFunctionSignatures(signatures: string[]): string {
 	if (!signatures.length) {
 		return '(none detected)';
@@ -238,9 +243,9 @@ export function naiveReflectionPrompt(params: {
 		// '',
 		// '### Invoked function signatures (functions called by the focal symbol)',
 		// formatInvokedFunctionSignatures(params.invokedFunctionSignatures)
-		'',
-		'### Definitions of objects used in mock-related calls',
-		params.mockedObjectDefinitionsSummary || '(none detected)'
+		// '',
+		// '### Definitions of objects used in mock-related calls',
+		// params.mockedObjectDefinitionsSummary || '(none detected)'
 	].join('\n');
  
 	return [
@@ -256,7 +261,7 @@ export function buildAssertionReflectionPrompt(params: {
 	focalMethodSource: string;
 	draftTestCode: string;
 	definitionTreePretty: string;
-	redefinedSymbolsSummary: string;
+	redefinedSymbolsSummary?: string;
 	invokedFunctionSignatures: string[];
 	mockedObjectDefinitionsSummary?: string;
 }): ChatMessage[] {
@@ -269,21 +274,19 @@ export function buildAssertionReflectionPrompt(params: {
 		'- Use the provided focal method source as the ONLY ground-truth about behavior.',
 		'- Do NOT assert specific literal values unless they are directly implied by the focal method source (e.g., constants in code) or by the test inputs you construct.',
 		'- If an exact expected value is not provable from the provided evidence, replace brittle assertions with stable invariants (e.g., type/shape, non-null, length, idempotency, monotonicity, exception/no-exception).',
-		'- Do NOT redefine constants/functions/classes that already exist in the project; instead, import/reuse the source definitions.',
 		'- Keep test intent and structure as-is when possible; only adjust what is needed to make assertions correct.',
 		'- Prefer assertions that are directly implied by the focal method behavior and inputs/outputs.',
-		'- Use the "Definitions of objects used in mock-related calls" section to verify each mocked target resolves to the intended object/type in source code.',
 		'- If a mock target resolves to a different symbol/scope than intended, revise the mock style or target path (e.g., patch path vs patch.object target) before finalizing assertions.',
 		'- Checkout whether given test code is satisfied the given path coverage requirements, if not, adjust the test code to satisfy the requirements.',
 		'- Return ONLY the final complete test code wrapped in a single triple-backtick code block.'
 	].join('\n');
  
-	const user = [
+	const userSections = [
 		`Language: ${params.languageId}`,
 		`Source file: ${params.sourceFile}`,
 		`Focal symbol: ${params.focalSymbolName}`,
 		'',
-		'### Focal method source (ground truth)',
+		'### Focal method source',
 		'```',
 		params.focalMethodSource || '(unavailable)',
 		'```',
@@ -292,19 +295,38 @@ export function buildAssertionReflectionPrompt(params: {
 		'```',
 		params.draftTestCode,
 		'```',
+		// '',
+		// '### Definition tree (from the focal symbol)',
+		// params.definitionTreePretty || '(unavailable)'
+	];
+
+	const redefinedSymbolsSummary = params.redefinedSymbolsSummary?.trim() || '';
+	if (hasDetectedContent(redefinedSymbolsSummary)) {
+		userSections.push(
+			'',
+			'### Symbols that appear redefined in test case.',
+			'Do NOT redefine constants/functions/classes that already exist in the project; instead, import/reuse the source definitions.',
+			redefinedSymbolsSummary
+		);
+	}
+
+	const mockedObjectDefinitionsSummary = params.mockedObjectDefinitionsSummary?.trim() || '';
+	if (hasDetectedContent(mockedObjectDefinitionsSummary)) {
+		userSections.push(
+			'',
+			'### Definitions of objects used in mock-related calls',
+			'Use this to verify each mocked target resolves to the intended object/type in source code.',
+			mockedObjectDefinitionsSummary
+		);
+	}
+
+	userSections.push(
 		'',
-		'### Definition tree (from the focal symbol)',
-		params.definitionTreePretty || '(unavailable)',
-		'',
-		'### Symbols that appear redefined in the draft test but exist in the source dependency tree',
-		params.redefinedSymbolsSummary || '(unavailable)',
-		'',
-		'### Definitions of objects used in mock-related calls',
-		params.mockedObjectDefinitionsSummary || '(none detected)',
-		'',
-		'### Invoked function signatures (functions called by the focal symbol)',
+		'### Invoked symbol definitions',
 		formatInvokedFunctionSignatures(params.invokedFunctionSignatures)
-	].join('\n');
+	);
+
+	const user = userSections.join('\n');
  
 	return [
 		{ role: 'system', content: system },
@@ -438,6 +460,27 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 					invokedFunctionSignatures,
 					mockedObjectDefinitionsSummary
 				});
+		}
+
+		const shouldSaveReflectPrompts =
+			isSkipLLMModeEnabled() ||
+			(process.env.LSPRAG_SAVE_REFLECT_PROMPTS || '').toLowerCase() === 'true' ||
+			(process.env.TEST_SAVE_REFLECT_PROMPTS || '').toLowerCase() === 'true';
+		if (shouldSaveReflectPrompts) {
+			try {
+				this.logger.savePromptLog({
+					timestamp: new Date().toISOString(),
+					sourceFile,
+					systemPrompt: promptObj[0]?.content || '',
+					userPrompt: promptObj[1]?.content || '',
+					paths: [],
+					finalPrompt: promptObj
+						.map((msg, idx) => `### ${msg.role || `message_${idx}`}\n${msg.content || ''}`)
+						.join('\n\n')
+				});
+			} catch (e) {
+				console.warn('[LSPRAG_REFLECT] Failed to save reflect prompt log (continuing):', e);
+			}
 		}
  
 		const reflected = await invokeLLM(promptObj, logObj);

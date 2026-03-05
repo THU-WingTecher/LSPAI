@@ -4,12 +4,14 @@ import { ExceptionExtractorFactory, ExceptionTypeExtractor } from "./languageAgn
 interface PathSegment {
     code: string;
     condition?: string;
+    returnValue?: string;
 }
 
 export interface PathResult {
     code: string;
     path: string;
     simple: string;
+    returnValue?: string;
 }
 
 export interface ConditionAnalysis {
@@ -29,7 +31,7 @@ export class Path {
     get condition() {
         return this.segments.map(s => s.condition).filter(c => c);
     }
-    addSegment(code: string, condition?: string) {
+    addSegment(code: string, condition?: string, returnValue?: string) {
         // if condition is wrapped in parentheses, remove them
         // also should work for !((condition))
         // if condition is wrapped in parentheses, remove them
@@ -37,7 +39,7 @@ export class Path {
             condition = condition.replace("((", "(").replace("))", ")");
         }
 
-        this.segments.push({ code, condition });
+        this.segments.push({ code, condition, returnValue });
     }
 
     addVisitedNode(node: CFGNode) {
@@ -56,11 +58,18 @@ export class Path {
     }
 
     toResult(): PathResult {
-        return {
+        const result: PathResult = {
             code: this.segments.map(s => s.code).filter(c => c).join('\n'),
             path: "where (\n\t" + this.segments.map(s => s.condition).filter(c => c).join('\n\t') + "\n)",
             simple: this.segments.map(s => s.condition).filter(c => c).join(' && ')
         };
+        const returnValues = this.segments
+            .map(s => s.returnValue)
+            .filter((value): value is string => Boolean(value));
+        if (returnValues.length > 0) {
+            result.returnValue = returnValues[returnValues.length - 1];
+        }
+        return result;
     }
 }
 
@@ -472,8 +481,7 @@ export class PathCollector {
                 break;
 
             case CFGNodeType.RETURN:
-                // currentPath.addSegment("", node.astNode.text);
-                currentPath.addSegment(node.astNode.text, "");
+                currentPath.addSegment(node.astNode.text, "", this.extractReturnValue(node.astNode.text));
             case CFGNodeType.EXIT:
                 if (currentPath.length > 0) {
                     this.paths.push(currentPath);
@@ -636,5 +644,14 @@ export class PathCollector {
                 }
                 break;
         }
+    }
+
+    private extractReturnValue(returnStatementText: string): string {
+        const trimmed = returnStatementText.trim();
+        if (!trimmed.startsWith('return')) {
+            return trimmed;
+        }
+        const value = trimmed.slice('return'.length).trim();
+        return value || 'None';
     }
 }

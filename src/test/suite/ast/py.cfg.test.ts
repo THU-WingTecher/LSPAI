@@ -563,3 +563,36 @@ result = x + y
         "Finally block should connect to result statement"
     );
 });
+
+test('Python CFG - Dataclass Decorated Class Method', async function() {
+    const builder = new PythonCFGBuilder('python');
+    const code = `
+from dataclasses import dataclass
+
+@dataclass
+class User:
+    name: str
+    age: int
+
+    def is_adult(self):
+        if self.age >= 18:
+            return True
+        return False
+    `;
+
+    const cfg = await builder.buildFromCode(code);
+    builder.printCFGGraph(cfg.entry);
+    const nodes = Array.from(cfg.nodes.values());
+
+    const condition = nodes.find(n =>
+        n.type === CFGNodeType.CONDITION &&
+        n.condition === 'self.age >= 18'
+    );
+    assert.notEqual(condition, undefined, "Should extract condition from method inside @dataclass class");
+
+    const returns = nodes.filter(n =>
+        n.type === CFGNodeType.RETURN &&
+        (n.astNode.text.includes('return True') || n.astNode.text.includes('return False'))
+    );
+    assert.equal(returns.length, 2, "Should include both return paths in CFG");
+});
