@@ -252,6 +252,172 @@ xvfb-run -a npm run test \
 - thefuck : /LSPRAG/experiments/config/thefuck-dl-robust-final.json
 - dataclass-json : /LSPRAG/experiments/config/dataclass-json-robust-final.json
 
+
+# 9. Coverage/Mutation Score
+
+**Research Question**：在应用我们的方法之后，原有的 bug-finding 能力是否受到影响？
+
+我们的目标是证明：在应用本方法前后，**mutation score** 与 **line coverage** 基本保持一致（即无显著下降）。
+
+---
+
+## 9.1 Line Coverage 收集方法
+
+Line coverage 是广泛使用的测试用例质量度量指标之一。
+
+### 环境准备
+
+如未安装相关依赖，请执行：
+
+```bash
+pip install coverage pytest pytest-json-report
+```
+
+### 覆盖率收集脚本
+
+```bash
+bash /LSPRAG/scripts/python_coverage.bash {project_path} {testCasesDir}
+```
+
+---
+
+### 示例：Black + DeepSeek + OpenCode
+
+假设我们要对 `black-deepseek-opencode` 进行实验。
+
+OpenCode 原始测试数据位于：
+
+```
+/LSPRAG/opencode-tests/deepseek-chat/2026-02-09T06-57-32
+```
+
+其中包含测试代码的最深层目录为：
+
+```
+/LSPRAG/opencode-tests/deepseek-chat/2026-02-09T06-57-32/deepseek-chat/codes
+```
+
+我们对该测试集执行覆盖率收集：
+
+```bash
+bash /LSPRAG/scripts/python_coverage.bash \
+  /LSPRAG/experiments/projects/black \
+  /LSPRAG/opencode-tests/deepseek-chat/2026-02-09T06-57-32/deepseek-chat/codes
+```
+
+示例输出：
+
+```bash
+src/blib2to3/pytree.py               475    242    49%
+------------------------------------------------------
+TOTAL                               7182   4584    36%
+```
+
+⚠️ **记录方式说明：**
+
+我们记录的是：
+
+```
+4584 / 7182
+```
+
+即实际覆盖行数 / 总行数，而不要仅记录系统自动计算出的百分比值（例如 36%）。
+
+---
+
+### LSPRAG 结果对比
+
+Reflect 生成的测试代码位于：
+
+```
+/LSPRAG/experiments/projects/black/lsprag-workspace/20260206_040834/black/opencode-cfg-vars
+```
+
+对应测试目录：
+
+```
+.../results/final
+```
+
+执行覆盖率收集：
+
+```bash
+bash /LSPRAG/scripts/python_coverage.bash \
+  /LSPRAG/experiments/projects/black \
+  /LSPRAG/experiments/projects/black/lsprag-workspace/20260206_040834/black/opencode-cfg-vars/results/final
+```
+
+⚠️ 注意：
+
+- `results` 目录下通常包含 `initial` 和 `final`
+- 统一使用 `final` 进行统计
+
+---
+
+### LSPRAG 实验对比规则
+
+比较：
+
+- `lsprag_withcontext/results/final`
+- `experimental_withcontext/results/final`
+
+---
+
+## 9.2 Mutation Score 计算方法
+
+Mutation Score 是衡量测试断言 bug-finding 能力的核心指标。
+
+---
+
+### 环境准备
+
+安装 mutation score 工具：
+
+```bash
+pip install mutpy
+```
+
+---
+
+### 执行脚本
+
+- `--project-root` 与 `--module-root`：统一使用 benchmark workspace
+- `--test-mapping`：指定 `testfileMap.json`
+- `--test-dir`：指定测试用例目录
+
+示例：
+
+```bash
+python /LSPRAG/scripts/compute_mutation_score.py \
+  --project-root /LSPRAG/experiments/projects/tornado \
+  --module-root /LSPRAG/experiments/projects/tornado \
+  --test-mapping /LSPRAG/experiments/config/tornado_test_file_map.json \
+  --test-dir /LSPRAG/experiments/data/main_result/tornado/lsprag/1/deepseek-chat/results/final \
+  --runner pytest
+```
+
+---
+
+# 重要说明（必须阅读）
+
+⚠️ Coverage 与 Mutation Score 的收集对运行环境高度敏感。
+
+如出现以下异常现象，请立即联系我：
+
+### 可疑异常情况
+
+- 覆盖率为 0
+- Mutation score 计算异常快
+- 无任何 mutation 结果输出
+- 测试未实际执行
+
+这些通常意味着：
+
+- 测试未正确加载
+- 路径配置错误
+- 虚拟环境不一致
+- pytest 未成功运行
+
 ## 8. 检查清单
 
 1. 能通过 `heyuan -> 容器(3305)` 完成 SSH 登录。

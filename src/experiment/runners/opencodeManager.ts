@@ -7,6 +7,8 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { LogEntry } from '../core/types';
 
+const MAX_OPENCODE_PROMPT_LENGTH = 8000;
+
 /**
  * Configuration for OpenCode Manager
  */
@@ -163,10 +165,28 @@ export class OpencodeManager {
         let promptResponse: any;
         let sessionMessagesResponse: any;
         const requestPayload: any = {};
+        const truncationMarker = '\n...[truncated]...\n';
+        const keepLength = MAX_OPENCODE_PROMPT_LENGTH - truncationMarker.length;
+        const headLength = Math.ceil(keepLength * 0.7);
+        const finalPrompt = prompt.length > MAX_OPENCODE_PROMPT_LENGTH
+            ? prompt.slice(0, headLength) + truncationMarker + prompt.slice(-(keepLength - headLength))
+            : prompt;
 
-        console.log(`Running OpenCode prompt: ${prompt.substring(0, 60)}...`);
+        console.log(`Running OpenCode prompt: ${finalPrompt.substring(0, 60)}...`);
         console.log(`Session ID: ${this.sessionId}`);
         console.log(`Model: ${this.model}`);
+        console.log(`Prompt length: ${finalPrompt.length} chars`);
+        if (finalPrompt !== prompt) {
+            console.warn(
+                `   Prompt exceeded ${MAX_OPENCODE_PROMPT_LENGTH} chars and was truncated ` +
+                `from ${prompt.length} to ${finalPrompt.length} chars.`
+            );
+            requestPayload.promptTruncation = {
+                originalLength: prompt.length,
+                truncatedLength: finalPrompt.length,
+                maxLength: MAX_OPENCODE_PROMPT_LENGTH
+            };
+        }
 
         try {
             const client = await this.initClient();
@@ -203,12 +223,11 @@ export class OpencodeManager {
             const modelParts = this.model.includes('/') ? this.model.split('/') : [this.provider, this.model];
             const providerID = this.normalizeProviderID(modelParts[0] || this.provider);
             const modelID = modelParts[1] || this.model;
-            
             console.log(`   Provider ID: ${providerID}, Model ID: ${modelID}`);
             
             // Send prompt
             requestPayload.model = { providerID, modelID };
-            requestPayload.parts = [{ type: "text", text: prompt }];
+            requestPayload.parts = [{ type: "text", text: finalPrompt }];
 
             promptResponse = await client.session.prompt({
                 path: { 
@@ -289,7 +308,7 @@ export class OpencodeManager {
             });
             
             const logEntry: LogEntry = {
-                prompt: prompt,
+                prompt: finalPrompt,
                 name: fileName,
                 response: content,
                 sessionId: this.sessionId,
@@ -353,7 +372,7 @@ Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}
             }
 
             const errorLogEntry = {
-                prompt: prompt,
+                prompt: finalPrompt,
                 name: fileName,
                 error: errorMsg,
                 errorStack: error.stack,
