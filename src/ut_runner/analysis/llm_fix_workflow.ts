@@ -10,7 +10,7 @@ import { Analyzer } from '../analyzer';
 import { buildEnv } from '../runner';
 import { TestCaseResult, ExaminationResult } from '../types';
 import { LLMLogs } from '../../log';
-import { getSymbolFromDocument, getSymbolByLocation, getSymbolDetail, isFunctionSymbol } from '../../lsp/symbol';
+import { getSymbolFromDocument, getSymbolByLocation, getSymbolDetail } from '../../lsp/symbol';
 import { 
   categorizeAssertionError, 
   loadCategoryStructure, 
@@ -26,7 +26,7 @@ import {
 } from './category_diff_logger';
 import { logFixDiff, exportFixDiffSummary, exportDetailedFixReport, generateSimpleDiffReport, createFixDiffReport, loadFixDiffReport, saveFixDiffReport, FixDiffReport } from './fix_diff_reporter';
 import { getDecodedTokensFromSymbol } from '../../lsp/token';
-import { isBetweenFocalMethod, retrieveDefs } from '../../lsp/definition';
+import { isBetweenFocalMethod, isInWorkspace, retrieveDefs } from '../../lsp/definition';
 import { sanitizeJavaFixedCodeForInsertion } from './add_test_function_utils';
 
 export function computeOutputTestFilePath(outputDir: string, language: string, testFile: string): string {
@@ -316,8 +316,31 @@ export class LLMFixWorkflow {
     return testEntry.detailError;
   }
 
+  private normalizeSymbolName(name: string): string {
+    return (name || '').trim().toLowerCase().split('(')[0].trim();
+  }
+
+  private findNestedSymbolByName(symbol: vscode.DocumentSymbol, targetName: string): vscode.DocumentSymbol | null {
+    const normalizedTarget = this.normalizeSymbolName(targetName);
+    if (!normalizedTarget) {
+      return null;
+    }
+
+    const stack = [...(symbol.children || [])];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (this.normalizeSymbolName(current.name) === normalizedTarget) {
+        return current;
+      }
+      if (current.children?.length) {
+        stack.push(...current.children);
+      }
+    }
+    return null;
+  }
+
   /**
-   * Collect signatures of functions invoked by the focal symbol.
+   * Collect full definitions of symbols referenced by the focal symbol.
    */
   async getInvokedFunctionSignatures(testEntry: any): Promise<string[]> {
     try {
@@ -344,28 +367,106 @@ export class LLMFixWorkflow {
         if (!token.definition?.length) {
           continue;
         }
-        if (token.type !== 'function' && token.type !== 'method') {
-          continue;
-        }
 
-        const def = token.definition[0];
-        if (isBetweenFocalMethod(def.range, focalSymbol)) {
-          continue;
-        }
+        for (const def of token.definition) {
+          // Skip symbols defined inside the focal symbol itself.
+          if (
+            def.uri.toString() === document.uri.toString() &&
+            focalSymbol.range.contains(def.range.start) &&
+            focalSymbol.range.contains(def.range.end)
+          ) {
+            continue;
+          }
 
-        const defDoc = await vscode.workspace.openTextDocument(def.uri);
-        const defSymbol = await getSymbolByLocation(defDoc, def.range.start);
-        if (!defSymbol || !isFunctionSymbol(defSymbol)) {
-          continue;
-        }
+          // Keep backward-compatibility with existing behavior for strict "between" checks.
+          if (isBetweenFocalMethod(def.range, focalSymbol)) {
+            continue;
+          }
 
-        // const signature = getSymbolDetail(defDoc, defSymbol);
-        // const signature = getHoverawait getHover(defDoc, defSymbol);
-        const hoverResults = await getHover(defDoc, defSymbol);
-        const hoverText = extractHoverText(hoverResults);
-        if (hoverText) {
-          const key = `${def.uri.toString()}:${defSymbol.selectionRange.start.line}:${defSymbol.selectionRange.start.character}`;
-          unique.set(key, cleanInvokedSignatureText(hoverText).trim());
+          if (!isInWorkspace(def.uri.fsPath)) {
+            continue;
+          }
+          const defDoc = await vscode.workspace.openTextDocument(def.uri);
+          const rawDefSymbol = await getSymbolByLocation(defDoc, def.range.start);
+
+          let key = `${def.uri.toString()}:${def.range.start.line}:${def.range.start.character}:${def.range.end.line}:${def.range.end.character}`;
+          let symbolNameForEntry = token.word;
+          let symbolKindForEntry = token.type || 'symbol';
+          let definitionText = '';
+
+          if (!rawDefSymbol && token.type?.toLowerCase() === 'variable') {
+            continue;
+          }
+
+          let defSymbol = rawDefSymbol;
+          if (defSymbol) {
+            const normalizedTokenName = this.normalizeSymbolName(token.word);
+            if (normalizedTokenName && this.normalizeSymbolName(defSymbol.name) !== normalizedTokenName) {
+              const nested = this.findNestedSymbolByName(defSymbol, token.word);
+              if (nested) {
+                defSymbol = nested;
+              }
+            }
+
+            const isCallableToken = token.type === 'function' || token.type === 'method';
+            if (isCallableToken && normalizedTokenName && this.normalizeSymbolName(defSymbol.name) !== normalizedTokenName) {
+              continue;
+            }
+
+            if (
+              def.uri.toString() === document.uri.toString() &&
+              defSymbol.range.contains(focalSymbol.range.start) &&
+              defSymbol.range.contains(focalSymbol.range.end) &&
+              !defSymbol.range.isEqual(focalSymbol.range)
+            ) {
+              continue;
+            }
+
+            key = `${def.uri.toString()}:${defSymbol.selectionRange.start.line}:${defSymbol.selectionRange.start.character}`;
+            symbolNameForEntry = defSymbol.name || symbolNameForEntry;
+            symbolKindForEntry = (vscode.SymbolKind[defSymbol.kind] || symbolKindForEntry).toLowerCase();
+
+            if (defSymbol.kind === vscode.SymbolKind.Variable) {
+              continue;
+            }
+
+            if (defSymbol.kind === vscode.SymbolKind.Constant) {
+              // Constant-specific policy: prefer signature-style loading.
+              const hoverResults = await getHover(defDoc, defSymbol, false);
+              definitionText = cleanInvokedSignatureText(extractHoverText(hoverResults)).trim();
+              if (!definitionText) {
+                definitionText = cleanInvokedSignatureText(getSymbolDetail(defDoc, defSymbol)).trim();
+              }
+            } else {
+              // Default policy: prefer full symbol body so prompts receive complete definitions.
+              definitionText = cleanInvokedSignatureText(getSymbolDetail(defDoc, defSymbol, true)).trim();
+            }
+
+            if (!definitionText) {
+              const hoverResults = await getHover(defDoc, defSymbol, false);
+              definitionText = cleanInvokedSignatureText(extractHoverText(hoverResults)).trim();
+            }
+          }
+
+          // Fall back to the full line for variable/constant definitions when symbol lookup is unavailable.
+          if (!definitionText && def.range.start.line < defDoc.lineCount) {
+            definitionText = defDoc.lineAt(def.range.start.line).text.trim();
+          }
+          if (!definitionText) {
+            definitionText = cleanInvokedSignatureText(defDoc.getText(def.range)).trim();
+          }
+          if (!definitionText) {
+            continue;
+          }
+
+          if (!unique.has(key)) {
+            const location = `${path.basename(def.uri.fsPath)}:${def.range.start.line + 1}`;
+            const entry = [
+              `[${symbolKindForEntry}] ${symbolNameForEntry} (${location})`,
+              definitionText
+            ].join('\n');
+            unique.set(key, entry);
+          }
         }
       }
 

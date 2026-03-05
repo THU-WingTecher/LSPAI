@@ -10,6 +10,42 @@ export const TOKENTHRESHOLD = 3000; // Define your token threshold here
 
 export const BASELINE = "naive";
 
+const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
+
+function envFlagEnabled(value: string | undefined): boolean {
+	return TRUE_VALUES.has((value || '').trim().toLowerCase());
+}
+
+export function isSkipLLMRequested(): boolean {
+	return envFlagEnabled(process.env.LSPRAG_SKIP_LLM) || envFlagEnabled(process.env.TEST_SKIP_LLM);
+}
+
+function getDraftCodeFromPrompt(userPrompt: string): string {
+	const markers = [
+		'### Draft test code with test prefix path coverage requirements',
+		'### Draft test code'
+	];
+	for (const marker of markers) {
+		const markerIndex = userPrompt.indexOf(marker);
+		if (markerIndex < 0) {
+			continue;
+		}
+		const region = userPrompt.slice(markerIndex + marker.length);
+		const match = region.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/);
+		if (match?.[1]) {
+			return match[1].trim();
+		}
+	}
+	return '';
+}
+
+export function isSkipLLMModeEnabled(): boolean {
+	if (!isSkipLLMRequested()) {
+		return false;
+	}
+	return (process.env.TEST_TYPE || '').trim().toLowerCase() === 'config';
+}
+
 export class TokenLimitExceededError extends Error {
 	constructor(message: string) {
 		super(message);
@@ -133,13 +169,6 @@ export async function callLocalLLM(promptObj: any, logObj: any): Promise<string>
 
 // ... existing code ...
 export async function invokeLLM(promptObj: any, logObj: any = { prompt: '', result: '', tokenUsage: 0, model: '' }, maxRetries = 2, retryDelay = 2000): Promise<string> {
-	const error = getModelConfigError();
-	if (error) {
-		vscode.window.showErrorMessage(error);
-		console.error('invokeLLM::error', error);
-		return "";
-	}
-
 	// Validate promptObj structure
 	if (!Array.isArray(promptObj) || promptObj.length < 2) {
 		const errorMsg = 'Invalid promptObj: must be an array with at least 2 elements';
@@ -152,6 +181,24 @@ export async function invokeLLM(promptObj: any, logObj: any = { prompt: '', resu
 		const errorMsg = 'Invalid promptObj: elements must have content property';
 		console.error('invokeLLM::error', errorMsg);
 		vscode.window.showErrorMessage(errorMsg);
+		return "";
+	}
+
+	if (isSkipLLMModeEnabled()) {
+		const userPrompt = promptObj[1]?.content || '';
+		const draft = getDraftCodeFromPrompt(userPrompt);
+		const syntheticResponse = draft ? `\`\`\`\n${draft}\n\`\`\`` : '```python\npass\n```';
+		logObj.prompt = userPrompt;
+		logObj.result = syntheticResponse;
+		logObj.tokenUsage = '0';
+		logLLMInteraction(userPrompt, syntheticResponse);
+		return syntheticResponse;
+	}
+
+	const error = getModelConfigError();
+	if (error) {
+		vscode.window.showErrorMessage(error);
+		console.error('invokeLLM::error', error);
 		return "";
 	}
 

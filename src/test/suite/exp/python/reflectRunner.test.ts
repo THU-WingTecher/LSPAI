@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import fs from 'fs';
 import path from 'path';
 import { setWorkspaceFolders, updateWorkspaceFolders } from '../../../../helper';
-import { loadAllTargetSymbolsFromWorkspace } from "../../../../lsp/symbol";
+import { loadAllTargetSymbolsFromWorkspace, getSymbolFromDocument } from "../../../../lsp/symbol";
 import { activate } from '../../../../lsp/helper';
 import { getConfigInstance, GenerationType, PromptType, Provider, FixType, ProjectConfigName, getProjectWorkspace, getProjectPythonExe, getProjectLanguage, getProjectPythonPath } from '../../../../config';
 import { readSliceAndSaveTaskList } from '../../../../experiment/utils/helper';
@@ -11,6 +11,7 @@ import { runGenerateTestCodeSuite, findMatchedSymbolsFromTaskList } from '../../
 import { runPipeline } from '../../../../ut_runner/runner';
 import { setupPythonWorkspaceForExperiment } from '../../../../helper';
 import { getPythonProjectInfo } from '../../../../config';
+import { isSkipLLMModeEnabled, isSkipLLMRequested } from '../../../../invokeLLM';
 
 suite('Experiment Test Suite', () => {
     const sampleNumber = -1;
@@ -24,6 +25,8 @@ suite('Experiment Test Suite', () => {
     const projectName = projectNameEnv as ProjectConfigName;
     const testTypeRaw = process.env.TEST_TYPE || 'LSPRAG';
     const testType = testTypeRaw.trim().toLowerCase();
+
+    const skipLLMMode = isSkipLLMModeEnabled();
     const testConfigPath = process.env.TEST_CONFIG_PATH;
     const taskListPath = process.env.TEST_TASK_LIST_PATH;
     if (!taskListPath) {
@@ -57,6 +60,8 @@ suite('Experiment Test Suite', () => {
         promptType?: string;
         savePath?: string;
         saveName?: string;
+        symbolName?: string;
+        sourceFile?: string;
     };
 
     const resolvePromptType = (raw?: string): PromptType => {
@@ -97,7 +102,9 @@ suite('Experiment Test Suite', () => {
                 testFileMapPath: path.isAbsolute(testFileMapPath) ? testFileMapPath : path.resolve(baseDir, testFileMapPath),
                 promptType: entry.promptType,
                 savePath: entry.savePath,
-                saveName: entry.saveName
+                saveName: entry.saveName,
+                symbolName: entry.symbolName || entry.symbol_name,
+                sourceFile: entry.sourceFile || entry.source_file
             } as ReflectConfigEntry;
         });
     };
@@ -124,9 +131,14 @@ suite('Experiment Test Suite', () => {
         promptType: PromptType;
         preTestsDir?: string;
         saveName?: string;
+        symbolsOverride?: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[];
     }): Promise<void> => {
         const preTestsDir = params.preTestsDir || params.cachedDir;
-        await runPipelineFor(preTestsDir, params.testFileMapPath);
+        if (!skipLLMMode) {
+            await runPipelineFor(preTestsDir, params.testFileMapPath);
+        } else {
+            console.log('[reflectRunner] LSPRAG_SKIP_LLM enabled (config mode): skipping pre-reflect runPipelineFor');
+        }
 
         await runGenerateTestCodeSuite(
             GenerationType.EXPERIMENTAL,
@@ -134,7 +146,7 @@ suite('Experiment Test Suite', () => {
             params.promptType,
             model, 
             provider,
-            symbols,
+            params.symbolsOverride || symbols,
             languageId,
             undefined,
             params.cachedDir,
@@ -143,35 +155,34 @@ suite('Experiment Test Suite', () => {
         );
 
         const { testsDir, testFileMapPath } = getGeneratedPaths();
-        await runPipelineFor(testsDir, testFileMapPath);
+        if (!skipLLMMode) {
+            await runPipelineFor(testsDir, testFileMapPath);
+        } else {
+            console.log('[reflectRunner] LSPRAG_SKIP_LLM enabled (config mode): skipping post-reflect runPipelineFor');
+        }
     };
 
     const runLspragReflect = async (): Promise<void> => {
-        await runGenerateTestCodeSuite(
-            GenerationType.LSPRAG,
-            FixType.ORIGINAL,
-            PromptType.WITHCONTEXT,
-            model, 
-            provider,
-            symbols,
-            languageId,
-            undefined,
-        );
+        // await runGenerateTestCodeSuite(
+        //     GenerationType.LSPRAG,
+        //     FixType.ORIGINAL,
+        //     PromptType.WITHCONTEXT,
+        //     model, 
+        //     provider,
+        //     symbols,
+        //     languageId,
+        //     undefined,
+        // );
 
-        const cachedDir = getConfigInstance().savePath;
-        const { testsDir, testFileMapPath } = getGeneratedPaths();
+        // const cachedDir = getConfigInstance().savePath;
+        // const { testsDir, testFileMapPath } = getGeneratedPaths();
+
         // await runExperimentalReflect({
         //     cachedDir,
         //     testFileMapPath,
         //     preTestsDir: testsDir,
-        //     promptType: PromptType.WITHCONTEXT
+        //     promptType: PromptType.NAIVE
         // });
-        await runExperimentalReflect({
-            cachedDir,
-            testFileMapPath,
-            preTestsDir: testsDir,
-            promptType: PromptType.NAIVE
-        });
         
         await runGenerateTestCodeSuite(
             GenerationType.LSPRAG,
@@ -229,6 +240,10 @@ suite('Experiment Test Suite', () => {
     });
 
     test(`Reflect runner; ${model}; ${testType}`, async () => {
+        if (skipLLMMode) {
+            console.log('[reflectRunner] Skip-LLM mode is active (config mode only).');
+        }
+
         if (testType === 'lsprag') {
             await runLspragReflect();
             return;
@@ -243,11 +258,25 @@ suite('Experiment Test Suite', () => {
 
         const reflectConfigs = loadReflectConfig(testConfigPath);
         for (const config of reflectConfigs) {
+            let symbolsOverride: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[] | undefined;
+            if (config.symbolName || config.sourceFile) {
+                if (!config.symbolName || !config.sourceFile) {
+                    throw new Error('Config entry must provide both symbolName(symbol_name) and sourceFile(source_file) for targeted mode.');
+                }
+                const targetDoc = await vscode.workspace.openTextDocument(vscode.Uri.file(config.sourceFile));
+                const targetSymbol = await getSymbolFromDocument(targetDoc, config.symbolName);
+                if (!targetSymbol) {
+                    throw new Error(`Target symbol "${config.symbolName}" not found in ${config.sourceFile}`);
+                }
+                symbolsOverride = [{ symbol: targetSymbol, document: targetDoc }];
+                console.log(`[reflectRunner] Targeted mode: ${config.symbolName} @ ${config.sourceFile}`);
+            }
             await runExperimentalReflect({
                 cachedDir: config.cachedDir,
                 testFileMapPath: config.testFileMapPath,
                 promptType: resolvePromptType(config.promptType),
-                saveName: config.savePath || config.saveName
+                saveName: config.savePath || config.saveName,
+                symbolsOverride
             });
         }
     });
