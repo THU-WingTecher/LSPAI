@@ -10,6 +10,11 @@ import { generateTestsSequential, generateTestsParallel } from '../generators/op
 import { detectLanguage } from '../prompts/templates';
 import { generateFileNameCore } from '../utils/fileNameGenerator';
 import { assignTaskKeys, buildTaskKey } from '../utils/taskKey';
+import {
+    getProviderApiKeyFromEnv,
+    normalizeOpencodeProviderID,
+    syncAnthropicCredentials
+} from '../utils/providerAuth';
 
 function withCwd<T>(cwd: string, fn: () => Promise<T>): Promise<T> {
     const prev = process.cwd();
@@ -37,31 +42,44 @@ function makeFetchWithAuth(authHeader: string | undefined): typeof fetch | undef
     };
 }
 
-function getProviderApiKey(providerID: string): string {
-    const p = providerID.toLowerCase();
-    if (p === 'openai') return process.env.OPENAI_API_KEY ?? '';
-    if (p === 'deepseek') return process.env.DEEPSEEK_API_KEY ?? '';
-    if (p === 'anthropic' || p === 'claude') return process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_AUTH_TOKEN ?? '';
-    return process.env.OPENAI_API_KEY ?? '';
-}
+async function ensureProviderAuth(sharedClient: any, providerID: string, directory?: string): Promise<void> {
+    const normalizedProviderID = normalizeOpencodeProviderID(providerID);
+    if (normalizedProviderID === 'anthropic') {
+        const credential = syncAnthropicCredentials();
+        if (!credential) {
+            throw new Error(
+                "Anthropic API key is missing. Set ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY before running opencode."
+            );
+        }
+    }
 
-async function ensureProviderAuth(sharedClient: any, providerID: string): Promise<void> {
     const skipAuthSet = process.env.OPENCODE_SKIP_AUTH_SET === '1';
-    if (skipAuthSet) return;
+    if (skipAuthSet) {
+        return;
+    }
 
-    const normalizedProviderID = providerID.toLowerCase() === 'claude' ? 'anthropic' : providerID;
-    const apiKey = getProviderApiKey(normalizedProviderID);
-    if (!apiKey) return;
+    const apiKey = getProviderApiKeyFromEnv(normalizedProviderID);
+    if (!apiKey) {
+        return;
+    }
 
     try {
         const result = await sharedClient.auth.set({
             path: { id: normalizedProviderID },
+            query: directory ? { directory } : undefined,
             body: { type: 'api', key: apiKey }
         });
         if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
-            console.warn('[opencode] auth.set returned error; set OPENCODE_SKIP_AUTH_SET=1 to skip.', (result as any).error);
+            const msg = `[opencode] auth.set returned error: ${JSON.stringify((result as any).error)}`;
+            if (normalizedProviderID === 'anthropic') {
+                throw new Error(msg);
+            }
+            console.warn(`${msg} set OPENCODE_SKIP_AUTH_SET=1 to skip.`);
         }
     } catch (e) {
+        if (normalizedProviderID === 'anthropic') {
+            throw e;
+        }
         console.warn('[opencode] auth.set threw; set OPENCODE_SKIP_AUTH_SET=1 to skip.', e);
     }
 }
@@ -213,7 +231,7 @@ export async function runOpencodeExperiment(
 
     // If provider credentials are supplied via env, push them into the opencode server (best-effort).
     // If this fails (server version/schema differs), set OPENCODE_SKIP_AUTH_SET=1 and rely on env/config.
-    await ensureProviderAuth(sharedClient, config.provider);
+    await ensureProviderAuth(sharedClient, config.provider, config.projectRoot);
 
     // Generate tests
     const useParallel = options.useParallel !== false;

@@ -6,6 +6,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { LogEntry } from '../core/types';
+import {
+    getProviderApiKeyFromEnv,
+    normalizeOpencodeProviderID,
+    syncAnthropicCredentials
+} from '../utils/providerAuth';
 
 const MAX_OPENCODE_PROMPT_LENGTH = 8000;
 
@@ -61,8 +66,7 @@ export class OpencodeManager {
     }
 
     private normalizeProviderID(providerID: string): string {
-        const normalized = (providerID || '').toLowerCase();
-        return normalized === 'claude' ? 'anthropic' : normalized;
+        return normalizeOpencodeProviderID(providerID);
     }
 
     /**
@@ -109,33 +113,52 @@ export class OpencodeManager {
     }
 
     private getProviderApiKey(): string {
-        const p = this.normalizeProviderID(this.provider || '');
-        if (p === 'openai') return process.env.OPENAI_API_KEY ?? '';
-        if (p === 'deepseek') return process.env.DEEPSEEK_API_KEY ?? '';
-        if (p === 'anthropic') return process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_AUTH_TOKEN ?? '';
-        return process.env.OPENAI_API_KEY ?? '';
+        return getProviderApiKeyFromEnv(this.provider || '');
     }
 
     private async ensureProviderAuth(): Promise<void> {
-        if (this.authConfigured) return;
+        if (this.authConfigured) {
+            return;
+        }
         this.authConfigured = true;
 
+        if (this.normalizeProviderID(this.provider) === 'anthropic') {
+            const credential = syncAnthropicCredentials();
+            if (!credential) {
+                throw new Error(
+                    "Anthropic API key is missing. Set ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY before running opencode."
+                );
+            }
+        }
+
         const skipAuthSet = process.env.OPENCODE_SKIP_AUTH_SET === '1';
-        if (skipAuthSet) return;
+        if (skipAuthSet) {
+            return;
+        }
 
         const apiKey = this.getProviderApiKey();
-        if (!apiKey) return;
+        if (!apiKey) {
+            return;
+        }
 
         try {
             const providerID = this.normalizeProviderID(this.provider);
             const result = await this.sharedClient?.auth?.set?.({
                 path: { id: providerID },
+                query: this.projectDir ? { directory: this.projectDir } : undefined,
                 body: { type: 'api', key: apiKey }
             });
             if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
-                console.warn('[opencode] auth.set returned error; set OPENCODE_SKIP_AUTH_SET=1 to skip.', (result as any).error);
+                const msg = `[opencode] auth.set returned error: ${JSON.stringify((result as any).error)}`;
+                if (providerID === 'anthropic') {
+                    throw new Error(msg);
+                }
+                console.warn(`${msg} set OPENCODE_SKIP_AUTH_SET=1 to skip.`);
             }
         } catch (e) {
+            if (this.normalizeProviderID(this.provider) === 'anthropic') {
+                throw e;
+            }
             console.warn('[opencode] auth.set threw; set OPENCODE_SKIP_AUTH_SET=1 to skip.', e);
         }
     }
@@ -200,6 +223,7 @@ export class OpencodeManager {
 
             // Create session
             sessionCreateResponse = await client.session.create({
+                query: this.projectDir ? { directory: this.projectDir } : undefined,
                 body: {
                     title: fileName
                 }
@@ -233,6 +257,7 @@ export class OpencodeManager {
                 path: { 
                     id: sessionId
                 },
+                query: this.projectDir ? { directory: this.projectDir } : undefined,
                 body: {
                     model: requestPayload.model,
                     parts: requestPayload.parts
@@ -254,6 +279,17 @@ export class OpencodeManager {
             // Check for errors in response
             if (promptResponse && promptResponse.error) {
                 const errorMsg = `OpenCode API Error: ${promptResponse.error.name} - ${JSON.stringify(promptResponse.error.data)}`;
+                console.error(`   ${errorMsg}`);
+                throw new Error(errorMsg);
+            }
+            const providerError = (promptResponse as any)?.data?.info?.error;
+            if (providerError) {
+                const providerName = providerError?.name ?? 'ProviderError';
+                const providerData = providerError?.data ?? {};
+                const providerMessage = providerData?.message || JSON.stringify(providerData || providerError);
+                const providerUrl = providerData?.metadata?.url ? ` url=${providerData.metadata.url}` : '';
+                const providerStatus = providerData?.statusCode ? ` status=${providerData.statusCode}` : '';
+                const errorMsg = `OpenCode provider error (${providerName}): ${providerMessage}${providerStatus}${providerUrl}`;
                 console.error(`   ${errorMsg}`);
                 throw new Error(errorMsg);
             }
@@ -304,7 +340,8 @@ export class OpencodeManager {
 
             // Create log entry
             sessionMessagesResponse = await client.session.messages({
-                path: { id: sessionId }
+                path: { id: sessionId },
+                query: this.projectDir ? { directory: this.projectDir } : undefined
             });
             
             const logEntry: LogEntry = {

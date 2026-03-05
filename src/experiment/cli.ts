@@ -28,6 +28,7 @@ import { runBaselineFromArgs } from './runners/baselineRunner';
 import { runOpencodeFromArgs } from './runners/opencodeRunner';
 import { runClaudeCodeFromArgs } from './runners/claudeCodeRunner';
 import { PromptTemplate } from './core/types';
+import { ensureAnthropicCredentials, normalizeProviderForType, normalizeToken } from './utils/providerAuth';
 
 /**
  * Supported experiment types
@@ -56,38 +57,11 @@ interface CLIArgs {
     verbose?: boolean;
 }
 
-function normalizeToken(rawValue?: string): string | undefined {
-    const value = rawValue?.trim();
-    if (!value) {
-        return undefined;
-    }
-    return value.endsWith(',') ? value.slice(0, -1).trim() : value;
-}
-
-function normalizeProviderForType(provider: string, type: ExperimentType): string {
-    const normalized = provider.toLowerCase();
-    if ((type === 'opencode' || type === 'claudecode') && normalized === 'claude') {
-        return 'anthropic';
-    }
-    return normalized;
-}
-
-function ensureAnthropicCredentials(context: 'opencode' | 'claudecode'): void {
-    const authToken = normalizeToken(process.env.ANTHROPIC_AUTH_TOKEN);
-    const apiKey = normalizeToken(process.env.ANTHROPIC_API_KEY);
-    const credential = authToken || apiKey;
-
-    if (credential && !process.env.ANTHROPIC_API_KEY) {
-        process.env.ANTHROPIC_API_KEY = credential;
-    }
-    if (credential && !process.env.ANTHROPIC_AUTH_TOKEN) {
-        process.env.ANTHROPIC_AUTH_TOKEN = credential;
-    }
-
-    if (!credential) {
-        console.error(
-            `Error: ${context} with Anthropic provider requires ANTHROPIC_AUTH_TOKEN or ANTHROPIC_API_KEY.\n`
-        );
+function ensureAnthropicCredentialsOrExit(context: 'opencode' | 'claudecode'): void {
+    try {
+        ensureAnthropicCredentials(context);
+    } catch (error: any) {
+        console.error(`Error: ${error?.message || String(error)}\n`);
         printUsage();
         process.exit(1);
     }
@@ -149,13 +123,13 @@ function parseArgs(): CLIArgs {
     parsed.provider = normalizedProvider;
 
     if (parsed.type === 'opencode' && parsed.provider === 'anthropic') {
-        ensureAnthropicCredentials('opencode');
+        ensureAnthropicCredentialsOrExit('opencode');
     }
 
     // Validate Claude Code specific requirements
     if (parsed.type === 'claudecode') {
         if (parsed.provider === 'deepseek') {
-            const deepseekApiKey = process.env.DEEPSEEK_API_KEY?.trim();
+            const deepseekApiKey = normalizeToken(process.env.DEEPSEEK_API_KEY);
             if (!deepseekApiKey) {
                 console.error('Error: DeepSeek API key is not set. Please set DEEPSEEK_API_KEY.\n');
                 printUsage();
@@ -165,6 +139,7 @@ function parseArgs(): CLIArgs {
             // Claude Agent SDK expects Anthropic-compatible env names, even when targeting DeepSeek.
             process.env.ANTHROPIC_BASE_URL = 'https://api.deepseek.com/anthropic';
             process.env.ANTHROPIC_AUTH_TOKEN = deepseekApiKey;
+            process.env.ANTHROPIC_API_KEY = deepseekApiKey;
             process.env.API_TIMEOUT_MS = '600000';
             process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
 
@@ -173,11 +148,7 @@ function parseArgs(): CLIArgs {
             console.log(`[claudecode] API_TIMEOUT_MS=${process.env.API_TIMEOUT_MS}`);
             console.log(`[claudecode] ANTHROPIC_AUTH_TOKEN_SET=${Boolean(process.env.ANTHROPIC_AUTH_TOKEN)}`);
         } else if (parsed.provider === 'anthropic') {
-            const anthropicAuthToken = process.env.ANTHROPIC_AUTH_TOKEN?.trim();
-            const anthropicApiKey = process.env.ANTHROPIC_API_KEY?.trim();
-            if (!anthropicAuthToken && anthropicApiKey) {
-                process.env.ANTHROPIC_AUTH_TOKEN = anthropicApiKey;
-            }
+            ensureAnthropicCredentialsOrExit('claudecode');
         }
         // if (parsed.provider !== 'anthropic') {
         //     console.error(`Error: Claude Code experiments require provider 'anthropic', but got '${parsed.provider}'\n`);
@@ -208,7 +179,7 @@ function parseArgs(): CLIArgs {
     if (parsed['output-dir'] && outputName) {
         console.warn('[output] --output-name is ignored when --output-dir is provided.');
     }
-    console.log("promptTampleat", promptTemplate)
+
     return {
         type: parsed.type as ExperimentType,
         taskList: parsed['task-list'],
