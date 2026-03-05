@@ -35,6 +35,10 @@ type TestFileMapEntry = {
 	project_name?: string;
 	file_name?: string;
 	symbol_name?: string;
+	location?: number;
+	line_num?: number;
+	task_key?: string;
+	taskKey?: string;
 };
 
 function normalizePathLike(p: string): string {
@@ -46,6 +50,8 @@ export function resolveTestFileNameFromTestFileMap(params: {
 	symbolName: string;
 	sourceFile?: string; // absolute path (we match via endsWith against mapping's relative file_name)
 	testFileMapPath: string;
+	taskKey?: string;
+	usedMappingKeys?: Set<string>;
 }): string | null {
 	if (!params.dirForReuse || !params.symbolName) {
 		return null;
@@ -69,7 +75,11 @@ export function resolveTestFileNameFromTestFileMap(params: {
 		return null;
 	}
 
-	let fallbackKey: string | null = null;
+	const normalizeTaskKey = (value?: string): string =>
+		normalizePathLike(value || '').replace(/^\.\//, '');
+	const requestedTaskKey = normalizeTaskKey(params.taskKey);
+	const sourceMatchedKeys: string[] = [];
+	const symbolMatchedKeys: string[] = [];
 	for (const [key, entry] of Object.entries(obj)) {
 		if (!entry || typeof entry !== 'object') {
 			continue;
@@ -77,26 +87,33 @@ export function resolveTestFileNameFromTestFileMap(params: {
 		if (entry.symbol_name !== params.symbolName) {
 			continue;
 		}
+		symbolMatchedKeys.push(key);
 
 		// Prefer a mapping that matches the source file path (absolute vs relative).
 		const mappedFile = entry.file_name ? normalizePathLike(entry.file_name) : '';
-		if (sourceNorm && mappedFile && sourceNorm.endsWith(mappedFile)) {
-			return key;
-		}
-
-		if (!fallbackKey) {
-			fallbackKey = key;
+		if (!sourceNorm || !mappedFile || sourceNorm.endsWith(mappedFile)) {
+			sourceMatchedKeys.push(key);
 		}
 	}
-	if (fallbackKey) {
-		return fallbackKey;
-	}
-// } catch {
-// 	// ignore
-// }
-	// }
 
-	return null;
+	const candidateKeys = sourceMatchedKeys.length > 0 ? sourceMatchedKeys : symbolMatchedKeys;
+	if (candidateKeys.length === 0) {
+		return null;
+	}
+
+	if (requestedTaskKey) {
+		const exact = candidateKeys.find((key) => {
+			const entry = obj[key];
+			const entryTaskKey = normalizeTaskKey(entry?.task_key || entry?.taskKey);
+			return entryTaskKey === requestedTaskKey && !params.usedMappingKeys?.has(key);
+		});
+		if (exact) {
+			return exact;
+		}
+	}
+
+	const firstUnused = candidateKeys.find((key) => !params.usedMappingKeys?.has(key));
+	return firstUnused ?? candidateKeys[0];
 }
 
 export function resolveCachedDraftTestPath(cachedDir: string, fileName: string): string | null {

@@ -12,7 +12,7 @@ import {
     syncAnthropicCredentials
 } from '../utils/providerAuth';
 
-const MAX_OPENCODE_PROMPT_LENGTH = 8000;
+const MAX_OPENCODE_PROMPT_LENGTH = 30000;
 
 /**
  * Configuration for OpenCode Manager

@@ -157,18 +157,39 @@ export class ExperimentContinuityManager {
         await this.initializeFromTaskList(taskList);
     }
 
-    public async markTaskComplete(symbolName: string, relativeDocumentPath: string, error?: string): Promise<void> {
+    public async markTaskComplete(
+        symbolName: string,
+        relativeDocumentPath: string,
+        lineNum?: number,
+        location?: number,
+        error?: string
+    ): Promise<void> {
         // Acquire lock for atomic operation
         console.log(`#### markTaskComplete: ${symbolName} ${relativeDocumentPath}`);
         await this.acquireLock(async () => {
             const progress = await this.readProgress();
             console.log(`#### progress: ${progress.tasks.length}`);
-            const task = progress.tasks.find(t => 
-                t.symbolName === symbolName && 
-                t.relativeDocumentPath === relativeDocumentPath
+            const candidates = progress.tasks.filter(t =>
+                t.symbolName === symbolName &&
+                t.relativeDocumentPath === relativeDocumentPath &&
+                !t.completed
             );
 
-            if (task && !task.completed) {
+            let task = candidates[0];
+            if (Number.isFinite(lineNum)) {
+                const exactLine = candidates.find(t => Number(t.lineNum) === Number(lineNum));
+                if (exactLine) {
+                    task = exactLine;
+                }
+            }
+            if (Number.isFinite(location)) {
+                const exactLocation = candidates.find(t => Number(t.location) === Number(location));
+                if (exactLocation) {
+                    task = exactLocation;
+                }
+            }
+
+            if (task) {
                 task.completed = true;
                 task.timestamp = new Date().toISOString();
                 if (error) {
@@ -430,6 +451,18 @@ export async function runGenerateTestCodeSuite(
         console.log(`#### Starting new experiment with ${symbolPairsToProcess.length} tasks`);
     }
 
+    const normalizeTaskPath = (value: string): string =>
+        value.replace(/\\/g, '/').replace(/^\.\//, '');
+    const buildExperimentalTaskKey = (
+        symbolName: string,
+        sourceFilePath: string,
+        symbolStartLine: number
+    ) => {
+        const relPath = normalizeTaskPath(path.relative(workspace, sourceFilePath));
+        const oneBasedLine = symbolStartLine + 1;
+        return `${relPath}::${symbolName}::${oneBasedLine}`;
+    };
+
     // Build/merge test-file mapping for analysis
     // if (testFileMapPath === undefined) {
     const newtestFileMapPath = path.join(getConfigInstance().savePath, 'test_file_map.json');
@@ -441,6 +474,8 @@ export async function runGenerateTestCodeSuite(
                 project_name: projectName,
                 file_name: path.relative(workspace, document.uri.fsPath),
                 symbol_name: symbol.name,
+                line_num: symbol.range.start.line + 1,
+                task_key: buildExperimentalTaskKey(symbol.name, document.uri.fsPath, symbol.range.start.line),
             }
         ])
     );
@@ -453,25 +488,32 @@ export async function runGenerateTestCodeSuite(
     console.log(`#### Test file map has been saved to ${newtestFileMapPath}`);
 
     const limit = createConcurrencyLimit();
-    const buildExperimentalTaskKey = (symbolName: string, sourceFilePath: string) =>
-        `${symbolName}::${path.normalize(sourceFilePath)}`;
     const validatedExperimentalMappings = new Map<string, string>();
+    const usedMappingKeys = new Set<string>();
 
     if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
         const missingMappings: string[] = [];
         for (const { document, symbol } of symbolPairsToProcess) {
+            const taskKey = buildExperimentalTaskKey(
+                symbol.name,
+                document.uri.fsPath,
+                symbol.range.start.line
+            );
             const mapped = resolveTestFileNameFromTestFileMap({
                 dirForReuse,
                 symbolName: symbol.name,
                 sourceFile: document.uri.fsPath,
-                testFileMapPath
+                testFileMapPath,
+                taskKey,
+                usedMappingKeys
             });
             if (!mapped) {
                 missingMappings.push(`${symbol.name} (${document.uri.fsPath}:${symbol.range.start.line + 1})`);
                 continue;
             }
+            usedMappingKeys.add(mapped);
             validatedExperimentalMappings.set(
-                buildExperimentalTaskKey(symbol.name, document.uri.fsPath),
+                taskKey,
                 mapped
             );
         }
@@ -499,7 +541,11 @@ export async function runGenerateTestCodeSuite(
                 let resolvedFileName = fileName;
                 let cachedDraftTestCode: string | undefined;
                 if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
-                    const taskKey = buildExperimentalTaskKey(symbol.name, document.uri.fsPath);
+                    const taskKey = buildExperimentalTaskKey(
+                        symbol.name,
+                        document.uri.fsPath,
+                        symbol.range.start.line
+                    );
                     const mapped = validatedExperimentalMappings.get(taskKey);
                     if (mapped) {
                         // Use the cached randomized basename for the new run too (stable naming).
@@ -539,7 +585,9 @@ export async function runGenerateTestCodeSuite(
                     // Track progress for all experiments
                     await continuityManager.markTaskComplete(
                         symbol.name,
-                        path.relative(workspace, document.uri.fsPath)
+                        path.relative(workspace, document.uri.fsPath),
+                        symbol.range.start.line + 1,
+                        symbol.range.start.line
                     );
                     console.log(`#### Test Code: ${result}`);
                     return result;
@@ -552,6 +600,8 @@ export async function runGenerateTestCodeSuite(
                 await continuityManager.markTaskComplete(
                     symbol.name,
                     path.relative(workspace, document.uri.fsPath),
+                    symbol.range.start.line + 1,
+                    symbol.range.start.line,
                     error instanceof Error ? error.message : String(error)
                 );
                 throw error;
