@@ -1,147 +1,59 @@
 [
   {
     "symbolName": "match",
-    "sourceCode": "def match(command):\n    if command.script_parts[0] == 'cs':\n        return True",
+    "sourceCode": "@for_app('ag')\ndef match(command):\n    return command.output.endswith('run ag with -Q\\n')",
     "importString": "",
     "lineNum": 2,
-    "location": 11,
-    "relativeDocumentPath": "thefuck/rules/cd_cs.py"
+    "location": 3,
+    "relativeDocumentPath": "thefuck/rules/ag_literal.py"
   },
   {
-    "symbolName": "get_new_command",
-    "sourceCode": "def get_new_command(command):\n    broken = command.script_parts[1]\n    fix = re.findall(r'Did you mean `([^`]*)`', command.output)[0]\n\n    return replace_argument(command.script, broken, fix)",
-    "importString": "",
-    "lineNum": 4,
-    "location": 10,
-    "relativeDocumentPath": "thefuck/rules/cargo_no_command.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "def get_new_command(command):\n    return command.script",
-    "importString": "",
-    "lineNum": 1,
-    "location": 22,
-    "relativeDocumentPath": "thefuck/rules/ssh_known_hosts.py"
-  },
-  {
-    "symbolName": "app_alias",
-    "sourceCode": "def app_alias(self, alias_name):\n        return (\"alias {0} 'setenv TF_SHELL tcsh && setenv TF_ALIAS {0} && \"\n                \"set fucked_cmd=`history -h 2 | head -n 1` && \"\n                \"eval `thefuck ${{fucked_cmd}}`'\").format(alias_name)",
-    "importString": "",
-    "lineNum": 3,
-    "location": 10,
-    "relativeDocumentPath": "thefuck/shells/tcsh.py"
-  },
-  {
-    "symbolName": "color",
-    "sourceCode": "def color(color_):\n    \"\"\"Utility for ability to disabling colored output.\"\"\"\n    if settings.no_colors:\n        return ''\n    else:\n        return color_",
-    "importString": "",
-    "lineNum": 5,
-    "location": 11,
-    "relativeDocumentPath": "thefuck/logs.py"
-  },
-  {
-    "symbolName": "and_",
-    "sourceCode": "def and_(self, *commands):\n        return u' && '.join(commands)",
-    "importString": "",
-    "lineNum": 1,
-    "location": 72,
-    "relativeDocumentPath": "thefuck/shells/generic.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    return 'apt upgrade'",
+    "symbolName": "match",
+    "sourceCode": "@for_app('az')\ndef match(command):\n    return \"is not in the\" in command.output and \"command group\" in command.output",
     "importString": "",
     "lineNum": 2,
-    "location": 13,
-    "relativeDocumentPath": "thefuck/rules/apt_upgrade.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "def get_new_command(command):\n    mistake = re.search(INVALID_CHOICE, command.output).group(1)\n    options = re.findall(OPTIONS, command.output, flags=re.MULTILINE)\n    return [replace_argument(command.script, mistake, o) for o in options]",
-    "importString": "",
-    "lineNum": 3,
-    "location": 13,
+    "location": 8,
     "relativeDocumentPath": "thefuck/rules/az_cli.py"
   },
   {
-    "symbolName": "get_new_command",
-    "sourceCode": "def get_new_command(command):\n    match = re.findall(r\"'conda ([^']*)'\", command.output)\n    broken_cmd = match[0]\n    correct_cmd = match[1]\n    return replace_command(command, broken_cmd, [correct_cmd])",
-    "importString": "",
-    "lineNum": 4,
-    "location": 12,
-    "relativeDocumentPath": "thefuck/rules/conda_mistype.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "@git_support\ndef get_new_command(command):\n    missing_file = re.findall(\n        r\"error: pathspec '([^']*)' \"\n        r\"did not match any file\\(s\\) known to git\", command.output)[0]\n    closest_branch = utils.get_closest(missing_file, get_branches(),\n                                       fallback_to_first=False)\n\n    new_commands = []\n\n    if closest_branch:\n        new_commands.append(replace_argument(command.script, missing_file, closest_branch))\n    if command.script_parts[1] == 'checkout':\n        new_commands.append(replace_argument(command.script, 'checkout', 'checkout -b'))\n\n    if not new_commands:\n        new_commands.append(shell.and_('git branch {}', '{}').format(\n            missing_file, command.script))\n\n    return new_commands",
-    "importString": "",
-    "lineNum": 19,
-    "location": 29,
-    "relativeDocumentPath": "thefuck/rules/git_checkout.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "@git_support\ndef get_new_command(command):\n    return shell.and_('git stash', 'git pull', 'git stash pop')",
-    "importString": "",
-    "lineNum": 2,
-    "location": 11,
-    "relativeDocumentPath": "thefuck/rules/git_pull_uncommitted_changes.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "def get_new_command(command):\n    broken = re.findall(r\"env: no such command ['`]([^']*)'\", command.output)[0]\n    matched = [replace_argument(command.script, broken, common_typo)\n               for common_typo in COMMON_TYPOS.get(broken, [])]\n\n    app = command.script_parts[0]\n    app_commands = cache(which(app))(get_app_commands)(app)\n    matched.extend(replace_command(command, broken, app_commands))\n    return matched",
-    "importString": "",
-    "lineNum": 8,
-    "location": 26,
-    "relativeDocumentPath": "thefuck/rules/omnienv_no_such_command.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "def get_new_command(command):\n    return command.script.lstrip(\"$ \")",
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    return command.script == 'cargo'",
     "importString": "",
     "lineNum": 1,
-    "location": 21,
-    "relativeDocumentPath": "thefuck/rules/remove_shell_prompt_literal.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "def get_new_command(command):\n    return 'ls'",
-    "importString": "",
-    "lineNum": 1,
-    "location": 12,
-    "relativeDocumentPath": "thefuck/rules/sl_ls.py"
-  },
-  {
-    "symbolName": "get_new_command",
-    "sourceCode": "def get_new_command(command):\n    cmd = re.match(r\"ambiguous command: (.*), could be: (.*)\",\n                   command.output)\n\n    old_cmd = cmd.group(1)\n    suggestions = [c.strip() for c in cmd.group(2).split(',')]\n\n    return replace_command(command, old_cmd, suggestions)",
-    "importString": "",
-    "lineNum": 7,
-    "location": 10,
-    "relativeDocumentPath": "thefuck/rules/tmux.py"
-  },
-  {
-    "symbolName": "load_source",
-    "sourceCode": "def load_source(name, pathname, _file=None):\n        module_spec = importlib.util.spec_from_file_location(name, pathname)\n        module = importlib.util.module_from_spec(module_spec)\n        module_spec.loader.exec_module(module)\n        return module",
-    "importString": "",
-    "lineNum": 4,
-    "location": 10,
-    "relativeDocumentPath": "thefuck/conf.py"
-  },
-  {
-    "symbolName": "match",
-    "sourceCode": "def match(command):\n    return (is_app(command, 'adb')\n            and command.output.startswith('Android Debug Bridge version'))",
-    "importString": "",
-    "lineNum": 2,
-    "location": 42,
-    "relativeDocumentPath": "thefuck/rules/adb_unknown_command.py"
-  },
-  {
-    "symbolName": "match",
-    "sourceCode": "def match(command):\n    return 'manage.py' in command.script and \\\n           'migrate' in command.script \\\n           and 'or pass --delete-ghost-migrations' in command.output",
-    "importString": "",
-    "lineNum": 3,
     "location": 0,
-    "relativeDocumentPath": "thefuck/rules/django_south_ghost.py"
+    "relativeDocumentPath": "thefuck/rules/cargo.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return 'cargo build'",
+    "importString": "",
+    "lineNum": 1,
+    "location": 4,
+    "relativeDocumentPath": "thefuck/rules/cargo.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@sudo_support\n@for_app('cd')\ndef match(command):\n    \"\"\"Match function copied from cd_mkdir.py\"\"\"\n    return (\n        command.script.startswith('cd ') and any((\n            'no such file or directory' in command.output.lower(),\n            'cd: can\\'t cd to' in command.output.lower(),\n            'does not exist' in command.output.lower()\n        )))",
+    "importString": "",
+    "lineNum": 9,
+    "location": 18,
+    "relativeDocumentPath": "thefuck/rules/cd_correction.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    return (command.script.startswith('./')\n            and 'permission denied' in command.output.lower()\n            and os.path.exists(command.script_parts[0])\n            and not os.access(command.script_parts[0], os.X_OK))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 4,
+    "relativeDocumentPath": "thefuck/rules/chmod_x.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    if \"install\" in command.script_parts and \"composer require\" in command.output.lower():\n        broken_cmd, new_cmd = \"install\", \"require\"\n    else:\n        broken_cmd = re.findall(r\"Command \\\"([^']*)\\\" is not defined\", command.output)[0]\n        new_cmd = re.findall(r'Did you mean this\\?[^\\n]*\\n\\s*([^\\n]*)', command.output)\n        if not new_cmd:\n            new_cmd = re.findall(r'Did you mean one of these\\?[^\\n]*\\n\\s*([^\\n]*)', command.output)\n        new_cmd = new_cmd[0].strip()\n    return replace_argument(command.script, broken_cmd, new_cmd)",
+    "importString": "",
+    "lineNum": 9,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/composer_not_command.py"
   },
   {
     "symbolName": "match",
@@ -153,58 +65,738 @@
   },
   {
     "symbolName": "match",
-    "sourceCode": "@git_support\ndef match(command):\n    # catches \"git branch list\" in place of \"git branch\"\n    return (command.script_parts\n            and command.script_parts[1:] == 'branch list'.split())",
+    "sourceCode": "@git_support\ndef match(command):\n    return (' git clone ' in command.script\n            and 'fatal: Too many arguments.' in command.output)",
     "importString": "",
-    "lineNum": 4,
-    "location": 4,
-    "relativeDocumentPath": "thefuck/rules/git_branch_list.py"
-  },
-  {
-    "symbolName": "match",
-    "sourceCode": "@git_support\ndef match(command):\n    return (' rm ' in command.script and\n            'error: the following file has changes staged in the index' in command.output and\n            'use --cached to keep the file, or -f to force removal' in command.output)",
-    "importString": "",
-    "lineNum": 4,
+    "lineNum": 3,
     "location": 3,
-    "relativeDocumentPath": "thefuck/rules/git_rm_staged.py"
+    "relativeDocumentPath": "thefuck/rules/git_clone_git_clone.py"
   },
   {
     "symbolName": "match",
-    "sourceCode": "@for_app('tsuru')\ndef match(command):\n    return (' is not a tsuru command. See \"tsuru help\".' in command.output\n            and '\\nDid you mean?\\n\\t' in command.output)",
+    "sourceCode": "@git_support\ndef match(command):\n    '''\n    Match a mistyped command\n    '''\n    return 'lfs' in command.script and 'Did you mean this?' in command.output",
+    "importString": "",
+    "lineNum": 5,
+    "location": 5,
+    "relativeDocumentPath": "thefuck/rules/git_lfs_mistype.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    unknown_branch = re.findall(r'merge: (.+) - not something we can merge', command.output)[0]\n    remote_branch = re.findall(r'Did you mean this\\?\\n\\t([^\\n]+)', command.output)[0]\n\n    return replace_argument(command.script, unknown_branch, remote_branch)",
+    "importString": "",
+    "lineNum": 5,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/git_merge.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return 'git rebase --skip'",
+    "importString": "",
+    "lineNum": 1,
+    "location": 11,
+    "relativeDocumentPath": "thefuck/rules/git_rebase_no_changes.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@git_support\ndef match(command):\n    return ('set-url' in command.script\n            and 'fatal: No such remote' in command.output)",
     "importString": "",
     "lineNum": 3,
     "location": 4,
-    "relativeDocumentPath": "thefuck/rules/tsuru_not_command.py"
+    "relativeDocumentPath": "thefuck/rules/git_remote_seturl_add.py"
   },
   {
     "symbolName": "match",
-    "sourceCode": "@for_app('whois', at_least=1)\ndef match(command):\n    \"\"\"\n    What the `whois` command returns depends on the 'Whois server' it contacted\n    and is not consistent through different servers. But there can be only two\n    types of errors I can think of with `whois`:\n        - `whois https://en.wikipedia.org/` → `whois en.wikipedia.org`;\n        - `whois en.wikipedia.org` → `whois wikipedia.org`.\n    So we match any `whois` command and then:\n        - if there is a slash: keep only the FQDN;\n        - if there is no slash but there is a point: removes the left-most\n          subdomain.\n\n    We cannot either remove all subdomains because we cannot know which part is\n    the subdomains and which is the domain, consider:\n        - www.google.fr → subdomain: www, domain: 'google.fr';\n        - google.co.uk → subdomain: None, domain; 'google.co.uk'.\n    \"\"\"\n    return True",
+    "sourceCode": "@git_support\ndef match(command):\n    return ('stash' in command.script\n            and 'pop' in command.script\n            and 'Your local changes to the following files would be overwritten by merge' in command.output)",
     "importString": "",
-    "lineNum": 18,
-    "location": 5,
-    "relativeDocumentPath": "thefuck/rules/whois.py"
+    "lineNum": 4,
+    "location": 4,
+    "relativeDocumentPath": "thefuck/rules/git_stash_pop.py"
   },
   {
-    "symbolName": "match",
-    "sourceCode": "@for_app('workon')\ndef match(command):\n    return (len(command.script_parts) >= 2\n            and command.script_parts[1] not in _get_all_environments())",
-    "importString": "",
-    "lineNum": 3,
-    "location": 16,
-    "relativeDocumentPath": "thefuck/rules/workon_doesnt_exists.py"
-  },
-  {
-    "symbolName": "match",
-    "sourceCode": "def match(command):\n    return (command.script.startswith(u'man')\n            and u'command not found' in command.output.lower())",
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    return shell.and_('git add --update', 'git stash pop', 'git reset .')",
     "importString": "",
     "lineNum": 2,
-    "location": 0,
+    "location": 11,
+    "relativeDocumentPath": "thefuck/rules/git_stash_pop.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    to = command.output.split('`')[1]\n    return replace_argument(command.script, to[1:], to)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/git_two_dashes.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return ' '.join(['ls', '-A'] + command.script_parts[1:])",
+    "importString": "",
+    "lineNum": 1,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/rules/ls_all.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    if '3' in command.script:\n        return command.script.replace(\"3\", \"2\")\n    if '2' in command.script:\n        return command.script.replace(\"2\", \"3\")\n\n    last_arg = command.script_parts[-1]\n    help_command = last_arg + ' --help'\n\n    # If there are no man pages for last_arg, suggest `last_arg --help` instead.\n    # Otherwise, suggest `--help` after suggesting other man page sections.\n    if command.output.strip() == 'No manual entry for ' + last_arg:\n        return [help_command]\n\n    split_cmd2 = command.script_parts\n    split_cmd3 = split_cmd2[:]\n\n    split_cmd2.insert(1, ' 2 ')\n    split_cmd3.insert(1, ' 3 ')\n\n    return [\n        \"\".join(split_cmd3),\n        \"\".join(split_cmd2),\n        help_command,\n    ]",
+    "importString": "",
+    "lineNum": 24,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/rules/man.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@for_app('hg')\ndef match(command):\n    return ('hg: unknown command' in command.output\n            and '(did you mean one of ' in command.output\n            or \"hg: command '\" in command.output\n            and \"' is ambiguous:\" in command.output)",
+    "importString": "",
+    "lineNum": 5,
+    "location": 14,
+    "relativeDocumentPath": "thefuck/rules/mercurial.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    return (not command.script_parts[0] in get_all_executables()\n            and _get_executable(command.script_parts[0]))",
+    "importString": "",
+    "lineNum": 2,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/missing_space_before_subcommand.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    executable = _get_executable(command.script_parts[0])\n    return command.script.replace(executable, u'{} '.format(executable), 1)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 15,
+    "relativeDocumentPath": "thefuck/rules/missing_space_before_subcommand.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    return re.sub('\\\\bmkdir (.*)', 'mkdir -p \\\\1', command.script)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/mkdir_p.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@for_app('mvn')\ndef match(command):\n    return 'No goals have been specified for this build' in command.output",
+    "importString": "",
+    "lineNum": 2,
+    "location": 3,
+    "relativeDocumentPath": "thefuck/rules/mvn_no_command.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    for pattern in patterns:\n        if re.search(pattern, command.output):\n            return True\n\n    return False",
+    "importString": "",
+    "lineNum": 5,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/no_such_file.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@for_app('open', 'xdg-open', 'gnome-open', 'kde-open')\ndef match(command):\n    return (is_arg_url(command) or\n            command.output.strip().startswith('The file ') and\n            command.output.strip().endswith(' does not exist.'))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 24,
+    "relativeDocumentPath": "thefuck/rules/open.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@for_app('python')\ndef match(command):\n    return not command.script.endswith('.py')",
+    "importString": "",
+    "lineNum": 2,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/rules/python_execute.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    missing_module = re.findall(MISSING_MODULE, command.output)[0]\n    return shell.and_(\"pip install {}\".format(missing_module), command.script)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/python_module_error.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    if '&&' in command.script:\n        return u'sudo sh -c \"{}\"'.format(\" \".join([part for part in command.script_parts if part != \"sudo\"]))\n    elif '>' in command.script:\n        return u'sudo sh -c \"{}\"'.format(command.script.replace('\"', '\\\\\"'))\n    else:\n        return u'sudo {}'.format(command.script)",
+    "importString": "",
+    "lineNum": 6,
+    "location": 40,
+    "relativeDocumentPath": "thefuck/rules/sudo.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(command):\n    if 'not found' not in command.output:\n        return False\n    if any(u'ㄱ' <= ch <= u'ㅎ' or u'ㅏ' <= ch <= u'ㅣ' or u'가' <= ch <= u'힣'\n            for ch in command.script):\n        return True\n\n    matched_layout = _get_matched_layout(command)\n    return (matched_layout and\n            _switch_command(command, matched_layout) != get_alias())",
+    "importString": "",
+    "lineNum": 9,
+    "location": 99,
+    "relativeDocumentPath": "thefuck/rules/switch_lang.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@sudo_support\n@for_app('systemctl')\ndef match(command):\n    # Catches \"Unknown operation 'service'.\" when executing systemctl with\n    # misordered arguments\n    cmd = command.script_parts\n    return (cmd and 'Unknown operation \\'' in command.output and\n            len(cmd) - cmd.index('systemctl') == 3)",
+    "importString": "",
+    "lineNum": 7,
+    "location": 7,
+    "relativeDocumentPath": "thefuck/rules/systemctl.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    cmd = command.script_parts[:]\n    cmd[-1], cmd[-2] = cmd[-2], cmd[-1]\n    return ' '.join(cmd)",
+    "importString": "",
+    "lineNum": 4,
+    "location": 17,
+    "relativeDocumentPath": "thefuck/rules/systemctl.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return shell.and_('tsuru login', command.script)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/tsuru_login.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    broken_cmd = re.findall(r\"([^:]*): Unknown command.*\", command.output)[0]\n    matched = re.findall(r\"Did you mean ([^?]*)?\", command.output)\n    return replace_command(command, broken_cmd, matched)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 9,
+    "relativeDocumentPath": "thefuck/rules/unknown_command.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    invalid_operation = command.script_parts[1]\n\n    if invalid_operation == 'uninstall':\n        return [command.script.replace('uninstall', 'remove')]\n\n    return replace_command(command, invalid_operation, _get_operations())",
+    "importString": "",
+    "lineNum": 7,
+    "location": 31,
+    "relativeDocumentPath": "thefuck/rules/yum_invalid_operation.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    return 'git commit --amend'",
+    "importString": "",
+    "lineNum": 2,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/rules/git_commit_amend.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@git_support\ndef match(command):\n    return ('diff' in command.script and\n            '--staged' not in command.script)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 4,
+    "relativeDocumentPath": "thefuck/rules/git_diff_staged.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    broken_cmd = re.findall(r'Error: unknown command \"([^\"]*)\" for \"git-lfs\"', command.output)[0]\n    matched = get_all_matched_commands(command.output, ['Did you mean', ' for usage.'])\n    return replace_command(command, broken_cmd, matched)",
+    "importString": "",
+    "lineNum": 4,
+    "location": 13,
+    "relativeDocumentPath": "thefuck/rules/git_lfs_mistype.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@git_support\ndef match(command):\n    # catches \"Please commit or stash them\" and \"Please, commit your changes or\n    # stash them before you can switch branches.\"\n    return 'or stash them' in command.output",
+    "importString": "",
+    "lineNum": 4,
+    "location": 4,
+    "relativeDocumentPath": "thefuck/rules/git_stash.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return u'man {}'.format(command.script[3:])",
+    "importString": "",
+    "lineNum": 1,
+    "location": 5,
     "relativeDocumentPath": "thefuck/rules/man_no_space.py"
   },
   {
-    "symbolName": "git_support",
-    "sourceCode": "@decorator\ndef git_support(fn, command):\n    \"\"\"Resolves git aliases and supports testing for both git and hub.\"\"\"\n    # supports GitHub's `hub` command\n    # which is recommended to be used with `alias git=hub`\n    # but at this point, shell aliases have already been resolved\n    if not is_app(command, 'git', 'hub'):\n        return False\n\n    # perform git aliases expansion\n    if command.output and 'trace: alias expansion:' in command.output:\n        search = re.search(\"trace: alias expansion: ([^ ]*) => ([^\\n]*)\",\n                           command.output)\n        alias = search.group(1)\n\n        # by default git quotes everything, for example:\n        #     'commit' '--amend'\n        # which is surprising and does not allow to easily test for\n        # eg. 'git commit'\n        expansion = ' '.join(shell.quote(part)\n                             for part in shell.split_command(search.group(2)))\n        new_script = re.sub(r\"\\b{}\\b\".format(alias), expansion, command.script)\n\n        command = command.update(script=new_script)\n\n    return fn(command)",
+    "symbolName": "match",
+    "sourceCode": "@for_app('g++', 'clang++')\ndef match(command):\n    return ('This file requires compiler and library support for the '\n            'ISO C++ 2011 standard.' in command.output or\n            '-Wc++11-extensions' in command.output)",
     "importString": "",
-    "lineNum": 25,
-    "location": 6,
-    "relativeDocumentPath": "thefuck/specific/git.py"
+    "lineNum": 4,
+    "location": 3,
+    "relativeDocumentPath": "thefuck/rules/cpp11.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    matcher = re.search('Warning: No available formula with the name \"(?:[^\"]+)\". Did you mean (.+)\\\\?', command.output)\n    suggestions = _get_suggestions(matcher.group(1))\n    return [\"brew install \" + formula for formula in suggestions]",
+    "importString": "",
+    "lineNum": 3,
+    "location": 20,
+    "relativeDocumentPath": "thefuck/rules/brew_install.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return u'grep -r {}'.format(command.script[5:])",
+    "importString": "",
+    "lineNum": 1,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/rules/grep_recursive.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return command.script[:-5]",
+    "importString": "",
+    "lineNum": 1,
+    "location": 15,
+    "relativeDocumentPath": "thefuck/rules/java.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    return re.sub(r\"delete\", \"remove\", command.script, 1)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/git_remote_delete.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@git_support\ndef match(command):\n    return (\" is not a git command. See 'git --help'.\" in command.output\n            and ('The most similar command' in command.output\n                 or 'Did you mean' in command.output))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 5,
+    "relativeDocumentPath": "thefuck/rules/git_not_command.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\n@eager\ndef get_new_command(command):\n    branch_name = re.findall(\n        r\"fatal: A branch named '(.+)' already exists.\", command.output)[0]\n    branch_name = branch_name.replace(\"'\", r\"\\'\")\n    new_command_templates = [['git branch -d {0}', 'git branch {0}'],\n                             ['git branch -d {0}', 'git checkout -b {0}'],\n                             ['git branch -D {0}', 'git branch {0}'],\n                             ['git branch -D {0}', 'git checkout -b {0}'],\n                             ['git checkout {0}']]\n    for new_command_template in new_command_templates:\n        yield shell.and_(*new_command_template).format(branch_name)",
+    "importString": "",
+    "lineNum": 12,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/git_branch_exists.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    return replace_argument(command.script, 'diff', 'diff --staged')",
+    "importString": "",
+    "lineNum": 2,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/git_diff_staged.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "def run(self, old_cmd):\n        \"\"\"Runs command from rule for passed command.\n\n        :type old_cmd: Command\n\n        \"\"\"\n        if self.side_effect:\n            self.side_effect(old_cmd, self.script)\n        if settings.alter_history:\n            shell.put_to_history(self.script)\n        # This depends on correct setting of PYTHONIOENCODING by the alias:\n        logs.debug(u'PYTHONIOENCODING: {}'.format(\n            os.environ.get('PYTHONIOENCODING', '!!not-set!!')))\n\n        sys.stdout.write(self._get_script())",
+    "importString": "",
+    "lineNum": 14,
+    "location": 246,
+    "relativeDocumentPath": "thefuck/types.py"
+  },
+  {
+    "symbolName": "version",
+    "sourceCode": "def version(thefuck_version, python_version, shell_info):\n    sys.stderr.write(\n        u'The Fuck {} using Python {} and {}\\n'.format(thefuck_version,\n                                                       python_version,\n                                                       shell_info))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 136,
+    "relativeDocumentPath": "thefuck/logs.py"
+  },
+  {
+    "symbolName": "update",
+    "sourceCode": "def update(self, **kwargs):\n        \"\"\"Returns new command with replaced fields.\n\n        :rtype: Command\n\n        \"\"\"\n        kwargs.setdefault('script', self.script)\n        kwargs.setdefault('output', self.output)\n        return Command(**kwargs)",
+    "importString": "",
+    "lineNum": 8,
+    "location": 56,
+    "relativeDocumentPath": "thefuck/types.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    apps = re.findall('([^ ]*) \\\\([^)]*\\\\)', command.output)\n    return [command.script + ' --app ' + app for app in apps]",
+    "importString": "",
+    "lineNum": 2,
+    "location": 9,
+    "relativeDocumentPath": "thefuck/rules/heroku_multiple_apps.py"
+  },
+  {
+    "symbolName": "stdout",
+    "sourceCode": "@property\n    def stdout(self):\n        logs.warn('`stdout` is deprecated, please use `output` instead')\n        return self.output",
+    "importString": "",
+    "lineNum": 3,
+    "location": 24,
+    "relativeDocumentPath": "thefuck/types.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    migration_script = re.search(SUGGESTION_REGEX, command.output).group(1)\n    return shell.and_(migration_script, command.script)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 11,
+    "relativeDocumentPath": "thefuck/rules/rails_migrations_pending.py"
+  },
+  {
+    "symbolName": "main",
+    "sourceCode": "def main():\n    parser = Parser()\n    known_args = parser.parse(sys.argv)\n\n    if known_args.help:\n        parser.print_help()\n    elif known_args.version:\n        logs.version(get_installation_version(),\n                     sys.version.split()[0], shell.info())\n    # It's important to check if an alias is being requested before checking if\n    # `TF_HISTORY` is in `os.environ`, otherwise it might mess with subshells.\n    # Check https://github.com/nvbn/thefuck/issues/921 for reference\n    elif known_args.alias:\n        print_alias(known_args)\n    elif known_args.command or 'TF_HISTORY' in os.environ:\n        fix_command(known_args)\n    elif known_args.shell_logger:\n        try:\n            from .shell_logger import shell_logger  # noqa: E402\n        except ImportError:\n            logs.warn('Shell logger supports only Linux and macOS')\n        else:\n            shell_logger(known_args.shell_logger)\n    else:\n        parser.print_usage()",
+    "importString": "",
+    "lineNum": 24,
+    "location": 15,
+    "relativeDocumentPath": "thefuck/entrypoints/main.py"
+  },
+  {
+    "symbolName": "main",
+    "sourceCode": "def main():\n    \"\"\"Shows useful information about how-to configure alias on a first run\n    and configure automatically on a second.\n\n    It'll be only visible when user type fuck and when alias isn't configured.\n\n    \"\"\"\n    settings.init()\n    configuration_details = shell.how_to_configure()\n    if (\n        configuration_details and\n        configuration_details.can_configure_automatically\n    ):\n        if _is_already_configured(configuration_details):\n            logs.already_configured(configuration_details)\n            return\n        elif _is_second_run():\n            _configure(configuration_details)\n            logs.configured_successfully(configuration_details)\n            return\n        else:\n            _record_first_run()\n\n    logs.how_to_configure_alias(configuration_details)",
+    "importString": "",
+    "lineNum": 23,
+    "location": 90,
+    "relativeDocumentPath": "thefuck/entrypoints/not_configured.py"
+  },
+  {
+    "symbolName": "side_effect",
+    "sourceCode": "def side_effect(old_cmd, command):\n    with tarfile.TarFile(_tar_file(old_cmd.script_parts)[0]) as archive:\n        for file in archive.getnames():\n            if not os.path.abspath(file).startswith(os.getcwd()):\n                # it's unsafe to overwrite files outside of the current directory\n                continue\n\n            try:\n                os.remove(file)\n            except OSError:\n                # does not try to remove directories as we cannot know if they\n                # already existed before\n                pass",
+    "importString": "",
+    "lineNum": 12,
+    "location": 40,
+    "relativeDocumentPath": "thefuck/rules/dirty_untar.py"
+  },
+  {
+    "symbolName": "side_effect",
+    "sourceCode": "def side_effect(old_cmd, command):\n    with zipfile.ZipFile(_zip_file(old_cmd), 'r') as archive:\n        for file in archive.namelist():\n            if not os.path.abspath(file).startswith(os.getcwd()):\n                # it's unsafe to overwrite files outside of the current directory\n                continue\n\n            try:\n                os.remove(file)\n            except OSError:\n                # does not try to remove directories as we cannot know if they\n                # already existed before\n                pass",
+    "importString": "",
+    "lineNum": 12,
+    "location": 44,
+    "relativeDocumentPath": "thefuck/rules/dirty_unzip.py"
+  },
+  {
+    "symbolName": "side_effect",
+    "sourceCode": "def side_effect(old_cmd, command):\n    offending_pattern = re.compile(\n        r'(?:Offending (?:key for IP|\\S+ key)|Matching host key) in ([^:]+):(\\d+)',\n        re.MULTILINE)\n    offending = offending_pattern.findall(old_cmd.output)\n    for filepath, lineno in offending:\n        with open(filepath, 'r') as fh:\n            lines = fh.readlines()\n            del lines[int(lineno) - 1]\n        with open(filepath, 'w') as fh:\n            fh.writelines(lines)",
+    "importString": "",
+    "lineNum": 10,
+    "location": 26,
+    "relativeDocumentPath": "thefuck/rules/ssh_known_hosts.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@for_app('touch')\ndef match(command):\n    return 'No such file or directory' in command.output",
+    "importString": "",
+    "lineNum": 2,
+    "location": 5,
+    "relativeDocumentPath": "thefuck/rules/touch.py"
+  },
+  {
+    "symbolName": "debug",
+    "sourceCode": "def debug(msg):\n    if settings.debug:\n        sys.stderr.write(u'{blue}{bold}DEBUG:{reset} {msg}\\n'.format(\n            msg=msg,\n            reset=color(colorama.Style.RESET_ALL),\n            blue=color(colorama.Fore.BLUE),\n            bold=color(colorama.Style.BRIGHT)))",
+    "importString": "",
+    "lineNum": 6,
+    "location": 74,
+    "relativeDocumentPath": "thefuck/logs.py"
+  },
+  {
+    "symbolName": "app_alias",
+    "sourceCode": "def app_alias(self, alias_name):\n        # It is VERY important to have the variables declared WITHIN the function\n        return '''\n            function {name} () {{\n                TF_PYTHONIOENCODING=$PYTHONIOENCODING;\n                export TF_SHELL=bash;\n                export TF_ALIAS={name};\n                export TF_SHELL_ALIASES=$(alias);\n                export TF_HISTORY=$(fc -ln -10);\n                export PYTHONIOENCODING=utf-8;\n                TF_CMD=$(\n                    thefuck {argument_placeholder} \"$@\"\n                ) && eval \"$TF_CMD\";\n                unset TF_HISTORY;\n                export PYTHONIOENCODING=$TF_PYTHONIOENCODING;\n                {alter_history}\n            }}\n        '''.format(\n            name=alias_name,\n            argument_placeholder=ARGUMENT_PLACEHOLDER,\n            alter_history=('history -s $TF_CMD;'\n                           if settings.alter_history else ''))",
+    "importString": "",
+    "lineNum": 21,
+    "location": 13,
+    "relativeDocumentPath": "thefuck/shells/bash.py"
+  },
+  {
+    "symbolName": "app_alias",
+    "sourceCode": "def app_alias(self, alias_name):\n        if settings.alter_history:\n            alter_history = ('    builtin history delete --exact'\n                             ' --case-sensitive -- $fucked_up_command\\n'\n                             '    builtin history merge\\n')\n        else:\n            alter_history = ''\n        # It is VERY important to have the variables declared WITHIN the alias\n        return ('function {0} -d \"Correct your previous console command\"\\n'\n                '  set -l fucked_up_command $history[1]\\n'\n                '  env TF_SHELL=fish TF_ALIAS={0} PYTHONIOENCODING=utf-8'\n                ' thefuck $fucked_up_command {2} $argv | read -l unfucked_command\\n'\n                '  if [ \"$unfucked_command\" != \"\" ]\\n'\n                '    eval $unfucked_command\\n{1}'\n                '  end\\n'\n                'end').format(alias_name, alter_history, ARGUMENT_PLACEHOLDER)",
+    "importString": "",
+    "lineNum": 15,
+    "location": 50,
+    "relativeDocumentPath": "thefuck/shells/fish.py"
+  },
+  {
+    "symbolName": "app_alias",
+    "sourceCode": "def app_alias(self, alias_name):\n        return \"\"\"alias {0}='eval \"$(TF_ALIAS={0} PYTHONIOENCODING=utf-8 \"\"\" \\\n               \"\"\"thefuck \"$(fc -ln -1)\")\"'\"\"\".format(alias_name)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 37,
+    "relativeDocumentPath": "thefuck/shells/generic.py"
+  },
+  {
+    "symbolName": "app_alias",
+    "sourceCode": "def app_alias(self, alias_name):\n        return 'function ' + alias_name + ' {\\n' \\\n               '    $history = (Get-History -Count 1).CommandLine;\\n' \\\n               '    if (-not [string]::IsNullOrWhiteSpace($history)) {\\n' \\\n               '        $fuck = $(thefuck $args $history);\\n' \\\n               '        if (-not [string]::IsNullOrWhiteSpace($fuck)) {\\n' \\\n               '            if ($fuck.StartsWith(\"echo\")) { $fuck = $fuck.Substring(5); }\\n' \\\n               '            else { iex \"$fuck\"; }\\n' \\\n               '        }\\n' \\\n               '    }\\n' \\\n               '    [Console]::ResetColor() \\n' \\\n               '}\\n'",
+    "importString": "",
+    "lineNum": 11,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/shells/powershell.py"
+  },
+  {
+    "symbolName": "app_alias",
+    "sourceCode": "def app_alias(self, alias_name):\n        return (\"alias {0} 'setenv TF_SHELL tcsh && setenv TF_ALIAS {0} && \"\n                \"set fucked_cmd=`history -h 2 | head -n 1` && \"\n                \"eval `thefuck ${{fucked_cmd}}`'\").format(alias_name)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/shells/tcsh.py"
+  },
+  {
+    "symbolName": "app_alias",
+    "sourceCode": "def app_alias(self, alias_name):\n        # It is VERY important to have the variables declared WITHIN the function\n        return '''\n            {name} () {{\n                TF_PYTHONIOENCODING=$PYTHONIOENCODING;\n                export TF_SHELL=zsh;\n                export TF_ALIAS={name};\n                TF_SHELL_ALIASES=$(alias);\n                export TF_SHELL_ALIASES;\n                TF_HISTORY=\"$(fc -ln -10)\";\n                export TF_HISTORY;\n                export PYTHONIOENCODING=utf-8;\n                TF_CMD=$(\n                    thefuck {argument_placeholder} $@\n                ) && eval $TF_CMD;\n                unset TF_HISTORY;\n                export PYTHONIOENCODING=$TF_PYTHONIOENCODING;\n                {alter_history}\n            }}\n        '''.format(\n            name=alias_name,\n            argument_placeholder=ARGUMENT_PLACEHOLDER,\n            alter_history=('test -n \"$TF_CMD\" && print -s $TF_CMD'\n                           if settings.alter_history else ''))",
+    "importString": "",
+    "lineNum": 23,
+    "location": 14,
+    "relativeDocumentPath": "thefuck/shells/zsh.py"
+  },
+  {
+    "symbolName": "which",
+    "sourceCode": "@memoize\ndef which(program):\n    \"\"\"Returns `program` path or `None`.\"\"\"\n    try:\n        from shutil import which\n\n        return which(program)\n    except ImportError:\n        def is_exe(fpath):\n            return os.path.isfile(fpath) and os.access(fpath, os.X_OK)\n\n        fpath, fname = os.path.split(program)\n        if fpath:\n            if is_exe(program):\n                return program\n        else:\n            for path in os.environ[\"PATH\"].split(os.pathsep):\n                path = path.strip('\"')\n                exe_file = os.path.join(path, program)\n                if is_exe(exe_file):\n                    return exe_file\n\n        return None",
+    "importString": "",
+    "lineNum": 22,
+    "location": 47,
+    "relativeDocumentPath": "thefuck/utils.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    if \"'master'\" in command.output:\n        return command.script.replace(\"master\", \"main\")\n    return command.script.replace(\"main\", \"master\")",
+    "importString": "",
+    "lineNum": 4,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/rules/git_main_master.py"
+  },
+  {
+    "symbolName": "info",
+    "sourceCode": "def info(self):\n        \"\"\"Returns the name and version of the current shell\"\"\"\n        try:\n            version = self._get_version()\n        except Exception as e:\n            warn(u'Could not determine shell version: {}'.format(e))\n            version = ''\n        return u'{} {}'.format(self.friendly_name, version).rstrip()",
+    "importString": "",
+    "lineNum": 7,
+    "location": 139,
+    "relativeDocumentPath": "thefuck/shells/generic.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return command.script + ' -std=c++11'",
+    "importString": "",
+    "lineNum": 1,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/cpp11.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    return shell.and_('git branch --delete list', 'git branch')",
+    "importString": "",
+    "lineNum": 2,
+    "location": 11,
+    "relativeDocumentPath": "thefuck/rules/git_branch_list.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@eager\n@git_support\ndef get_new_command(command):\n    for opt in (\"-a\", \"-p\"):\n        yield replace_argument(command.script, \"commit\", \"commit {}\".format(opt))",
+    "importString": "",
+    "lineNum": 4,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/git_commit_add.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    line = command.output.split('\\n')[-3].strip()\n    branch = line.split(' ')[-1]\n    set_upstream = line.replace('<remote>', 'origin')\\\n                       .replace('<branch>', branch)\n    return shell.and_(set_upstream, command.script)",
+    "importString": "",
+    "lineNum": 6,
+    "location": 9,
+    "relativeDocumentPath": "thefuck/rules/git_pull.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    if no_website in command.output:\n        return ['hostscli websites']\n\n    misspelled_command = re.findall(\n        r'Error: No such command \".*\"', command.output)[0]\n    commands = ['block', 'unblock', 'websites', 'block_all', 'unblock_all']\n    return replace_command(command, misspelled_command, commands)",
+    "importString": "",
+    "lineNum": 8,
+    "location": 18,
+    "relativeDocumentPath": "thefuck/rules/hostscli.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    failed_lifecycle = _get_failed_lifecycle(command)\n    available_lifecycles = _getavailable_lifecycles(command)\n    if available_lifecycles and failed_lifecycle:\n        selected_lifecycle = get_close_matches(\n            failed_lifecycle.group(1), available_lifecycles.group(1).split(\", \"))\n        return replace_command(command, failed_lifecycle.group(1), selected_lifecycle)\n    else:\n        return []",
+    "importString": "",
+    "lineNum": 8,
+    "location": 21,
+    "relativeDocumentPath": "thefuck/rules/mvn_unknown_lifecycle_phase.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    mistake = re.search(MISTAKE, command.output).group(0)\n    fix = re.search(FIX, command.output).group(0)\n    return command.script.replace(mistake, fix)",
+    "importString": "",
+    "lineNum": 3,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/terraform_no_command.py"
+  },
+  {
+    "symbolName": "value",
+    "sourceCode": "@property\n    def value(self):\n        \"\"\":rtype thefuck.types.CorrectedCommand\"\"\"\n        return self._commands[self._index]",
+    "importString": "",
+    "lineNum": 3,
+    "location": 52,
+    "relativeDocumentPath": "thefuck/ui.py"
+  },
+  {
+    "symbolName": "cache",
+    "sourceCode": "def cache(*depends_on):\n    \"\"\"Caches function result in temporary file.\n\n    Cache will be expired when modification date of files from `depends_on`\n    will be changed.\n\n    Only functions should be wrapped in `cache`, not methods.\n\n    \"\"\"\n    def cache_decorator(fn):\n        @memoize\n        @wraps(fn)\n        def wrapper(*args, **kwargs):\n            if cache.disabled:\n                return fn(*args, **kwargs)\n            else:\n                return _cache.get_value(fn, depends_on, args, kwargs)\n\n        return wrapper\n\n    return cache_decorator",
+    "importString": "",
+    "lineNum": 20,
+    "location": 270,
+    "relativeDocumentPath": "thefuck/utils.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return command.script.replace('ag', 'ag -Q', 1)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/rules/ag_literal.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return re.sub(r'^apt-get', 'apt-cache', command.script)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/apt_get_search.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    return 'apt list --upgradable'",
+    "importString": "",
+    "lineNum": 2,
+    "location": 13,
+    "relativeDocumentPath": "thefuck/rules/apt_list_upgradable.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    broken_cmd = re.findall(r'Error: Unknown command: ([a-z]+)',\n                            command.output)[0]\n    return replace_command(command, broken_cmd, _brew_commands())",
+    "importString": "",
+    "lineNum": 3,
+    "location": 78,
+    "relativeDocumentPath": "thefuck/rules/brew_unknown_command.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return 'cd' + ''.join(command.script[2:])",
+    "importString": "",
+    "lineNum": 1,
+    "location": 16,
+    "relativeDocumentPath": "thefuck/rules/cd_cs.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    return re.sub(r'^cp', 'cp -a', command.script)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 12,
+    "relativeDocumentPath": "thefuck/rules/cp_omitting_directory.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    misspelled_command = regex.findall(command.output)[0]\n    return replace_command(command, misspelled_command, _get_operations())",
+    "importString": "",
+    "lineNum": 3,
+    "location": 30,
+    "relativeDocumentPath": "thefuck/rules/dnf_no_such_command.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    not_found_commands = _get_between(\n        command.output, 'Warning: Command(s) not found:',\n        'Available commands:')\n    possible_commands = _get_between(\n        command.output, 'Available commands:')\n\n    script = command.script\n    for not_found in not_found_commands:\n        fix = get_closest(not_found, possible_commands)\n        script = script.replace(' {}'.format(not_found),\n                                ' {}'.format(fix))\n\n    return script",
+    "importString": "",
+    "lineNum": 13,
+    "location": 24,
+    "relativeDocumentPath": "thefuck/rules/fab_command_not_found.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@git_support\ndef get_new_command(command):\n    command_parts = command.script_parts[:]\n    index = command_parts.index('rm') + 1\n    command_parts.insert(index, '--cached')\n    command_list = [u' '.join(command_parts)]\n    command_parts[index] = '-f'\n    command_list.append(u' '.join(command_parts))\n    return command_list",
+    "importString": "",
+    "lineNum": 8,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/git_rm_local_modifications.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    destination = _get_destination(command.script_parts)\n    parts = command.script_parts[:]\n    parts.remove(destination)\n    parts.append(destination)\n    return ' '.join(parts)",
+    "importString": "",
+    "lineNum": 6,
+    "location": 19,
+    "relativeDocumentPath": "thefuck/rules/ln_s_order.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    for pattern in patterns:\n        file = re.findall(pattern, command.output)\n\n        if file:\n            file = file[0]\n            dir = file[0:file.rfind('/')]\n\n            formatme = shell.and_('mkdir -p {}', '{}')\n            return formatme.format(dir, command.script)",
+    "importString": "",
+    "lineNum": 9,
+    "location": 20,
+    "relativeDocumentPath": "thefuck/rules/no_such_file.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    broken_cmd = re.findall(r'ERROR: unknown command \"([^\"]+)\"',\n                            command.output)[0]\n    new_cmd = re.findall(r'maybe you meant \"([^\"]+)\"', command.output)[0]\n\n    return replace_argument(command.script, broken_cmd, new_cmd)",
+    "importString": "",
+    "lineNum": 5,
+    "location": 13,
+    "relativeDocumentPath": "thefuck/rules/pip_unknown_command.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "@sudo_support\ndef get_new_command(command):\n    arguments = '-rf'\n    if 'hdfs' in command.script:\n        arguments = '-r'\n    return re.sub('\\\\brm (.*)', 'rm ' + arguments + ' \\\\1', command.script)",
+    "importString": "",
+    "lineNum": 5,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/rm_dir.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    cmd = re.match(r\"ambiguous command: (.*), could be: (.*)\",\n                   command.output)\n\n    old_cmd = cmd.group(1)\n    suggestions = [c.strip() for c in cmd.group(2).split(',')]\n\n    return replace_command(command, old_cmd, suggestions)",
+    "importString": "",
+    "lineNum": 7,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/rules/tmux.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    url = command.script_parts[1]\n\n    if '/' in command.script:\n        return 'whois ' + urlparse(url).netloc\n    elif '.' in command.script:\n        path = urlparse(url).path.split('.')\n        return ['whois ' + '.'.join(path[n:]) for n in range(1, len(path))]",
+    "importString": "",
+    "lineNum": 7,
+    "location": 26,
+    "relativeDocumentPath": "thefuck/rules/whois.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return 'pytest'",
+    "importString": "",
+    "lineNum": 1,
+    "location": 4,
+    "relativeDocumentPath": "thefuck/rules/test.py.py"
+  },
+  {
+    "symbolName": "load_source",
+    "sourceCode": "def load_source(name, pathname, _file=None):\n        module_spec = importlib.util.spec_from_file_location(name, pathname)\n        module = importlib.util.module_from_spec(module_spec)\n        module_spec.loader.exec_module(module)\n        return module",
+    "importString": "",
+    "lineNum": 4,
+    "location": 10,
+    "relativeDocumentPath": "thefuck/conf.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    return command.script.replace('install', 'reinstall')",
+    "importString": "",
+    "lineNum": 1,
+    "location": 17,
+    "relativeDocumentPath": "thefuck/rules/brew_reinstall.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    url = re.findall(\n        r'Visit ([^ ]*) for documentation about this command.',\n        command.output)[0]\n\n    return open_command(url)",
+    "importString": "",
+    "lineNum": 5,
+    "location": 11,
+    "relativeDocumentPath": "thefuck/rules/yarn_help.py"
+  },
+  {
+    "symbolName": "init",
+    "sourceCode": "def init(self, args=None):\n        \"\"\"Fills `settings` with values from `settings.py` and env.\"\"\"\n        from .logs import exception\n\n        self._setup_user_dir()\n        self._init_settings_file()\n\n        try:\n            self.update(self._settings_from_file())\n        except Exception:\n            exception(\"Can't load settings from file\", sys.exc_info())\n\n        try:\n            self.update(self._settings_from_env())\n        except Exception:\n            exception(\"Can't load settings from env\", sys.exc_info())\n\n        self.update(self._settings_from_args(args))",
+    "importString": "",
+    "lineNum": 17,
+    "location": 26,
+    "relativeDocumentPath": "thefuck/conf.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "@sudo_support\n@for_app('apt', 'apt-get', 'apt-cache')\ndef match(command):\n    return 'E: Invalid operation' in command.output",
+    "importString": "",
+    "lineNum": 3,
+    "location": 8,
+    "relativeDocumentPath": "thefuck/rules/apt_invalid_operation.py"
+  },
+  {
+    "symbolName": "get_new_command",
+    "sourceCode": "def get_new_command(command):\n    mistake = re.search(INVALID_CHOICE, command.output).group(1)\n    options = re.findall(OPTIONS, command.output, flags=re.MULTILINE)\n    return [replace_argument(command.script, mistake, o) for o in options]",
+    "importString": "",
+    "lineNum": 3,
+    "location": 13,
+    "relativeDocumentPath": "thefuck/rules/az_cli.py"
   }
 ]
