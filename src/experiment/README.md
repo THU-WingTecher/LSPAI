@@ -130,6 +130,7 @@ npm run experiment -- \
 - `--concurrency`: Concurrency level (default: `4`, aliases: `--parallelCount`, `--parallel-count`)
 - `--max-retries`: Retry failed tasks up to N times (default: `0`)
 - `--continuous`: Rerun only failed tasks from an existing `experiment_summary.json` (requires `--output-dir`)
+- auto-continuous: without `--continuous`, a normal run automatically performs one failed-task rerun when the preliminary pass ends with failures
 - `--focus`: Focus on a specific taskName or taskKey (comma-separated)
 - `--prompt-template`: Prompt template mode (`cfg` or `default`)
 - `--task-limit`: Limit number of tasks to run (e.g., `1` to run a single task)

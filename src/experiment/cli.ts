@@ -415,63 +415,61 @@ async function main() {
             experimentId
         });
 
-        let result;
-        
-        // Run appropriate experiment
-        if (args.type === 'baseline') {
-            console.log('Running baseline experiment...\n');
-        result = await runBaselineFromArgs(
-            args.taskList,
-            args.projectRoot,
-            args.model,
-            args.provider,
-            args.outputDir || '',
-            {
+        const runExperiment = async (continuousOverride?: boolean) => {
+            const options = {
                 useParallel: args.parallel,
                 concurrency: args.concurrency,
                 maxRetries: args.maxRetries,
-                continuous: args.continuous,
+                continuous: continuousOverride ?? args.continuous,
                 focusTask: args.focusTask,
                 promptTemplate: args.promptTemplate,
                 taskLimit: args.taskLimit
+            };
+
+            if (args.type === 'baseline') {
+                console.log('Running baseline experiment...\n');
+                return await runBaselineFromArgs(
+                    args.taskList,
+                    args.projectRoot,
+                    args.model,
+                    args.provider,
+                    args.outputDir || '',
+                    options
+                );
             }
-        );
-        } else if (args.type === 'opencode') {
-            console.log('Running OpenCode experiment...\n');
-        result = await runOpencodeFromArgs(
-            args.taskList,
-            args.projectRoot,
-            args.model,
-            args.provider,
-            args.outputDir || '',
-            {
-                useParallel: args.parallel,
-                concurrency: args.concurrency,
-                maxRetries: args.maxRetries,
-                continuous: args.continuous,
-                focusTask: args.focusTask,
-                promptTemplate: args.promptTemplate,
-                taskLimit: args.taskLimit
+
+            if (args.type === 'opencode') {
+                console.log('Running OpenCode experiment...\n');
+                return await runOpencodeFromArgs(
+                    args.taskList,
+                    args.projectRoot,
+                    args.model,
+                    args.provider,
+                    args.outputDir || '',
+                    options
+                );
             }
-        );
-        } else if (args.type === 'claudecode') {
+
             console.log('Running Claude Code experiment...\n');
-        result = await runClaudeCodeFromArgs(
-            args.taskList,
-            args.projectRoot,
-            args.model,
-            args.provider,
-            args.outputDir || '',
-            {
-                useParallel: args.parallel,
-                concurrency: args.concurrency,
-                maxRetries: args.maxRetries,
-                continuous: args.continuous,
-                focusTask: args.focusTask,
-                promptTemplate: args.promptTemplate,
-                taskLimit: args.taskLimit
-            }
-        );
+            return await runClaudeCodeFromArgs(
+                args.taskList,
+                args.projectRoot,
+                args.model,
+                args.provider,
+                args.outputDir || '',
+                options
+            );
+        };
+
+        let result = await runExperiment();
+
+        // After a normal preliminary run, automatically rerun only failed tasks once.
+        if (!args.continuous && result.failureCount > 0) {
+            console.log(
+                `\n[continuous:auto] Preliminary run has ${result.failureCount} failed task(s). ` +
+                'Rerunning failed tasks from experiment_summary.json once...\n'
+            );
+            result = await runExperiment(true);
         }
 
         // Log experiment end
