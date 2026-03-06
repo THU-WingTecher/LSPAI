@@ -90,10 +90,23 @@ function parseArgs(): CLIArgs {
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
         if (arg.startsWith('--')) {
-            const key = arg.slice(2);
+            const keyValue = arg.slice(2);
+            const equalsIndex = keyValue.indexOf('=');
+            if (equalsIndex >= 0) {
+                const key = keyValue.slice(0, equalsIndex);
+                const value = keyValue.slice(equalsIndex + 1);
+                parsed[key] = value;
+                continue;
+            }
+
+            const key = keyValue;
             const value = args[i + 1];
-            parsed[key] = value;
-            i++; // Skip next arg as it's the value
+            if (value !== undefined && !value.startsWith('--')) {
+                parsed[key] = value;
+                i++; // Skip next arg as it's the value
+            } else {
+                parsed[key] = true;
+            }
         }
     }
 
@@ -180,6 +193,14 @@ function parseArgs(): CLIArgs {
         console.warn('[output] --output-name is ignored when --output-dir is provided.');
     }
 
+    const concurrencyRaw = parsed['concurrency'] ?? parsed['parallelCount'] ?? parsed['parallel-count'] ?? '4';
+    const concurrency = parseInt(String(concurrencyRaw), 10);
+    if (isNaN(concurrency) || concurrency <= 0) {
+        console.error(`Error: Invalid concurrency '${concurrencyRaw}'. Must be a positive integer.\n`);
+        printUsage();
+        process.exit(1);
+    }
+
     return {
         type: parsed.type as ExperimentType,
         taskList: parsed['task-list'],
@@ -191,7 +212,7 @@ function parseArgs(): CLIArgs {
         outputDir: parsed['output-dir'],
         outputName,
         parallel: parsed['parallel'] !== 'false',
-        concurrency: parseInt(parsed['concurrency'] || '4'),
+        concurrency,
         maxRetries: parseInt(parsed['max-retries'] || '5'),
         continuous: parsed['continuous'] === 'true' || parsed['continuous'] === true,
         focusTask: parsed['focus'] || parsed['focus-task'],
@@ -220,7 +241,7 @@ function printUsage() {
     console.log('  --output-dir <path>      Output directory (default: ./{type}-tests/{model}/{timestamp})');
     console.log('  --output-name <name>     Output directory name under default path (alias: --experiment-name)');
     console.log('  --parallel <bool>        Use parallel execution (default: true)');
-    console.log('  --concurrency <num>      Concurrency level (default: 4)');
+    console.log('  --concurrency <num>      Concurrency level (default: 4, aliases: --parallelCount, --parallel-count)');
     console.log('  --max-retries <num>      Retry failed tasks up to N times (default: 0)');
     console.log('  --continuous <bool>      Rerun only failed tasks from existing experiment_summary.json (requires --output-dir)');
     console.log('  --focus <name|key>       Focus on a specific taskName or taskKey (comma-separated)');

@@ -127,7 +127,7 @@ npm run experiment -- \
 - `--output-dir`: Output directory (default: `./{type}-tests/{model}/{timestamp}`)
 - `--output-name`: Directory name under default output path (alias: `--experiment-name`; ignored if `--output-dir` is set)
 - `--parallel`: Use parallel execution (default: `true`)
-- `--concurrency`: Concurrency level (default: `4`)
+- `--concurrency`: Concurrency level (default: `4`, aliases: `--parallelCount`, `--parallel-count`)
 - `--max-retries`: Retry failed tasks up to N times (default: `0`)
 - `--continuous`: Rerun only failed tasks from an existing `experiment_summary.json` (requires `--output-dir`)
 - `--focus`: Focus on a specific taskName or taskKey (comma-separated)

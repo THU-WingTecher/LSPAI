@@ -11,6 +11,16 @@ import { detectLanguage } from '../prompts/templates';
 import { generateFileNameCore } from '../utils/fileNameGenerator';
 import { assignTaskKeys, buildTaskKey } from '../utils/taskKey';
 import {
+    countFailedTasks,
+    ensureContinuousModeOutputDir,
+    loadExperimentSummary,
+    mergeResultsInTaskOrder,
+    parseFocusList,
+    selectContinuousTasks,
+    summarizeResults,
+    warnIfConfigMismatch
+} from './continuous';
+import {
     getProviderApiKeyFromEnv,
     normalizeOpencodeProviderID,
     syncAnthropicCredentials
@@ -141,7 +151,7 @@ export async function runOpencodeExperiment(
     if (options.continuous) {
         existingSummary = await loadExperimentSummary(config.outputDir);
         warnIfConfigMismatch(existingSummary, config);
-        const failedCount = existingSummary.results?.filter(r => !r.success).length ?? 0;
+        const failedCount = countFailedTasks(existingSummary);
         tasksToRun = selectContinuousTasks(allTasks, existingSummary, focusSet);
         console.log(`[continuous] Found ${failedCount} failed task(s) in summary.`);
         if (focusSet.size > 0) {
@@ -382,125 +392,6 @@ export async function runOpencodeExperiment(
     return experimentResult;
 }
 
-function parseFocusList(raw?: string): Set<string> {
-    if (!raw) return new Set();
-    const items = raw
-        .split(',')
-        .map(item => item.trim())
-        .filter(item => item.length > 0);
-    return new Set(items);
-}
-
-async function loadExperimentSummary(outputDir: string): Promise<ExperimentResult> {
-    const summaryPath = path.join(outputDir, 'experiment_summary.json');
-    if (!fs.existsSync(summaryPath)) {
-        throw new Error(`[continuous] experiment_summary.json not found in ${outputDir}`);
-    }
-    const content = await fs.promises.readFile(summaryPath, 'utf8');
-    return JSON.parse(content) as ExperimentResult;
-}
-
-function warnIfConfigMismatch(summary: ExperimentResult, config: ExperimentConfig): void {
-    if (!summary?.config) return;
-    if (summary.config.taskListPath && summary.config.taskListPath !== config.taskListPath) {
-        console.warn(
-            `[continuous] Task list mismatch: summary=${summary.config.taskListPath} current=${config.taskListPath}`
-        );
-    }
-    if (summary.config.projectRoot && summary.config.projectRoot !== config.projectRoot) {
-        console.warn(
-            `[continuous] Project root mismatch: summary=${summary.config.projectRoot} current=${config.projectRoot}`
-        );
-    }
-    if (summary.config.model && summary.config.model !== config.model) {
-        console.warn(
-            `[continuous] Model mismatch: summary=${summary.config.model} current=${config.model}`
-        );
-    }
-    if (summary.config.provider && summary.config.provider !== config.provider) {
-        console.warn(
-            `[continuous] Provider mismatch: summary=${summary.config.provider} current=${config.provider}`
-        );
-    }
-    if (summary.config.promptTemplate && summary.config.promptTemplate !== config.promptTemplate) {
-        console.warn(
-            `[continuous] Prompt template mismatch: summary=${summary.config.promptTemplate} current=${config.promptTemplate}`
-        );
-    }
-    if (summary.config.taskLimit && summary.config.taskLimit !== config.taskLimit) {
-        console.warn(
-            `[continuous] Task limit mismatch: summary=${summary.config.taskLimit} current=${config.taskLimit}`
-        );
-    }
-}
-
-function selectContinuousTasks(
-    tasks: Task[],
-    summary: ExperimentResult,
-    focusSet: Set<string>
-): Task[] {
-    const failedResults = summary.results?.filter(r => !r.success) ?? [];
-    const failedTaskKeys = new Set<string>();
-    const failedTaskNames = new Set<string>();
-    for (const result of failedResults) {
-        if (result.taskKey) {
-            failedTaskKeys.add(result.taskKey);
-        } else if (result.taskName) {
-            failedTaskNames.add(result.taskName);
-        }
-    }
-
-    const hasFocus = focusSet.size > 0;
-
-    return tasks.filter(task => {
-        const key = task.taskKey ?? buildTaskKey(task);
-        const name = task.symbolName;
-        const failedByKey = failedTaskKeys.has(key);
-        const failedByName = failedTaskNames.has(name);
-        if (!failedByKey && !failedByName) return false;
-        if (!hasFocus) return true;
-        return focusSet.has(key) || focusSet.has(name);
-    });
-}
-
-function mergeResultsInTaskOrder(
-    tasks: Task[],
-    existingResults: TestResult[],
-    newResults: TestResult[]
-): TestResult[] {
-    const mergedByKey = new Map<string, TestResult>();
-    for (const result of existingResults) {
-        if (result.taskKey) {
-            mergedByKey.set(result.taskKey, result);
-        }
-    }
-    for (const result of newResults) {
-        if (result.taskKey) {
-            mergedByKey.set(result.taskKey, result);
-        }
-    }
-
-    const merged: TestResult[] = [];
-    for (const task of tasks) {
-        const key = task.taskKey ?? buildTaskKey(task);
-        const result = mergedByKey.get(key);
-        if (result) {
-            merged.push(result);
-        }
-    }
-
-    const extras = [...existingResults, ...newResults].filter(r => !r.taskKey || !mergedByKey.has(r.taskKey));
-    merged.push(...extras);
-    return merged;
-}
-
-function summarizeResults(results: TestResult[]): { successCount: number; failureCount: number; warningCount: number } {
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
-    const warningCount = results.filter(r => r.success && r.warnings && r.warnings.length > 0).length;
-    return { successCount, failureCount, warningCount };
-}
-
 function buildTestFileMapping(tasks: Task[], results: TestResult[], projectRoot: string): Record<string, any> {
     const mapping: Record<string, any> = {};
     const taskByKey = new Map<string, Task>();
@@ -688,8 +579,8 @@ export async function runOpencodeFromArgs(
     outputDir?: string,
     options: ExperimentOptions = {}
 ): Promise<ExperimentResult> {
-    if (options.continuous && !outputDir) {
-        throw new Error('[continuous] --output-dir is required to reuse an existing experiment_summary.json');
+    if (options.continuous) {
+        ensureContinuousModeOutputDir(outputDir);
     }
     if (!outputDir) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);

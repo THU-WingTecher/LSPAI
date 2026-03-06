@@ -4,10 +4,20 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { Task, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
+import { Task, TestResult, ExperimentConfig, ExperimentResult, ExperimentOptions } from '../core/types';
 import { generateTestsSequential, generateTestsParallel } from '../generators/baselineGenerator';
 import { getCost } from '../utils/costTracker';
 import { assignTaskKeys, buildTaskKey } from '../utils/taskKey';
+import {
+    countFailedTasks,
+    ensureContinuousModeOutputDir,
+    loadExperimentSummary,
+    mergeResultsInTaskOrder,
+    parseFocusList,
+    selectContinuousTasks,
+    summarizeResults,
+    warnIfConfigMismatch
+} from './continuous';
 
 /**
  * Run baseline unit test generation experiment
@@ -45,19 +55,39 @@ export async function runBaselineExperiment(
             `They will be disambiguated. Sample: ${sample.join(', ')}`
         );
     }
+
+    const allTasks = tasks;
     let tasksToRun = tasks;
+    let existingSummary: ExperimentResult | null = null;
     const focusSet = parseFocusList(options.focusTask);
-    if (focusSet.size > 0) {
+
+    if (options.continuous) {
+        existingSummary = await loadExperimentSummary(config.outputDir);
+        warnIfConfigMismatch(existingSummary, config);
+        const failedCount = countFailedTasks(existingSummary);
+        tasksToRun = selectContinuousTasks(allTasks, existingSummary, focusSet);
+        console.log(`[continuous] Found ${failedCount} failed task(s) in summary.`);
+        if (focusSet.size > 0) {
+            console.log(`[continuous] Focus filter: ${Array.from(focusSet).join(', ')}`);
+        }
+        console.log(`[continuous] Rerunning ${tasksToRun.length} task(s).\n`);
+        if (tasksToRun.length === 0) {
+            return existingSummary;
+        }
+    }
+
+    if (!options.continuous && focusSet.size > 0) {
         tasksToRun = tasksToRun.filter(task => {
             const key = task.taskKey ?? buildTaskKey(task);
             const name = task.symbolName;
             return focusSet.has(key) || focusSet.has(name);
         });
-        console.log(`[focus] Running ${tasksToRun.length}/${tasks.length} task(s): ${Array.from(focusSet).join(', ')}`);
+        console.log(`[focus] Running ${tasksToRun.length}/${allTasks.length} task(s): ${Array.from(focusSet).join(', ')}`);
     }
+
     if (options.taskLimit && options.taskLimit > 0) {
         tasksToRun = tasksToRun.slice(0, options.taskLimit);
-        console.log(`Task limit enabled: running ${tasksToRun.length}/${tasks.length} tasks.\n`);
+        console.log(`Task limit enabled: running ${tasksToRun.length}/${allTasks.length} tasks.\n`);
     }
 
     // Ensure output directory exists
@@ -73,7 +103,7 @@ export async function runBaselineExperiment(
 
     console.log('Claude Code Router setup:');
     console.log(`  CCR Output: ${ccrOutputDir}`);
-    console.log(`  Note: Each task gets its own unique session ID\n`);
+    console.log('  Note: Each task gets its own unique session ID\n');
 
     // Generate tests
     const useParallel = options.useParallel !== false;
@@ -83,7 +113,7 @@ export async function runBaselineExperiment(
     let beforeCost: number | undefined;
     let finalCost: number | undefined;
     let experimentCost: number | undefined;
-    
+
     // try {
     //     console.log('Querying initial cost...');
     //     beforeCost = await getCost();
@@ -122,12 +152,62 @@ export async function runBaselineExperiment(
             options.promptTemplate ?? 'default'
         );
 
+    const summaryPath = path.join(config.outputDir, 'experiment_summary.json');
+    const mappingPath = path.join(config.outputDir, 'test_file_map.json');
+
+    if (options.continuous && existingSummary) {
+        const mergedResults = mergeResultsInTaskOrder(allTasks, existingSummary.results ?? [], results);
+        const mergedStats = summarizeResults(mergedResults);
+        const totalExecutionTimeMs = (existingSummary.totalExecutionTimeMs ?? 0) + (Date.now() - startTime);
+
+        const mergedSummary: ExperimentResult = {
+            ...existingSummary,
+            config: existingSummary.config ?? config,
+            totalTasks: existingSummary.totalTasks || allTasks.length,
+            successCount: mergedStats.successCount,
+            failureCount: mergedStats.failureCount,
+            warningCount: mergedStats.warningCount,
+            outputDir: config.outputDir,
+            totalExecutionTimeMs,
+            results: mergedResults,
+            timestamp: new Date().toISOString()
+        };
+
+        await fs.promises.writeFile(
+            summaryPath,
+            JSON.stringify(mergedSummary, null, 2),
+            'utf8'
+        );
+
+        const mergedMapping = buildTestFileMapping(allTasks, mergedResults, config.projectRoot);
+        await fs.promises.writeFile(
+            mappingPath,
+            JSON.stringify(mergedMapping, null, 2),
+            'utf8'
+        );
+
+        console.log('\n=== Experiment Complete ===');
+        console.log(`Total Tasks: ${mergedSummary.totalTasks}`);
+        console.log(`Successful: ${mergedSummary.successCount}`);
+        console.log(`Failed: ${mergedSummary.failureCount}`);
+        console.log(`Warnings: ${mergedSummary.warningCount}`);
+        console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
+        if (mergedSummary.experimentCost !== undefined) {
+            console.log(`Experiment Cost: $${mergedSummary.experimentCost.toFixed(4)}`);
+        }
+        console.log(`Output Directory: ${config.outputDir}`);
+        console.log(`Summary: ${summaryPath}`);
+        console.log(`Test Mapping: ${mappingPath}\n`);
+
+        return mergedSummary;
+    }
+
     // Get final cost
     // try {
     //     console.log('\nQuerying final cost...');
     //     finalCost = await getCost();
     //     console.log(`Final cost: $${finalCost.toFixed(4)}`);
-        
+
     //     if (beforeCost !== undefined) {
     //         experimentCost = finalCost - beforeCost;
     //         console.log(`Experiment cost: $${experimentCost.toFixed(4)}\n`);
@@ -136,19 +216,17 @@ export async function runBaselineExperiment(
     //     console.warn('Failed to query final cost:', error);
     // }
 
-    // Calculate statistics
-    const successCount = results.filter((r: any) => r.success).length;
-    const failureCount = results.filter((r: any) => !r.success).length;
-    const warningCount = results.filter((r: any) => r.success && r.warnings && r.warnings.length > 0).length;
+    const stats = summarizeResults(results);
     const totalExecutionTimeMs = Date.now() - startTime;
+    const tasksForSummary = tasksToRun;
 
     // Build experiment result
     const experimentResult: ExperimentResult = {
         config,
-        totalTasks: tasksToRun.length,
-        successCount,
-        failureCount,
-        warningCount,
+        totalTasks: tasksForSummary.length,
+        successCount: stats.successCount,
+        failureCount: stats.failureCount,
+        warningCount: stats.warningCount,
         outputDir: config.outputDir,
         totalExecutionTimeMs,
         beforeCost,
@@ -159,7 +237,6 @@ export async function runBaselineExperiment(
     };
 
     // Save experiment summary
-    const summaryPath = path.join(config.outputDir, 'experiment_summary.json');
     await fs.promises.writeFile(
         summaryPath,
         JSON.stringify(experimentResult, null, 2),
@@ -167,50 +244,7 @@ export async function runBaselineExperiment(
     );
 
     // Save test file mapping
-    const mappingPath = path.join(config.outputDir, 'test_file_map.json');
-    const mapping: any = {};
-    const taskByKey = new Map<string, Task>();
-    for (const task of tasksToRun) {
-        const key = task.taskKey ?? buildTaskKey(task);
-        taskByKey.set(key, task);
-    }
-    const tasksBySymbol = new Map<string, Task[]>();
-    for (const task of tasksToRun) {
-        const list = tasksBySymbol.get(task.symbolName) ?? [];
-        list.push(task);
-        tasksBySymbol.set(task.symbolName, list);
-    }
-    results.forEach((result: any) => {
-        if (result.success && result.outputFilePath) {
-            const testFileName = path.basename(result.outputFilePath);
-            let task: Task | undefined;
-            if (result.taskKey) {
-                task = taskByKey.get(result.taskKey);
-            }
-            if (!task && result.taskName) {
-                const matches = tasksBySymbol.get(result.taskName) ?? [];
-                if (matches.length === 1) {
-                    task = matches[0];
-                } else if (matches.length > 1) {
-                    console.warn(
-                        `[mapping] Ambiguous taskName '${result.taskName}' for ${testFileName}; ` +
-                        `add taskKey to resolve.`
-                    );
-                }
-            }
-            if (task) {
-                mapping[testFileName] = {
-                    project_name: path.basename(config.projectRoot),
-                    file_name: task.relativeDocumentPath,
-                    symbol_name: task.symbolName,
-                    location: task.location,
-                    task_key: task.taskKey
-                };
-            } else {
-                console.warn(`[mapping] No task match for ${testFileName}; skipping mapping entry.`);
-            }
-        }
-    });
+    const mapping = buildTestFileMapping(tasksForSummary, results, config.projectRoot);
     await fs.promises.writeFile(
         mappingPath,
         JSON.stringify(mapping, null, 2),
@@ -220,9 +254,9 @@ export async function runBaselineExperiment(
     // Print summary
     console.log('\n=== Experiment Complete ===');
     console.log(`Total Tasks: ${experimentResult.totalTasks}`);
-    console.log(`Successful: ${successCount}`);
-    console.log(`Failed: ${failureCount}`);
-    console.log(`Warnings: ${warningCount}`);
+    console.log(`Successful: ${experimentResult.successCount}`);
+    console.log(`Failed: ${experimentResult.failureCount}`);
+    console.log(`Warnings: ${experimentResult.warningCount}`);
     console.log(`Execution Time: ${Math.round(totalExecutionTimeMs / 1000)}s`);
     if (experimentCost !== undefined) {
         console.log(`Experiment Cost: $${experimentCost.toFixed(4)}`);
@@ -232,15 +266,6 @@ export async function runBaselineExperiment(
     console.log(`Test Mapping: ${mappingPath}\n`);
 
     return experimentResult;
-}
-
-function parseFocusList(raw?: string): Set<string> {
-    if (!raw) return new Set();
-    const items = raw
-        .split(',')
-        .map(item => item.trim())
-        .filter(item => item.length > 0);
-    return new Set(items);
 }
 
 /**
@@ -257,11 +282,60 @@ async function loadTaskList(taskListPath: string): Promise<Task[]> {
     // Validate tasks
     for (const task of tasks) {
         if (!task.symbolName || !task.relativeDocumentPath || !task.sourceCode) {
-            throw new Error(`Invalid task format: missing required fields`);
+            throw new Error('Invalid task format: missing required fields');
         }
     }
 
     return tasks;
+}
+
+function buildTestFileMapping(tasks: Task[], results: TestResult[], projectRoot: string): Record<string, any> {
+    const mapping: Record<string, any> = {};
+    const taskByKey = new Map<string, Task>();
+    for (const task of tasks) {
+        const key = task.taskKey ?? buildTaskKey(task);
+        taskByKey.set(key, task);
+    }
+    const tasksBySymbol = new Map<string, Task[]>();
+    for (const task of tasks) {
+        const list = tasksBySymbol.get(task.symbolName) ?? [];
+        list.push(task);
+        tasksBySymbol.set(task.symbolName, list);
+    }
+
+    results.forEach(result => {
+        if (result.success && result.outputFilePath) {
+            const testFileName = path.basename(result.outputFilePath);
+            let task: Task | undefined;
+            if (result.taskKey) {
+                task = taskByKey.get(result.taskKey);
+            }
+            if (!task && result.taskName) {
+                const matches = tasksBySymbol.get(result.taskName) ?? [];
+                if (matches.length === 1) {
+                    task = matches[0];
+                } else if (matches.length > 1) {
+                    console.warn(
+                        `[mapping] Ambiguous taskName '${result.taskName}' for ${testFileName}; ` +
+                        'add taskKey to resolve.'
+                    );
+                }
+            }
+            if (task) {
+                mapping[testFileName] = {
+                    project_name: path.basename(projectRoot),
+                    file_name: task.relativeDocumentPath,
+                    symbol_name: task.symbolName,
+                    location: task.location,
+                    task_key: task.taskKey
+                };
+            } else {
+                console.warn(`[mapping] No task match for ${testFileName}; skipping mapping entry.`);
+            }
+        }
+    });
+
+    return mapping;
 }
 
 /**
@@ -275,6 +349,9 @@ export async function runBaselineFromArgs(
     outputDir?: string,
     options: ExperimentOptions = {}
 ): Promise<ExperimentResult> {
+    if (options.continuous) {
+        ensureContinuousModeOutputDir(outputDir);
+    }
     if (!outputDir) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         outputDir = path.join(
