@@ -564,9 +564,8 @@ export type ProjectConfigName =
     | 'tornado' 
     | 'mimesis'
     | 'dataclasses-json'
-    | 'python-semantic-release'
     | 'thefuck'
-    | 'tqdm'
+    | 'sanic'
     | 'youtube-dl'
     | 'commons-cli' 
     | 'commons-csv'
@@ -644,33 +643,21 @@ export const PROJECT_CONFIGS: Record<ProjectConfigName, ProjectConfig> = {
             pythonExe: "/root/miniconda3/envs/dataclasses-json/bin/python"
         },
     },
-    "python-semantic-release": {
-        workspace: "/LSPRAG/experiments/projects/python-semantic-release",
-        srcPath: "/src",
+    "sanic": {
+        workspace: "/LSPRAG/experiments/projects/sanic",
+        srcPath: "/sanic",
         language: 'python',
-        srcPathToExclude: [],
-        python: {
-            // Only include parent directory, not the package directory itself
-            // This prevents name collision with standard library modules like 'concurrent'
-            pythonpath: [
-                "/LSPRAG/experiments/projects/python-semantic-release"
+        srcPathToExclude: ["/sanic/cli",  // cli test case not passed
+            "/sanic/worker/daemon.py", // FAILED tests/test_daemon.py::test_validate_writable_dir_not_writable - Failed: DID NOT RAISE <class 'sanic.worker.daemon.DaemonError'>
             ],
-            pythonExe: "/root/miniconda3/envs/python-semantic-release/bin/python"
-        },
-    },
-    "tqdm": {
-        workspace: "/LSPRAG/experiments/projects/tqdm",
-        srcPath: "/tqdm",
-        language: 'python',
-        srcPathToExclude: ["/tqdm/contrib", "/tqdm/keras.py", "/tqdm/dask.py"],
         symbolNameToExclude: ["pandas"],
         python: {
             // Only include parent directory, not the package directory itself
             // This prevents name collision with standard library modules like 'concurrent'
             pythonpath: [
-                "/LSPRAG/experiments/projects/tqdm"
+                "/LSPRAG/experiments/projects/sanic"
             ],
-            pythonExe: "/root/miniconda3/envs/tqdm/bin/python"
+            pythonExe: "/root/miniconda3/envs/sanic/bin/python"
         },
     },
     "thefuck": {

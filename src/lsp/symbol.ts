@@ -354,9 +354,12 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
     if (!vscode.workspace.workspaceFolders && !getConfigInstance().workspace) {
         throw new Error("No workspace folders found");
     }
+    const verboseSymbolLoad = process.env.LSPRAG_VERBOSE_SYMBOL_LOAD === 'true';
     let testFilesPath: string;
-    console.log('all workspace folders', vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath));
-    console.log('current workspace', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
+    if (verboseSymbolLoad) {
+        console.log('all workspace folders', vscode.workspace.workspaceFolders?.map(folder => folder.uri.fsPath));
+        console.log('current workspace', vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
+    }
     const workspace = getConfigInstance().workspace;
     const Files: string[] = [];
     const projectName = getConfigInstance().getProjectName();
@@ -374,11 +377,17 @@ export async function loadAllTargetSymbolsFromWorkspace(language: string, minLin
         document: vscode.TextDocument;
     };
     const symbolsPerFile = await Promise.all(Files.map((filePath, fileIdx) => limit(async (): Promise<FileSymbolEntry[]> => {
-        console.log('filePath', filePath);
+        if (verboseSymbolLoad) {
+            console.log('filePath', filePath);
+        }
         const document = await vscode.workspace.openTextDocument(vscode.Uri.file(filePath));
-        console.log(`#### Preparing symbols under file: ${filePath}`);
+        if (verboseSymbolLoad) {
+            console.log(`#### Preparing symbols under file: ${filePath}`);
+        }
         const symbols = await getAllSymbols(document.uri);
-        console.log(`#### Symbols: ${symbols.length}`);
+        if (verboseSymbolLoad) {
+            console.log(`#### Symbols: ${symbols.length}`);
+        }
         if (!symbols || symbols.length === 0) {
             return [];
         }

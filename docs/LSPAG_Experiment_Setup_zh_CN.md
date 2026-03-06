@@ -157,6 +157,29 @@ pip install mypy hypothesis
 pytest # for checking whether the setting is complete
 ```
 
+### 5.5 sanic
+
+To set up the sanic, follow these steps:
+
+```bash
+mkdir -p /LSPRAG/experiments/projects
+cd /LSPRAG/experiments/projects
+git clone https://github.com/sanic-org/sanic.git
+cd /LSPRAG/experiments/projects/sanic
+
+# Python Setup
+conda create -n sanic python=3.10
+conda activate sanic
+
+# Install dependencies
+# Don't forget to activate venv environment
+git checkout 785d77f8
+
+pip install -e ".[dev]"
+pip install aioquic
+pip install coverage pytest pytest-json-report
+```
+
 ## 6. 实验执行流程（black + deepseek 示例）
 
 先安装 CLI:
@@ -251,6 +274,7 @@ xvfb-run -a npm run test \
 - youtube-dl : /LSPRAG/experiments/config/youtube-dl-robust-final.json
 - thefuck : /LSPRAG/experiments/config/thefuck-dl-robust-final.json
 - dataclass-json : /LSPRAG/experiments/config/dataclass-json-robust-final.json
+- sanic : /LSPRAG/experiments/config/sanic-robust-final.json
 
 
 # 9. Coverage/Mutation Score
