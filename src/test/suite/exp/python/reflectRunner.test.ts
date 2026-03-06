@@ -163,26 +163,26 @@ suite('Experiment Test Suite', () => {
     };
 
     const runLspragReflect = async (): Promise<void> => {
-        // await runGenerateTestCodeSuite(
-        //     GenerationType.LSPRAG,
-        //     FixType.ORIGINAL,
-        //     PromptType.WITHCONTEXT,
-        //     model, 
-        //     provider,
-        //     symbols,
-        //     languageId,
-        //     undefined,
-        // );
+        await runGenerateTestCodeSuite(
+            GenerationType.LSPRAG,
+            FixType.ORIGINAL,
+            PromptType.WITHCONTEXT,
+            model, 
+            provider,
+            symbols,
+            languageId,
+            undefined,
+        );
 
-        // const cachedDir = getConfigInstance().savePath;
-        // const { testsDir, testFileMapPath } = getGeneratedPaths();
+        const cachedDir = getConfigInstance().savePath;
+        const { testsDir, testFileMapPath } = getGeneratedPaths();
 
-        // await runExperimentalReflect({
-        //     cachedDir,
-        //     testFileMapPath,
-        //     preTestsDir: testsDir,
-        //     promptType: PromptType.NAIVE
-        // });
+        await runExperimentalReflect({
+            cachedDir,
+            testFileMapPath,
+            preTestsDir: testsDir,
+            promptType: PromptType.NAIVE
+        });
         
         await runGenerateTestCodeSuite(
             GenerationType.LSPRAG,
