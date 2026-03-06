@@ -1,0 +1,802 @@
+[
+  {
+    "symbolName": "url_for",
+    "sourceCode": "def url_for(self, view_name: str, **kwargs):\n        \"\"\"Build a URL based on a view name and the values provided.\n\n        This method constructs URLs for a given view name, taking into account\n        various special keyword arguments that can be used to modify the resulting\n        URL. It can handle internal routing as well as external URLs with different\n        schemes.\n\n        There are several special keyword arguments that can be used to modify\n        the URL that is built. They each begin with an underscore. They are:\n\n        - `_anchor`\n        - `_external`\n        - `_host`\n        - `_server`\n        - `_scheme`\n\n        Args:\n            view_name (str): String referencing the view name.\n            _anchor (str): Adds an \"#anchor\" to the end.\n            _scheme (str): Should be either \"http\" or \"https\", default is \"http\".\n            _external (bool): Whether to return the path or a full URL with scheme and host.\n            _host (str): Used when one or more hosts are defined for a route to tell Sanic which to use.\n            _server (str): If not using \"_host\", this will be used for defining the hostname of the URL.\n            **kwargs: Keys and values that are used to build request parameters and\n                    query string arguments.\n\n        Raises:\n            URLBuildError: If there are issues with constructing the URL.\n\n        Returns:\n            str: The built URL.\n\n        Examples:\n            Building a URL for a specific view with parameters:\n            ```python\n            url_for('view_name', param1='value1', param2='value2')\n            # /view-name?param1=value1&param2=value2\n            ```\n\n            Creating an external URL with a specific scheme and anchor:\n            ```python\n            url_for('view_name', _scheme='https', _external=True, _anchor='section1')\n            # https://example.com/view-name#section1\n            ```\n\n            Creating a URL with a specific host:\n            ```python\n            url_for('view_name', _host='subdomain.example.com')\n            # http://subdomain.example.com/view-name\n        \"\"\"  # noqa: E501\n        # find the route by the supplied view name\n        kw: dict[str, str] = {}\n        # special static files url_for\n\n        if \".\" not in view_name:\n            view_name = f\"{self.name}.{view_name}\"\n\n        if view_name.endswith(\".static\"):\n            name = kwargs.pop(\"name\", None)\n            if name:\n                view_name = view_name.replace(\"static\", name)\n            kw.update(name=view_name)\n\n        route = self.router.find_route_by_view_name(view_name, **kw)\n        if not route:\n            raise URLBuildError(\n                f\"Endpoint with name `{view_name}` was not found\"\n            )\n\n        uri = route.path\n\n        if getattr(route.extra, \"static\", None):\n            filename = kwargs.pop(\"filename\", \"\")\n            # it's static folder\n            if \"__file_uri__\" in uri:\n                folder_ = uri.split(\"<__file_uri__:\", 1)[0]\n                if folder_.endswith(\"/\"):\n                    folder_ = folder_[:-1]\n\n                if filename.startswith(\"/\"):\n                    filename = filename[1:]\n\n                kwargs[\"__file_uri__\"] = filename\n\n        if (\n            uri != \"/\"\n            and uri.endswith(\"/\")\n            and not route.strict\n            and not route.raw_path[:-1]\n        ):\n            uri = uri[:-1]\n\n        if not uri.startswith(\"/\"):\n            uri = f\"/{uri}\"\n\n        out = uri\n\n        # _method is only a placeholder now, don't know how to support it\n        kwargs.pop(\"_method\", None)\n        anchor = kwargs.pop(\"_anchor\", \"\")\n        # _external need SERVER_NAME in config or pass _server arg\n        host = kwargs.pop(\"_host\", None)\n        external = kwargs.pop(\"_external\", False) or bool(host)\n        scheme = kwargs.pop(\"_scheme\", \"\")\n        if route.extra.hosts and external:\n            if not host and len(route.extra.hosts) > 1:\n                raise ValueError(\n                    f\"Host is ambiguous: {', '.join(route.extra.hosts)}\"\n                )\n            elif host and host not in route.extra.hosts:\n                raise ValueError(\n                    f\"Requested host ({host}) is not available for this \"\n                    f\"route: {route.extra.hosts}\"\n                )\n            elif not host:\n                host = list(route.extra.hosts)[0]\n\n        if scheme and not external:\n            raise ValueError(\"When specifying _scheme, _external must be True\")\n\n        netloc = kwargs.pop(\"_server\", None)\n        if netloc is None and external:\n            netloc = host or self.config.get(\"SERVER_NAME\", \"\")\n\n        if external:\n            if not scheme:\n                if \":\" in netloc[:8]:\n                    scheme = netloc[:8].split(\":\", 1)[0]\n                else:\n                    scheme = \"http\"\n                # Replace http/https with ws/wss for WebSocket handlers\n                if route.extra.websocket:\n                    scheme = scheme.replace(\"http\", \"ws\")\n\n            if \"://\" in netloc[:8]:\n                netloc = netloc.split(\"://\", 1)[-1]\n\n        # find all the parameters we will need to build in the URL\n        # matched_params = re.findall(self.router.parameter_pattern, uri)\n        route.finalize()\n        for param_info in route.params.values():\n            # name, _type, pattern = self.router.parse_parameter_string(match)\n            # we only want to match against each individual parameter\n\n            try:\n                supplied_param = str(kwargs.pop(param_info.name))\n            except KeyError:\n                raise URLBuildError(\n                    f\"Required parameter `{param_info.name}` was not \"\n                    \"passed to url_for\"\n                )\n\n            # determine if the parameter supplied by the caller\n            # passes the test in the URL\n            if param_info.pattern:\n                pattern = (\n                    param_info.pattern[1]\n                    if isinstance(param_info.pattern, tuple)\n                    else param_info.pattern\n                )\n                passes_pattern = pattern.match(supplied_param)\n                if not passes_pattern:\n                    if param_info.cast is not str:\n                        msg = (\n                            f'Value \"{supplied_param}\" '\n                            f\"for parameter `{param_info.name}` does \"\n                            \"not match pattern for type \"\n                            f\"`{param_info.cast.__name__}`: \"\n                            f\"{pattern.pattern}\"\n                        )\n                    else:\n                        msg = (\n                            f'Value \"{supplied_param}\" for parameter '\n                            f\"`{param_info.name}` does not satisfy \"\n                            f\"pattern {pattern.pattern}\"\n                        )\n                    raise URLBuildError(msg)\n\n            # replace the parameter in the URL with the supplied value\n            replacement_regex = f\"(<{param_info.name}.*?>)\"\n            out = re.sub(replacement_regex, supplied_param, out)\n\n        # parse the remainder of the keyword arguments into a querystring\n        query_string = urlencode(kwargs, doseq=True) if kwargs else \"\"\n        # scheme://netloc/path;parameters?query#fragment\n        out = urlunparse((scheme, netloc, out, \"\", query_string, anchor))\n\n        return out",
+    "importString": "",
+    "lineNum": 188,
+    "location": 941,
+    "relativeDocumentPath": "sanic/app.py"
+  },
+  {
+    "symbolName": "url_for",
+    "sourceCode": "def url_for(self, view_name: str, **kwargs) -> str:\n        \"\"\"Retrieve a URL for a given view name.\n\n        Same as `sanic.Sanic.url_for`, but automatically determine `scheme`\n        and `netloc` base on the request. Since this method is aiming\n        to generate correct schema & netloc, `_external` is implied.\n\n        Args:\n            view_name (str): The view name to generate URL for.\n            **kwargs: Arbitrary keyword arguments to build URL query string.\n\n        Returns:\n            str: The generated URL.\n        \"\"\"\n        # Full URL SERVER_NAME can only be handled in app.url_for\n        try:\n            sp = self.app.config.get(\"SERVER_NAME\", \"\").split(\"://\", 1)\n            if len(sp) == 2:\n                return self.app.url_for(view_name, _external=True, **kwargs)\n        except AttributeError:\n            pass\n\n        scheme = self.scheme\n        host = self.server_name\n        port = self.server_port\n\n        if (scheme.lower() in (\"http\", \"ws\") and port == 80) or (\n            scheme.lower() in (\"https\", \"wss\") and port == 443\n        ):\n            netloc = host\n        else:\n            netloc = f\"{host}:{port}\"\n\n        return self.app.url_for(\n            view_name, _external=True, _scheme=scheme, _server=netloc, **kwargs\n        )",
+    "importString": "",
+    "lineNum": 35,
+    "location": 1058,
+    "relativeDocumentPath": "sanic/request/types.py"
+  },
+  {
+    "symbolName": "asgi_client",
+    "sourceCode": "@property\n    def asgi_client(self) -> SanicASGITestClient:  # type: ignore # noqa\n        \"\"\"A testing client that uses ASGI to reach into the application to execute handlers.\n\n        This property is available if the `sanic-testing` package is installed.\n\n        See [Test Clients](/en/plugins/sanic-testing/clients#asgi-async-client-sanicasgitestclient) for details.\n\n        Returns:\n            SanicASGITestClient: A testing client from the `sanic-testing` package.\n        \"\"\"  # noqa: E501\n        if self._asgi_client:\n            return self._asgi_client\n        elif self._test_manager:\n            return self._test_manager.asgi_client\n        from sanic_testing.testing import SanicASGITestClient  # type: ignore\n\n        self._asgi_client = SanicASGITestClient(self)\n        return self._asgi_client",
+    "importString": "",
+    "lineNum": 18,
+    "location": 1507,
+    "relativeDocumentPath": "sanic/app.py"
+  },
+  {
+    "symbolName": "url_prefix",
+    "sourceCode": "@property\n    def url_prefix(self) -> int | str | float | None:\n        \"\"\"The URL prefix for the Blueprint Group.\n\n        Returns:\n            Optional[Union[int, str, float]]: URL prefix for the Blueprint\n                Group.\n        \"\"\"\n        return self._url_prefix",
+    "importString": "",
+    "lineNum": 8,
+    "location": 706,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "test_client",
+    "sourceCode": "@property\n    def test_client(self) -> SanicTestClient:  # type: ignore # noqa\n        \"\"\"A testing client that uses httpx and a live running server to reach into the application to execute handlers.\n\n        This property is available if the `sanic-testing` package is installed.\n\n        See [Test Clients](/en/plugins/sanic-testing/clients#wsgi-client-sanictestclient) for details.\n\n        Returns:\n            SanicTestClient: A testing client from the `sanic-testing` package.\n        \"\"\"  # noqa: E501\n        if self._test_client:\n            return self._test_client\n        elif self._test_manager:\n            return self._test_manager.test_client\n        from sanic_testing.testing import SanicTestClient  # type: ignore\n\n        self._test_client = SanicTestClient(self)\n        return self._test_client",
+    "importString": "",
+    "lineNum": 18,
+    "location": 1487,
+    "relativeDocumentPath": "sanic/app.py"
+  },
+  {
+    "symbolName": "strict_slashes",
+    "sourceCode": "@property\n    def strict_slashes(self) -> bool | None:\n        \"\"\"Whether to enforce strict slashes for the Blueprint Group.\n\n        Returns:\n            Optional[bool]: Whether to enforce strict slashes for the\n        \"\"\"\n        return self._strict_slashes",
+    "importString": "",
+    "lineNum": 7,
+    "location": 735,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "after_server_start",
+    "sourceCode": "def after_server_start(\n        self, listener: ListenerType[Sanic] | None, *, priority: int = 0\n    ) -> ListenerType[Sanic]:\n        \"\"\"Decorator for registering a listener for the after_server_start event.\n\n        This event is fired on all worker processes. You should typically\n        use this event to run background tasks, or perform other actions that\n        are not directly related to handling requests. In theory, it is\n        possible that some requests may be handled before this event is fired,\n        so you should not use this event to initialize resources that are\n        required for handling requests.\n\n        A common use case for this event is to start a background task that\n        periodically performs some action, such as clearing a cache or\n        performing a health check.\n\n        See [Listeners](/en/guide/basics/listeners) for more details.\n\n        Args:\n            listener (ListenerType[Sanic]): The listener handler to attach.\n\n        Examples:\n            ```python\n            @app.after_server_start\n            async def on_after_server_start(app: Sanic):\n                print(\"After server start\")\n            ```\n        \"\"\"  # noqa: E501\n        return self._setup_listener(listener, \"after_server_start\", priority)",
+    "importString": "",
+    "lineNum": 28,
+    "location": 350,
+    "relativeDocumentPath": "sanic/mixins/listeners.py"
+  },
+  {
+    "symbolName": "middleware",
+    "sourceCode": "def middleware(self, *args, **kwargs):\n        \"\"\"A decorator that can be used to implement a Middleware for all blueprints in the group.\n\n        In case of nested Blueprint Groups, the same middleware is applied\n        across each of the Blueprints recursively.\n\n        Args:\n            *args (Optional): Optional positional Parameters to be use middleware\n            **kwargs (Optional): Optional Keyword arg to use with Middleware\n\n        Returns:\n            Partial function to apply the middleware\n        \"\"\"  # noqa: E501\n\n        def register_middleware_for_blueprints(fn):\n            for blueprint in self.blueprints:\n                blueprint.middleware(fn, *args, **kwargs)\n\n        if args and callable(args[0]):\n            fn = args[0]\n            args = list(args)[1:]\n            return register_middleware_for_blueprints(fn)\n        return register_middleware_for_blueprints",
+    "importString": "",
+    "lineNum": 22,
+    "location": 932,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "middleware",
+    "sourceCode": "def middleware(\n        self,\n        middleware_or_request: MiddlewareType | str,\n        attach_to: str = \"request\",\n        apply: bool = True,\n        *,\n        priority: int = 0,\n    ) -> MiddlewareType | Callable[[MiddlewareType], MiddlewareType]:\n        \"\"\"Decorator for registering middleware.\n\n        Decorate and register middleware to be called before a request is\n        handled or after a response is created. Can either be called as\n        *@app.middleware* or *@app.middleware('request')*. Although, it is\n        recommended to use *@app.on_request* or *@app.on_response* instead\n        for clarity and convenience.\n\n        See [Middleware](/guide/basics/middleware) for more information.\n\n        Args:\n            middleware_or_request (Union[Callable, str]): Middleware function\n                or the keyword 'request' or 'response'.\n            attach_to (str, optional): When to apply the middleware;\n                either 'request' (before the request is handled) or 'response'\n                (after the response is created). Defaults to `'request'`.\n            apply (bool, optional): Whether the middleware should be applied.\n                Defaults to `True`.\n            priority (int, optional): The priority level of the middleware.\n                Lower numbers are executed first. Defaults to `0`.\n\n        Returns:\n            Union[Callable, Callable[[Callable], Callable]]: The decorated\n                middleware function or a partial function depending on how\n                the method was called.\n\n        Example:\n            ```python\n            @app.middleware('request')\n            async def custom_middleware(request):\n                ...\n            ```\n        \"\"\"\n\n        def register_middleware(middleware, attach_to=\"request\"):\n            nonlocal apply\n\n            location = (\n                MiddlewareLocation.REQUEST\n                if attach_to == \"request\"\n                else MiddlewareLocation.RESPONSE\n            )\n            middleware = Middleware(middleware, location, priority=priority)\n            future_middleware = FutureMiddleware(middleware, attach_to)\n            self._future_middleware.append(future_middleware)\n            if apply:\n                self._apply_middleware(future_middleware)\n            return middleware\n\n        # Detect which way this was called, @middleware or @middleware('AT')\n        if callable(middleware_or_request):\n            return register_middleware(\n                middleware_or_request, attach_to=attach_to\n            )\n        else:\n            return partial(\n                register_middleware, attach_to=middleware_or_request\n            )",
+    "importString": "",
+    "lineNum": 65,
+    "location": 42,
+    "relativeDocumentPath": "sanic/mixins/middleware.py"
+  },
+  {
+    "symbolName": "respond",
+    "sourceCode": "def respond(self, response: BaseHTTPResponse):\n        if self.stage is not Stage.HANDLER:\n            self.stage = Stage.FAILED\n            raise RuntimeError(\"Response already started\")\n        if self.response is not None:\n            self.response.stream = None\n        response.stream, self.response = self, response\n        return response",
+    "importString": "",
+    "lineNum": 7,
+    "location": 211,
+    "relativeDocumentPath": "sanic/asgi.py"
+  },
+  {
+    "symbolName": "respond",
+    "sourceCode": "def respond(self, response: BaseHTTPResponse) -> BaseHTTPResponse:\n        \"\"\"Initiate new streaming response.\n\n        Nothing is sent until the first send() call on the returned object, and\n        calling this function multiple times will just alter the response to be\n        given.\n        \"\"\"\n        if self.stage is not Stage.HANDLER:\n            self.stage = Stage.FAILED\n            raise RuntimeError(\"Response already started\")\n\n        # Disconnect any earlier but unused response object\n        if self.response is not None:\n            self.response.stream = None\n\n        # Connect and return the response\n        self.response, response.stream = response, self\n        return response",
+    "importString": "",
+    "lineNum": 17,
+    "location": 584,
+    "relativeDocumentPath": "sanic/http/http1.py"
+  },
+  {
+    "symbolName": "respond",
+    "sourceCode": "def respond(self, response: BaseHTTPResponse) -> BaseHTTPResponse:\n        \"\"\"Prepare response to client\"\"\"\n        logger.debug(  # no cov\n            f\"{Colors.BLUE}[respond]:{Colors.END} {response}\",\n            extra={\"verbosity\": 2},\n        )\n\n        if self.stage is not Stage.HANDLER:\n            self.stage = Stage.FAILED\n            raise RuntimeError(\"Response already started\")\n\n        # Disconnect any earlier but unused response object\n        if self.response is not None:\n            self.response.stream = None\n\n        self.response, response.stream = response, self\n\n        return response",
+    "importString": "",
+    "lineNum": 17,
+    "location": 192,
+    "relativeDocumentPath": "sanic/http/http3.py"
+  },
+  {
+    "symbolName": "respond",
+    "sourceCode": "def respond(\n        self, response: BaseHTTPResponse\n    ) -> BaseHTTPResponse:  # no cov\n        raise NotImplementedError(\"Not implemented\")",
+    "importString": "",
+    "lineNum": 3,
+    "location": 23,
+    "relativeDocumentPath": "sanic/http/stream.py"
+  },
+  {
+    "symbolName": "respond",
+    "sourceCode": "async def respond(\n        self,\n        response: BaseHTTPResponse | None = None,\n        *,\n        status: int = 200,\n        headers: Header | dict[str, str] | None = None,\n        content_type: str | None = None,\n    ):\n        \"\"\"Respond to the request without returning.\n\n        This method can only be called once, as you can only respond once.\n        If no ``response`` argument is passed, one will be created from the\n        ``status``, ``headers`` and ``content_type`` arguments.\n\n        **The first typical usecase** is if you wish to respond to the\n        request without returning from the handler:\n\n        ```python\n        @app.get(\"/\")\n        async def handler(request: Request):\n            data = ...  # Process something\n\n            json_response = json({\"data\": data})\n            await request.respond(json_response)\n\n        @app.on_response\n        async def add_header(_, response: HTTPResponse):\n            # Middlewares still get executed as expected\n            response.headers[\"one\"] = \"two\"\n        ```\n\n        **The second possible usecase** is for when you want to directly\n        respond to the request:\n\n        ```python\n        response = await request.respond(content_type=\"text/csv\")\n        await response.send(\"foo,\")\n        await response.send(\"bar\")\n\n        # You can control the completion of the response by calling\n        # the 'eof()' method:\n        await response.eof()\n        ```\n\n        Args:\n            response (ResponseType): Response instance to send.\n            status (int): Status code to return in the response.\n            headers (dict[str, str] | None): Headers to return in the response, defaults to None.\n            content_type (str | None): Content-Type header of the response, defaults to None.\n\n        Returns:\n            FinalResponseType: Final response being sent (may be different from the\n                \"response\" parameter because of middlewares), which can be\n                used to manually send data.\n        \"\"\"  # noqa: E501\n        try:\n            if self.stream is not None and self.stream.response:\n                raise ServerError(\"Second respond call is not allowed.\")\n        except AttributeError:\n            pass\n        # This logic of determining which response to use is subject to change\n        if response is None:\n            response = HTTPResponse(\n                status=status,\n                headers=headers,\n                content_type=content_type,\n            )\n\n        # Connect the response\n        if isinstance(response, BaseHTTPResponse) and self.stream:\n            response = self.stream.respond(response)\n\n            if isawaitable(response):\n                response = await response  # type: ignore\n        # Run response middleware\n        try:\n            middleware = (\n                self.route and self.route.extra.response_middleware\n            ) or self.app.response_middleware\n            if middleware and not self._response_middleware_started:\n                self._response_middleware_started = True\n                response = await self.app._run_response_middleware(\n                    self, response, middleware\n                )\n        except CancelledErrors:\n            raise\n        except Exception:\n            error_logger.exception(\n                \"Exception occurred in one of response middleware handlers\"\n            )\n        self.responded = True\n        return response",
+    "importString": "",
+    "lineNum": 91,
+    "location": 317,
+    "relativeDocumentPath": "sanic/request/types.py"
+  },
+  {
+    "symbolName": "remote_addr",
+    "sourceCode": "@property\n    def remote_addr(self) -> str:\n        \"\"\"Client IP address, if available from proxy.\n\n        Returns:\n            str: IPv4, bracketed IPv6, UNIX socket name or arbitrary string\n        \"\"\"\n        if not hasattr(self, \"_remote_addr\"):\n            self._remote_addr = str(self.forwarded.get(\"for\", \"\"))\n        return self._remote_addr",
+    "importString": "",
+    "lineNum": 9,
+    "location": 924,
+    "relativeDocumentPath": "sanic/request/types.py"
+  },
+  {
+    "symbolName": "before_server_start",
+    "sourceCode": "def before_server_start(\n        self,\n        listener: ListenerType[Sanic] | None = None,\n        *,\n        priority: int = 0,\n    ) -> ListenerType[Sanic]:\n        \"\"\"Decorator for registering a listener for the before_server_start event.\n\n        This event is fired on all worker processes. You should typically\n        use this event to initialize resources that are global in nature, or\n        will be shared across requests and various parts of the application.\n\n        A common use case for this event is to initialize a database connection\n        pool, or to initialize a cache client.\n\n        See [Listeners](/en/guide/basics/listeners) for more details.\n\n        Args:\n            listener (ListenerType[Sanic]): The listener handler to attach.\n\n        Examples:\n            ```python\n            @app.before_server_start\n            async def on_before_server_start(app: Sanic):\n                print(\"Before server start\")\n            ```\n        \"\"\"  # noqa: E501\n        return self._setup_listener(listener, \"before_server_start\", priority)",
+    "importString": "",
+    "lineNum": 27,
+    "location": 321,
+    "relativeDocumentPath": "sanic/mixins/listeners.py"
+  },
+  {
+    "symbolName": "add_route",
+    "sourceCode": "def add_route(\n        self,\n        handler: RouteHandler,\n        uri: str,\n        methods: Iterable[str] = frozenset({\"GET\"}),\n        host: str | list[str] | None = None,\n        strict_slashes: bool | None = None,\n        version: int | str | float | None = None,\n        name: str | None = None,\n        stream: bool = False,\n        version_prefix: str = \"/v\",\n        error_format: str | None = None,\n        unquote: bool = False,\n        **ctx_kwargs: Any,\n    ) -> RouteHandler:\n        \"\"\"A helper method to register class-based view or functions as a handler to the application url routes.\n\n        Args:\n            handler (RouteHandler): Function or class-based view used as a route handler.\n            uri (str): Path of the URL.\n            methods (Iterable[str]): List or tuple of methods allowed; these are overridden if using an HTTPMethodView.\n            host (Optional[Union[str, List[str]]]): Hostname or hostnames to match for this route.\n            strict_slashes (Optional[bool]): If set, a route's slashes will be strict. E.g. `/foo` will not match `/foo/`.\n            version (Optional[Union[int, str, float]]): Version of the API for this route.\n            name (Optional[str]): User-defined route name for `url_for`.\n            stream (bool): Boolean specifying if the handler is a stream handler.\n            version_prefix (str): URL path that should be before the version value; default: ``/v``.\n            error_format (Optional[str]): Custom error format string.\n            unquote (bool): Boolean specifying if the handler requires unquoting.\n            ctx_kwargs (Any): Keyword arguments that begin with a `ctx_*` prefix will be appended to the route context (``route.ctx``). See below for examples.\n\n        Returns:\n            RouteHandler: The route handler.\n\n        Examples:\n            ```python\n            from sanic import Sanic, text\n\n            app = Sanic(\"test\")\n\n            async def handler(request):\n                return text(\"OK\")\n\n            app.add_route(handler, \"/test\", methods=[\"GET\", \"POST\"])\n            ```\n\n            You can use `ctx_kwargs` to add custom context to the route. This\n            can often be useful when wanting to add metadata to a route that\n            can be used by other parts of the application (like middleware).\n\n            ```python\n            from sanic import Sanic, text\n\n            app = Sanic(\"test\")\n\n            async def handler(request):\n                return text(\"OK\")\n\n            async def custom_middleware(request):\n                if request.route.ctx.monitor:\n                    do_some_monitoring()\n\n            app.add_route(handler, \"/test\", methods=[\"GET\", \"POST\"], ctx_monitor=True)\n            app.register_middleware(custom_middleware)\n        \"\"\"  # noqa: E501\n        # Handle HTTPMethodView differently\n        if hasattr(handler, \"view_class\"):\n            methods = set()\n\n            for method in HTTP_METHODS:\n                view_class = getattr(handler, \"view_class\")\n                _handler = getattr(view_class, method.lower(), None)\n                if _handler:\n                    methods.add(method)\n                    if hasattr(_handler, \"is_stream\"):\n                        stream = True\n\n        if strict_slashes is None:\n            strict_slashes = self.strict_slashes\n\n        self.route(\n            uri=uri,\n            methods=methods,\n            host=host,\n            strict_slashes=strict_slashes,\n            stream=stream,\n            version=version,\n            name=name,\n            version_prefix=version_prefix,\n            error_format=error_format,\n            unquote=unquote,\n            **ctx_kwargs,\n        )(handler)\n        return handler",
+    "importString": "",
+    "lineNum": 93,
+    "location": 212,
+    "relativeDocumentPath": "sanic/mixins/routes.py"
+  },
+  {
+    "symbolName": "dispatch",
+    "sourceCode": "def dispatch(\n        self,\n        event: str,\n        *,\n        condition: dict[str, str] | None = None,\n        context: dict[str, Any] | None = None,\n        fail_not_found: bool = True,\n        inline: bool = False,\n        reverse: bool = False,\n    ) -> Coroutine[Any, Any, Awaitable[Task | Any]]:\n        \"\"\"Dispatches an event to the signal router.\n\n        Args:\n            event (str): Name of the event to dispatch.\n            condition (Optional[Dict[str, str]]): Condition for the\n                event dispatch.\n            context (Optional[Dict[str, Any]]): Context for the event dispatch.\n            fail_not_found (bool): Whether to fail if the event is not found.\n                Default is `True`.\n            inline (bool): If `True`, returns the result directly. If `False`,\n                returns a `Task`. Default is `False`.\n            reverse (bool): Whether to reverse the dispatch order.\n                Default is `False`.\n\n        Returns:\n            Coroutine[Any, Any, Awaitable[Union[Task, Any]]]: An awaitable\n                that returns the result directly if `inline=True`, or a `Task`\n                if `inline=False`.\n\n        Examples:\n            ```python\n            @app.signal(\"user.registration.created\")\n            async def send_registration_email(**context):\n                await send_email(context[\"email\"], template=\"registration\")\n\n            @app.post(\"/register\")\n            async def handle_registration(request):\n                await do_registration(request)\n                await request.app.dispatch(\n                    \"user.registration.created\",\n                    context={\"email\": request.json.email}\n                })\n            ```\n        \"\"\"\n        return self.signal_router.dispatch(\n            event,\n            context=context,\n            condition=condition,\n            inline=inline,\n            reverse=reverse,\n            fail_not_found=fail_not_found,\n        )",
+    "importString": "",
+    "lineNum": 51,
+    "location": 667,
+    "relativeDocumentPath": "sanic/app.py"
+  },
+  {
+    "symbolName": "dispatch",
+    "sourceCode": "async def dispatch(self, *args, **kwargs):\n        \"\"\"Dispatch a signal event\n\n        Args:\n            *args: Arguments to be passed to the signal event.\n            **kwargs: Keyword arguments to be passed to the signal event.\n        \"\"\"\n        condition = kwargs.pop(\"condition\", {})\n        condition.update({\"__blueprint__\": self.name})\n        kwargs[\"condition\"] = condition\n        return await asyncio.gather(\n            *[app.dispatch(*args, **kwargs) for app in self.apps]\n        )",
+    "importString": "",
+    "lineNum": 12,
+    "location": 508,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "dispatch",
+    "sourceCode": "async def dispatch(\n        self,\n        event: str | Enum,\n        *,\n        context: dict[str, Any] | None = None,\n        condition: dict[str, str] | None = None,\n        fail_not_found: bool = True,\n        inline: bool = False,\n        reverse: bool = False,\n    ) -> asyncio.Task | Any:\n        \"\"\"Dispatch a signal to all handlers that match the event\n\n        Args:\n            event (str): The event to dispatch\n            context (Optional[Dict[str, Any]], optional): A dictionary of context to pass to the handlers. Defaults to `None`.\n            condition (Optional[Dict[str, str]], optional): A dictionary of conditions to match against the handlers. Defaults to `None`.\n            fail_not_found (bool, optional): Whether to raise an exception if no handlers are found. Defaults to `True`.\n            inline (bool, optional): Whether to run the handlers inline. An inline run means it will return the value of the signal handler. When `False` (which is the default) the signal handler will run in a background task. Defaults to `False`.\n            reverse (bool, optional): Whether to run the handlers in reverse order. Defaults to `False`.\n\n        Returns:\n            Union[asyncio.Task, Any]: If `inline` is `True` then the return value of the signal handler will be returned. If `inline` is `False` then an `asyncio.Task` will be returned.\n\n        Raises:\n            RuntimeError: If the signal is dispatched outside of an event loop\n        \"\"\"  # noqa: E501\n\n        event = self.format_event(event)\n        dispatch = self._dispatch(\n            event,\n            context=context,\n            condition=condition,\n            fail_not_found=fail_not_found and inline,\n            reverse=reverse,\n        )\n        logger.debug(f\"Dispatching signal: {event}\", extra={\"verbosity\": 1})\n\n        if inline:\n            return await dispatch\n\n        task = asyncio.get_running_loop().create_task(dispatch)\n        await asyncio.sleep(0)\n        return task",
+    "importString": "",
+    "lineNum": 42,
+    "location": 264,
+    "relativeDocumentPath": "sanic/signals.py"
+  },
+  {
+    "symbolName": "add_cookie",
+    "sourceCode": "def add_cookie(\n        self,\n        key: str,\n        value: str,\n        *,\n        path: str = \"/\",\n        domain: str | None = None,\n        secure: bool = True,\n        max_age: int | None = None,\n        expires: datetime | None = None,\n        httponly: bool = False,\n        samesite: SameSite | None = \"Lax\",\n        partitioned: bool = False,\n        comment: str | None = None,\n        host_prefix: bool = False,\n        secure_prefix: bool = False,\n    ) -> Cookie:\n        \"\"\"Add a cookie to the CookieJar.\n\n        Args:\n            key (str): Key of the cookie.\n            value (str): Value of the cookie.\n            path (str, optional): Path of the cookie. Defaults to \"/\".\n            domain (Optional[str], optional): Domain of the cookie. Defaults to None.\n            secure (bool, optional): Whether to set it as a secure cookie. Defaults to True.\n            max_age (Optional[int], optional): Max age of the cookie in seconds; if set to 0 a\n                browser should delete it. Defaults to None.\n            expires (Optional[datetime], optional): When the cookie expires; if set to None browsers\n                should set it as a session cookie. Defaults to None.\n            httponly (bool, optional): Whether to set it as HTTP only. Defaults to False.\n            samesite (Optional[SameSite], optional): How to set the samesite property, should be\n                strict, lax, or none (case insensitive). Defaults to \"Lax\".\n            partitioned (bool, optional): Whether to set it as partitioned. Defaults to False.\n            comment (Optional[str], optional): A cookie comment. Defaults to None.\n            host_prefix (bool, optional): Whether to add __Host- as a prefix to the key.\n                This requires that path=\"/\", domain=None, and secure=True. Defaults to False.\n            secure_prefix (bool, optional): Whether to add __Secure- as a prefix to the key.\n                This requires that secure=True. Defaults to False.\n\n        Returns:\n            Cookie: The instance of the created cookie.\n\n        Raises:\n            ServerError: If host_prefix is set without secure=True.\n            ServerError: If host_prefix is set without path=\"/\" and domain=None.\n            ServerError: If host_prefix is set with domain.\n            ServerError: If secure_prefix is set without secure=True.\n            ServerError: If partitioned is set without host_prefix=True.\n\n        Examples:\n            Basic usage\n            ```python\n            cookie = add_cookie('name', 'value')\n            ```\n\n            Adding a cookie with a custom path and domain\n            ```python\n            cookie = add_cookie('name', 'value', path='/custom', domain='example.com')\n            ```\n\n            Adding a secure, HTTP-only cookie with a comment\n            ```python\n            cookie = add_cookie('name', 'value', secure=True, httponly=True, comment='My Cookie')\n            ```\n\n            Adding a cookie with a max age of 60 seconds\n            ```python\n            cookie = add_cookie('name', 'value', max_age=60)\n            ```\n        \"\"\"  # noqa: E501\n        cookie = Cookie(\n            key,\n            value,\n            path=path,\n            expires=expires,\n            comment=comment,\n            domain=domain,\n            max_age=max_age,\n            secure=secure,\n            httponly=httponly,\n            samesite=samesite,\n            partitioned=partitioned,\n            host_prefix=host_prefix,\n            secure_prefix=secure_prefix,\n        )\n        self.headers.add(self.HEADER_KEY, cookie)\n\n        return cookie",
+    "importString": "",
+    "lineNum": 87,
+    "location": 141,
+    "relativeDocumentPath": "sanic/cookies/response.py"
+  },
+  {
+    "symbolName": "add_cookie",
+    "sourceCode": "def add_cookie(\n        self,\n        key: str,\n        value: str,\n        *,\n        path: str = \"/\",\n        domain: str | None = None,\n        secure: bool = True,\n        max_age: int | None = None,\n        expires: datetime | None = None,\n        httponly: bool = False,\n        samesite: SameSite | None = \"Lax\",\n        partitioned: bool = False,\n        comment: str | None = None,\n        host_prefix: bool = False,\n        secure_prefix: bool = False,\n    ) -> Cookie:\n        \"\"\"Add a cookie to the CookieJar\n\n        See [Cookies](/en/guide/basics/cookies.html)\n\n        Args:\n            key (str): The key to be added\n            value (str): The value to be added\n            path (str, optional): Path of the cookie. Defaults to `\"/\"`.\n            domain (Optional[str], optional): Domain of the cookie. Defaults to `None`.\n            secure (bool, optional): Whether the cookie is secure. Defaults to `True`.\n            max_age (Optional[int], optional): Max age of the cookie. Defaults to `None`.\n            expires (Optional[datetime], optional): Expiry date of the cookie. Defaults to `None`.\n            httponly (bool, optional): Whether the cookie is http only. Defaults to `False`.\n            samesite (Optional[SameSite], optional): SameSite policy of the cookie. Defaults to `\"Lax\"`.\n            partitioned (bool, optional): Whether the cookie is partitioned. Defaults to `False`.\n            comment (Optional[str], optional): Comment of the cookie. Defaults to `None`.\n            host_prefix (bool, optional): Whether to add __Host- as a prefix to the key. This requires that path=\"/\", domain=None, and secure=True. Defaults to `False`.\n            secure_prefix (bool, optional): Whether to add __Secure- as a prefix to the key. This requires that secure=True. Defaults to `False`.\n\n        Returns:\n            Cookie: The cookie that was added\n        \"\"\"  # noqa: E501\n        return self.cookies.add_cookie(\n            key=key,\n            value=value,\n            path=path,\n            domain=domain,\n            secure=secure,\n            max_age=max_age,\n            expires=expires,\n            httponly=httponly,\n            samesite=samesite,\n            partitioned=partitioned,\n            comment=comment,\n            host_prefix=host_prefix,\n            secure_prefix=secure_prefix,\n        )",
+    "importString": "",
+    "lineNum": 53,
+    "location": 121,
+    "relativeDocumentPath": "sanic/response/types.py"
+  },
+  {
+    "symbolName": "getlist",
+    "sourceCode": "def getlist(\n        self, name: str, default: list[Any] | None = None\n    ) -> list[Any]:\n        try:\n            return self._get_prefixed_cookie(name)\n        except KeyError:\n            return super().getlist(name, default)",
+    "importString": "",
+    "lineNum": 6,
+    "location": 145,
+    "relativeDocumentPath": "sanic/cookies/request.py"
+  },
+  {
+    "symbolName": "getlist",
+    "sourceCode": "def getlist(\n        self, name: str, default: list[Any] | None = None\n    ) -> list[Any]:\n        \"\"\"Return the entire list\n\n        Args:\n            name (str): The name of the parameter\n            default (list[Any] | None, optional): The default value. Defaults to None.\n\n        Returns:\n            list[Any]: The entire list of values or [] if not found\n        \"\"\"  # noqa: E501\n        return super().get(name, default) or []",
+    "importString": "",
+    "lineNum": 12,
+    "location": 20,
+    "relativeDocumentPath": "sanic/request/parameters.py"
+  },
+  {
+    "symbolName": "format_dict",
+    "sourceCode": "def format_dict(self, record: dict) -> str:\n        return self.dumps(record)",
+    "importString": "",
+    "lineNum": 1,
+    "location": 343,
+    "relativeDocumentPath": "sanic/logging/formatter.py"
+  },
+  {
+    "symbolName": "on_response",
+    "sourceCode": "def on_response(self, middleware=None):\n        \"\"\"Convenience method to register a response middleware for all blueprints in the group.\n\n        Args:\n            middleware (Optional): Optional positional Parameters to be use middleware\n\n        Returns:\n            Partial function to apply the middleware\n        \"\"\"  # noqa: E501\n        if callable(middleware):\n            return self.middleware(middleware, \"response\")\n        else:\n            return partial(self.middleware, attach_to=\"response\")",
+    "importString": "",
+    "lineNum": 12,
+    "location": 970,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "on_response",
+    "sourceCode": "def on_response(self, middleware=None, *, priority=0):\n        \"\"\"Register a middleware to be called after a response is created.\n\n        This is the same as *@app.middleware('response')*.\n\n        Args:\n            middleware (Callable, optional): A callable that takes in a\n                request and response. Defaults to `None`.\n\n        Returns:\n            Callable: The decorated middleware function or a partial function\n                depending on how the method was called.\n\n        Examples:\n            ```python\n            @app.on_response\n            async def custom_middleware(request, response):\n                response.headers['X-Server'] = 'Sanic'\n            ```\n        \"\"\"\n        if callable(middleware):\n            return self.middleware(middleware, \"response\", priority=priority)\n        else:\n            return partial(\n                self.middleware, attach_to=\"response\", priority=priority\n            )",
+    "importString": "",
+    "lineNum": 25,
+    "location": 136,
+    "relativeDocumentPath": "sanic/mixins/middleware.py"
+  },
+  {
+    "symbolName": "version_prefix",
+    "sourceCode": "@property\n    def version_prefix(self) -> str:\n        \"\"\"Version prefix for the Blueprint Group.\n\n        Returns:\n            str: Version prefix for the Blueprint Group.\n        \"\"\"\n        return self._version_prefix",
+    "importString": "",
+    "lineNum": 7,
+    "location": 744,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "spawn",
+    "sourceCode": "def spawn(self):\n        if self.state not in (ProcessState.IDLE, ProcessState.RESTARTING):\n            raise Exception(\"Cannot spawn a worker process until it is idle.\")\n        self._current_process = self.factory(\n            name=self.name,\n            target=self.target,\n            kwargs=self.kwargs,\n            daemon=True,\n        )",
+    "importString": "",
+    "lineNum": 8,
+    "location": 162,
+    "relativeDocumentPath": "sanic/worker/process.py"
+  },
+  {
+    "symbolName": "visitors",
+    "sourceCode": "def visitors(self) -> list[NodeTransformer]:\n        return [RemoveAltSvc(self.app, self.app.state.verbosity)]",
+    "importString": "",
+    "lineNum": 1,
+    "location": 17,
+    "relativeDocumentPath": "sanic/touchup/schemes/altsvc.py"
+  },
+  {
+    "symbolName": "visitors",
+    "sourceCode": "@abstractmethod\n    def visitors(self) -> list[NodeTransformer]: ...",
+    "importString": "",
+    "lineNum": 1,
+    "location": 14,
+    "relativeDocumentPath": "sanic/touchup/schemes/base.py"
+  },
+  {
+    "symbolName": "visitors",
+    "sourceCode": "def visitors(self) -> list[NodeTransformer]:\n        return [RemoveDispatch(self._registered_events)]",
+    "importString": "",
+    "lineNum": 1,
+    "location": 20,
+    "relativeDocumentPath": "sanic/touchup/schemes/ode.py"
+  },
+  {
+    "symbolName": "routes_all",
+    "sourceCode": "@property\n    def routes_all(self) -> dict[tuple[str, ...], Route]:\n        \"\"\"Return all routes in the router.\n\n        Returns:\n            Dict[Tuple[str, ...], Route]: a dictionary of routes\n        \"\"\"\n        return {route.parts: route for route in self.routes}",
+    "importString": "",
+    "lineNum": 7,
+    "location": 191,
+    "relativeDocumentPath": "sanic/router.py"
+  },
+  {
+    "symbolName": "exitcode",
+    "sourceCode": "@property\n    def exitcode(self):\n        return self._current_process.exitcode",
+    "importString": "",
+    "lineNum": 2,
+    "location": 176,
+    "relativeDocumentPath": "sanic/worker/process.py"
+  },
+  {
+    "symbolName": "blueprint",
+    "sourceCode": "def blueprint(\n        self,\n        blueprint: Blueprint | Iterable[Blueprint] | BlueprintGroup,\n        *,\n        url_prefix: str | None = None,\n        version: int | float | str | None = None,\n        strict_slashes: bool | None = None,\n        version_prefix: str | None = None,\n        name_prefix: str | None = None,\n    ) -> None:\n        \"\"\"Register a blueprint on the application.\n\n        See [Blueprints](/en/guide/best-practices/blueprints) for more information.\n\n        Args:\n            blueprint (Union[Blueprint, Iterable[Blueprint], BlueprintGroup]): Blueprint object or (list, tuple) thereof.\n            url_prefix (Optional[str]): Prefix for all URLs bound to the blueprint. Defaults to `None`.\n            version (Optional[Union[int, float, str]]): Version prefix for URLs. Defaults to `None`.\n            strict_slashes (Optional[bool]): Enforce the trailing slashes. Defaults to `None`.\n            version_prefix (Optional[str]): Prefix for version. Defaults to `None`.\n            name_prefix (Optional[str]): Prefix for the blueprint name. Defaults to `None`.\n\n        Example:\n            ```python\n            app = Sanic(\"TestApp\")\n            bp = Blueprint('TestBP')\n\n            @bp.route('/route')\n            def handler(request):\n                return text('Hello, Blueprint!')\n\n            app.blueprint(bp, url_prefix='/blueprint')\n            ```\n        \"\"\"  # noqa: E501\n        options: dict[str, Any] = {}\n        if url_prefix is not None:\n            options[\"url_prefix\"] = url_prefix\n        if version is not None:\n            options[\"version\"] = version\n        if strict_slashes is not None:\n            options[\"strict_slashes\"] = strict_slashes\n        if version_prefix is not None:\n            options[\"version_prefix\"] = version_prefix\n        if name_prefix is not None:\n            options[\"name_prefix\"] = name_prefix\n        if isinstance(blueprint, (Iterable, BlueprintGroup)):\n            for item in blueprint:\n                params: dict[str, Any] = {**options}\n                if isinstance(blueprint, BlueprintGroup):\n                    merge_from = [\n                        options.get(\"url_prefix\", \"\"),\n                        blueprint.url_prefix or \"\",\n                    ]\n                    if not isinstance(item, BlueprintGroup):\n                        merge_from.append(item.url_prefix or \"\")\n                    merged_prefix = \"/\".join(\n                        str(u).strip(\"/\") for u in merge_from if u\n                    ).rstrip(\"/\")\n                    params[\"url_prefix\"] = f\"/{merged_prefix}\"\n\n                    for _attr in [\"version\", \"strict_slashes\"]:\n                        if getattr(item, _attr) is None:\n                            params[_attr] = getattr(\n                                blueprint, _attr\n                            ) or options.get(_attr)\n                    if item.version_prefix == \"/v\":\n                        if blueprint.version_prefix == \"/v\":\n                            params[\"version_prefix\"] = options.get(\n                                \"version_prefix\"\n                            )\n                        else:\n                            params[\"version_prefix\"] = blueprint.version_prefix\n                    name_prefix = getattr(blueprint, \"name_prefix\", None)\n                    if name_prefix and \"name_prefix\" not in params:\n                        params[\"name_prefix\"] = name_prefix\n                self.blueprint(item, **params)\n            return\n        if blueprint.name in self.blueprints:\n            assert self.blueprints[blueprint.name] is blueprint, (\n                'A blueprint with the name \"%s\" is already registered.  '\n                \"Blueprint names must be unique.\" % (blueprint.name,)\n            )\n        else:\n            self.blueprints[blueprint.name] = blueprint\n            self._blueprint_order.append(blueprint)\n\n        if (\n            self.strict_slashes is not None\n            and blueprint.strict_slashes is None\n        ):\n            blueprint.strict_slashes = self.strict_slashes\n        blueprint.register(self, options)",
+    "importString": "",
+    "lineNum": 91,
+    "location": 848,
+    "relativeDocumentPath": "sanic/app.py"
+  },
+  {
+    "symbolName": "after_server_stop",
+    "sourceCode": "def after_server_stop(\n        self, listener: ListenerType[Sanic] | None, *, priority: int = 0\n    ) -> ListenerType[Sanic]:\n        \"\"\"Decorator for registering a listener for the after_server_stop event.\n\n        This event is fired on all worker processes. This event is fired\n        after the server has stopped shutting down, and all requests have\n        been handled. You should typically use this event to clean up\n        resources that were initialized in the before_server_start event.\n\n        A common use case for this event is to close a database connection\n        pool, or to close a cache client.\n\n        See [Listeners](/en/guide/basics/listeners) for more details.\n\n        Args:\n            listener (ListenerType[Sanic]): The listener handler to attach.\n\n        Examples:\n            ```python\n            @app.after_server_stop\n            async def on_after_server_stop(app: Sanic):\n                print(\"After server stop\")\n            ```\n        \"\"\"  # noqa: E501\n        return self._setup_listener(listener, \"after_server_stop\", priority)",
+    "importString": "",
+    "lineNum": 25,
+    "location": 407,
+    "relativeDocumentPath": "sanic/mixins/listeners.py"
+  },
+  {
+    "symbolName": "command",
+    "sourceCode": "def command(\n        self, maybe_func: Callable | None = None, *, name: str = \"\"\n    ) -> Callable | Callable[[Callable], Callable]:\n        def decorator(f):\n            @wraps(f)\n            async def decorated_function(*args, **kwargs):\n                response = f(*args, **kwargs)\n                if isawaitable(response):\n                    response = await response\n                return response\n\n            self._future_commands.add(\n                FutureCommand(name or f.__name__, decorated_function)\n            )\n            return decorated_function\n\n        return decorator(maybe_func) if maybe_func else decorator",
+    "importString": "",
+    "lineNum": 16,
+    "location": 14,
+    "relativeDocumentPath": "sanic/mixins/commands.py"
+  },
+  {
+    "symbolName": "join",
+    "sourceCode": "def join(self):\n        \"\"\"Join the worker processes.\"\"\"\n        logger.debug(\"Joining processes\", extra={\"verbosity\": 1})\n        joined = set()\n        for process in self.processes:\n            logger.debug(\n                f\"Found {process.pid} - {process.state.name}\",\n                extra={\"verbosity\": 1},\n            )\n            if process.state < ProcessState.JOINED:\n                logger.debug(f\"Joining {process.pid}\", extra={\"verbosity\": 1})\n                joined.add(process.pid)\n                process.join()\n        if joined:\n            self.join()",
+    "importString": "",
+    "lineNum": 14,
+    "location": 213,
+    "relativeDocumentPath": "sanic/worker/manager.py"
+  },
+  {
+    "symbolName": "join",
+    "sourceCode": "def join(self):\n        self.set_state(ProcessState.JOINED)\n        self._current_process.join()",
+    "importString": "",
+    "lineNum": 2,
+    "location": 83,
+    "relativeDocumentPath": "sanic/worker/process.py"
+  },
+  {
+    "symbolName": "httponly",
+    "sourceCode": "@httponly.setter\n    def httponly(self, value: bool) -> None:  # no cov\n        self._httponly = value",
+    "importString": "",
+    "lineNum": 2,
+    "location": 543,
+    "relativeDocumentPath": "sanic/cookies/response.py"
+  },
+  {
+    "symbolName": "FALLBACK_ERROR_FORMAT",
+    "sourceCode": "@FALLBACK_ERROR_FORMAT.setter\n    def FALLBACK_ERROR_FORMAT(self, value):\n        self._check_error_format(value)\n        if (\n            not isinstance(self._FALLBACK_ERROR_FORMAT, Default)\n            and value != self._FALLBACK_ERROR_FORMAT\n        ):\n            error_logger.warning(\n                \"Setting config.FALLBACK_ERROR_FORMAT on an already \"\n                \"configured value may have unintended consequences.\"\n            )\n        self._FALLBACK_ERROR_FORMAT = value",
+    "importString": "",
+    "lineNum": 11,
+    "location": 294,
+    "relativeDocumentPath": "sanic/config.py"
+  },
+  {
+    "symbolName": "startup",
+    "sourceCode": "async def startup(self) -> None:\n        \"\"\"\n        Gather the listeners to fire on server start.\n        Because we are using a third-party server and not Sanic server, we do\n        not have access to fire anything BEFORE the server starts.\n        Therefore, we fire before_server_start and after_server_start\n        in sequence since the ASGI lifespan protocol only supports a single\n        startup event.\n        \"\"\"\n        await self.sanic_app._startup()\n        await self.sanic_app._server_event(\"init\", \"before\")\n        await self.sanic_app._server_event(\"init\", \"after\")\n\n        if not isinstance(self.sanic_app.config.USE_UVLOOP, Default):\n            warnings.warn(\n                \"You have set the USE_UVLOOP configuration option, but Sanic \"\n                \"cannot control the event loop when running in ASGI mode.\"\n                \"This option will be ignored.\"\n            )",
+    "importString": "",
+    "lineNum": 18,
+    "location": 48,
+    "relativeDocumentPath": "sanic/asgi.py"
+  },
+  {
+    "symbolName": "startup",
+    "sourceCode": "def startup(self):\n        \"\"\"Trigger \"startup\" operations on the app\"\"\"\n        return self.app._startup()",
+    "importString": "",
+    "lineNum": 2,
+    "location": 31,
+    "relativeDocumentPath": "sanic/server/async_server.py"
+  },
+  {
+    "symbolName": "before_server_stop",
+    "sourceCode": "def before_server_stop(\n        self, listener: ListenerType[Sanic] | None, *, priority: int = 0\n    ) -> ListenerType[Sanic]:\n        \"\"\"Decorator for registering a listener for the before_server_stop event.\n\n        This event is fired on all worker processes. This event is fired\n        before the server starts shutting down. You should not use this event\n        to perform any actions that are required for handling requests, as\n        some requests may continue to be handled after this event is fired.\n\n        A common use case for this event is to stop a background task that\n        was started in the after_server_start event.\n\n        See [Listeners](/en/guide/basics/listeners) for more details.\n\n        Args:\n            listener (ListenerType[Sanic]): The listener handler to attach.\n\n        Examples:\n            ```python\n            @app.before_server_stop\n            async def on_before_server_stop(app: Sanic):\n                print(\"Before server stop\")\n            ```\n        \"\"\"  # noqa: E501\n        return self._setup_listener(listener, \"before_server_stop\", priority)",
+    "importString": "",
+    "lineNum": 25,
+    "location": 380,
+    "relativeDocumentPath": "sanic/mixins/listeners.py"
+  },
+  {
+    "symbolName": "apps",
+    "sourceCode": "@property\n    def apps(self) -> set[Sanic]:\n        \"\"\"Get the set of apps that this blueprint is registered to.\n\n        Returns:\n            Set[Sanic]: Set of apps that this blueprint is registered to.\n\n        Raises:\n            SanicException: If the blueprint has not yet been registered to\n                an app.\n        \"\"\"\n        if not self._apps:\n            raise SanicException(\n                f\"{self} has not yet been registered to an app\"\n            )\n        return self._apps",
+    "importString": "",
+    "lineNum": 15,
+    "location": 153,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "try_use_uvloop",
+    "sourceCode": "def try_use_uvloop() -> None:\n    \"\"\"Use uvloop instead of the default asyncio loop.\"\"\"\n    if OS_IS_WINDOWS:\n        error_logger.warning(\n            \"You are trying to use uvloop, but uvloop is not compatible \"\n            \"with your system. You can disable uvloop completely by setting \"\n            \"the 'USE_UVLOOP' configuration value to false, or simply not \"\n            \"defining it and letting Sanic handle it for you. Sanic will now \"\n            \"continue to run using the default event loop.\"\n        )\n        return\n\n    try:\n        import uvloop  # type: ignore\n    except ImportError:\n        error_logger.warning(\n            \"You are trying to use uvloop, but uvloop is not \"\n            \"installed in your system. In order to use uvloop \"\n            \"you must first install it. Otherwise, you can disable \"\n            \"uvloop completely by setting the 'USE_UVLOOP' \"\n            \"configuration value to false. Sanic will now continue \"\n            \"to run with the default event loop.\"\n        )\n        return\n\n    uvloop_install_removed = str_to_bool(getenv(\"SANIC_NO_UVLOOP\", \"no\"))\n    if uvloop_install_removed:\n        error_logger.info(\n            \"You are requesting to run Sanic using uvloop, but the \"\n            \"install-time 'SANIC_NO_UVLOOP' environment variable (used to \"\n            \"opt-out of installing uvloop with Sanic) is set to true. If \"\n            \"you want to prevent Sanic from overriding the event loop policy \"\n            \"during runtime, set the 'USE_UVLOOP' configuration value to \"\n            \"false.\"\n        )\n\n    if not isinstance(asyncio.get_event_loop_policy(), uvloop.EventLoopPolicy):\n        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())",
+    "importString": "",
+    "lineNum": 37,
+    "location": 9,
+    "relativeDocumentPath": "sanic/server/loop.py"
+  },
+  {
+    "symbolName": "auto_reload",
+    "sourceCode": "@auto_reload.setter\n    def auto_reload(self, value: bool):\n        self.config.AUTO_RELOAD = value\n        self.state.auto_reload = value",
+    "importString": "",
+    "lineNum": 3,
+    "location": 1989,
+    "relativeDocumentPath": "sanic/app.py"
+  },
+  {
+    "symbolName": "server_port",
+    "sourceCode": "@property\n    def server_port(self) -> int:\n        \"\"\"The port the client connected to, by forwarded `port` or `request.host`.\n\n        Default port is returned as 80 and 443 based on `request.scheme`.\n\n        Returns:\n            int: The port the client connected to, by forwarded `port` or `request.host`.\n        \"\"\"  # noqa: E501\n        port = self.forwarded.get(\"port\") or parse_host(self.host)[1]\n        return int(port or (80 if self.scheme in (\"http\", \"ws\") else 443))",
+    "importString": "",
+    "lineNum": 10,
+    "location": 1014,
+    "relativeDocumentPath": "sanic/request/types.py"
+  },
+  {
+    "symbolName": "main_process_start",
+    "sourceCode": "def main_process_start(\n        self, listener: ListenerType[Sanic] | None, *, priority: int = 0\n    ) -> ListenerType[Sanic]:\n        \"\"\"Decorator for registering a listener for the main_process_start event.\n\n        This event is fired only on the main process and **NOT** on any\n        worker processes. You should typically use this event to initialize\n        resources that are shared across workers, or to initialize resources\n        that are not safe to be initialized in a worker process.\n\n        See [Listeners](/en/guide/basics/listeners) for more details.\n\n        Args:\n            listener (ListenerType[Sanic]): The listener handler to attach.\n\n        Examples:\n            ```python\n            @app.main_process_start\n            async def on_main_process_start(app: Sanic):\n                print(\"Main process started\")\n            ```\n        \"\"\"  # noqa: E501\n        return self._setup_listener(listener, \"main_process_start\", priority)",
+    "importString": "",
+    "lineNum": 22,
+    "location": 153,
+    "relativeDocumentPath": "sanic/mixins/listeners.py"
+  },
+  {
+    "symbolName": "set_body",
+    "sourceCode": "def set_body(\n        self,\n        body: Any,\n        dumps: Callable[..., AnyStr] | None = None,\n        **dumps_kwargs: Any,\n    ) -> None:\n        \"\"\"Set the response body to the given value, using the given dumps function\n\n        Sets a new response body using the given dumps function\n        and kwargs, or falling back to the defaults given when\n        creating the object if none are specified.\n\n        Args:\n            body (Any): The body to set\n            dumps (Optional[Callable[..., AnyStr]], optional): The function to use for json encoding. Defaults to `None`.\n            **dumps_kwargs (Any, optional): The kwargs to pass to the json encoding function. Defaults to `{}`.\n\n        Examples:\n            ```python\n            response = JSONResponse({\"foo\": \"bar\"})\n            response.set_body({\"bar\": \"baz\"})\n            assert response.body == b'{\"bar\": \"baz\"}'\n            ```\n        \"\"\"  # noqa: E501\n        self._body_manually_set = False\n        self._raw_body = body\n\n        use_dumps = dumps or self._use_dumps\n        use_dumps_kwargs = dumps_kwargs if dumps else self._use_dumps_kwargs\n\n        self._body = self._encode_body(use_dumps(body, **use_dumps_kwargs))",
+    "importString": "",
+    "lineNum": 30,
+    "location": 348,
+    "relativeDocumentPath": "sanic/response/types.py"
+  },
+  {
+    "symbolName": "log",
+    "sourceCode": "@staticmethod\n    def log(request: Request, exception: Exception) -> None:\n        \"\"\"Logs information about an incoming request and the associated exception.\n\n        Args:\n            request (Request): The incoming request to be logged.\n            exception (Exception): The exception that occurred during the handling of the request.\n\n        Returns:\n            None\n        \"\"\"  # noqa: E501\n        quiet = getattr(exception, \"quiet\", False)\n        noisy = getattr(request.app.config, \"NOISY_EXCEPTIONS\", False)\n        if quiet is False or noisy is True:\n            try:\n                url = repr(request.url)\n            except AttributeError:  # no cov\n                url = \"unknown\"\n\n            error_logger.exception(\n                \"Exception occurred while handling uri: %s\", url\n            )",
+    "importString": "",
+    "lineNum": 21,
+    "location": 181,
+    "relativeDocumentPath": "sanic/handlers/error.py"
+  },
+  {
+    "symbolName": "deprecation",
+    "sourceCode": "def deprecation(message: str, version: float):  # no cov\n    \"\"\"\n    Add a deprecation notice\n\n    Example when a feature is being removed. In this case, version\n    should be AT LEAST next version + 2\n\n    .. code-block:: python\n\n        deprecation(\"Helpful message\", 99.9)\n\n    Example when a feature is deprecated but not being removed:\n\n    .. code-block:: python\n\n        deprecation(\"Helpful message\", 0)\n\n    Args:\n        message (str): Deprecation message\n        version (float): Version when the feature will be removed\n    \"\"\"\n    version_display = f\" v{version}\" if version else \"\"\n    version_info = f\"[DEPRECATION{version_display}] \"\n    if is_atty():\n        version_info = f\"{Colors.RED}{version_info}\"\n        message = f\"{Colors.YELLOW}{message}{Colors.END}\"\n    warn(version_info + message, DeprecationWarning)",
+    "importString": "",
+    "lineNum": 26,
+    "location": 6,
+    "relativeDocumentPath": "sanic/logging/deprecation.py"
+  },
+  {
+    "symbolName": "build",
+    "sourceCode": "@classmethod\n    def build(cls, method, module_globals, app):\n        raw_source = getsource(method)\n        src = dedent(raw_source)\n        node = parse(src)\n\n        for scheme in cls._registry:\n            for visitor in scheme(app)():\n                node = visitor.visit(node)\n\n        compiled_src = compile(node, method.__name__, \"exec\")\n        exec_locals: dict[str, Any] = {}\n        exec(compiled_src, module_globals, exec_locals)  # nosec\n        return exec_locals[method.__name__]",
+    "importString": "",
+    "lineNum": 13,
+    "location": 23,
+    "relativeDocumentPath": "sanic/touchup/schemes/base.py"
+  },
+  {
+    "symbolName": "on_request",
+    "sourceCode": "def on_request(self, middleware=None):\n        \"\"\"Convenience method to register a request middleware for all blueprints in the group.\n\n        Args:\n            middleware (Optional): Optional positional Parameters to be use middleware\n\n        Returns:\n            Partial function to apply the middleware\n        \"\"\"  # noqa: E501\n        if callable(middleware):\n            return self.middleware(middleware, \"request\")\n        else:\n            return partial(self.middleware, attach_to=\"request\")",
+    "importString": "",
+    "lineNum": 12,
+    "location": 956,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "on_request",
+    "sourceCode": "def on_request(self, middleware=None, *, priority=0) -> MiddlewareType:\n        \"\"\"Register a middleware to be called before a request is handled.\n\n        This is the same as *@app.middleware('request')*.\n\n        Args:\n            middleware (Callable, optional): A callable that takes in a\n                request. Defaults to `None`.\n\n        Returns:\n            Callable: The decorated middleware function or a partial function\n                depending on how the method was called.\n\n        Examples:\n            ```python\n            @app.on_request\n            async def custom_middleware(request):\n                request.ctx.custom = 'value'\n            ```\n        \"\"\"\n        if callable(middleware):\n            return self.middleware(middleware, \"request\", priority=priority)\n        else:\n            return partial(  # type: ignore\n                self.middleware, attach_to=\"request\", priority=priority\n            )",
+    "importString": "",
+    "lineNum": 25,
+    "location": 109,
+    "relativeDocumentPath": "sanic/mixins/middleware.py"
+  },
+  {
+    "symbolName": "finalize",
+    "sourceCode": "def finalize(self) -> None:\n        \"\"\"Finalize the routing configuration for the Sanic application.\n\n        This method completes the routing setup by calling the router's\n        finalize method, and it also finalizes any middleware that has been\n        added to the application. If the application is not in test mode,\n        any finalization errors will be raised.\n\n        Finalization consists of identifying defined routes and optimizing\n        Sanic's performance to meet the application's specific needs. If\n        you are manually adding routes, after Sanic has started, you will\n        typically want to use the  `amend` context manager rather than\n        calling this method directly.\n\n        .. note::\n            This method is usually called internally during the server setup\n            process and does not typically need to be invoked manually.\n\n        Raises:\n            FinalizationError: If there is an error during the finalization\n                process, and the application is not in test mode.\n\n        Example:\n            ```python\n            app.finalize()\n            ```\n        \"\"\"\n        try:\n            self.router.finalize()\n        except FinalizationError as e:\n            if not Sanic.test_mode:\n                raise e\n        self.finalize_middleware()",
+    "importString": "",
+    "lineNum": 32,
+    "location": 2288,
+    "relativeDocumentPath": "sanic/app.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "def run(self):\n        while self.queue.get():\n            output = f\"\\r{self.message} [{next(self.spinner)}]\"\n            sys.stdout.write(output)\n            sys.stdout.flush()\n            time.sleep(0.1)\n            self.queue.put(1)",
+    "importString": "",
+    "lineNum": 6,
+    "location": 33,
+    "relativeDocumentPath": "sanic/application/spinner.py"
+  },
+  {
+    "symbolName": "get_all",
+    "sourceCode": "def get_all(self, key: str):\n        \"\"\"Convenience method mapped to ``getall()``.\"\"\"\n        return self.getall(key, [])",
+    "importString": "",
+    "lineNum": 2,
+    "location": 127,
+    "relativeDocumentPath": "sanic/compat.py"
+  },
+  {
+    "symbolName": "headers",
+    "sourceCode": "@property\n    def headers(self) -> t.Dict[str, str]:\n        \"\"\"The headers to be used for the response.\"\"\"\n        if isinstance(self.exception, SanicException):\n            return getattr(self.exception, \"headers\", {})\n        return {}",
+    "importString": "",
+    "lineNum": 5,
+    "location": 75,
+    "relativeDocumentPath": "sanic/errorpages.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "@abstractmethod\n    async def run(self):  # no cov\n        ...",
+    "importString": "",
+    "lineNum": 2,
+    "location": 85,
+    "relativeDocumentPath": "sanic/http/http3.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "async def run(self, exception: Exception | None = None):\n        \"\"\"Handle the request and response cycle.\"\"\"\n        self.stage = Stage.HANDLER\n        self.head_only = self.request.method.upper() == \"HEAD\"\n\n        if exception:\n            logger.info(  # no cov\n                f\"{Colors.BLUE}[exception]: \"\n                f\"{Colors.RED}{exception}{Colors.END}\",\n                exc_info=True,\n                extra={\"verbosity\": 1},\n            )\n            await self.error_response(exception)\n        else:\n            try:\n                logger.info(  # no cov\n                    f\"{Colors.BLUE}[request]:{Colors.END} {self.request}\",\n                    extra={\"verbosity\": 1},\n                )\n                await self.protocol.request_handler(self.request)\n            except Exception as e:  # no cov\n                # This should largely be handled within the request handler.\n                # But, just in case...\n                await self.run(e)\n        self.stage = Stage.IDLE",
+    "importString": "",
+    "lineNum": 24,
+    "location": 105,
+    "relativeDocumentPath": "sanic/http/http3.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "async def run(self): ...",
+    "importString": "",
+    "lineNum": 0,
+    "location": 267,
+    "relativeDocumentPath": "sanic/http/http3.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "async def run(self): ...",
+    "importString": "",
+    "lineNum": 0,
+    "location": 273,
+    "relativeDocumentPath": "sanic/http/http3.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "def run(\n        self,\n        host: str | None = None,\n        port: int | None = None,\n        *,\n        dev: bool = False,\n        debug: bool = False,\n        auto_reload: bool | None = None,\n        version: HTTPVersion = HTTP.VERSION_1,\n        ssl: None | SSLContext | dict | str | list | tuple = None,\n        sock: socket | None = None,\n        workers: int = 1,\n        protocol: type[Protocol] | None = None,\n        backlog: int = 100,\n        register_sys_signals: bool = True,\n        access_log: bool | None = None,\n        unix: str | None = None,\n        loop: AbstractEventLoop | None = None,\n        reload_dir: list[str] | str | None = None,\n        noisy_exceptions: bool | None = None,\n        motd: bool = True,\n        fast: bool = False,\n        verbosity: int = 0,\n        motd_display: dict[str, str] | None = None,\n        auto_tls: bool = False,\n        single_process: bool = False,\n    ) -> None:\n        \"\"\"Run the HTTP Server and listen until keyboard interrupt or term signal. On termination, drain connections before closing.\n\n        .. note::\n            When you need control over running the Sanic instance, this is the method to use.\n            However, in most cases the preferred method is to use the CLI command:\n\n            ```sh\n            sanic server:app`\n            ```\n\n        If you are using this method to run Sanic, make sure you do the following:\n\n        1. Use `if __name__ == \"__main__\"` to guard the code.\n        2. Do **NOT** define the app instance inside the `if` block.\n\n        See [Dynamic Applications](/en/guide/deployment/app-loader) for more information about the second point.\n\n        Args:\n            host (Optional[str]): Address to host on.\n            port (Optional[int]): Port to host on.\n            dev (bool): Run the server in development mode.\n            debug (bool): Enables debug output (slows server).\n            auto_reload (Optional[bool]): Reload app whenever its source code is changed.\n                Enabled by default in debug mode.\n            version (HTTPVersion): HTTP Version.\n            ssl (Union[None, SSLContext, dict, str, list, tuple]): SSLContext, or location of certificate and key\n                for SSL encryption of worker(s).\n            sock (Optional[socket]): Socket for the server to accept connections from.\n            workers (int): Number of processes received before it is respected.\n            protocol (Optional[Type[Protocol]]): Subclass of asyncio Protocol class.\n            backlog (int): A number of unaccepted connections that the system will allow\n                before refusing new connections.\n            register_sys_signals (bool): Register SIG* events.\n            access_log (Optional[bool]): Enables writing access logs (slows server).\n            unix (Optional[str]): Unix socket to listen on instead of TCP port.\n            loop (Optional[AbstractEventLoop]): AsyncIO event loop.\n            reload_dir (Optional[Union[List[str], str]]): Directory to watch for code changes, if auto_reload is True.\n            noisy_exceptions (Optional[bool]): Log exceptions that are normally considered to be quiet/silent.\n            motd (bool): Display Message of the Day.\n            fast (bool): Enable fast mode.\n            verbosity (int): Verbosity level.\n            motd_display (Optional[Dict[str, str]]): Customize Message of the Day display.\n            auto_tls (bool): Enable automatic TLS certificate handling.\n            single_process (bool): Enable single process mode.\n\n        Returns:\n            None\n\n        Raises:\n            RuntimeError: Raised when attempting to serve HTTP/3 as a secondary server.\n            RuntimeError: Raised when attempting to use both `fast` and `workers`.\n            RuntimeError: Raised when attempting to use `single_process` with `fast`, `workers`, or `auto_reload`.\n            TypeError: Raised when attempting to use `loop` with `create_server`.\n            ValueError: Raised when `PROXIES_COUNT` is negative.\n\n        Examples:\n            ```python\n            from sanic import Sanic, Request, json\n\n            app = Sanic(\"TestApp\")\n\n\n            @app.get(\"/\")\n            async def handler(request: Request):\n                return json({\"foo\": \"bar\"})\n\n\n            if __name__ == \"__main__\":\n                app.run(port=9999, dev=True)\n            ```\n        \"\"\"  # noqa: E501\n        self.prepare(\n            host=host,\n            port=port,\n            dev=dev,\n            debug=debug,\n            auto_reload=auto_reload,\n            version=version,\n            ssl=ssl,\n            sock=sock,\n            workers=workers,\n            protocol=protocol,\n            backlog=backlog,\n            register_sys_signals=register_sys_signals,\n            access_log=access_log,\n            unix=unix,\n            loop=loop,\n            reload_dir=reload_dir,\n            noisy_exceptions=noisy_exceptions,\n            motd=motd,\n            fast=fast,\n            verbosity=verbosity,\n            motd_display=motd_display,\n            auto_tls=auto_tls,\n            single_process=single_process,\n        )\n\n        if single_process:\n            serve = self.__class__.serve_single\n        else:\n            serve = self.__class__.serve\n        serve(primary=self)",
+    "importString": "",
+    "lineNum": 128,
+    "location": 151,
+    "relativeDocumentPath": "sanic/mixins/startup.py"
+  },
+  {
+    "symbolName": "finalize",
+    "sourceCode": "def finalize(self, *args, **kwargs) -> None:\n        \"\"\"Finalize the router.\n\n        Raises:\n            SanicException: if a route contains a parameter name that starts with \"__\" and is not in ALLOWED_LABELS\n        \"\"\"  # noqa: E501\n        super().finalize(*args, **kwargs)\n\n        for route in self.dynamic_routes.values():\n            if any(\n                label.startswith(\"__\") and label not in ALLOWED_LABELS\n                for label in route.labels\n            ):\n                raise SanicException(\n                    f\"Invalid route: {route}. Parameter names cannot use '__'.\"\n                )",
+    "importString": "",
+    "lineNum": 15,
+    "location": 236,
+    "relativeDocumentPath": "sanic/router.py"
+  },
+  {
+    "symbolName": "finalize",
+    "sourceCode": "def finalize(self, do_compile: bool = True, do_optimize: bool = False):\n        \"\"\"Finalize the router and compile the routes\n\n        Args:\n            do_compile (bool, optional): Whether to compile the routes. Defaults to `True`.\n            do_optimize (bool, optional): Whether to optimize the routes. Defaults to `False`.\n\n        Returns:\n            SignalRouter: The router\n\n        Raises:\n            RuntimeError: If the router is finalized outside of an event loop\n        \"\"\"  # noqa: E501\n        self.add(_blank, \"sanic.__signal__.__init__\")\n\n        try:\n            self.ctx.loop = asyncio.get_running_loop()\n        except RuntimeError:\n            raise RuntimeError(\"Cannot finalize signals outside of event loop\")\n\n        for signal in self.routes:\n            signal.ctx.waiters = deque()\n\n        return super().finalize(do_compile=do_compile, do_optimize=do_optimize)",
+    "importString": "",
+    "lineNum": 23,
+    "location": 371,
+    "relativeDocumentPath": "sanic/signals.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "@classmethod\n    def run(cls, app):\n        for target, method_name in cls._registry:\n            method = getattr(target, method_name)\n\n            if app.test_mode:\n                placeholder = f\"_{method_name}\"\n                if hasattr(target, placeholder):\n                    method = getattr(target, placeholder)\n                else:\n                    setattr(target, placeholder, method)\n\n            module = getmodule(target)\n            module_globals = dict(getmembers(module))\n            modified = BaseScheme.build(method, module_globals, app)\n            setattr(target, method_name, modified)\n\n            target.__touched__ = True",
+    "importString": "",
+    "lineNum": 17,
+    "location": 8,
+    "relativeDocumentPath": "sanic/touchup/service.py"
+  },
+  {
+    "symbolName": "run",
+    "sourceCode": "def run(self):\n        \"\"\"Run the worker manager.\"\"\"\n        self.start()\n        self.monitor()\n        self.join()\n        self.terminate()\n        self.cleanup()",
+    "importString": "",
+    "lineNum": 6,
+    "location": 196,
+    "relativeDocumentPath": "sanic/worker/manager.py"
+  },
+  {
+    "symbolName": "as_view",
+    "sourceCode": "@classmethod\n    def as_view(cls, *class_args: Any, **class_kwargs: Any) -> RouteHandler:\n        \"\"\"Return view function for use with the routing system, that dispatches request to appropriate handler method.\n\n        If you need to pass arguments to the class's constructor, you can\n        pass the arguments to `as_view` and they will be passed to the class\n        `__init__` method.\n\n        Args:\n            *class_args: Variable length argument list for the class instantiation.\n            **class_kwargs: Arbitrary keyword arguments for the class instantiation.\n\n        Returns:\n            RouteHandler: The view function.\n\n        Examples:\n            ```python\n            class DummyView(HTTPMethodView):\n                def __init__(self, foo: MyFoo):\n                    self.foo = foo\n\n                async def get(self, request: Request):\n                    return text(self.foo.bar)\n\n            app.add_route(DummyView.as_view(foo=MyFoo()), \"/\")\n            ```\n        \"\"\"  # noqa: E501\n\n        def view(*args, **kwargs):\n            self = view.view_class(*class_args, **class_kwargs)\n            return self.dispatch_request(*args, **kwargs)\n\n        if cls.decorators:\n            view.__module__ = cls.__module__\n            for decorator in cls.decorators:\n                view = decorator(view)\n\n        view.view_class = cls  # type: ignore\n        view.__doc__ = cls.__doc__\n        view.__module__ = cls.__module__\n        view.__name__ = cls.__name__\n        return view",
+    "importString": "",
+    "lineNum": 41,
+    "location": 158,
+    "relativeDocumentPath": "sanic/views.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(\n        self,\n        mime_with_params: str | MediaType,\n    ) -> MediaType | None:\n        \"\"\"Match this media type against another media type.\n\n        Check if this media type matches the given mime type/subtype.\n        Wildcards are supported both ways on both type and subtype.\n        If mime contains a semicolon, optionally followed by parameters,\n        the parameters of the two media types must match exactly.\n\n        .. note::\n            Use the `==` operator instead to check for literal matches\n            without expanding wildcards.\n\n\n        Args:\n            media_type (str): A type/subtype string to match.\n\n        Returns:\n            MediaType: Returns `self` if the media types are compatible.\n            None: Returns `None` if the media types are not compatible.\n        \"\"\"\n        mt = (\n            MediaType._parse(mime_with_params)\n            if isinstance(mime_with_params, str)\n            else mime_with_params\n        )\n        return (\n            self\n            if (\n                mt\n                # All parameters given in the other media type must match\n                and all(self.params.get(k) == v for k, v in mt.params.items())\n                # Subtype match\n                and (\n                    self.subtype == mt.subtype\n                    or self.subtype == \"*\"\n                    or mt.subtype == \"*\"\n                )\n                # Type match\n                and (\n                    self.type == mt.type or self.type == \"*\" or mt.type == \"*\"\n                )\n            )\n            else None\n        )",
+    "importString": "",
+    "lineNum": 46,
+    "location": 86,
+    "relativeDocumentPath": "sanic/headers.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(self, other: str | Matched) -> Matched | None:\n        \"\"\"Match this MIME string against another MIME string.\n\n        Check if this MIME string matches the given MIME string. Wildcards are supported both ways on both type and subtype.\n\n        Args:\n            other (str): A MIME string to match.\n\n        Returns:\n            Matched: Returns `self` if the MIME strings are compatible.\n            None: Returns `None` if the MIME strings are not compatible.\n        \"\"\"  # noqa: E501\n        accept = Matched.parse(other) if isinstance(other, str) else other\n        if not self.header or not accept.header:\n            return None\n        if self.header.match(accept.header):\n            return accept\n        return None",
+    "importString": "",
+    "lineNum": 17,
+    "location": 216,
+    "relativeDocumentPath": "sanic/headers.py"
+  },
+  {
+    "symbolName": "match",
+    "sourceCode": "def match(self, *mimes: str, accept_wildcards=True) -> Matched:\n        \"\"\"Find a media type accepted by the client.\n\n        This method can be used to find which of the media types requested by\n        the client is most preferred against the ones given as arguments.\n\n        The ordering of preference is set by:\n        1. The order set by RFC 7231, s. 5.3.2, giving a higher priority\n            to q values and more specific type definitions,\n        2. The order of the arguments (first is most preferred), and\n        3. The first matching entry on the Accept header.\n\n        Wildcards are matched both ways. A match is usually found, as the\n        Accept headers typically include `*/*`, in particular if the header\n        is missing, is not manually set, or if the client is a browser.\n\n        Note: the returned object behaves as a string of the mime argument\n        that matched, and is empty/falsy if no match was found. The matched\n        header entry `MediaType` or `None` is available as the `m` attribute.\n\n        Args:\n            mimes (List[str]): Any MIME types to search for in order of preference.\n            accept_wildcards (bool): Match Accept entries with wildcards in them.\n\n        Returns:\n            Match: A match object with the mime string and the MediaType object.\n        \"\"\"  # noqa: E501\n        a = sorted(\n            (-acc.q, i, j, mime, acc)\n            for j, acc in enumerate(self)\n            if accept_wildcards or not acc.has_wildcard\n            for i, mime in enumerate(mimes)\n            if acc.match(mime)\n        )\n        return Matched(*(a[0][-2:] if a else (\"\", None)))",
+    "importString": "",
+    "lineNum": 34,
+    "location": 256,
+    "relativeDocumentPath": "sanic/headers.py"
+  },
+  {
+    "symbolName": "abort",
+    "sourceCode": "def abort(self):\n        \"\"\"\n        Force close the connection.\n        \"\"\"\n        # Cause a call to connection_lost where further cleanup occurs\n        if self.transport:\n            self.transport.abort()\n            self.transport = None",
+    "importString": "",
+    "lineNum": 7,
+    "location": 130,
+    "relativeDocumentPath": "sanic/server/protocols/base_protocol.py"
+  },
+  {
+    "symbolName": "manage",
+    "sourceCode": "def manage(\n        self,\n        name: str,\n        func: Callable[..., Any],\n        kwargs: dict[str, Any],\n        transient: bool = False,\n        restartable: bool | None = None,\n        tracked: bool = True,\n        auto_start: bool = True,\n        workers: int = 1,\n        ident: str = \"\",\n    ) -> Worker:\n        \"\"\"Instruct Sanic to manage a custom process.\n\n        Args:\n            name (str): A name for the worker process\n            func (Callable[..., Any]): The function to call in the background process\n            kwargs (Dict[str, Any]): Arguments to pass to the function\n            transient (bool, optional): Whether to mark the process as transient. If `True`\n                then the Worker Manager will restart the process along\n                with any global restart (ex: auto-reload), defaults to `False`\n            restartable (Optional[bool], optional): Whether to mark the process as restartable. If\n                `True` then the Worker Manager will be able to restart the process\n                if prompted. If `transient=True`, this property will be implied\n                to be `True`, defaults to `None`\n            tracked (bool, optional): Whether to track the process after completion,\n                defaults to `True`\n            auto_start (bool, optional): Whether to start the process immediately, defaults to `True`\n            workers (int, optional): The number of worker processes to run. Defaults to `1`.\n            ident (str, optional): The identifier for the worker. If not provided, the name\n                passed will be used. Defaults to `\"\"`.\n\n        Returns:\n            Worker: The Worker instance\n        \"\"\"  # noqa: E501\n        if name in self.transient or name in self.durable:\n            raise ValueError(f\"Worker {name} already exists\")\n        restartable = restartable if restartable is not None else transient\n        if transient and not restartable:\n            raise ValueError(\n                \"Cannot create a transient worker that is not restartable\"\n            )\n        container = self.transient if transient else self.durable\n        worker = Worker(\n            ident or name,\n            name,\n            func,\n            kwargs,\n            self.context,\n            self.worker_state,\n            workers,\n            restartable,\n            tracked,\n            auto_start,\n        )\n        container[worker.name] = worker\n        return worker",
+    "importString": "",
+    "lineNum": 56,
+    "location": 95,
+    "relativeDocumentPath": "sanic/worker/manager.py"
+  },
+  {
+    "symbolName": "manage",
+    "sourceCode": "def manage(\n        self,\n        ident: str,\n        func: Callable[..., Any],\n        kwargs: dict[str, Any],\n        transient: bool = False,\n        restartable: bool | None = None,\n        tracked: bool = False,\n        auto_start: bool = True,\n        workers: int = 1,\n    ) -> None:\n        \"\"\"Manages the initiation and monitoring of a worker process.\n\n        Args:\n            ident (str): A unique identifier for the worker process.\n            func (Callable[..., Any]): The function to be executed in the worker process.\n            kwargs (Dict[str, Any]): A dictionary of arguments to be passed to `func`.\n            transient (bool, optional): Flag to mark the process as transient. If `True`,\n                the Worker Manager will restart the process with any global restart\n                (e.g., auto-reload). Defaults to `False`.\n            restartable (Optional[bool], optional): Flag to mark the process as restartable. If `True`,\n                the Worker Manager can restart the process if prompted. Defaults to `None`.\n            tracked (bool, optional): Flag to indicate whether the process should be tracked\n                after its completion. Defaults to `False`.\n            auto_start (bool, optional): Flag to indicate whether the process should be started\n            workers (int, optional): The number of worker processes to run. Defaults to 1.\n\n        This method packages the provided arguments into a bundle and sends them back to the\n        main process to be managed by the Worker Manager.\n        \"\"\"  # noqa: E501\n        bundle = (\n            ident,\n            func,\n            kwargs,\n            transient,\n            restartable,\n            tracked,\n            auto_start,\n            workers,\n        )\n        self._monitor_publisher.send(bundle)",
+    "importString": "",
+    "lineNum": 40,
+    "location": 43,
+    "relativeDocumentPath": "sanic/worker/multiplexer.py"
+  },
+  {
+    "symbolName": "parse_accept",
+    "sourceCode": "def parse_accept(accept: str | None) -> AcceptList:\n    \"\"\"Parse an Accept header and order the acceptable media types according to RFC 7231, s. 5.3.2\n\n    https://datatracker.ietf.org/doc/html/rfc7231#section-5.3.2\n\n    Args:\n        accept (str): The Accept header value to parse.\n\n    Returns:\n        AcceptList: A list of MediaType objects, ordered by preference.\n\n    Raises:\n        InvalidHeader: If the header value is invalid.\n    \"\"\"  # noqa: E501\n    if not accept:\n        if accept == \"\":\n            return AcceptList()  # Empty header, accept nothing\n        accept = \"*/*\"  # No header means that all types are accepted\n    try:\n        a = [\n            mt\n            for mt in [MediaType._parse(mtype) for mtype in accept.split(\",\")]\n            if mt\n        ]\n        if not a:\n            raise ValueError\n        return AcceptList(sorted(a, key=lambda x: x.key))\n    except ValueError:\n        raise InvalidHeader(f\"Invalid header value in Accept: {accept}\")",
+    "importString": "",
+    "lineNum": 28,
+    "location": 297,
+    "relativeDocumentPath": "sanic/headers.py"
+  },
+  {
+    "symbolName": "use_context",
+    "sourceCode": "@contextmanager\ndef use_context(method: StartMethod):\n    from sanic import Sanic\n\n    orig = Sanic.start_method\n    Sanic.start_method = method\n    yield\n    Sanic.start_method = orig",
+    "importString": "",
+    "lineNum": 7,
+    "location": 60,
+    "relativeDocumentPath": "sanic/compat.py"
+  },
+  {
+    "symbolName": "reload",
+    "sourceCode": "def reload(self, zero_downtime: bool = False) -> None:\n        \"\"\"Reload the workers\n\n        Args:\n            zero_downtime (bool, optional): Whether to use zero downtime\n                reload. Defaults to `False`.\n        \"\"\"\n        message = \"__ALL_PROCESSES__:\"\n        if zero_downtime:\n            message += \":STARTUP_FIRST\"\n        self._publisher.send(message)",
+    "importString": "",
+    "lineNum": 10,
+    "location": 123,
+    "relativeDocumentPath": "sanic/worker/inspector.py"
+  },
+  {
+    "symbolName": "reload",
+    "sourceCode": "def reload(self, reloaded_files):\n        message = f\"__ALL_PROCESSES__:{reloaded_files}\"\n        self._publisher.send(message)",
+    "importString": "",
+    "lineNum": 2,
+    "location": 74,
+    "relativeDocumentPath": "sanic/worker/reloader.py"
+  },
+  {
+    "symbolName": "append",
+    "sourceCode": "def append(self, value: Blueprint) -> None:\n        \"\"\"Add a new Blueprint object to the group.\n\n        The Abstract class `MutableSequence` leverages this append method to\n        perform the `BlueprintGroup.append` operation.\n\n        Args:\n            value (Blueprint): New `Blueprint` object.\n\n        Returns:\n            None\n        \"\"\"\n        self._blueprints.append(value)",
+    "importString": "",
+    "lineNum": 12,
+    "location": 872,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "options",
+    "sourceCode": "def options():\n        yield \"for\", addr\n        for key, header in (\n            (\"proto\", \"x-scheme\"),\n            (\"proto\", \"x-forwarded-proto\"),  # Overrides X-Scheme if present\n            (\"host\", \"x-forwarded-host\"),\n            (\"port\", \"x-forwarded-port\"),\n            (\"path\", \"x-forwarded-path\"),\n        ):\n            yield key, headers.getone(header, None)",
+    "importString": "",
+    "lineNum": 9,
+    "location": 429,
+    "relativeDocumentPath": "sanic/headers.py"
+  },
+  {
+    "symbolName": "format",
+    "sourceCode": "def format(self, record: logging.LogRecord) -> str:\n        record.ident = self.IDENT\n        self._set_levelname(record)\n        output = super().format(record)\n        if self.LOG_EXTRA:\n            output += self._log_extra(record)\n        return output",
+    "importString": "",
+    "lineNum": 6,
+    "location": 65,
+    "relativeDocumentPath": "sanic/logging/formatter.py"
+  },
+  {
+    "symbolName": "format",
+    "sourceCode": "def format(self, record: logging.LogRecord) -> str:\n        status = len(str(getattr(record, \"status\", \"\")))\n        byte = len(str(getattr(record, \"byte\", \"\")))\n        duration = len(str(getattr(record, \"duration\", \"\")))\n        record.right = (\n            CONTROL_LIMIT_END.format(right=status + byte + duration + 1)\n            if self.ATTY\n            else \"\"\n        )\n        return super().format(record)",
+    "importString": "",
+    "lineNum": 9,
+    "location": 219,
+    "relativeDocumentPath": "sanic/logging/formatter.py"
+  },
+  {
+    "symbolName": "format",
+    "sourceCode": "def format(self, record: logging.LogRecord) -> str:\n        return self.format_dict(self.to_dict(record))",
+    "importString": "",
+    "lineNum": 1,
+    "location": 319,
+    "relativeDocumentPath": "sanic/logging/formatter.py"
+  },
+  {
+    "symbolName": "options",
+    "sourceCode": "def options(\n        self,\n        uri: str,\n        host: str | list[str] | None = None,\n        strict_slashes: bool | None = None,\n        version: int | str | float | None = None,\n        name: str | None = None,\n        ignore_body: bool = True,\n        version_prefix: str = \"/v\",\n        error_format: str | None = None,\n        **ctx_kwargs: Any,\n    ) -> RouteHandler:\n        \"\"\"Decorate a function handler to create a route definition using the **OPTIONS** HTTP method.\n\n        Args:\n            uri (str): URL to be tagged to OPTIONS method of HTTP.\n            host (Optional[Union[str, List[str]]]): Host IP or FQDN for\n                the service to use.\n            strict_slashes (Optional[bool]): Instruct Sanic to check if the\n                request URLs need to terminate with a `/`.\n            version (Optional[Union[int, str, float]]): API Version.\n            name (Optional[str]): Unique name that can be used to identify\n                the route.\n            ignore_body (bool): Whether the handler should ignore request\n                body. This means the body of the request, if sent, will not\n                be consumed. In that instance, you will see a warning in\n                the logs. Defaults to `True`, meaning do not consume the body.\n            version_prefix (str): URL path that should be before the version\n                value. Defaults to `\"/v\"`.\n            error_format (Optional[str]): Custom error format string.\n            **ctx_kwargs (Any): Keyword arguments that begin with a\n                `ctx_*` prefix will be appended to the route\n                context (`route.ctx`).\n\n        Returns:\n            RouteHandler: Object decorated with route method.\n        \"\"\"  # noqa: E501\n        return cast(\n            RouteHandler,\n            self.route(\n                uri,\n                methods=frozenset({\"OPTIONS\"}),\n                host=host,\n                strict_slashes=strict_slashes,\n                version=version,\n                name=name,\n                ignore_body=ignore_body,\n                version_prefix=version_prefix,\n                error_format=error_format,\n                **ctx_kwargs,\n            ),\n        )",
+    "importString": "",
+    "lineNum": 51,
+    "location": 516,
+    "relativeDocumentPath": "sanic/mixins/routes.py"
+  },
+  {
+    "symbolName": "prepare",
+    "sourceCode": "def prepare(\n        self,\n        host: str | None = None,\n        port: int | None = None,\n        *,\n        dev: bool = False,\n        debug: bool = False,\n        auto_reload: bool | None = None,\n        version: HTTPVersion = HTTP.VERSION_1,\n        ssl: None | SSLContext | dict | str | list | tuple = None,\n        sock: socket | None = None,\n        workers: int = 1,\n        protocol: type[Protocol] | None = None,\n        backlog: int = 100,\n        register_sys_signals: bool = True,\n        access_log: bool | None = None,\n        unix: str | None = None,\n        loop: AbstractEventLoop | None = None,\n        reload_dir: list[str] | str | None = None,\n        noisy_exceptions: bool | None = None,\n        motd: bool = True,\n        fast: bool = False,\n        verbosity: int = 0,\n        motd_display: dict[str, str] | None = None,\n        coffee: bool = False,\n        auto_tls: bool = False,\n        single_process: bool = False,\n    ) -> None:\n        \"\"\"Prepares one or more Sanic applications to be served simultaneously.\n\n        This low-level API is typically used when you need to run multiple Sanic applications at the same time. Once prepared, `Sanic.serve()` should be called in the `if __name__ == \"__main__\"` block.\n\n        .. note::\n            \"Preparing\" and \"serving\" with this function is equivalent to using `app.run` for a single instance. This should only be used when running multiple applications at the same time.\n\n        Args:\n            host (Optional[str], optional): Hostname to listen on. Defaults to `None`.\n            port (Optional[int], optional): Port to listen on. Defaults to `None`.\n            dev (bool, optional): Development mode. Defaults to `False`.\n            debug (bool, optional): Debug mode. Defaults to `False`.\n            auto_reload (Optional[bool], optional): Auto reload feature. Defaults to `None`.\n            version (HTTPVersion, optional): HTTP version to use. Defaults to `HTTP.VERSION_1`.\n            ssl (Union[None, SSLContext, dict, str, list, tuple], optional): SSL configuration. Defaults to `None`.\n            sock (Optional[socket], optional): Socket to bind to. Defaults to `None`.\n            workers (int, optional): Number of worker processes. Defaults to `1`.\n            protocol (Optional[Type[Protocol]], optional): Custom protocol class. Defaults to `None`.\n            backlog (int, optional): Maximum number of pending connections. Defaults to `100`.\n            register_sys_signals (bool, optional): Register system signals. Defaults to `True`.\n            access_log (Optional[bool], optional): Access log. Defaults to `None`.\n            unix (Optional[str], optional): Unix socket. Defaults to `None`.\n            loop (Optional[AbstractEventLoop], optional): Event loop. Defaults to `None`.\n            reload_dir (Optional[Union[List[str], str]], optional): Reload directory. Defaults to `None`.\n            noisy_exceptions (Optional[bool], optional): Display exceptions. Defaults to `None`.\n            motd (bool, optional): Display message of the day. Defaults to `True`.\n            fast (bool, optional): Fast mode. Defaults to `False`.\n            verbosity (int, optional): Verbosity level. Defaults to `0`.\n            motd_display (Optional[Dict[str, str]], optional): Custom MOTD display. Defaults to `None`.\n            coffee (bool, optional): Coffee mode. Defaults to `False`.\n            auto_tls (bool, optional): Auto TLS. Defaults to `False`.\n            single_process (bool, optional): Single process mode. Defaults to `False`.\n\n        Raises:\n            RuntimeError: Raised when attempting to serve HTTP/3 as a secondary server.\n            RuntimeError: Raised when attempting to use both `fast` and `workers`.\n            RuntimeError: Raised when attempting to use `single_process` with `fast`, `workers`, or `auto_reload`.\n            TypeError: Raised when attempting to use `loop` with `create_server`.\n            ValueError: Raised when `PROXIES_COUNT` is negative.\n\n        Examples:\n            ```python\n            if __name__ == \"__main__\":\n                app.prepare()\n                app.serve()\n            ```\n        \"\"\"  # noqa: E501\n        if version == 3 and self.state.server_info:\n            raise RuntimeError(\n                \"Serving HTTP/3 instances as a secondary server is \"\n                \"not supported. There can only be a single HTTP/3 worker \"\n                \"and it must be the first instance prepared.\"\n            )\n\n        if dev:\n            debug = True\n            auto_reload = True\n\n        if debug and access_log is None:\n            access_log = True\n\n        self.state.verbosity = verbosity\n        if not self.state.auto_reload:\n            self.state.auto_reload = bool(auto_reload)\n\n        if fast and workers != 1:\n            raise RuntimeError(\"You cannot use both fast=True and workers=X\")\n\n        if single_process and (fast or (workers > 1) or auto_reload):\n            raise RuntimeError(\n                \"Single process cannot be run with multiple workers \"\n                \"or auto-reload\"\n            )\n\n        if register_sys_signals is False and not single_process:\n            raise RuntimeError(\n                \"Cannot run Sanic.serve with register_sys_signals=False. \"\n                \"Use Sanic.serve_single.\"\n            )\n\n        if motd_display:\n            self.config.MOTD_DISPLAY.update(motd_display)\n\n        if reload_dir:\n            if isinstance(reload_dir, str):\n                reload_dir = [reload_dir]\n\n            for directory in reload_dir:\n                direc = Path(directory)\n                if not direc.is_dir():\n                    logger.warning(\n                        f\"Directory {directory} could not be located\"\n                    )\n                self.state.reload_dirs.add(Path(directory))\n\n        if loop is not None:\n            raise TypeError(\n                \"loop is not a valid argument. To use an existing loop, \"\n                \"change to create_server().\\nSee more: \"\n                \"https://sanic.readthedocs.io/en/latest/sanic/deploying.html\"\n                \"#asynchronous-support\"\n            )\n\n        if sock is None:\n            host, port = self.get_address(host, port, version, auto_tls)\n\n        if protocol is None:\n            protocol = (\n                WebSocketProtocol if self.websocket_enabled else HttpProtocol\n            )\n\n        # Set explicitly passed configuration values\n        for attribute, value in {\n            \"ACCESS_LOG\": access_log,\n            \"AUTO_RELOAD\": auto_reload,\n            \"MOTD\": motd,\n            \"NOISY_EXCEPTIONS\": noisy_exceptions,\n        }.items():\n            if value is not None:\n                setattr(self.config, attribute, value)\n\n        if fast:\n            self.state.fast = True\n            try:\n                workers = len(os.sched_getaffinity(0))\n            except AttributeError:  # no cov\n                workers = os.cpu_count() or 1\n\n        if coffee:\n            self.state.coffee = True\n\n        server_settings = self._helper(\n            host=host,\n            port=port,\n            debug=debug,\n            version=version,\n            ssl=ssl,\n            sock=sock,\n            unix=unix,\n            workers=workers,\n            protocol=protocol,\n            backlog=backlog,\n            register_sys_signals=register_sys_signals,\n            auto_tls=auto_tls,\n        )\n        self.state.server_info.append(\n            ApplicationServerInfo(settings=server_settings)\n        )",
+    "importString": "",
+    "lineNum": 175,
+    "location": 281,
+    "relativeDocumentPath": "sanic/mixins/startup.py"
+  },
+  {
+    "symbolName": "url",
+    "sourceCode": "@property\n    def url(self) -> str:\n        \"\"\"The URL\n\n        Returns:\n            str: The URL\n        \"\"\"\n        return urlunparse(\n            (self.scheme, self.host, self.path, None, self.query_string, None)\n        )",
+    "importString": "",
+    "lineNum": 9,
+    "location": 1047,
+    "relativeDocumentPath": "sanic/request/types.py"
+  },
+  {
+    "symbolName": "body",
+    "sourceCode": "@body.setter\n    def body(self, value: bytes | None):\n        self._body = value\n        if not self._initialized:\n            return\n        self._body_manually_set = True",
+    "importString": "",
+    "lineNum": 5,
+    "location": 341,
+    "relativeDocumentPath": "sanic/response/types.py"
+  },
+  {
+    "symbolName": "append",
+    "sourceCode": "def append(self, value: Any) -> None:\n        \"\"\"Appends a value to the response raw_body, ensuring that body is kept up to date.\n\n        This can only be used if raw_body is a list.\n\n        Args:\n            value (Any): The value to append\n\n        Raises:\n            SanicException: If the body is not a list\n        \"\"\"  # noqa: E501\n\n        self._check_body_not_manually_set()\n\n        if not isinstance(self._raw_body, list):\n            raise SanicException(\"Cannot append to a non-list object.\")\n\n        self._raw_body.append(value)\n        self.raw_body = self._raw_body",
+    "importString": "",
+    "lineNum": 18,
+    "location": 380,
+    "relativeDocumentPath": "sanic/response/types.py"
+  },
+  {
+    "symbolName": "body",
+    "sourceCode": "@property\n    def body(self):\n        return self.response.body",
+    "importString": "",
+    "lineNum": 2,
+    "location": 543,
+    "relativeDocumentPath": "sanic/response/types.py"
+  },
+  {
+    "symbolName": "items",
+    "sourceCode": "def items(self) -> ItemsView[str, Any]:\n        return self._state[self._name].items()",
+    "importString": "",
+    "lineNum": 1,
+    "location": 59,
+    "relativeDocumentPath": "sanic/worker/state.py"
+  },
+  {
+    "symbolName": "before_stop",
+    "sourceCode": "def before_stop(self):\n        \"\"\"Trigger \"before_server_stop\" events\"\"\"\n        return self._server_event(\"shutdown\", \"before\")",
+    "importString": "",
+    "lineNum": 2,
+    "location": 43,
+    "relativeDocumentPath": "sanic/server/async_server.py"
+  },
+  {
+    "symbolName": "after_stop",
+    "sourceCode": "def after_stop(self):\n        \"\"\"Trigger \"after_server_stop\" events\"\"\"\n        return self._server_event(\"shutdown\", \"after\")",
+    "importString": "",
+    "lineNum": 2,
+    "location": 47,
+    "relativeDocumentPath": "sanic/server/async_server.py"
+  },
+  {
+    "symbolName": "monitor",
+    "sourceCode": "def monitor(self):\n        \"\"\"Monitor the worker processes.\n\n        First, wait for all of the workers to acknowledge that they are ready.\n        Then, wait for messages from the workers. If a message is received\n        then it is processed and the state of the worker is updated.\n\n        Also used to restart, shutdown, and scale the workers.\n\n        Raises:\n            ServerKilled: Raised when a worker fails to come online.\n        \"\"\"\n        self.wait_for_ack()\n        while True:\n            try:\n                cycle = self._poll_monitor()\n                if cycle is MonitorCycle.BREAK:\n                    break\n                elif cycle is MonitorCycle.CONTINUE:\n                    continue\n                self._sync_states()\n                self._cleanup_non_tracked_workers()\n            except InterruptedError:\n                if not OS_IS_WINDOWS:\n                    raise\n                break",
+    "importString": "",
+    "lineNum": 25,
+    "location": 284,
+    "relativeDocumentPath": "sanic/worker/manager.py"
+  },
+  {
+    "symbolName": "debug",
+    "sourceCode": "@property\n    def debug(self) -> bool:\n        \"\"\"Whether the app is running in debug mode.\"\"\"\n        return self.state.is_debug",
+    "importString": "",
+    "lineNum": 3,
+    "location": 1979,
+    "relativeDocumentPath": "sanic/app.py"
+  },
+  {
+    "symbolName": "output",
+    "sourceCode": "@classmethod\n    def output(\n        cls,\n        logo: str | None,\n        serve_location: str,\n        data: dict[str, str],\n        extra: dict[str, str],\n    ) -> None:\n        \"\"\"Output the MOTD.\n\n        Args:\n            logo (Optional[str]): Logo to display.\n            serve_location (str): Location to serve.\n            data (Dict[str, str]): Data to display.\n            extra (Dict[str, str]): Extra data to display.\n        \"\"\"\n        motd_class = MOTDTTY if is_atty() else MOTDBasic\n        motd_class(logo, serve_location, data, extra).display()",
+    "importString": "",
+    "lineNum": 17,
+    "location": 30,
+    "relativeDocumentPath": "sanic/application/motd.py"
+  },
+  {
+    "symbolName": "create",
+    "sourceCode": "@classmethod\n    async def create(\n        cls,\n        sanic_app: Sanic,\n        scope: ASGIScope,\n        receive: ASGIReceive,\n        send: ASGISend,\n    ) -> ASGIApp:\n        instance = cls()\n        instance.ws = None\n        instance.sanic_app = sanic_app\n        instance.transport = MockTransport(scope, receive, send)\n        instance.transport.loop = sanic_app.loop\n        instance.stage = Stage.IDLE\n        instance.response = None\n        instance.sanic_app.state.is_started = True\n        setattr(instance.transport, \"add_task\", sanic_app.loop.create_task)\n\n        try:\n            headers = Header(\n                [\n                    (\n                        key.decode(\"ASCII\"),\n                        value.decode(errors=\"surrogateescape\"),\n                    )\n                    for key, value in scope.get(\"headers\", [])\n                ]\n            )\n        except UnicodeDecodeError:\n            raise BadRequest(\n                \"Header names can only contain US-ASCII characters\"\n            )\n\n        if scope[\"type\"] == \"http\":\n            version = scope[\"http_version\"]\n            method = scope[\"method\"]\n        elif scope[\"type\"] == \"websocket\":\n            version = \"1.1\"\n            method = \"GET\"\n\n            instance.ws = instance.transport.create_websocket_connection(\n                send, receive\n            )\n        else:\n            raise ServerError(\"Received unknown ASGI scope\")\n\n        url_bytes, query = scope[\"raw_path\"], scope[\"query_string\"]\n        if query:\n            # httpx ASGI client sends query string as part of raw_path\n            url_bytes = url_bytes.split(b\"?\", 1)[0]\n            # All servers send them separately\n            url_bytes = b\"%b?%b\" % (url_bytes, query)\n\n        request_class = sanic_app.request_class or Request  # type: ignore\n        instance.request = request_class(\n            url_bytes,\n            headers,\n            version,\n            method,\n            instance.transport,\n            sanic_app,\n        )\n        request_class._current.set(instance.request)\n        instance.request.stream = instance  # type: ignore\n        instance.request_body = True\n        instance.request.conn_info = ConnInfo(instance.transport)\n\n        await instance.sanic_app.dispatch(\n            \"http.lifecycle.request\",\n            inline=True,\n            context={\"request\": instance.request},\n            fail_not_found=False,\n        )\n\n        return instance",
+    "importString": "",
+    "lineNum": 74,
+    "location": 115,
+    "relativeDocumentPath": "sanic/asgi.py"
+  },
+  {
+    "symbolName": "exception",
+    "sourceCode": "def exception(self, *exceptions: Exception, **kwargs) -> Callable:\n        \"\"\"Decorate a function to handle exceptions for all blueprints in the group.\n\n        In case of nested Blueprint Groups, the same handler is applied\n        across each of the Blueprints recursively.\n\n        Args:\n            *exceptions (Exception): Exceptions to handle\n            **kwargs (dict): Optional Keyword arg to use with Middleware\n\n        Returns:\n            Partial function to apply the middleware\n\n        Examples:\n            ```python\n            bp1 = Blueprint(\"bp1\", url_prefix=\"/bp1\")\n            bp2 = Blueprint(\"bp2\", url_prefix=\"/bp2\")\n            group1 = Blueprint.group(bp1, bp2)\n\n            @group1.exception(Exception)\n            def handler(request, exception):\n                return text(\"Exception caught\")\n            ```\n        \"\"\"  # noqa: E501\n\n        def register_exception_handler_for_blueprints(fn):\n            for blueprint in self.blueprints:\n                blueprint.exception(*exceptions, **kwargs)(fn)\n\n        return register_exception_handler_for_blueprints",
+    "importString": "",
+    "lineNum": 29,
+    "location": 886,
+    "relativeDocumentPath": "sanic/blueprints.py"
+  },
+  {
+    "symbolName": "get",
+    "sourceCode": "def get(self, name: str, default: Any | None = None) -> Any | None:\n        try:\n            return self._get_prefixed_cookie(name)[0]\n        except KeyError:\n            return super().get(name, default)",
+    "importString": "",
+    "lineNum": 4,
+    "location": 139,
+    "relativeDocumentPath": "sanic/cookies/request.py"
+  },
+  {
+    "symbolName": "full",
+    "sourceCode": "def full(self) -> HTTPResponse:  # noqa\n        \"\"\"Provide a formatted message that has all details and is mean to be used primarily for debugging and non-production environments.\n\n        Returns:\n            HTTPResponse: The response object.\n        \"\"\"  # noqa: E501\n        raise NotImplementedError",
+    "importString": "",
+    "lineNum": 6,
+    "location": 127,
+    "relativeDocumentPath": "sanic/errorpages.py"
+  }
+]
