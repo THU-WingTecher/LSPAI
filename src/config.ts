@@ -51,7 +51,7 @@ export enum FixType {
     // GROUPED = 'grouped',
     // EXPERIMENTAL = 'experimental',
     FASTEST = 'fastest',
-    BEST = 'best'
+    EXECUTION_TRACE = 'execution_trace'
 }
 
 export const GenerationTypeMapping = {
@@ -61,7 +61,8 @@ export const GenerationTypeMapping = {
 
 export const FixTypeMapping = {
     [FixType.FASTEST]: FixType.ORIGINAL,     // Currently maps to ORIGINAL
-    [FixType.BEST]: FixType.ORIGINAL   // Currently maps to EXPERIMENTAL
+    // Backward-compatibility for legacy configs using "best"
+    best: FixType.EXECUTION_TRACE
 } as const;
 
 export const PromptTypeMapping = {

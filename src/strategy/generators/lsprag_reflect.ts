@@ -749,6 +749,13 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 			return { finalCode: testCode, diagnosticReport: null };
 		}
 
+		// Reuse existing FixType as selector:
+		// - EXECUTION_TRACE: execution-trace feedback loop
+		// - ORIGINAL/FASTEST: diagnostic-based fix loop
+		if (getConfigInstance().fixType !== FixType.EXECUTION_TRACE) {
+			return super.fixTest(testCode);
+		}
+
 		if (!supportsExecutionFix(this.languageId)) {
 			return super.fixTest(testCode);
 		}

@@ -67,7 +67,7 @@ suite('EXP - UT - fix (execution-trace reflection)', () => {
     getConfigInstance().updateConfig({
       workspace: tmpDir,
       generationType: GenerationType.EXPERIMENTAL,
-      fixType: FixType.ORIGINAL,
+      fixType: FixType.EXECUTION_TRACE,
       maxRound: 2,
       model: 'gpt-4o-mini',
       savePath: 'results'
@@ -188,6 +188,27 @@ suite('EXP - UT - fix (execution-trace reflection)', () => {
 
     assert.strictEqual(superFixCalled, 1, 'should fallback to base fix flow once');
     assert.strictEqual(result.finalCode, 'fallback-code');
+    assert.strictEqual(result.diagnosticReport, null);
+  });
+
+  test('fixTest uses diagnostic flow when fixType=original', async () => {
+    let superFixCalled = 0;
+    (LSPRAGTestGenerator.prototype as any).fixTest = async () => {
+      superFixCalled += 1;
+      return {
+        finalCode: 'diagnostic-flow-code',
+        diagnosticReport: null
+      };
+    };
+
+    const generator = makeGenerator('python');
+    getConfigInstance().updateConfig({
+      fixType: FixType.ORIGINAL
+    });
+    const result = await generator.fixTest('def test_foo():\n    assert True\n');
+
+    assert.strictEqual(superFixCalled, 1, 'should use base diagnostic flow when fixType is ORIGINAL');
+    assert.strictEqual(result.finalCode, 'diagnostic-flow-code');
     assert.strictEqual(result.diagnosticReport, null);
   });
 });
