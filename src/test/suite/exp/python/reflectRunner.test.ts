@@ -140,26 +140,26 @@ suite('Experiment Test Suite', () => {
             console.log('[reflectRunner] LSPRAG_SKIP_LLM enabled (config mode): skipping pre-reflect runPipelineFor');
         }
 
-        // await runGenerateTestCodeSuite(
-        //     GenerationType.EXPERIMENTAL,
-        //     FixType.ORIGINAL,
-        //     params.promptType,
-        //     model, 
-        //     provider,
-        //     params.symbolsOverride || symbols,
-        //     languageId,
-        //     undefined,
-        //     params.cachedDir,
-        //     params.testFileMapPath,
-        //     params.saveName
-        // );
+        await runGenerateTestCodeSuite(
+            GenerationType.EXPERIMENTAL,
+            FixType.ORIGINAL,
+            params.promptType,
+            model, 
+            provider,
+            params.symbolsOverride || symbols,
+            languageId,
+            undefined,
+            params.cachedDir,
+            params.testFileMapPath,
+            params.saveName
+        );
 
-        // const { testsDir, testFileMapPath } = getGeneratedPaths();
-        // if (!skipLLMMode) {
-        //     await runPipelineFor(testsDir, testFileMapPath);
-        // } else {
-        //     console.log('[reflectRunner] LSPRAG_SKIP_LLM enabled (config mode): skipping post-reflect runPipelineFor');
-        // }
+        const { testsDir, testFileMapPath } = getGeneratedPaths();
+        if (!skipLLMMode) {
+            await runPipelineFor(testsDir, testFileMapPath);
+        } else {
+            console.log('[reflectRunner] LSPRAG_SKIP_LLM enabled (config mode): skipping post-reflect runPipelineFor');
+        }
     };
 
     const runLspragReflect = async (): Promise<void> => {
