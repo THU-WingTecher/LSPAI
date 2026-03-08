@@ -92,7 +92,7 @@ export function getModelConfigError(): string | undefined {
 				return 'Deepseek API key is not configured. Please set LSPRAG.deepseekApiKey in settings.';
 			}
 			break;
-		case 'claude':
+		case 'anthropic':
 			if (!getClaudeAuthToken()) {
 				return 'Claude auth token is not configured. Please set ANTHROPIC_AUTH_TOKEN (or ANTHROPIC_API_KEY).';
 			}
@@ -227,7 +227,7 @@ export async function invokeLLM(promptObj: any, logObj: any = { prompt: '', resu
 				case 'deepseek':
 					response = await callDeepSeek(promptObj, logObj);
 					break;
-				case 'claude':
+				case 'anthropic':
 					response = await callClaude(promptObj, logObj);
 					break;
 				default:

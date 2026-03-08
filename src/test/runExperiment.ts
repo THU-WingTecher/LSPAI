@@ -143,7 +143,7 @@ function validatePromptType(value: string): PromptType {
 
 // Helper function to validate provider
 function validateProvider(value: string): Provider {
-    if (['openai', 'local', 'deepseek'].includes(value)) {
+    if (['openai', 'local', 'deepseek', 'anthropic'].includes(value)) {
         return value as Provider;
     }
     console.warn(`Invalid provider: ${value}. Using default: ${DEFAULT_TEST_CONFIG.PROVIDER}`);

@@ -93,11 +93,11 @@ export function loadPrivateConfig(provider?: Provider): PrivateConfig {
 
 // Helper function to validate provider
 function validateProvider(value: string): Provider {
-  if (['openai', 'local', 'deepseek'].includes(value)) {
-      return value as Provider;
-  }
-  console.warn(`Invalid provider: ${value}. Using default: ${DEFAULT_TEST_CONFIG.PROVIDER}`);
-  return DEFAULT_TEST_CONFIG.PROVIDER;
+    if (['openai', 'local', 'deepseek', 'anthropic'].includes(value)) {
+        return value as Provider;
+    }
+    console.warn(`Invalid provider: ${value}. Using default: ${DEFAULT_TEST_CONFIG.PROVIDER}`);
+    return DEFAULT_TEST_CONFIG.PROVIDER;
 }
 
 async function main() {

@@ -192,7 +192,7 @@ suite('LLM invoke Test Suite', () => {
         getConfigInstance().updateConfig({
             workspace: projectPath,
             model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5',
-            provider: 'claude' as Provider,
+            provider: 'anthropic' as Provider,
         });
 
         const claudePromptObj = [
