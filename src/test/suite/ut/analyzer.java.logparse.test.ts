@@ -70,20 +70,20 @@ suite('Analyzer - Java log parsing (new executor format)', () => {
 
     assert.strictEqual(out.length, 5);
     assert.strictEqual(out.filter(r => r.status === 'Passed').length, 2);
-    assert.strictEqual(out.filter(r => r.status === 'Failed').length, 3);
+    assert.strictEqual(out.filter(r => r.status === 'Assertion Errors').length, 3);
 
     const byName = new Map(out.map(r => [r.codeName, r]));
     const fail1 = byName.get('testParser_DisallowsMissingNullHeaderNames_WhenDisallowed');
     assert.ok(fail1);
-    assert.strictEqual(fail1.status, 'Failed');
-    console.log("fail1", fail1.detail)
+    assert.strictEqual(fail1.status, 'Assertion Errors');
+    console.log("fail1", fail1.detail);
     assert.ok(String(fail1.detail).includes('Failures (3):'));
     assert.ok(String(fail1.detail).includes('testParser_DisallowsMissingNullHeaderNames_WhenDisallowed'));
     assert.ok(String(fail1.detail).includes('Unresolved compilation problem'));
 
     const fail2 = byName.get('testDisallowMissingColumnNames_EmptyHeader_Throws');
     assert.ok(fail2);
-    assert.strictEqual(fail2.status, 'Failed');
+    assert.strictEqual(fail2.status, 'Assertion Errors');
     assert.ok(String(fail2.detail).includes('java.lang.AssertionError'));
     // Ensure the assertion message text is preserved (not just the exception type)
     assert.ok(String(fail2.detail).includes('Expected exception when missing header names are disallowed'));
@@ -130,5 +130,3 @@ suite('Analyzer - Java log parsing (new executor format)', () => {
     assert.ok(out.every(r => String(r.detail).includes('0 tests found')));
   });
 });
-
-

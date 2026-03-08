@@ -192,45 +192,45 @@ suite('Experiment Test Suite', () => {
         const provider = 'deepseek' as Provider;
         const DirList = [
             {
-                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode/deepseek-chat/2026-02-04/codes",
-                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode/deepseek-chat/test_file_map.json",
-                "savePath": "claudecode_vars",
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode-deepseek/deepseek-chat/2026-02-04/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode-deepseek/deepseek-chat/test_file_map.json",
+                "savePath": "claudecode-vars-deepseek",
                 "promptType": PromptType.WITHCONTEXT
             },
             {
-                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode/deepseek-chat/2026-02-04/codes",
-                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode/deepseek-chat/test_file_map.json",
-                "savePath": "claudecode_naive",
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode-deepseek/deepseek-chat/2026-02-04/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode-deepseek/deepseek-chat/test_file_map.json",
+                "savePath": "claudecode-naive-deepseek",
                 "promptType": PromptType.NAIVE
             },
             {
-                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode_cfg/deepseek-chat/deepseek/2026-02-04/codes",
-                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode_cfg/deepseek-chat/test_file_map.json",
-                "savePath": "claudecode_cfg_vars",
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/claudecode_cfg-deepseek/deepseek-chat/deepseek/2026-02-04/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/claudecode_cfg-deepseek/deepseek-chat/test_file_map.json",
+                "savePath": "claudecode_cfg_vars-deepseek",
                 "promptType": PromptType.WITHCONTEXT
             },
             {
-                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/lsprag/deepseek/deepseek-chat/results/final",
-                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/lsprag/deepseek/deepseek-chat/results/test_file_map.json",
-                "savePath": "lsprag_vars",
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/lsprag-deepseek/deepseek-chat/results/final",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/lsprag-deepseek/deepseek-chat/results/test_file_map.json",
+                "savePath": "lsprag_vars-deepseek",
                 "promptType": PromptType.WITHCONTEXT
             },
             {
-                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode/deepseek-chat/deepseek-chat/codes",
-                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode/deepseek-chat/test_file_map.json",
-                "savePath": "opencode_vars",
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode-deepseek/deepseek-chat/deepseek-chat/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode-deepseek/deepseek-chat/test_file_map.json",
+                "savePath": "opencode_vars-deepseek",
                 "promptType": PromptType.WITHCONTEXT
             },
             {
-                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode/deepseek-chat/deepseek-chat/codes",
-                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode/deepseek-chat/test_file_map.json",
-                "savePath": "opencode_naive",
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode-deepseek/deepseek-chat/deepseek-chat/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode-deepseek/deepseek-chat/test_file_map.json",
+                "savePath": "opencode_naive-deepseek",
                 "promptType": PromptType.NAIVE
             },
             {
-                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode_cfg/deepseek-chat/deepseek-chat/codes",
-                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode_cfg/deepseek-chat/test_file_map.json",
-                "savePath": "opencode_cfg_vars",
+                "cachedDir" :"/LSPRAG/experiments/data/main_result/black/opencode_cfg-deepseek/deepseek-chat/deepseek-chat/codes",
+                "testFileMapPath" : "/LSPRAG/experiments/data/main_result/black/opencode_cfg-deepseek/deepseek-chat/test_file_map.json",
+                "savePath": "opencode_cfg_vars-deepseek",
                 "promptType": PromptType.WITHCONTEXT
             },
      

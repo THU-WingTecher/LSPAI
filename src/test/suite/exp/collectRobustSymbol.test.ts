@@ -25,6 +25,60 @@ export interface SymbolRobustnessResult {
 
 // comment, number of cross-file dependencies, number of unique CFG   
 const importStringCache = new Map<string, string>();
+type ReferenceLike = { uri: vscode.Uri };
+const pythonTextReferenceIndexCache = new Map<string, Promise<Map<string, vscode.Uri[]>>>();
+
+async function getPythonTextReferenceIndex(
+    workspacePath: string,
+    includeGlob: string
+): Promise<Map<string, vscode.Uri[]>> {
+    const cacheKey = `${workspacePath}::${includeGlob}`;
+    const cached = pythonTextReferenceIndexCache.get(cacheKey);
+    if (cached) {
+        return cached;
+    }
+
+    const buildPromise = (async (): Promise<Map<string, vscode.Uri[]>> => {
+        const index = new Map<string, vscode.Uri[]>();
+        const includePattern = new vscode.RelativePattern(workspacePath, includeGlob);
+        const excludePattern = new vscode.RelativePattern(
+            workspacePath,
+            '**/{.git,node_modules,out,dist,build,__pycache__,lsprag-workspace}/**'
+        );
+        const files = await vscode.workspace.findFiles(includePattern, excludePattern);
+        const tokenRegex = /\b[A-Za-z_][A-Za-z0-9_]*\b/g;
+        const yieldEvery = Number(process.env.LSPRAG_TEXT_REF_YIELD_EVERY ?? 5);
+        const maxPerSymbol = Number(process.env.LSPRAG_TEXT_INDEX_MAX_PER_SYMBOL ?? 1000);
+
+        for (let i = 0; i < files.length; i++) {
+            if (yieldEvery > 0 && i > 0 && i % yieldEvery === 0) {
+                await new Promise(resolve => setImmediate(resolve));
+            }
+            const uri = files[i];
+            const doc = await vscode.workspace.openTextDocument(uri);
+            const text = doc.getText();
+            tokenRegex.lastIndex = 0;
+
+            let match: RegExpExecArray | null;
+            while ((match = tokenRegex.exec(text)) !== null) {
+                const token = match[0];
+                const list = index.get(token);
+                if (list) {
+                    if (maxPerSymbol <= 0 || list.length < maxPerSymbol) {
+                        list.push(uri);
+                    }
+                } else {
+                    index.set(token, [uri]);
+                }
+            }
+        }
+
+        return index;
+    })();
+
+    pythonTextReferenceIndexCache.set(cacheKey, buildPromise);
+    return buildPromise;
+}
 
 function dedupeSymbols(
     symbols: { symbol: vscode.DocumentSymbol; document: vscode.TextDocument }[]
@@ -68,50 +122,24 @@ async function findReferencesByText(
     workspacePath: string,
     includeGlob: string,
     maxResults: number
-): Promise<vscode.Location[]> {
-    const references: vscode.Location[] = [];
-    const includePattern = new vscode.RelativePattern(workspacePath, includeGlob);
-    const excludePattern = new vscode.RelativePattern(
-        workspacePath,
-        '**/{.git,node_modules,out,dist,build,__pycache__,lsprag-workspace}/**'
-    );
-    const files = await vscode.workspace.findFiles(includePattern, excludePattern);
-    const regex = new RegExp(`\\b${escapeRegExp(symbolName)}\\b`, 'g');
-    const yieldEvery = Number(process.env.LSPRAG_TEXT_REF_YIELD_EVERY ?? 5);
-    for (let i = 0; i < files.length; i++) {
-        if (yieldEvery > 0 && i > 0 && i % yieldEvery === 0) {
-            await new Promise(resolve => setImmediate(resolve));
-        }
-        const uri = files[i];
-        const doc = await vscode.workspace.openTextDocument(uri);
-        const text = doc.getText();
-        regex.lastIndex = 0;
-        let match: RegExpExecArray | null;
-        while ((match = regex.exec(text)) !== null) {
-            const start = doc.positionAt(match.index);
-            const end = doc.positionAt(match.index + match[0].length);
-            references.push(new vscode.Location(uri, new vscode.Range(start, end)));
-            if (maxResults > 0 && references.length >= maxResults) {
-                return references;
-            }
-        }
-    }
-    return references;
+): Promise<ReferenceLike[]> {
+    const index = await getPythonTextReferenceIndex(workspacePath, includeGlob);
+    const uris = index.get(symbolName) ?? [];
+    const cappedUris = maxResults > 0 ? uris.slice(0, maxResults) : uris;
+    return cappedUris.map(uri => ({ uri }));
 }
 
 function findReferencesInDocument(
     document: vscode.TextDocument,
     symbolName: string,
     maxResults: number
-): vscode.Location[] {
-    const references: vscode.Location[] = [];
+): ReferenceLike[] {
+    const references: ReferenceLike[] = [];
     const text = document.getText();
     const regex = new RegExp(`\\b${escapeRegExp(symbolName)}\\b`, 'g');
     let match: RegExpExecArray | null;
     while ((match = regex.exec(text)) !== null) {
-        const start = document.positionAt(match.index);
-        const end = document.positionAt(match.index + match[0].length);
-        references.push(new vscode.Location(document.uri, new vscode.Range(start, end)));
+        references.push({ uri: document.uri });
         if (maxResults > 0 && references.length >= maxResults) {
             break;
         }
@@ -131,7 +159,7 @@ export async function measureSymbolRobustness(
     const defaultMaxRefs = document.languageId === "python" ? 200 : 500;
     const maxRefs = Number(process.env.LSPRAG_MAX_REFERENCES ?? defaultMaxRefs);
     const useLspReferences = process.env.LSPRAG_USE_LSP_REFERENCES === 'true';
-    let allReferences: vscode.Location[] = [];
+    let allReferences: ReferenceLike[] = [];
     if (document.languageId === "python" && !useLspReferences) {
         if (symbol.name.startsWith('_')) {
             allReferences = findReferencesInDocument(document, symbol.name, maxRefs);
@@ -142,7 +170,7 @@ export async function measureSymbolRobustness(
         const referenceTimeoutMs = Number(process.env.LSPRAG_REFERENCE_TIMEOUT_MS ?? 3000);
         allReferences = await Promise.race([
             VscodeRequestManager.references(document.uri, position),
-            new Promise<vscode.Location[]>(resolve => setTimeout(() => resolve([]), referenceTimeoutMs))
+            new Promise<ReferenceLike[]>(resolve => setTimeout(() => resolve([]), referenceTimeoutMs))
         ]);
         if (!allReferences.length) {
             console.log(`Reference lookup timed out after ${referenceTimeoutMs}ms for symbol: ${symbol.name}`);
@@ -236,10 +264,13 @@ suite('Experiment Test Suite', () => {
     const pythonExtraPaths = getProjectPythonPath(projectName);
     const languageId = getProjectLanguage(projectName as ProjectConfigName);
     const projectPath = getProjectWorkspace(projectName as ProjectConfigName);
+    const parallelCountRaw = process.env.TEST_PARALLEL_COUNT || '8';
+    const parallelCount = Number.parseInt(parallelCountRaw, 10);
     const currentConfig = {
         model: 'gpt-4o-mini',
         provider: 'openai' as Provider,
         expProb: 1,
+        parallelCount: Number.isInteger(parallelCount) && parallelCount > 0 ? parallelCount : 8,
         promptType: PromptType.DETAILED,
         workspace: projectPath,
     };
@@ -280,10 +311,15 @@ suite('Experiment Test Suite', () => {
             console.log(`#### Deduped symbols: ${rawSymbols.length} -> ${testSymbols.length}`);
         }
         assert.ok(testSymbols.length > 0, 'Should have at least one symbol');
+        const symbolLimit = Number(process.env.LSPRAG_SYMBOL_LIMIT ?? 0);
+        const symbolsToTest = symbolLimit > 0 ? testSymbols.slice(0, symbolLimit) : testSymbols;
+        if (symbolLimit > 0) {
+            console.log(`#### Applying LSPRAG_SYMBOL_LIMIT=${symbolLimit}: ${symbolsToTest.length}/${testSymbols.length} symbol(s)`);
+        }
         
         // Collect all robustness results
         const results: SymbolRobustnessResult[] = [];
-        for (const { symbol, document } of testSymbols) {
+        for (const { symbol, document } of symbolsToTest) {
             console.log(`\n#### Testing symbol: ${symbol.name} from ${document.uri.fsPath}`);
             if (getConfigInstance().getProjectName() === 'dataclasses-json' && symbol.name === "default"){
                 continue;

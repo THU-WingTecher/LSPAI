@@ -2,16 +2,26 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { getConfigInstance } from '../../config';
+import {
+	FixType,
+	ProjectConfigName,
+	PromptType,
+	getConfigInstance,
+	getProjectPythonExe,
+	getProjectPythonPath
+} from '../../config';
+import { saveToIntermediate } from '../../fileHandler';
+import { DiagnosticReport } from '../../fix';
 import { invokeLLM, isSkipLLMModeEnabled } from '../../invokeLLM';
 import { ExpLogger, LLMLogs } from '../../log';
 import { constructSourceCodeWithRelatedInfo, parseCode } from '../../lsp/utils';
 import { ChatMessage } from '../../prompts/ChatMessage';
 import { detectRedefinedAssertions, prettyPrintDefTree, RedefinedSymbol } from '../../ut_runner/analysis/assertion_detector';
 import { LLMFixWorkflow } from '../../ut_runner/analysis/llm_fix_workflow';
+import { makeExecutor } from '../../ut_runner/executor';
+import { buildEnv } from '../../ut_runner/runner';
 import { LSPRAGTestGenerator } from './lsprag';
 import { collectMockedObjectDefinitionsSummary } from './mock';
-import { PromptType } from '../../config';
 export { extractMockTargetsFromTestCode } from './mock';
 
 function getTestFileExtension(languageId: string): string {
@@ -350,6 +360,127 @@ export function buildAssertionReflectionPrompt(params: {
 		{ role: 'user', content: user }
 	];
 }
+
+type ExecutionAttemptResult = {
+	passed: boolean;
+	exitCode: number;
+	timeout: boolean;
+	logPath: string;
+	startedAt: string;
+	endedAt: string;
+	trace: string;
+	isRunnerError: boolean;
+	error?: string;
+};
+
+function supportsExecutionFix(languageId: string): boolean {
+	return languageId === 'python' || languageId === 'go' || languageId === 'java';
+}
+
+function normalizeExecutorLanguage(languageId: string): string {
+	if (languageId === 'golang') {
+		return 'go';
+	}
+	return languageId;
+}
+
+function truncateExecutionTrace(rawTrace: string, maxChars: number = 14000): string {
+	const normalized = (rawTrace || '').replace(/\r\n/g, '\n');
+	if (!normalized.trim()) {
+		return '(no execution trace available)';
+	}
+	if (normalized.length <= maxChars) {
+		return normalized;
+	}
+	const half = Math.floor(maxChars / 2);
+	const head = normalized.slice(0, half);
+	const tail = normalized.slice(-half);
+	return `${head}\n\n... [execution trace truncated] ...\n\n${tail}`;
+}
+
+function readExecutionTraceFromLog(logPath: string): string {
+	if (!logPath) {
+		return '(log path unavailable)';
+	}
+	try {
+		if (!fs.existsSync(logPath)) {
+			return `Log file not found: ${logPath}`;
+		}
+		return truncateExecutionTrace(fs.readFileSync(logPath, 'utf8'));
+	} catch (error) {
+		return `Failed to read execution log at ${logPath}: ${String(error)}`;
+	}
+}
+
+function formatExecutionSummary(result: ExecutionAttemptResult): string {
+	return [
+		`Exit code: ${result.exitCode}`,
+		`Timeout: ${result.timeout ? 'yes' : 'no'}`,
+		`Started: ${result.startedAt}`,
+		`Ended: ${result.endedAt}`,
+		`Log path: ${result.logPath}`,
+		result.error ? `Runner error: ${result.error}` : ''
+	].filter(Boolean).join('\n');
+}
+
+function buildExecutionTraceFixPrompt(params: {
+	languageId: string;
+	sourceFile: string;
+	focalSymbolName: string;
+	focalMethodSource: string;
+	currentTestCode: string;
+	executionSummary: string;
+	executionTrace: string;
+	previousAttempts: string[];
+}): ChatMessage[] {
+	const system = [
+		'You are an expert software engineer fixing unit tests from execution traces.',
+		'You will receive the failing test file and runtime execution trace.',
+		'Fix the test so it executes successfully for the focal method behavior.',
+		'Preserve test intent unless the trace proves the assertion/usage is wrong.',
+		'Return ONLY the complete fixed test file in one triple-backtick code block.'
+	].join('\n');
+
+	const previousAttemptsSection = params.previousAttempts.length > 0
+		? [
+			'',
+			'### Previous failed attempts',
+			params.previousAttempts.join('\n\n')
+		].join('\n')
+		: '';
+
+	const user = [
+		`Language: ${params.languageId}`,
+		`Source file: ${params.sourceFile}`,
+		`Focal symbol: ${params.focalSymbolName}`,
+		'',
+		'### Focal method source',
+		'```',
+		params.focalMethodSource || '(unavailable)',
+		'```',
+		'',
+		'### Current test code',
+		'```',
+		params.currentTestCode,
+		'```',
+		'',
+		'### Latest execution summary',
+		'```',
+		params.executionSummary,
+		'```',
+		'',
+		'### Latest execution trace',
+		'```',
+		params.executionTrace,
+		'```',
+		previousAttemptsSection
+	].join('\n');
+
+	return [
+		{ role: 'system', content: system },
+		{ role: 'user', content: user }
+	];
+}
  
 export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 	private readonly cachedDir?: string;
@@ -503,5 +634,279 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 		const reflected = await invokeLLM(promptObj, logObj);
 		this.logger.log('reflectAssertions', (Date.now() - reflectionStartTime).toString(), logObj, '');
 		return parseCode(reflected);
+	}
+
+	private getExecutorConfig(logsDir: string, junitDir: string): { language: string; options: any } | null {
+		const language = normalizeExecutorLanguage(this.languageId);
+		const timeoutSec = Math.max(1, Math.ceil(getConfigInstance().timeoutMs / 1000));
+
+		if (language === 'python') {
+			const projectName = getConfigInstance().getProjectName();
+			const pythonPath = getProjectPythonPath(projectName as ProjectConfigName);
+			const env = buildEnv(pythonPath);
+			const pythonExe = getProjectPythonExe(projectName as ProjectConfigName) || process.execPath;
+			return {
+				language,
+				options: {
+					pythonExe,
+					logsDir,
+					junitDir,
+					timeout: timeoutSec,
+					env
+				}
+			};
+		}
+
+		if (language === 'go' || language === 'java') {
+			return {
+				language,
+				options: {
+					logsDir,
+					junitDir,
+					timeout: timeoutSec,
+					env: { ...process.env }
+				}
+			};
+		}
+
+		return null;
+	}
+
+	private async executeTestForFix(testFilePath: string, round: number): Promise<ExecutionAttemptResult> {
+		const tmpRunDir = fs.mkdtempSync(path.join(os.tmpdir(), `lsprag-reflect-fix-r${round}-`));
+		const logsDir = path.join(tmpRunDir, 'logs');
+		const junitDir = path.join(tmpRunDir, 'junit');
+		const executorConfig = this.getExecutorConfig(logsDir, junitDir);
+
+		if (!executorConfig) {
+			return {
+				passed: false,
+				exitCode: 1,
+				timeout: false,
+				logPath: '',
+				startedAt: '',
+				endedAt: '',
+				trace: `Execution-based fixing is not supported for language: ${this.languageId}`,
+				isRunnerError: true,
+				error: `Unsupported language for executor: ${this.languageId}`
+			};
+		}
+
+		try {
+			const executor = makeExecutor(executorConfig.language, executorConfig.options);
+			const results = await executor.executeMany(
+				[{ path: testFilePath, language: executorConfig.language }],
+				1
+			);
+
+			if (!results.length) {
+				return {
+					passed: false,
+					exitCode: 1,
+					timeout: false,
+					logPath: '',
+					startedAt: '',
+					endedAt: '',
+					trace: 'Executor returned no results.',
+					isRunnerError: true,
+					error: 'No execution results'
+				};
+			}
+
+			const result = results[0];
+			const trace = readExecutionTraceFromLog(result.logPath);
+			return {
+				passed: result.exitCode === 0 && !result.timeout,
+				exitCode: result.exitCode,
+				timeout: result.timeout,
+				logPath: result.logPath,
+				startedAt: result.startedAt,
+				endedAt: result.endedAt,
+				trace,
+				isRunnerError: false
+			};
+		} catch (error) {
+			const errMsg = error instanceof Error ? error.message : String(error);
+			return {
+				passed: false,
+				exitCode: 1,
+				timeout: false,
+				logPath: '',
+				startedAt: '',
+				endedAt: '',
+				trace: `Executor failed: ${errMsg}`,
+				isRunnerError: true,
+				error: errMsg
+			};
+		}
+	}
+
+	override async fixTest(testCode: string): Promise<{ finalCode: string; diagnosticReport: DiagnosticReport | null; }> {
+		if (getConfigInstance().fixType === FixType.NOFIX) {
+			if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - completed`, 50)) {
+				return { finalCode: '', diagnosticReport: null };
+			}
+			return { finalCode: testCode, diagnosticReport: null };
+		}
+
+		if (!supportsExecutionFix(this.languageId)) {
+			return super.fixTest(testCode);
+		}
+
+		const fixStartTime = Date.now();
+		const model = getConfigInstance().model;
+		const maxRounds = getConfigInstance().maxRound;
+		const historyRoot = getConfigInstance().historyPath;
+
+		let focalMethodSource = this.document.getText(this.functionSymbol.range);
+		try {
+			focalMethodSource = await constructSourceCodeWithRelatedInfo(this.document, this.functionSymbol);
+		} catch (error) {
+			console.warn('[LSPRAG_REFLECT] Failed to build focal method source for execution-based fix:', error);
+		}
+
+		const sourceFile = this.document.uri.fsPath;
+		const focalSymbolName = this.functionSymbol.name;
+		let currentCode = testCode;
+		let round = 0;
+		let initialFailureCount = 0;
+		const roundHistory: DiagnosticReport['roundHistory'] = [];
+		const previousAttemptSummaries: string[] = [];
+
+		let curSavePoint = await saveToIntermediate(
+			currentCode,
+			this.srcPath,
+			this.fileName,
+			path.join(historyRoot, model, round.toString()),
+			this.languageId
+		);
+
+		while (round <= maxRounds) {
+			if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - executing test (round ${round})`, 10)) {
+				break;
+			}
+
+			const execStartTime = Date.now();
+			const execResult = await this.executeTestForFix(curSavePoint, round);
+			this.logger.log(
+				`executeGeneratedTest_${round}`,
+				(Date.now() - execStartTime).toString(),
+				null,
+				execResult.error || ''
+			);
+
+			// If runner itself is broken, fallback to the existing diagnostic-based loop.
+			if (round === 0 && execResult.isRunnerError) {
+				console.warn('[LSPRAG_REFLECT] Execution runner failed at bootstrap, falling back to diagnostic fixing.');
+				return super.fixTest(testCode);
+			}
+
+			if (round === 0) {
+				initialFailureCount = execResult.passed ? 0 : 1;
+			}
+
+			const executionSummary = formatExecutionSummary(execResult);
+			const traceForPrompt = truncateExecutionTrace(execResult.trace);
+			const traceForReport = truncateLines(execResult.trace, 120, 6000);
+			roundHistory.push({
+				round,
+				diagnosticsFixed: execResult.passed ? 1 : 0,
+				remainingDiagnostics: execResult.passed ? 0 : 1,
+				diagnosticMessages: [executionSummary, traceForReport]
+			});
+
+			if (execResult.passed) {
+				const diagnosticReport: DiagnosticReport = {
+					initialDiagnostics: initialFailureCount,
+					finalDiagnostics: 0,
+					totalRounds: round,
+					fixSuccess: true,
+					roundHistory
+				};
+				this.logger.log('fixDiagnostics', (Date.now() - fixStartTime).toString(), null, '');
+				return {
+					finalCode: currentCode,
+					diagnosticReport
+				};
+			}
+
+			if (round >= maxRounds) {
+				break;
+			}
+
+			if (!await this.reportProgress(`[${getConfigInstance().generationType} mode] - fixing from execution trace (round ${round + 1})`, 10)) {
+				break;
+			}
+
+			const promptObj = buildExecutionTraceFixPrompt({
+				languageId: this.languageId,
+				sourceFile,
+				focalSymbolName,
+				focalMethodSource,
+				currentTestCode: currentCode,
+				executionSummary,
+				executionTrace: traceForPrompt,
+				previousAttempts: previousAttemptSummaries
+			});
+
+			const fixLogObj: LLMLogs = { tokenUsage: '', result: '', prompt: '', model };
+			const llmStartTime = Date.now();
+			let aiResponse: string;
+			try {
+				aiResponse = await invokeLLM(promptObj, fixLogObj);
+				this.logger.log(`FixWithExecutionTrace_${round + 1}`, (Date.now() - llmStartTime).toString(), fixLogObj, '');
+			} catch (error) {
+				console.error('[LSPRAG_REFLECT] Failed to fix test from execution trace:', error);
+				this.logger.log(`FixWithExecutionTraceError_${round + 1}`, (Date.now() - llmStartTime).toString(), fixLogObj, String(error));
+				break;
+			}
+
+			const fixedCode = parseCode(aiResponse);
+			if (!fixedCode || !fixedCode.trim()) {
+				console.warn('[LSPRAG_REFLECT] LLM returned empty code during execution-trace fixing.');
+				break;
+			}
+
+			previousAttemptSummaries.push([
+				`Round ${round + 1}:`,
+				executionSummary,
+				'Trace excerpt:',
+				traceForReport
+			].join('\n'));
+
+			round += 1;
+			currentCode = fixedCode;
+			const saveStartTime = Date.now();
+			try {
+				curSavePoint = await saveToIntermediate(
+					currentCode,
+					this.srcPath,
+					this.fileName,
+					path.join(historyRoot, model, round.toString()),
+					this.languageId
+				);
+				this.logger.log('saveGeneratedCodeToFolder', (Date.now() - saveStartTime).toString(), null, '');
+			} catch (error) {
+				console.error('[LSPRAG_REFLECT] Failed to save fixed code for next execution round:', error);
+				break;
+			}
+		}
+
+		const remaining = roundHistory.length > 0
+			? roundHistory[roundHistory.length - 1].remainingDiagnostics
+			: initialFailureCount;
+		const diagnosticReport: DiagnosticReport = {
+			initialDiagnostics: initialFailureCount,
+			finalDiagnostics: remaining,
+			totalRounds: roundHistory.length > 0 ? roundHistory[roundHistory.length - 1].round : 0,
+			fixSuccess: remaining === 0,
+			roundHistory
+		};
+
+		this.logger.log('fixDiagnostics', (Date.now() - fixStartTime).toString(), null, '');
+		return {
+			finalCode: currentCode,
+			diagnosticReport
+		};
 	}
 }

@@ -17,6 +17,16 @@ export function isFailedTestCaseStatus(status: string): boolean {
   return status === 'Failed' || status === 'Assertion Errors';
 }
 
+export function normalizeTestCaseStatus(status: string): 'Passed' | 'Assertion Errors' | 'Errored' {
+  if (status === 'Passed') {
+    return 'Passed';
+  }
+  if (status === 'Failed' || status === 'Assertion Errors') {
+    return 'Assertion Errors';
+  }
+  return 'Errored';
+}
+
 export function classifyFileStatusFromTestCases(tcrs: TestCaseResult[]): 'FilePassed' | 'FileFailed' | 'FileErrored' {
   if (!tcrs.length) {
     return 'FileErrored';
@@ -325,6 +335,182 @@ export class Analyzer {
       return [category, errorType, errorDetail];
     }
     return ['Unknown Errors', 'UnknownError', errorDetail];
+  }
+
+  private decodeXmlEntities(input: string): string {
+    return input
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&#10;/g, '\n')
+      .replace(/&#13;/g, '\r')
+      .replace(/&#9;/g, '\t');
+  }
+
+  private getXmlAttribute(attrs: string, key: string): string | null {
+    const m = attrs.match(new RegExp(`(?:^|\\s)${key}="([^"]*)"`, 'i'));
+    if (!m) {
+      return null;
+    }
+    return this.decodeXmlEntities(m[1]);
+  }
+
+  private parseXmlNode(content: string, tagName: string): { attrs: string; text: string } | null {
+    const paired = content.match(new RegExp(`<${tagName}\\b([^>]*)>([\\s\\S]*?)<\\/${tagName}>`, 'i'));
+    if (paired) {
+      return {
+        attrs: paired[1] ?? '',
+        text: this.decodeXmlEntities((paired[2] ?? '').trim()),
+      };
+    }
+    const selfClosing = content.match(new RegExp(`<${tagName}\\b([^>]*)\\/\\s*>`, 'i'));
+    if (selfClosing) {
+      return {
+        attrs: selfClosing[1] ?? '',
+        text: '',
+      };
+    }
+    return null;
+  }
+
+  private inferPythonJunitPathFromLog(logContent: string): string | null {
+    const m = logContent.match(/--junitxml=([^\s]+\.xml)/);
+    if (!m) {
+      return null;
+    }
+    return m[1];
+  }
+
+  private buildPythonCodeNameFromJunit(testFilePath: string, className: string | null, testName: string): string {
+    const fileName = path.basename(testFilePath);
+    const testPart = testName.trim();
+    if (!className) {
+      return `${fileName}::${testPart}`;
+    }
+    const classPart = className.split('.').pop() || className;
+    return `${fileName}::${classPart}::${testPart}`;
+  }
+
+  private extractErrorTypeFromDetail(detail: string): string | null {
+    const m = detail.match(/([A-Z]\w*Error)/);
+    return m ? m[1] : null;
+  }
+
+  private extractPythonResultsFromJunitXml(junitPath: string, testFilePath: string, logPath: string): TestCaseResult[] {
+    if (!junitPath || !fs.existsSync(junitPath)) {
+      return [];
+    }
+    const xml = fs.readFileSync(junitPath, 'utf-8');
+    if (!xml.trim()) {
+      return [];
+    }
+
+    const originClassification = this.classifyImplementationOrigin(testFilePath);
+    const out: TestCaseResult[] = [];
+    const testcaseRe = /<testcase\b([^>]*?)(?:\/>|>([\s\S]*?)<\/testcase>)/gi;
+    let m: RegExpExecArray | null;
+
+    while ((m = testcaseRe.exec(xml)) !== null) {
+      const attrs = m[1] ?? '';
+      const body = m[2] ?? '';
+      const name = this.getXmlAttribute(attrs, 'name') || 'unknown_test';
+      const className = this.getXmlAttribute(attrs, 'classname');
+      const codeName = this.buildPythonCodeNameFromJunit(testFilePath, className, name);
+
+      const failure = this.parseXmlNode(body, 'failure');
+      const error = this.parseXmlNode(body, 'error');
+      const skipped = this.parseXmlNode(body, 'skipped');
+
+      if (failure) {
+        const message = (this.getXmlAttribute(failure.attrs, 'message') || '').trim();
+        const detail = [message, failure.text].filter(Boolean).join('\n').trim() || message || failure.text || 'Test failure';
+        const [status, errorType, normalizedDetail] = this.classifyFailedTest(detail);
+        out.push({
+          codeName,
+          status,
+          errorType,
+          detail: normalizedDetail,
+          testFile: testFilePath,
+          logPath,
+          ...originClassification
+        });
+        continue;
+      }
+
+      if (error) {
+        const message = (this.getXmlAttribute(error.attrs, 'message') || '').trim();
+        const detail = [message, error.text].filter(Boolean).join('\n').trim() || message || error.text || 'Test error';
+        const errorType = this.extractErrorTypeFromDetail(detail) || 'UnknownError';
+        const status = this.classifyRuntimeError(errorType, detail);
+        out.push({
+          codeName,
+          status,
+          errorType,
+          detail,
+          testFile: testFilePath,
+          logPath,
+          ...originClassification
+        });
+        continue;
+      }
+
+      if (skipped) {
+        const message = (this.getXmlAttribute(skipped.attrs, 'message') || '').trim();
+        const detail = [message, skipped.text].filter(Boolean).join('\n').trim() || 'Test skipped';
+        out.push({
+          codeName,
+          status: 'Skipped',
+          errorType: null,
+          detail,
+          testFile: testFilePath,
+          logPath,
+          ...originClassification
+        });
+        continue;
+      }
+
+      out.push({
+        codeName,
+        status: 'Passed',
+        errorType: null,
+        detail: '',
+        testFile: testFilePath,
+        logPath,
+        ...originClassification
+      });
+    }
+
+    return out;
+  }
+
+  private extractPythonJunitSuiteCounts(junitPath: string | null | undefined): { total: number; passed: number; failed: number; errored: number } | null {
+    if (!junitPath || !fs.existsSync(junitPath)) {
+      return null;
+    }
+    const xml = fs.readFileSync(junitPath, 'utf-8');
+    if (!xml.trim()) {
+      return null;
+    }
+    const m = xml.match(/<testsuite\b([^>]*)>/i);
+    if (!m) {
+      return null;
+    }
+    const attrs = m[1] ?? '';
+    const tests = Number(this.getXmlAttribute(attrs, 'tests') ?? NaN);
+    const failures = Number(this.getXmlAttribute(attrs, 'failures') ?? NaN);
+    const errors = Number(this.getXmlAttribute(attrs, 'errors') ?? NaN);
+    const skipped = Number(this.getXmlAttribute(attrs, 'skipped') ?? 0);
+    if ([tests, failures, errors].some((v) => Number.isNaN(v))) {
+      return null;
+    }
+    const total = Math.max(0, tests);
+    const failed = Math.max(0, failures);
+    // Keep backward-compatible summary semantics where non-passed outcomes land in errored.
+    const errored = Math.max(0, errors + Math.max(0, skipped));
+    const passed = Math.max(0, total - failed - errored);
+    return { total, passed, failed, errored };
   }
 
   private parseTestFileName(fileName: string): { focalModule: string; focalFunction: string; focalRandom: string } | null {
@@ -1267,7 +1453,7 @@ export class Analyzer {
     }];
   }
   
-  private extractResultsFromLog(logPath: string, testFilePath: string): TestCaseResult[] {
+  private extractResultsFromLog(logPath: string, testFilePath: string, junitPath?: string | null): TestCaseResult[] {
     // Branch based on language
     if (this.language === 'go') {
       return this.extractGoTestResults(logPath, testFilePath);
@@ -1277,7 +1463,7 @@ export class Analyzer {
       return this.extractJavaTestResults(logPath, testFilePath);
     }
 
-    // Python test parsing (existing logic)
+    // Python test parsing: prefer JUnit XML, then fallback to legacy log parsing.
     if (!fs.existsSync(logPath)) {
       return [];
     }
@@ -1285,6 +1471,16 @@ export class Analyzer {
     if (!content) {
       return [];
     }
+
+    const resolvedJunitPath = junitPath ?? this.inferPythonJunitPathFromLog(content);
+    if (resolvedJunitPath) {
+      const junitResults = this.extractPythonResultsFromJunitXml(resolvedJunitPath, testFilePath, logPath);
+      if (junitResults.length > 0) {
+        console.log(`[ANALYZER] Using JUnit XML parsing for ${path.basename(testFilePath)} (${junitResults.length} testcases)`);
+        return junitResults;
+      }
+    }
+
     const passed = this.extractPassedFromSession(content);
     const failed = this.extractFailedFromSummary(content);
     const errors = this.extractErrorFromSummary(content);
@@ -1362,10 +1558,21 @@ export class Analyzer {
     return out;
   }
 
+  private insertTestCase(tests: Record<string, TestCaseResult>, testCase: TestCaseResult): void {
+    let key = testCase.codeName;
+    let counter = 2;
+    while (tests[key]) {
+      key = `${testCase.codeName}#${counter}`;
+      counter += 1;
+    }
+    tests[key] = testCase;
+  }
+
   // Minimal analysis for unit-test to source mapping bootstrap
   async analyze(execResults: ExecutionResult[], testsDir: string, outputDir: string, testFileMapPath: string): Promise<AnalysisReport> {
     const tests: Record<string, TestCaseResult> = {};
     const files: Record<string, FileAnalysis> = {};
+    const aggregateTestCaseCounts = { total: 0, passed: 0, failed: 0, errored: 0 };
 
     const workspaceRoot = getConfigInstance().workspace;
     this.loadSourceFiles(workspaceRoot);
@@ -1384,7 +1591,7 @@ export class Analyzer {
         throw new Error(`No source mapping found for this test file: ${res.testFile.path}`);
       }
 
-      const tcrs = this.extractResultsFromLog(res.logPath, res.testFile.path);
+      const tcrs = this.extractResultsFromLog(res.logPath, res.testFile.path, res.junitPath ?? null);
       if (!tcrs.length) {
         // Ensure analysis report is "complete": every test file must end up as Passed/Failed.
         // If we cannot extract any testcase result from the log, treat the file as Failed with one placeholder testcase.
@@ -1407,80 +1614,128 @@ export class Analyzer {
           modulePath: null,
         };
 
-        tests[placeholder.codeName] = placeholder;
+        this.insertTestCase(tests, placeholder);
         files[fkey].testcases.push(placeholder);
         files[fkey].counts[placeholder.status] = (files[fkey].counts[placeholder.status] ?? 0) + 1;
+        if (this.language === 'python') {
+          const junitCounts = this.extractPythonJunitSuiteCounts(res.junitPath ?? null);
+          if (junitCounts) {
+            aggregateTestCaseCounts.total += junitCounts.total;
+            aggregateTestCaseCounts.passed += junitCounts.passed;
+            aggregateTestCaseCounts.failed += 0;
+            aggregateTestCaseCounts.errored += Math.max(0, junitCounts.total - junitCounts.passed);
+            continue;
+          }
+        }
+        aggregateTestCaseCounts.total += 1;
+        aggregateTestCaseCounts.errored += 1;
         continue;
       }
 
-      files[fkey].status = classifyFileStatusFromTestCases(tcrs);
-      files[fkey].symbolName = tcrs[0].focalFunction || '';
+      const normalizedTcrs = tcrs.map((tc) => ({
+        ...tc,
+        status: normalizeTestCaseStatus(tc.status),
+      }));
+      files[fkey].status = classifyFileStatusFromTestCases(normalizedTcrs);
+      files[fkey].symbolName = normalizedTcrs[0].focalFunction || '';
       console.log(`[ANALYZER] Symbol name: ${files[fkey].symbolName}`);
       console.log(`[ANALYZER] Source file: ${files[fkey].sourceFile}`);
-      if (files[fkey].mutAnalysis === null) {
-        console.log(`[ANALYZER] Analyzing MUT for ${files[fkey].symbolName} in ${files[fkey].sourceFile}`);
-        files[fkey].mutAnalysis = await mutAnalyzer(files[fkey].sourceFile, files[fkey].symbolName);
-      }
+      // if (files[fkey].mutAnalysis === null) {
+      //   console.log(`[ANALYZER] Analyzing MUT for ${files[fkey].symbolName} in ${files[fkey].sourceFile}`);
+      //   files[fkey].mutAnalysis = await mutAnalyzer(files[fkey].sourceFile, files[fkey].symbolName);
+      // }
       // console.log(`[ANALYZER] MUT analysis: ${JSON.stringify(files[fkey].mutAnalysis)}`);
-      for (const tcr of tcrs) {
-        tests[tcr.codeName] = tcr;
+      for (const tcr of normalizedTcrs) {
+        this.insertTestCase(tests, tcr);
         files[fkey].testcases.push(tcr);
         const prev = files[fkey].counts[tcr.status] ?? 0;
         files[fkey].counts[tcr.status] = prev + 1;
       }
+
+      const fallbackTotal = normalizedTcrs.length;
+      const fallbackFailed = normalizedTcrs.filter((tc) => isFailedTestCaseStatus(tc.status)).length;
+      const fallbackPassed = normalizedTcrs.filter((tc) => isPassedTestCaseStatus(tc.status)).length;
+      const fallbackErrored = fallbackTotal - fallbackFailed - fallbackPassed;
+      let effectiveCounts = {
+        total: fallbackTotal,
+        passed: fallbackPassed,
+        failed: fallbackFailed,
+        errored: fallbackErrored,
+      };
+      if (this.language === 'python') {
+        const junitCounts = this.extractPythonJunitSuiteCounts(res.junitPath ?? null);
+        if (junitCounts) {
+          effectiveCounts = {
+            total: junitCounts.total,
+            passed: junitCounts.passed,
+            failed: fallbackFailed,
+            errored: Math.max(0, junitCounts.total - junitCounts.passed - fallbackFailed),
+          };
+        }
+      }
+      aggregateTestCaseCounts.total += effectiveCounts.total;
+      aggregateTestCaseCounts.passed += effectiveCounts.passed;
+      aggregateTestCaseCounts.failed += effectiveCounts.failed;
+      aggregateTestCaseCounts.errored += effectiveCounts.errored;
     }
 
     // Examination phase: analyze assertion errors for redefined symbols
     // Only available when running in VSCode extension context
-    if (examineTestCasesBatch && filterTestCasesForExamination) {
-      console.log('[ANALYZER] Starting examination phase for assertion errors...');
-      const allTestCases = Object.values(tests);
-      const testCasesToExamine = filterTestCasesForExamination(allTestCases);
+    // const allTestCases = Object.values(files).flatMap((f) => f.testcases);
+    // if (examineTestCasesBatch && filterTestCasesForExamination) {
+    //   console.log('[ANALYZER] Starting examination phase for assertion errors...');
+    //   const testCasesToExamine = filterTestCasesForExamination(allTestCases);
 
-      if (testCasesToExamine.length > 0) {
-        const examinations = await examineTestCasesBatch(
-          testCasesToExamine,
-          (tc: TestCaseResult) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
-          (tc: TestCaseResult) => tc.focalFunction || null,
-          5 // concurrency
-        );
+    //   if (testCasesToExamine.length > 0) {
+    //     const examinations = await examineTestCasesBatch(
+    //       testCasesToExamine,
+    //       (tc: TestCaseResult) => this.findSourceFileForTest(tc.testFile, tc.focalFunction || null),
+    //       (tc: TestCaseResult) => tc.focalFunction || null,
+    //       5 // concurrency
+    //     );
 
-        // Attach examination results back to test cases
-        for (const exam of examinations) {
-          const testCase = tests[exam.testCaseName];
-          if (testCase) {
-            testCase.examination = exam;
-          }
-        }
+    //     // Attach examination results back to test cases
+    //     const testCasesByName = new Map<string, TestCaseResult[]>();
+    //     for (const tc of allTestCases) {
+    //       const existing = testCasesByName.get(tc.codeName) || [];
+    //       existing.push(tc);
+    //       testCasesByName.set(tc.codeName, existing);
+    //     }
+    //     for (const exam of examinations) {
+    //       const matchedTestCases = testCasesByName.get(exam.testCaseName) || [];
+    //       for (const testCase of matchedTestCases) {
+    //         testCase.examination = exam;
+    //       }
+    //     }
 
-        const redefinedErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && tc.examination.hasRedefinedSymbols);
-        console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
-        console.log(`[ANALYZER] REDEFINE error cases: ${redefinedErrorCases.length} test cases examined`);
-        for ( const tc of redefinedErrorCases) {
-          console.log(`[ANALYZER] REDEFINE error case: ${tc.codeName}`);
-          console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
-          console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
-          console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
-          console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
-        }
+    //     const redefinedErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && tc.examination.hasRedefinedSymbols);
+    //     console.log(`[ANALYZER] Examination phase complete: ${examinations.length} test cases examined`);
+    //     console.log(`[ANALYZER] REDEFINE error cases: ${redefinedErrorCases.length} test cases examined`);
+    //     for ( const tc of redefinedErrorCases) {
+    //       console.log(`[ANALYZER] REDEFINE error case: ${tc.codeName}`);
+    //       console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
+    //       console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
+    //       console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
+    //       console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
+    //     }
 
 
-        const unknownErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && !tc.examination.hasRedefinedSymbols);
-        console.log(`\n=====================================================\n`);
-        console.log(`[ANALYZER] Still unknown error cases: ${unknownErrorCases.length} test cases examined`);
-        for ( const tc of unknownErrorCases) {
-          console.log(`[ANALYZER] Unknown error case: ${tc.codeName}`);
-          console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
-          console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
-          console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
-          console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
-        }
-      } else {
-        console.log('[ANALYZER] No assertion errors to examine');
-      }
-    } else {
-      console.log('[ANALYZER] Examination phase skipped (requires VSCode extension API)');
-    }
+    //     const unknownErrorCases = testCasesToExamine.filter((tc: TestCaseResult) => tc.examination && !tc.examination.hasRedefinedSymbols);
+    //     console.log(`\n=====================================================\n`);
+    //     console.log(`[ANALYZER] Still unknown error cases: ${unknownErrorCases.length} test cases examined`);
+    //     for ( const tc of unknownErrorCases) {
+    //       console.log(`[ANALYZER] Unknown error case: ${tc.codeName}`);
+    //       console.log(`[ANALYZER]   Test file: ${tc.testFile}`);
+    //       console.log(`[ANALYZER]   Source file: ${tc.sourceFile}`);
+    //       console.log(`[ANALYZER]   Symbol name: ${tc.focalFunction}`);
+    //       console.log(`[ANALYZER]   Error detail: ${tc.detail}`);
+    //     }
+    //   } else {
+    //     console.log('[ANALYZER] No assertion errors to examine');
+    //   }
+    // } else {
+    //   console.log('[ANALYZER] Examination phase skipped (requires VSCode extension API)');
+    // }
 
     // Save file analysis to JSON for further analysis
     const fileAnalysisPath = path.join(outputDir, 'file_analysis.json');
@@ -1492,11 +1747,10 @@ export class Analyzer {
     }
 
     // Save summary stats for quick consumption
-    const allTestCases = Object.values(tests);
-    const totalTestCases = allTestCases.length;
-    const failedTestCases = allTestCases.filter((tc) => isFailedTestCaseStatus(tc.status)).length;
-    const passedTestCases = allTestCases.filter((tc) => isPassedTestCaseStatus(tc.status)).length;
-    const erroredTestCases = totalTestCases - failedTestCases - passedTestCases;
+    const totalTestCases = aggregateTestCaseCounts.total;
+    const failedTestCases = aggregateTestCaseCounts.failed;
+    const passedTestCases = aggregateTestCaseCounts.passed;
+    const erroredTestCases = aggregateTestCaseCounts.errored;
 
     const allFiles = Object.values(files);
     const totalFiles = allFiles.length;
@@ -1549,4 +1803,3 @@ export class Analyzer {
     };
   }
 }
-

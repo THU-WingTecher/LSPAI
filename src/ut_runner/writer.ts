@@ -102,7 +102,7 @@ export class Writer {
       .map(([k]) => k);
 
     const errors = Object.entries(report.tests)
-      .filter(([, t]) => t.status === 'Error')
+      .filter(([, t]) => t.status === 'Errored')
       .map(([k, t]) => (t.errorType ? `${k} [${t.errorType}]` : k));
 
     writeList(this.passedTxt, passed);
