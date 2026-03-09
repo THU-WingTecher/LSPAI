@@ -377,6 +377,7 @@ export async function runGenerateTestCodeSuite(
     dirForReuse?: string, // Optional parameter for reflecting experiments
     testFileMapPath?: string,
     saveName?: string,
+    resumeTestFileMapPath?: string,
 ) {
     if (process.env.NODE_DEBUG !== 'true') {
         console.log('activate');
@@ -424,33 +425,6 @@ export async function runGenerateTestCodeSuite(
     //     : getConfigInstance().savePath;
 
 
-    let symbolPairsToProcess = symbolFilePairsToTest;
-    if (!continuityManager.isFirstTimeExperiment()) {
-        console.log(`#### Continuing experiment from ${previousExperimentDir}`);
-        // await continuityManager.loadTaskList();
-        
-        // Get uncompleted tasks and filter symbols
-        const uncompletedTasks = await continuityManager.getUncompletedTasks();
-        symbolPairsToProcess = symbolFilePairsToTest.filter(({ symbol, document, fileName }) => {
-            const relativePath = path.relative(workspace, document.uri.fsPath);
-            const basename = path.basename(fileName);
-            const finalSavePath = path.join(getConfigInstance().savePath, "final");
-            
-            // Check if file exists in final directory
-            const fileExistsInFinal = fs.existsSync(path.join(finalSavePath, basename));
-            
-            // Only include tasks that are uncompleted AND don't have corresponding file in final directory
-            return !fileExistsInFinal;
-        });
-        
-        console.log(`#### Continuing experiment with ${symbolPairsToProcess.length} remaining tasks`);
-    } else {
-        // For new experiments, initialize fresh progress tracking
-        await continuityManager.saveTaskList(symbolFilePairsToTest);
-        // await continuityManager.initializeFromTaskList(symbolFilePairsToTest);
-        console.log(`#### Starting new experiment with ${symbolPairsToProcess.length} tasks`);
-    }
-
     const normalizeTaskPath = (value: string): string =>
         value.replace(/\\/g, '/').replace(/^\.\//, '');
     const buildExperimentalTaskKey = (
@@ -463,29 +437,117 @@ export async function runGenerateTestCodeSuite(
         return `${relPath}::${symbolName}::${oneBasedLine}`;
     };
 
-    // Build/merge test-file mapping for analysis
-    // if (testFileMapPath === undefined) {
-    const newtestFileMapPath = path.join(getConfigInstance().savePath, 'test_file_map.json');
-    // }
-    const newEntries = Object.fromEntries(
-        symbolFilePairsToTest.map(({ document, symbol, fileName }) => [
-            path.basename(fileName),
-            {
-                project_name: projectName,
-                file_name: path.relative(workspace, document.uri.fsPath),
-                symbol_name: symbol.name,
-                line_num: symbol.range.start.line + 1,
-                task_key: buildExperimentalTaskKey(symbol.name, document.uri.fsPath, symbol.range.start.line),
+    let symbolPairsToProcess = symbolFilePairsToTest;
+    if (!continuityManager.isFirstTimeExperiment()) {
+        console.log(`#### Continuing experiment from ${previousExperimentDir}`);
+        // Get uncompleted tasks and filter symbols strictly by progress.json identity
+        const uncompletedTasks = await continuityManager.getUncompletedTasks();
+
+        const uncompletedBaseKeys = new Set<string>();
+        const uncompletedLocationKeys = new Set<string>();
+        const uncompletedLineNumKeys = new Set<string>();
+        const strictDisambiguationBases = new Set<string>();
+
+        for (const task of uncompletedTasks) {
+            const relPath = normalizeTaskPath(task.relativeDocumentPath || '');
+            const baseKey = `${relPath}::${task.symbolName}`;
+            uncompletedBaseKeys.add(baseKey);
+
+            const taskLocation = Number(task.location);
+            if (Number.isFinite(taskLocation)) {
+                strictDisambiguationBases.add(baseKey);
+                uncompletedLocationKeys.add(`${baseKey}::loc:${taskLocation}`);
             }
-        ])
-    );
-    let existingEntries: Record<string, any> = {};
-    try {
-        const prev = await fs.promises.readFile(newtestFileMapPath, 'utf8');
-        existingEntries = JSON.parse(prev);
-    } catch {}
-    await fs.promises.writeFile(newtestFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
-    console.log(`#### Test file map has been saved to ${newtestFileMapPath}`);
+
+            const taskLineNum = Number(task.lineNum);
+            if (Number.isFinite(taskLineNum)) {
+                strictDisambiguationBases.add(baseKey);
+                uncompletedLineNumKeys.add(`${baseKey}::line:${taskLineNum}`);
+            }
+        }
+
+        symbolPairsToProcess = symbolFilePairsToTest.filter(({ symbol, document }) => {
+            const relPath = normalizeTaskPath(path.relative(workspace, document.uri.fsPath));
+            const baseKey = `${relPath}::${symbol.name}`;
+            const locationKey = `${baseKey}::loc:${symbol.range.start.line}`;
+            const lineNumKey = `${baseKey}::line:${symbol.range.end.line - symbol.range.start.line}`;
+
+            if (uncompletedLocationKeys.has(locationKey) || uncompletedLineNumKeys.has(lineNumKey)) {
+                return true;
+            }
+            if (!strictDisambiguationBases.has(baseKey) && uncompletedBaseKeys.has(baseKey)) {
+                return true;
+            }
+            return false;
+        });
+        
+        console.log(
+            `#### Continuing experiment with ${symbolPairsToProcess.length} remaining tasks ` +
+            `(uncompleted in progress.json: ${uncompletedTasks.length})`
+        );
+    } else {
+        // For new experiments, initialize fresh progress tracking
+        await continuityManager.saveTaskList(symbolFilePairsToTest);
+        // await continuityManager.initializeFromTaskList(symbolFilePairsToTest);
+        console.log(`#### Starting new experiment with ${symbolPairsToProcess.length} tasks`);
+    }
+
+    const readMapFile = async (mapPath: string): Promise<Record<string, any>> => {
+        const raw = await fs.promises.readFile(mapPath, 'utf8');
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            throw new Error(`Invalid test_file_map JSON object: ${mapPath}`);
+        }
+        return parsed as Record<string, any>;
+    };
+
+    // Build/copy test-file mapping for analysis
+    const newtestFileMapPath = path.join(getConfigInstance().savePath, 'test_file_map.json');
+    if (previousExperimentDir) {
+        const resumeMapSourcePath = resumeTestFileMapPath || newtestFileMapPath;
+        if (!fs.existsSync(resumeMapSourcePath)) {
+            throw new Error(
+                `[RESUME] Missing test_file_map for resumed run: ${resumeMapSourcePath}. ` +
+                'Provide resumeTestFileMapPath or ensure results/test_file_map.json exists.'
+            );
+        }
+        const resumedEntries = await readMapFile(resumeMapSourcePath);
+        await fs.promises.writeFile(newtestFileMapPath, JSON.stringify(resumedEntries, null, 2), 'utf8');
+        console.log(
+            `#### Test file map copied from resume source (${Object.keys(resumedEntries).length} entries): ` +
+            `${resumeMapSourcePath} -> ${newtestFileMapPath}`
+        );
+    } else if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
+        if (!fs.existsSync(testFileMapPath)) {
+            throw new Error(`[EXPERIMENTAL] Missing input test_file_map: ${testFileMapPath}`);
+        }
+        const reuseEntries = await readMapFile(testFileMapPath);
+        await fs.promises.writeFile(newtestFileMapPath, JSON.stringify(reuseEntries, null, 2), 'utf8');
+        console.log(
+            `#### Test file map copied from reflection input (${Object.keys(reuseEntries).length} entries): ` +
+            `${testFileMapPath} -> ${newtestFileMapPath}`
+        );
+    } else {
+        const newEntries = Object.fromEntries(
+            symbolFilePairsToTest.map(({ document, symbol, fileName }) => [
+                path.basename(fileName),
+                {
+                    project_name: projectName,
+                    file_name: path.relative(workspace, document.uri.fsPath),
+                    symbol_name: symbol.name,
+                    line_num: symbol.range.start.line + 1,
+                    task_key: buildExperimentalTaskKey(symbol.name, document.uri.fsPath, symbol.range.start.line),
+                }
+            ])
+        );
+        let existingEntries: Record<string, any> = {};
+        try {
+            const prev = await fs.promises.readFile(newtestFileMapPath, 'utf8');
+            existingEntries = JSON.parse(prev);
+        } catch {}
+        await fs.promises.writeFile(newtestFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
+        console.log(`#### Test file map has been saved to ${newtestFileMapPath}`);
+    }
 
     const limit = createConcurrencyLimit();
     const validatedExperimentalMappings = new Map<string, string>();
