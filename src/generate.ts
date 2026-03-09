@@ -13,6 +13,7 @@ import { generateFileNameForDiffLanguage, saveToIntermediate, saveCode, getFileN
 import { getConfigInstance, GenerationType, PromptType } from './config';
 import { reportProgressWithCancellation, showDiffAndAllowSelection } from './userInteraction';
 import { createTestGenerator } from './strategy/generators/factory';
+import { ParseCodeRuleMismatchError } from './lsp/utils';
 
 
 export interface ContextInfo {
@@ -26,6 +27,29 @@ export interface ContextInfo {
 	fileName: string;
 	packageString: string;
 	importString: string;
+}
+
+function isParseRelatedError(error: unknown): boolean {
+	if (error instanceof ParseCodeRuleMismatchError) {
+		return true;
+	}
+	const message = error instanceof Error ? error.message : String(error);
+	const normalized = message.toLowerCase();
+	return normalized.includes('parse') || normalized.includes('json');
+}
+
+function getParseRetryCount(): number {
+	const rawValue = process.env.LSPRAG_PARSE_RETRY_COUNT;
+	if (!rawValue) {
+		return 2;
+	}
+
+	const parsed = Number.parseInt(rawValue.trim(), 10);
+	if (!Number.isFinite(parsed) || parsed < 0) {
+		return 2;
+	}
+
+	return parsed;
 }
 
 export async function collectInfo(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol, languageId: string, fileName: string): Promise<ContextInfo> {
@@ -197,28 +221,42 @@ export async function generateUnitTestForAFunction(
                 return '';
             }
 
-            const generator = createTestGenerator(
-                getConfigInstance().generationType,
-                document,
-                functionSymbol,
-                languageId,
-                fileName,
-                logger,
-                progress,
-                token,
+			const generator = createTestGenerator(
+				getConfigInstance().generationType,
+				document,
+				functionSymbol,
+				languageId,
+				fileName,
+				logger,
+				progress,
+				token,
 				srcPath,
 				cachedDir,
 				cachedDraftTestCode
-            );
+			);
 
-            const testCode = await generator.generateTest();
-            await saveToIntermediate(
-                testCode,
-                srcPath,
-                fileName,
-                path.join(outputSaveRoot, "initial"),
-                languageId
-            );
+			const maxParseRetries = getParseRetryCount();
+			const maxParseAttempts = maxParseRetries + 1;
+			let testCode = '';
+			for (let attempt = 1; attempt <= maxParseAttempts; attempt++) {
+				try {
+					testCode = await generator.generateTest();
+					break;
+				} catch (error) {
+					if (!isParseRelatedError(error) || attempt === maxParseAttempts) {
+						throw error;
+					}
+					console.warn(`parse_issue_detecting::generateTest attempt ${attempt}/${maxParseAttempts} failed with parse-related error`, error);
+				}
+			}
+
+			await saveToIntermediate(
+				testCode,
+				srcPath,
+				fileName,
+				path.join(outputSaveRoot, "initial"),
+				languageId
+			);
 
             const { finalCode, diagnosticReport } = await generator.fixTest(testCode);
             

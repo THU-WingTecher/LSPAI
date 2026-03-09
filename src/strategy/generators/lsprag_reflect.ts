@@ -236,6 +236,7 @@ export function naiveReflectionPrompt(params: {
 		'You are an expert unit test engineer.',
 		'You will be given a draft unit test generated for a focal method.',
 		'Your task is to improve assertion correctness and reduce false-positive assertions.',
+		"You should wrap the final test code wrap in a triple-backtick code block.",
 		// '',
 		// 'Critical rules:',
 		// '- Use the provided focal method source as the ONLY ground-truth about behavior.',
@@ -296,6 +297,7 @@ export function buildAssertionReflectionPrompt(params: {
 		'You are an expert unit test engineer.',
 		'You will be given a draft unit test generated for a focal method, plus extra static-analysis context.',
 		'Your task is to improve assertion correctness and reduce false-positive assertions.',
+		"You should wrap the final test code wrap in a triple-backtick code block.",
 		'',
 		'Critical rules:',
 		'- Use the provided focal method source as the ONLY ground-truth about behavior.',
@@ -305,7 +307,6 @@ export function buildAssertionReflectionPrompt(params: {
 		'- Prefer assertions that are directly implied by the focal method behavior and inputs/outputs.',
 		'- If a mock target resolves to a different symbol/scope than intended, revise the mock style or target path (e.g., patch path vs patch.object target) before finalizing assertions.',
 		'- Checkout whether given test code is satisfied the given path coverage requirements, if not, adjust the test code to satisfy the requirements.',
-		'- Return ONLY the final complete test code wrapped in a single triple-backtick code block.'
 	].join('\n');
  
 	const userSections = [

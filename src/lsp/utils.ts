@@ -118,20 +118,27 @@ export function isStandardClass(uri: string, language: string): boolean {
 }
 
 
-export function parseCode(response: string): string {
-    // Regular expression to match code block wrapped by triple backticks, optional `~~`, and language tag
+function collectParseCodeMatches(response: string): RegExpMatchArray[] {
     const regex = /```(?:\w+)?(?:~~)?\s*([\s\S]*?)\s*```/g;
+    return Array.from(response.matchAll(regex));
+}
 
-    // Match the response against the regular expression
-    const matches = Array.from(response.matchAll(regex));
+export class ParseCodeRuleMismatchError extends Error {
+    constructor() {
+        super('LLM output does not match parseCode rule: missing triple-backtick code block.');
+        this.name = 'ParseCodeRuleMismatchError';
+    }
+}
+
+export function parseCode(response: string): string {
+    const matches = collectParseCodeMatches(response);
 
     // If a match is found, return the extracted code
     if (matches.length > 0) {
         return matches[matches.length - 1][1].trim();
     }
 
-    // If no code block is found, return the original response
-    return response.trim();
+    throw new ParseCodeRuleMismatchError();
 }
 
 export function removeComments(code: string): string {

@@ -11,6 +11,7 @@ export const TOKENTHRESHOLD = 3000; // Define your token threshold here
 export const BASELINE = "naive";
 
 const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
+const DEFAULT_CLAUDE_MAX_TOKENS = 12000;
 
 function envFlagEnabled(value: string | undefined): boolean {
 	return TRUE_VALUES.has((value || '').trim().toLowerCase());
@@ -119,6 +120,22 @@ function getClaudeBaseUrl(): string {
 		return 'https://api.anthropic.com';
 	}
 	return rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+}
+
+function parsePositiveInteger(rawValue: string | undefined): number | undefined {
+	if (!rawValue) {
+		return undefined;
+	}
+	const parsed = Number.parseInt(rawValue.trim(), 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function getClaudeMaxTokens(): number {
+	return (
+		parsePositiveInteger(process.env.LSPRAG_CLAUDE_MAX_TOKENS) ??
+		parsePositiveInteger(process.env.ANTHROPIC_MAX_TOKENS) ??
+		DEFAULT_CLAUDE_MAX_TOKENS
+	);
 }
 
 function logLLMInteraction(prompt: string, response: string): void {
@@ -377,7 +394,7 @@ export async function callClaude(promptObj: any, logObj: any): Promise<string> {
 
 	const payload: Record<string, any> = {
 		model: modelName,
-		max_tokens: 2048,
+		max_tokens: getClaudeMaxTokens(),
 		messages
 	};
 	if (systemPrompt) {

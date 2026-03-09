@@ -43,6 +43,6 @@ export class NaiveTestGenerator extends BaseTestGenerator {
 			logObj
 		);
 		this.logger.log("generateTest", (Date.now() - generationStartTime).toString(), logObj, "");
-		return parseCode(testCode);
+		return testCode;
 	}
 }
