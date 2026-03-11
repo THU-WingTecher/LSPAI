@@ -190,6 +190,7 @@ suite('Experiment Test Suite', () => {
         let previousExperimentDir = params.previousExperimentDir;
         let resumeTestFileMapPath = params.resumeTestFileMapPath;
         let lastCompletedTasks = -1;
+        let noProgressRounds = 0;
 
         for (let round = 1; round <= maxRounds; round++) {
             await runGenerateTestCodeSuite(
@@ -219,13 +220,22 @@ suite('Experiment Test Suite', () => {
                 return resultsDir;
             }
 
-            if (progress.completedTasks <= lastCompletedTasks) {
+            if (progress.completedTasks < lastCompletedTasks) {
                 throw new Error(
-                    `[reflectRunner] Auto-resume made no forward progress for ${params.runLabel}. ` +
+                    `[reflectRunner] Auto-resume progress regressed for ${params.runLabel}. ` +
                     `Last completed=${lastCompletedTasks}, current=${progress.completedTasks}, resultsDir=${resultsDir}`
                 );
             }
-            lastCompletedTasks = progress.completedTasks;
+            if (progress.completedTasks === lastCompletedTasks) {
+                noProgressRounds += 1;
+                console.warn(
+                    `[reflectRunner] Auto-resume made no forward progress for ${params.runLabel} in round ${round}. ` +
+                    `Keeping retry loop active (remaining=${progress.remainingTasks}, noProgressRounds=${noProgressRounds}/${maxRounds - 1}).`
+                );
+            } else {
+                lastCompletedTasks = progress.completedTasks;
+                noProgressRounds = 0;
+            }
 
             if (round === maxRounds) {
                 throw new Error(
