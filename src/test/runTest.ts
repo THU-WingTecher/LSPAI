@@ -35,6 +35,8 @@ const DEFAULT_TEST_CONFIG = {
   PROMPT_TYPE: PromptType.BASIC
 };
 
+const DEFAULT_VSCODE_VERSION = process.env.LSPRAG_TEST_VSCODE_VERSION || 'stable';
+
 // Function to load private configuration strictly from environment variables
 export function loadPrivateConfig(provider?: Provider): PrivateConfig {
   const openaiApiKey = process.env.OPENAI_API_KEY || process.env.TEST_OPENAI_API_KEY;
@@ -83,7 +85,7 @@ function validateProvider(value: string): Provider {
 async function main() {
   try {
     const extensionDevelopmentPath = path.resolve(__dirname, '../../../');
-    const vscodeExecutablePath = await downloadAndUnzipVSCode('1.98.2');
+    const vscodeExecutablePath = await downloadAndUnzipVSCode(DEFAULT_VSCODE_VERSION);
     const [cliPath, ...args] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);
 
     const extensionTestsPath = path.resolve(__dirname, './suite/index');
@@ -98,7 +100,7 @@ async function main() {
 	// const installExtensions = ['ms-python.python', 'oracle.oracle-java', 'golang.go'];
     cp.spawnSync(
       cliPath,
-		[...args, '--install-extension', 'ms-python.python', '--install-extension', 'redhat.java', '--install-extension', 'golang.go', '--install-extension', 'ms-vscode.cpptools'],
+		[...args, '--install-extension', 'ms-python.python', '--install-extension', 'ms-python.vscode-pylance', '--install-extension', 'redhat.java', '--install-extension', 'golang.go', '--install-extension', 'ms-vscode.cpptools'],
 		{
         encoding: 'utf-8',
         stdio: 'inherit'

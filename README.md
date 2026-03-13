@@ -84,7 +84,10 @@ LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code 
    - At Editor, click left-up `File` -> `Open Folder` -> Select workspace to `LSPRAG/src/test/fixtures/python`
    - [Optional] Test core utilities
       - You can check out your current setting by calling `Cmd/Cntrl + Shift + P => LSPRAG: Show Current Settings`
+      - You can also print current settings from terminal at workspace root: `npm run show:settings`
       - You can test your LLM avaialbility by calling `Cmd/Cntrl + Shift + P => LSPRAG: Test LLM`
+      - You can also test LLM from terminal at workspace root: `npm run test:llm`
+      - You can also generate a unit test from terminal: `npm run generate:cli -- --file src/test/fixtures/python/calculator.py --function compute`
       - You can test your Language Server avaialbility by calling `Cmd/Cntrl + Shift + P => LSPRAG: Test Language Server`
 
 2. **Generate Tests**
@@ -177,4 +180,3 @@ New to LSPRAG? Want to contribute? We've got you covered!
 
 ---
 **Ready to generate unit tests with LSPRAG!** 🎉
-
