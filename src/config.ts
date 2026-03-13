@@ -274,15 +274,10 @@ export class Configuration {
         }
 
         if (newConfig.savePath) {
-            // if savePath has workspace value, assert error 
-            let savePath = newConfig.savePath;
-            if (newConfig.savePath.includes(this.config.workspace)) {
-                console.log('savepath contains workspace value', newConfig.savePath, this.config.workspace);
-                // throw new Error('savePath cannot contain workspace value');
-            } else {
-                savePath = path.join(this.config.workspace, this.config.savePath);
-            }
-            // savePath should be updated 
+            const rawSavePath = newConfig.savePath;
+            const savePath = path.isAbsolute(rawSavePath)
+                ? path.normalize(rawSavePath)
+                : path.join(this.config.workspace, rawSavePath);
             this.config.savePath = savePath;
             this.createSavePathIfNotExists(this.getResolvedSavePathAbs());
             this.createSavePathIfNotExists(this.historyPath);

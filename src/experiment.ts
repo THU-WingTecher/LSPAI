@@ -51,13 +51,12 @@ export class ExperimentContinuityManager {
     private isFirstTime: boolean;
 
     constructor(experimentDir: string, workspacePath: string) {
-        this.experimentDir = experimentDir;
-        if (experimentDir.includes(workspacePath)) {
-            this.experimentDir = path.relative(workspacePath, experimentDir);
-        }
+        this.experimentDir = path.isAbsolute(experimentDir)
+            ? path.normalize(experimentDir)
+            : path.join(workspacePath, experimentDir);
         this.workspacePath = workspacePath;
-        this.progressFilePath = path.join(workspacePath, this.experimentDir, 'progress.json');
-        this.taskListPath = path.join(workspacePath, this.experimentDir, 'taskList.json');
+        this.progressFilePath = path.join(this.experimentDir, 'progress.json');
+        this.taskListPath = path.join(this.experimentDir, 'taskList.json');
         this.isFirstTime = true;
         this.initializeProgressFile();
     }
@@ -711,11 +710,15 @@ export async function runGenerateTestCodeSuite(
 
 
 export function getSymbolFilePairsToTest(symbols: {symbol: vscode.DocumentSymbol, document: vscode.TextDocument}[], languageId: string) {
+    const config = getConfigInstance();
+    const resolvedSavePath = path.isAbsolute(config.savePath)
+        ? config.savePath
+        : path.join(config.workspace, config.savePath);
     const symbolFilePairs = symbols.map(({symbol, document}) => {
         return {
             symbol,
             document,
-            fileName: generateFileNameForDiffLanguage(document, symbol, path.join(getConfigInstance().workspace, getConfigInstance().savePath), languageId, [],0)
+            fileName: generateFileNameForDiffLanguage(document, symbol, resolvedSavePath, languageId, [],0)
         };
     });
     return symbolFilePairs;
