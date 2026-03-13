@@ -34,6 +34,8 @@ export enum PromptType {
     MAX_ROUND: '5',
     PROMPT_TYPE: PromptType.BASIC
   };
+
+  const DEFAULT_VSCODE_VERSION = process.env.LSPRAG_TEST_VSCODE_VERSION || 'stable';
   
   // Function to load private configuration
   export function loadPrivateConfig(): PrivateConfig {
@@ -159,14 +161,14 @@ async function main() {
         const args = parseCommandLineArgs();
         console.log('test::runExperiment::args', args);
         // Download VS Code, unzip it, and run the integration test
-        const vscodeExecutablePath = await downloadAndUnzipVSCode('1.97.0');   // '1.98.2', '1.97.0', '1.96.0', '1.95.0'];
+        const vscodeExecutablePath = await downloadAndUnzipVSCode(DEFAULT_VSCODE_VERSION);
 
         const [cliPath, ...vscodeArgs] = resolveCliArgsFromVSCodeExecutablePath(vscodeExecutablePath);
     
         // Install required extensions
         cp.spawnSync(
             cliPath,
-            [...vscodeArgs, '--install-extension', 'ms-python.python', '--install-extension', 'redhat.java', '--install-extension', 'golang.go'],
+            [...vscodeArgs, '--install-extension', 'ms-python.python', '--install-extension', 'ms-python.vscode-pylance', '--install-extension', 'redhat.java', '--install-extension', 'golang.go'],
             {
                 encoding: 'utf-8',
                 stdio: 'inherit'

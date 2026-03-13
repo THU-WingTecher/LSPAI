@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import path from 'path';
 
 // Optional vscode import - only available in VSCode extension context
@@ -120,6 +120,88 @@ let seededRandom: () => number;
 
 export type Provider = 'openai' | 'local' | 'deepseek';
 
+type WorkspaceSettings = Record<string, unknown> & {
+	LSPRAG?: Record<string, unknown>;
+};
+
+function normalizeProvider(value: string | undefined): Provider | undefined {
+	if (!value) {
+		return undefined;
+	}
+
+	if (value === 'ollama') {
+		return 'local';
+	}
+
+	if (value === 'openai' || value === 'local' || value === 'deepseek') {
+		return value;
+	}
+
+	return undefined;
+}
+
+function toNumber(value: unknown): number | undefined {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return value;
+	}
+
+	if (typeof value === 'string' && value.trim().length > 0) {
+		const parsed = Number(value);
+		if (Number.isFinite(parsed)) {
+			return parsed;
+		}
+	}
+
+	return undefined;
+}
+
+function loadWorkspaceSettingsFromFile(workspace: string): Partial<{
+	model: string;
+	provider: Provider;
+	promptType: PromptType;
+	generationType: GenerationType;
+	timeoutMs: number;
+	maxRound: number;
+	openaiApiKey: string;
+	deepseekApiKey: string;
+	baseUrl: string;
+	localLLMUrl: string;
+	savePath: string;
+	proxyUrl: string;
+}> {
+	const settingsPath = path.join(workspace, '.vscode', 'settings.json');
+	if (!existsSync(settingsPath)) {
+		return {};
+	}
+
+	try {
+		const rawSettings = readFileSync(settingsPath, 'utf8');
+		const parsed = JSON.parse(rawSettings) as WorkspaceSettings;
+		const nestedSettings = parsed.LSPRAG ?? {};
+		const readSetting = <T>(flatKey: string, nestedKey: string): T | undefined => {
+			return (parsed[flatKey] as T | undefined) ?? (nestedSettings[nestedKey] as T | undefined);
+		};
+
+		return {
+			model: readSetting<string>('LSPRAG.model', 'model'),
+			provider: normalizeProvider(readSetting<string>('LSPRAG.provider', 'provider')),
+			promptType: readSetting<PromptType>('LSPRAG.promptType', 'promptType'),
+			generationType: readSetting<GenerationType>('LSPRAG.generationType', 'generationType'),
+			timeoutMs: toNumber(readSetting<unknown>('LSPRAG.timeoutMs', 'timeoutMs')),
+			maxRound: toNumber(readSetting<unknown>('LSPRAG.maxRound', 'maxRound')),
+			openaiApiKey: readSetting<string>('LSPRAG.openaiApiKey', 'openaiApiKey'),
+			deepseekApiKey: readSetting<string>('LSPRAG.deepseekApiKey', 'deepseekApiKey'),
+			baseUrl: readSetting<string>('LSPRAG.baseUrl', 'baseUrl'),
+			localLLMUrl: readSetting<string>('LSPRAG.localLLMUrl', 'localLLMUrl'),
+			savePath: readSetting<string>('LSPRAG.savePath', 'savePath'),
+			proxyUrl: (parsed['http.proxy'] as string | undefined) ?? ''
+		};
+	} catch (error) {
+		console.warn(`[CONFIG] Failed to parse ${settingsPath}:`, error);
+		return {};
+	}
+}
+
 // Function to load private configuration
 
 const DEFAULT_CONFIG = {
@@ -128,7 +210,7 @@ const DEFAULT_CONFIG = {
     parallelCount: 1,
     model: 'deepseek-chat',
     provider: 'deepseek' as Provider,
-    timeoutMs: 600 * 1000,
+    timeoutMs: 30 * 1000,
     promptType: PromptType.BASIC,
     fixType: FixType.ORIGINAL,
     generationType: GenerationType.LSPRAG,
@@ -140,6 +222,7 @@ const DEFAULT_CONFIG = {
     openaiApiKey: string;
     deepseekApiKey: string;
     localLLMUrl: string;
+    baseUrl?: string;
     proxyUrl?: string;
 }
 
@@ -321,6 +404,7 @@ export class Configuration {
                 maxRound: (config.get('maxRound') as number) ?? DEFAULT_CONFIG.maxRound,
                 openaiApiKey: config.get('openaiApiKey') as string,
                 deepseekApiKey: config.get('deepseekApiKey') as string,
+                baseUrl: config.get('baseUrl') as string,
                 localLLMUrl: config.get('localLLMUrl') as string,
                 savePath: (config.get('savePath') as string) ?? DEFAULT_CONFIG.savePath,
                 proxyUrl: globalProxy || ''
@@ -328,32 +412,31 @@ export class Configuration {
         } else {
             // Running outside VSCode (e.g., standalone scripts) - use defaults or environment variables
             console.log('[CONFIG] No VSCode context, using default configuration');
+            const workspace = process.env.LSPRAG_WORKSPACE || process.cwd();
+            const workspaceSettings = loadWorkspaceSettingsFromFile(workspace);
             return {
-                workspace: process.env.LSPRAG_WORKSPACE || process.cwd(),
+                workspace: workspace,
                 expProb: DEFAULT_CONFIG.expProb,
-                model: process.env.LSPRAG_MODEL || DEFAULT_CONFIG.model,
-                provider: (process.env.LSPRAG_PROVIDER as Provider) || DEFAULT_CONFIG.provider,
-                promptType: DEFAULT_CONFIG.promptType,
-                generationType: DEFAULT_CONFIG.generationType,
+                model: process.env.LSPRAG_MODEL || workspaceSettings.model || DEFAULT_CONFIG.model,
+                provider: normalizeProvider(process.env.LSPRAG_PROVIDER) || workspaceSettings.provider || DEFAULT_CONFIG.provider,
+                promptType: workspaceSettings.promptType || DEFAULT_CONFIG.promptType,
+                generationType: workspaceSettings.generationType || DEFAULT_CONFIG.generationType,
                 fixType: DEFAULT_CONFIG.fixType,
-                timeoutMs: DEFAULT_CONFIG.timeoutMs,
+                timeoutMs: toNumber(process.env.LSPRAG_TIMEOUT_MS) || workspaceSettings.timeoutMs || DEFAULT_CONFIG.timeoutMs,
                 parallelCount: DEFAULT_CONFIG.parallelCount,
-                maxRound: DEFAULT_CONFIG.maxRound,
+                maxRound: workspaceSettings.maxRound || DEFAULT_CONFIG.maxRound,
                 testNumber: DEFAULT_CONFIG.testNumber,
-                openaiApiKey: process.env.OPENAI_API_KEY,
-                deepseekApiKey: process.env.DEEPSEEK_API_KEY,
-                localLLMUrl: process.env.LOCAL_LLM_URL,
-                savePath: DEFAULT_CONFIG.savePath,
-                proxyUrl: process.env.HTTP_PROXY || process.env.HTTPS_PROXY || ''
+                openaiApiKey: process.env.OPENAI_API_KEY || workspaceSettings.openaiApiKey,
+                deepseekApiKey: process.env.DEEPSEEK_API_KEY || workspaceSettings.deepseekApiKey,
+                baseUrl: process.env.LSPRAG_BASE_URL || workspaceSettings.baseUrl || '',
+                localLLMUrl: process.env.LOCAL_LLM_URL || workspaceSettings.localLLMUrl,
+                savePath: workspaceSettings.savePath || DEFAULT_CONFIG.savePath,
+                proxyUrl: process.env.HTTP_PROXY || process.env.HTTPS_PROXY || workspaceSettings.proxyUrl || ''
             };
         }
     }
 
-    private adjustTimeout(): void {
-        if (this.provider === 'local' || this.provider === 'deepseek') {
-            this.config.timeoutMs *= 2;
-        }
-    }
+    private adjustTimeout(): void {}
     
     private constructResultPath(): string {
         return path.join(
@@ -502,6 +585,10 @@ export class Configuration {
 
     public get proxyUrl(): string | undefined {
         return this.config.proxyUrl;
+    }
+
+    public get baseUrl(): string | undefined {
+        return this.config.baseUrl;
     }
 
     public get testNumber(): number {
