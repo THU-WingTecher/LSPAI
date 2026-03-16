@@ -79,10 +79,10 @@ export async function buildDefTree(
 
                 if (childToken.defSymbol) {
                     const key = `${childToken.document.uri.toString()}#${childToken.word}`;
-                    console.log(`#### Key: ${key}, tok.word: ${childToken.word}`);
+                    // console.log(`#### Key: ${key}, tok.word: ${childToken.word}`);
 
                     if (visited.has(key)) {
-                        console.log(`#### Skip visited: ${key}`);
+                        // console.log(`#### Skip visited: ${key}`);
                         continue;
                     }
 

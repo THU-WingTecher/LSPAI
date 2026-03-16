@@ -12,6 +12,21 @@ export let doc: vscode.TextDocument;
 export let editor: vscode.TextEditor;
 export let documentEol: string;
 export let platformEol: string;
+let hasCompletedInitialActivationWait = false;
+
+function getInitialActivationDelayMs(): number {
+    const raw = process.env.LSPRAG_ACTIVATE_INITIAL_DELAY_MS;
+    if (!raw) {
+        return 2000;
+    }
+
+    const parsed = Number.parseInt(raw.trim(), 10);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return 2000;
+    }
+
+    return parsed;
+}
 
 export async function getPythonInterpreterPath(): Promise<string> {
     const pythonExtension = vscode.extensions.getExtension('ms-python.python');
@@ -133,12 +148,19 @@ export async function activate(docUri: vscode.Uri | undefined = undefined) {
 	// 	throw new Error('Extension not found');
 	// }	
 	// await ext.activate();
-    console.log("activate docUri", docUri?.path);
+    // console.log("activate docUri", docUri?.path);
 	if (docUri) {
 		try {
-			doc = await vscode.workspace.openTextDocument(docUri);
+            const existingDoc = vscode.workspace.textDocuments.find(textDoc => textDoc.uri.toString() === docUri.toString());
+			doc = existingDoc ?? await vscode.workspace.openTextDocument(docUri);
 			// editor = await vscode.window.showTextDocument(doc);
-			await sleep(2000); // Wait for server activation
+            if (!hasCompletedInitialActivationWait) {
+                const delayMs = getInitialActivationDelayMs();
+                if (delayMs > 0) {
+                    await sleep(delayMs); // Wait for initial server activation once per process
+                }
+                hasCompletedInitialActivationWait = true;
+            }
 		} catch (e) {
 			console.error(e);
 		}
