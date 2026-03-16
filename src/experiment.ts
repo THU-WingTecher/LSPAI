@@ -82,13 +82,26 @@ export class ExperimentContinuityManager {
     private async readProgress(): Promise<ExperimentProgress> {
         const content = await fs.promises.readFile(this.progressFilePath, 'utf8');
         console.log(`#### Progress file: ${this.progressFilePath}`);
-        return JSON.parse(content);
+        const progress = JSON.parse(content) as ExperimentProgress;
+        return this.recalculateProgressCounters(progress);
     }
 
     private async writeProgress(progress: ExperimentProgress): Promise<void> {
-        progress.lastUpdated = new Date().toISOString();
-        console.log(`#### writeProgress: ${progress.tasks.length}`);
-        await fs.promises.writeFile(this.progressFilePath, JSON.stringify(progress, null, 2));
+        const normalizedProgress = this.recalculateProgressCounters(progress);
+        normalizedProgress.lastUpdated = new Date().toISOString();
+        console.log(`#### writeProgress: ${normalizedProgress.tasks.length}`);
+        await fs.promises.writeFile(this.progressFilePath, JSON.stringify(normalizedProgress, null, 2));
+    }
+
+    private recalculateProgressCounters(progress: ExperimentProgress): ExperimentProgress {
+        const tasks = Array.isArray(progress.tasks) ? progress.tasks : [];
+        const completedTasks = tasks.filter(task => task.completed).length;
+        return {
+            ...progress,
+            totalTasks: tasks.length,
+            completedTasks,
+            tasks
+        };
     }
 
     public async saveTaskList(
@@ -135,7 +148,6 @@ export class ExperimentContinuityManager {
             const progress = await this.readProgress();
             
             // Initialize progress for new tasks
-            progress.totalTasks = taskList.length;
             console.log(`#### Initializing from task list: ${taskList.length}`);
             const uncompletedTasks = progress.tasks.filter(task => !task.completed);
             console.log(`#### uncompletedTasks: ${uncompletedTasks.length}`);
@@ -144,7 +156,6 @@ export class ExperimentContinuityManager {
                 completed: false
             }));
             console.log(`#### progress.tasks: ${progress.tasks.length}`);
-            progress.completedTasks = 0;
 
             await this.writeProgress(progress);
         });
@@ -194,7 +205,6 @@ export class ExperimentContinuityManager {
                 if (error) {
                     task.error = error;
                 }
-                progress.completedTasks++;
                 await this.writeProgress(progress);
             }
         });
@@ -211,20 +221,19 @@ export class ExperimentContinuityManager {
     }
 
     private async acquireLock<T>(operation: () => Promise<T>): Promise<T> {
-        // Wait for previous operation to complete
-        await this.progressLock;
-
-        // Create new lock
-        let resolveLock: () => void;
+        // Queue this operation after the current lock holder.
+        const previousLock = this.progressLock;
+        let resolveCurrentLock: () => void;
         this.progressLock = new Promise(resolve => {
-            resolveLock = resolve;
+            resolveCurrentLock = resolve;
         });
+        await previousLock;
 
         try {
             const result = await operation();
             return result;
         } finally {
-            resolveLock!();
+            resolveCurrentLock!();
         }
     }
 }
