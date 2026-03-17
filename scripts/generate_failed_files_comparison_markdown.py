@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-Generate a cross-model markdown comparison table from assertion analysis summaries.
+Generate cross-model comparison tables from assertion analysis summaries.
 
 Source metric:
     assertion_analysis_summary.json -> ratios.failed_files (x100 => %)
+
+python /LSPRAG/scripts/generate_failed_files_comparison_markdown.py \
+                                           --output /tmp/failed_files_comp.md \
+                                           --latex-output /tmp/failed_files_comp.tex \
+                                           --rate-summary-output /tmp/failed_files_rate_summary.md
 """
 
 from __future__ import annotations
@@ -18,9 +23,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 
 TARGET_FILE = "assertion_analysis_summary.json"
-DEFAULT_DEEPSEEK_DIR = Path("experiments/data/main_result/deepseek")
-DEFAULT_GPT_DIR = Path("experiments/data/main_result/gpt-5")
-DEFAULT_HAIKU_DIR = Path("experiments/data/main_result/haiku-data")
+DEFAULT_DEEPSEEK_DIR = Path("experiments/data/result/deepseek")
+DEFAULT_GPT_DIR = Path("experiments/data/result/gpt-5")
+DEFAULT_HAIKU_DIR = Path("experiments/data/result/haiku")
 DEFAULT_PROJECT_ORDER = ["black", "tornado", "thefuck", "youtube-dl", "sanic"]
 MODEL_ORDER = ["DS", "GPT", "HK"]
 
@@ -30,6 +35,15 @@ PROJECT_DISPLAY = {
     "thefuck": "TheFuck",
     "youtube-dl": "Youtube-dl",
     "sanic": "sanic",
+}
+
+LATEX_PROJECT_DISPLAY = {
+    "black": "black",
+    "tornado": "Tornado",
+    "thefuck": "TheFxxk",
+    "youtube-dl": "Youtube-dl",
+    "sanic": "sanic",
+    "dataclasses": "dataclasses",
 }
 
 ROW_ORDER: List[Tuple[str, str]] = [
@@ -53,6 +67,36 @@ BASELINE_BY_METHOD = {
     "lsprag_withcontext": "lsprag_original",
 }
 
+LATEX_ROW_ORDER: List[List[Tuple[str, str]]] = [
+    [
+        ("claudecode_original", r"\cc"),
+        ("claudecode_naive", r"+ \naive{}"),
+        ("claudecode_cfg_vars", r"\textbf{+ \tool{}}"),
+    ],
+    [
+        ("opencode_original", r"\opencode"),
+        ("opencode_naive", r"+ \naive{}"),
+        ("opencode_cfg_vars", r"\textbf{+ \tool{}}"),
+    ],
+    [
+        ("lsprag_original", r"\lsprag"),
+        ("lsprag_naive", r"+ \naive{}"),
+        ("lsprag_withcontext", r"\textbf{+ \tool{}}"),
+    ],
+]
+
+SUMMARY_METHOD_GROUPS: List[Tuple[str, str, str, str]] = [
+    ("claudecode_original", "claudecode_naive", "claudecode_cfg_vars", "claudecode"),
+    ("opencode_original", "opencode_naive", "opencode_cfg_vars", "opencode"),
+    ("lsprag_original", "lsprag_naive", "lsprag_withcontext", "lsprag"),
+]
+
+SUMMARY_METRICS: List[Tuple[str, str]] = [
+    ("baseline_vs_tool", "Baseline vs Tool"),
+    ("naive_vs_baseline", "Naive vs Baseline"),
+    ("tool_vs_naive", "Tool vs Naive"),
+]
+
 
 @dataclass
 class Cell:
@@ -64,7 +108,7 @@ class Cell:
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build markdown comparison table for failed-files ratios across "
+            "Build markdown/LaTeX comparison tables for failed-files ratios across "
             "DeepSeek/GPT/Haiku result roots."
         )
     )
@@ -105,6 +149,24 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--output",
         type=Path,
         help="Write markdown to this file. If omitted, print to stdout.",
+    )
+    parser.add_argument(
+        "--latex-output",
+        type=Path,
+        help="Write LaTeX table to this file.",
+    )
+    parser.add_argument(
+        "--rate-summary-output",
+        type=Path,
+        help=(
+            "Write averaged relative-gain summary markdown table to this file. "
+            "Includes overall / by-model / by-project rows."
+        ),
+    )
+    parser.add_argument(
+        "--print-rate-summary",
+        action="store_true",
+        help="Print averaged relative-gain summary markdown table to stdout.",
     )
     return parser.parse_args(argv)
 
@@ -327,13 +389,238 @@ def build_markdown(
     )
 
 
-def write_output(markdown: str, output_path: Optional[Path]) -> None:
+def latex_project_display_name(project: str) -> str:
+    return LATEX_PROJECT_DISPLAY.get(project.lower(), project)
+
+
+def compute_block_best_values(
+    projects: List[str],
+    cells: Dict[Tuple[str, str, str], Cell],
+) -> Dict[Tuple[int, str, str], float]:
+    block_column_mins: Dict[Tuple[int, str, str], float] = {}
+
+    for block_idx, block in enumerate(LATEX_ROW_ORDER):
+        for project in projects:
+            normalized_project = project.lower()
+            for model in MODEL_ORDER:
+                values: List[float] = []
+                for method_key, _ in block:
+                    cell = cells.get((method_key, normalized_project, model))
+                    if cell is not None:
+                        values.append(cell.percent)
+                if values:
+                    block_column_mins[(block_idx, normalized_project, model)] = min(values)
+    return block_column_mins
+
+
+def fmt_latex_cell(value: Optional[float], digits: int, best_value: Optional[float]) -> str:
+    text = fmt(value, digits)
+    if value is None or best_value is None:
+        return text
+    if abs(value - best_value) < 1e-12:
+        return rf"\textbf{{{text}}}"
+    return text
+
+
+def relative_gain_rate_percent(
+    baseline: Optional[float],
+    current: Optional[float],
+) -> Optional[float]:
+    if baseline is None or current is None:
+        return None
+    if baseline <= 0:
+        return None
+    return ((baseline - current) / baseline) * 100.0
+
+
+def fmt_latex_signed_percent(value: Optional[float], digits: int) -> str:
+    if value is None:
+        return "-"
+    sign = "+" if value >= 0 else "-"
+    return f"{sign}{abs(value):.{digits}f}\\%"
+
+
+def fmt_percent(value: Optional[float], digits: int) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.{digits}f}%"
+
+
+def collect_summary_records(
+    projects: List[str],
+    cells: Dict[Tuple[str, str, str], Cell],
+) -> List[Dict[str, object]]:
+    records: List[Dict[str, object]] = []
+    for baseline_method, naive_method, tool_method, method_group in SUMMARY_METHOD_GROUPS:
+        for project in projects:
+            for model in MODEL_ORDER:
+                baseline_cell = cells.get((baseline_method, project, model))
+                naive_cell = cells.get((naive_method, project, model))
+                tool_cell = cells.get((tool_method, project, model))
+                if baseline_cell is None or naive_cell is None or tool_cell is None:
+                    continue
+
+                baseline_value = baseline_cell.percent
+                naive_value = naive_cell.percent
+                tool_value = tool_cell.percent
+                records.append(
+                    {
+                        "method_group": method_group,
+                        "project": project,
+                        "model": model,
+                        "baseline_vs_tool": relative_gain_rate_percent(baseline_value, tool_value),
+                        "naive_vs_baseline": relative_gain_rate_percent(baseline_value, naive_value),
+                        "tool_vs_naive": relative_gain_rate_percent(naive_value, tool_value),
+                    }
+                )
+    return records
+
+
+def mean_metric(records: List[Dict[str, object]], metric_key: str) -> Optional[float]:
+    values: List[float] = []
+    for record in records:
+        value = record.get(metric_key)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, (int, float)):
+            values.append(float(value))
+    return arithmetic_mean(values)
+
+
+def render_rate_summary_markdown(
+    projects: List[str],
+    cells: Dict[Tuple[str, str, str], Cell],
+    digits: int,
+) -> str:
+    records = collect_summary_records(projects=projects, cells=cells)
+    header = ["Group", "N"] + [label for _, label in SUMMARY_METRICS]
+    lines = [
+        "> Relative improvement rates on `failed_files` (lower is better).",
+        "> `baseline_vs_tool=(baseline-tool)/baseline`, `naive_vs_baseline=(baseline-naive)/baseline`, `tool_vs_naive=(naive-tool)/naive`.",
+        "",
+        "| " + " | ".join(header) + " |",
+        "| --- | ---: | ---: | ---: | ---: |",
+    ]
+
+    def append_row(label: str, selected_records: List[Dict[str, object]]) -> None:
+        metric_values = [
+            fmt_percent(mean_metric(selected_records, metric_key), digits)
+            for metric_key, _ in SUMMARY_METRICS
+        ]
+        lines.append(
+            "| "
+            + " | ".join([label, str(len(selected_records))] + metric_values)
+            + " |"
+        )
+
+    append_row(f"Overall (N={len(records)})", records)
+    for model in MODEL_ORDER:
+        model_records = [record for record in records if record.get("model") == model]
+        append_row(model, model_records)
+    for project in projects:
+        project_records = [record for record in records if record.get("project") == project]
+        append_row(project, project_records)
+
+    return "\n".join(lines)
+
+
+def render_latex_table(
+    projects: List[str],
+    cells: Dict[Tuple[str, str, str], Cell],
+    digits: int,
+) -> str:
+    block_column_mins = compute_block_best_values(projects=projects, cells=cells)
+
+    tabular_spec = "l " + " ".join("ccc" for _ in projects)
+
+    header_line = r"\textbf{Method}"
+    for project in projects:
+        display = latex_project_display_name(project)
+        header_line += f"\n& \\multicolumn{{3}}{{c}}{{\\textbf{{{display}}}}}"
+    header_line += r" \\"
+
+    cmidrules: List[str] = []
+    start_col = 2
+    for _ in projects:
+        cmidrules.append(f"\\cmidrule(lr){{{start_col}-{start_col + 2}}}")
+        start_col += 3
+
+    model_header_parts: List[str] = []
+    for _ in projects:
+        model_header_parts.extend(
+            [
+                r"\textbf{\deepseek}",
+                r"\textbf{\gptfive}",
+                r"\textbf{\haiku}",
+            ]
+        )
+    model_header = "& " + " & ".join(model_header_parts) + r" \\"
+
+    row_lines: List[str] = []
+    for block_idx, block in enumerate(LATEX_ROW_ORDER):
+        for method_key, method_label in block:
+            values_for_row: List[str] = []
+            for project in projects:
+                normalized_project = project.lower()
+                for model in MODEL_ORDER:
+                    cell = cells.get((method_key, normalized_project, model))
+                    value = cell.percent if cell is not None else None
+                    best = block_column_mins.get((block_idx, normalized_project, model))
+                    values_for_row.append(fmt_latex_cell(value=value, digits=digits, best_value=best))
+            row_lines.append(f"{method_label}\n& " + " & ".join(values_for_row) + r" \\")
+
+        row_lines.append(r"\midrule")
+
+        baseline_method_key = block[0][0]
+        tool_method_key = block[-1][0]
+        gain_values: List[str] = []
+        for project in projects:
+            normalized_project = project.lower()
+            for model in MODEL_ORDER:
+                baseline_cell = cells.get((baseline_method_key, normalized_project, model))
+                tool_cell = cells.get((tool_method_key, normalized_project, model))
+                baseline_value = baseline_cell.percent if baseline_cell is not None else None
+                tool_value = tool_cell.percent if tool_cell is not None else None
+                gain = relative_gain_rate_percent(baseline=baseline_value, current=tool_value)
+                gain_values.append(fmt_latex_signed_percent(gain, digits))
+        row_lines.append(r"\textit{gain vs baseline}" + "\n& " + " & ".join(gain_values) + r" \\")
+
+        if block_idx < len(LATEX_ROW_ORDER) - 1:
+            row_lines.append(r"\midrule")
+
+    return "\n".join(
+        [
+            r"\begin{table*}[t]",
+            r"\centering",
+            r"\vspace{-.4em}",
+            r"\caption{False positive assertion failure ratio comparison. Lower is better, best values are \textbf{bold}.}",
+            r"\vspace{-.4em}",
+            r"\label{tab:main-result}",
+            r"\resizebox{\textwidth}{!}{",
+            rf"\begin{{tabular}}{{{tabular_spec}}}",
+            r"\toprule",
+            header_line,
+            "".join(cmidrules),
+            model_header,
+            r"\midrule",
+            *row_lines,
+            r"\bottomrule",
+            r"\end{tabular}",
+            r"}",
+            r"\vspace{-.6em}",
+            r"\end{table*}",
+        ]
+    )
+
+
+def write_output(content: str, output_path: Optional[Path], label: str, print_if_none: bool = False) -> None:
     if output_path is None:
-        print(markdown)
+        if print_if_none:
+            print(content)
         return
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(markdown + "\n", encoding="utf-8")
-    print(f"Wrote markdown: {output_path}", file=sys.stderr)
+    output_path.write_text(content + "\n", encoding="utf-8")
+    print(f"Wrote {label}: {output_path}", file=sys.stderr)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -352,7 +639,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         all_cells.update(model_cells)
 
     markdown = build_markdown(projects=projects, cells=all_cells, digits=args.digits)
-    write_output(markdown, args.output)
+    latex = render_latex_table(projects=projects, cells=all_cells, digits=args.digits)
+    rate_summary = render_rate_summary_markdown(
+        projects=projects,
+        cells=all_cells,
+        digits=args.digits,
+    )
+
+    write_output(markdown, args.output, "markdown", print_if_none=True)
+    write_output(latex, args.latex_output, "latex table", print_if_none=False)
+    write_output(rate_summary, args.rate_summary_output, "rate summary markdown", print_if_none=False)
+    if args.print_rate_summary:
+        print(rate_summary)
     return 0
 
 
