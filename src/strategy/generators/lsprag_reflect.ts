@@ -120,6 +120,21 @@ export function resolveTestFileNameFromTestFileMap(params: {
 		if (exact) {
 			return exact;
 		}
+		const candidatesWithTaskKey = candidateKeys.filter((key) => {
+			const entry = obj[key];
+			const entryTaskKey = normalizeTaskKey(entry?.task_key || entry?.taskKey);
+			return !!entryTaskKey;
+		});
+		// When task keys are available but none matches, fail closed instead of
+		// silently picking another overload/duplicate symbol.
+		if (candidatesWithTaskKey.length > 0) {
+			return null;
+		}
+		// Backward-compatibility for legacy maps without task_key/taskKey:
+		// allow fallback only when there is exactly one candidate.
+		if (candidateKeys.length !== 1) {
+			return null;
+		}
 	}
 
 	const firstUnused = candidateKeys.find((key) => !params.usedMappingKeys?.has(key));

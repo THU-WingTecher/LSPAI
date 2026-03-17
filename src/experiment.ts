@@ -172,7 +172,8 @@ export class ExperimentContinuityManager {
         relativeDocumentPath: string,
         lineNum?: number,
         location?: number,
-        error?: string
+        error?: string,
+        completed: boolean = true
     ): Promise<void> {
         // Acquire lock for atomic operation
         console.log(`#### markTaskComplete: ${symbolName} ${relativeDocumentPath}`);
@@ -200,11 +201,105 @@ export class ExperimentContinuityManager {
             }
 
             if (task) {
-                task.completed = true;
+                task.completed = completed;
                 task.timestamp = new Date().toISOString();
                 if (error) {
                     task.error = error;
                 }
+                await this.writeProgress(progress);
+            }
+        });
+    }
+
+    private normalizeTaskPath(pathValue: string): string {
+        return (pathValue || '').replace(/\\/g, '/').replace(/^\.\//, '');
+    }
+
+    private buildTaskKey(task: TaskProgress): string | null {
+        const relPath = this.normalizeTaskPath(task.relativeDocumentPath || '');
+        const symbolName = task.symbolName || '';
+        const location = Number(task.location);
+        if (!relPath || !symbolName || !Number.isFinite(location)) {
+            return null;
+        }
+        return `${relPath}::${symbolName}::${location + 1}`;
+    }
+
+    public async reconcileCompletedTasksWithArtifacts(
+        testFileMapPath: string,
+        finalDir: string
+    ): Promise<void> {
+        await this.acquireLock(async () => {
+            if (!fs.existsSync(testFileMapPath)) {
+                return;
+            }
+
+            let mapEntries: Record<string, any>;
+            try {
+                const raw = await fs.promises.readFile(testFileMapPath, 'utf8');
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                    return;
+                }
+                mapEntries = parsed as Record<string, any>;
+            } catch {
+                return;
+            }
+
+            const existingFinalFiles = new Set<string>();
+            if (fs.existsSync(finalDir)) {
+                for (const entry of fs.readdirSync(finalDir)) {
+                    const fullPath = path.join(finalDir, entry);
+                    try {
+                        if (fs.statSync(fullPath).isFile()) {
+                            existingFinalFiles.add(entry);
+                        }
+                    } catch {
+                        // ignore transient file-system errors during reconciliation
+                    }
+                }
+            }
+
+            const taskKeyToFiles = new Map<string, string[]>();
+            for (const [fileName, entry] of Object.entries(mapEntries)) {
+                if (!entry || typeof entry !== 'object') {
+                    continue;
+                }
+                const taskKeyRaw = (entry as any).task_key || (entry as any).taskKey;
+                if (typeof taskKeyRaw !== 'string' || !taskKeyRaw) {
+                    continue;
+                }
+                const taskKey = this.normalizeTaskPath(taskKeyRaw);
+                const list = taskKeyToFiles.get(taskKey) ?? [];
+                list.push(path.basename(fileName));
+                taskKeyToFiles.set(taskKey, list);
+            }
+
+            const progress = await this.readProgress();
+            let downgraded = 0;
+
+            for (const task of progress.tasks) {
+                if (!task.completed) {
+                    continue;
+                }
+                const taskKey = this.buildTaskKey(task);
+                if (!taskKey) {
+                    continue;
+                }
+                const mappedFiles = taskKeyToFiles.get(taskKey) ?? [];
+                const hasFinalArtifact = mappedFiles.some((f) => existingFinalFiles.has(path.basename(f)));
+                if (!hasFinalArtifact) {
+                    task.completed = false;
+                    task.error = '[reconcile] mapped final test file missing; task reset to uncompleted';
+                    downgraded += 1;
+                }
+            }
+
+            if (downgraded > 0) {
+                console.warn(
+                    `[RESUME] Reconciled ${downgraded} completed tasks without final artifacts. ` +
+                    `They were reset to uncompleted for retry.`
+                );
                 await this.writeProgress(progress);
             }
         });
@@ -418,6 +513,12 @@ export async function runGenerateTestCodeSuite(
     // Get symbol pairs and save task list
     const symbolFilePairsToTest = getSymbolFilePairsToTest(symbols, languageId);
     const continuityManager = new ExperimentContinuityManager(savePath, workspace);
+
+    if (!continuityManager.isFirstTimeExperiment()) {
+        const existingMapPath = path.join(savePath, 'test_file_map.json');
+        const existingFinalDir = path.join(savePath, 'final');
+        await continuityManager.reconcileCompletedTasksWithArtifacts(existingMapPath, existingFinalDir);
+    }
     
     // Decide output root ONCE for the whole run (critical for EXPERIMENTAL resume).
     // const normalizeCacheRoot = (dir: string): string => {
@@ -509,96 +610,285 @@ export async function runGenerateTestCodeSuite(
         return parsed as Record<string, any>;
     };
 
-    // Build/copy test-file mapping for analysis
+    // Build/repair test-file mapping for analysis
     const newtestFileMapPath = path.join(getConfigInstance().savePath, 'test_file_map.json');
+    const normalizeGeneratedFileName = (fileName: string): string =>
+        path
+            .basename(fileName)
+            .replace(/_\d+(?=(?:_test|Test)\.[^.]+$)/, '');
+    const buildSignatureKey = (entry: {
+        file_name?: string;
+        symbol_name?: string;
+        line_num?: number;
+    }): string | null => {
+        const rel = normalizeTaskPath(entry.file_name || '');
+        const sym = entry.symbol_name || '';
+        const line = Number(entry.line_num);
+        if (!rel || !sym || !Number.isFinite(line)) {
+            return null;
+        }
+        return `${rel}::${sym}::${line}`;
+    };
+    const collectExistingGeneratedFiles = (rootDir: string): string[] => {
+        const stages = ['final', 'initial'];
+        const collected: string[] = [];
+        for (const stage of stages) {
+            const stageDir = path.join(rootDir, stage);
+            if (!fs.existsSync(stageDir)) {
+                continue;
+            }
+            const files = fs
+                .readdirSync(stageDir)
+                .filter((name) => /(?:_test|Test)\.[^.]+$/.test(name))
+                .sort();
+            collected.push(...files);
+        }
+        return collected;
+    };
+
+    const mapSources: string[] = [];
     if (previousExperimentDir) {
         const resumeMapSourcePath = resumeTestFileMapPath || newtestFileMapPath;
-        if (!fs.existsSync(resumeMapSourcePath)) {
-            throw new Error(
+        if (fs.existsSync(resumeMapSourcePath)) {
+            mapSources.push(resumeMapSourcePath);
+        } else {
+            console.warn(
                 `[RESUME] Missing test_file_map for resumed run: ${resumeMapSourcePath}. ` +
-                'Provide resumeTestFileMapPath or ensure results/test_file_map.json exists.'
+                'Rebuilding mapping from task list and existing artifacts.'
             );
         }
-        const resumedEntries = await readMapFile(resumeMapSourcePath);
-        await fs.promises.writeFile(newtestFileMapPath, JSON.stringify(resumedEntries, null, 2), 'utf8');
-        console.log(
-            `#### Test file map copied from resume source (${Object.keys(resumedEntries).length} entries): ` +
-            `${resumeMapSourcePath} -> ${newtestFileMapPath}`
-        );
-    } else if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
+    }
+    if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
         if (!fs.existsSync(testFileMapPath)) {
             throw new Error(`[EXPERIMENTAL] Missing input test_file_map: ${testFileMapPath}`);
         }
-        const reuseEntries = await readMapFile(testFileMapPath);
-        await fs.promises.writeFile(newtestFileMapPath, JSON.stringify(reuseEntries, null, 2), 'utf8');
-        console.log(
-            `#### Test file map copied from reflection input (${Object.keys(reuseEntries).length} entries): ` +
-            `${testFileMapPath} -> ${newtestFileMapPath}`
-        );
-    } else {
-        const newEntries = Object.fromEntries(
-            symbolFilePairsToTest.map(({ document, symbol, fileName }) => [
-                path.basename(fileName),
-                {
-                    project_name: projectName,
-                    file_name: path.relative(workspace, document.uri.fsPath),
-                    symbol_name: symbol.name,
-                    line_num: symbol.range.start.line + 1,
-                    task_key: buildExperimentalTaskKey(symbol.name, document.uri.fsPath, symbol.range.start.line),
-                }
-            ])
-        );
-        let existingEntries: Record<string, any> = {};
+        mapSources.push(testFileMapPath);
+    }
+    if (fs.existsSync(newtestFileMapPath)) {
+        mapSources.push(newtestFileMapPath);
+    }
+    const uniqueMapSources = Array.from(new Set(mapSources));
+
+    const sourceEntriesInOrder: Array<[string, any]> = [];
+    for (const sourcePath of uniqueMapSources) {
         try {
-            const prev = await fs.promises.readFile(newtestFileMapPath, 'utf8');
-            existingEntries = JSON.parse(prev);
-        } catch {}
-        await fs.promises.writeFile(newtestFileMapPath, JSON.stringify({ ...existingEntries, ...newEntries }, null, 2), 'utf8');
-        console.log(`#### Test file map has been saved to ${newtestFileMapPath}`);
+            const entries = await readMapFile(sourcePath);
+            for (const [fileName, entry] of Object.entries(entries)) {
+                sourceEntriesInOrder.push([path.basename(fileName), entry]);
+            }
+        } catch (error) {
+            console.warn(`[MAP] Failed to read mapping source ${sourcePath}:`, error);
+        }
     }
 
+    const filesByTaskKey = new Map<string, string[]>();
+    const filesBySignature = new Map<string, string[]>();
+    for (const [fileName, entry] of sourceEntriesInOrder) {
+        if (!entry || typeof entry !== 'object') {
+            continue;
+        }
+        const taskKeyRaw = (entry as any).task_key || (entry as any).taskKey;
+        if (typeof taskKeyRaw === 'string' && taskKeyRaw) {
+            const taskKey = normalizeTaskPath(taskKeyRaw);
+            const list = filesByTaskKey.get(taskKey) ?? [];
+            if (!list.includes(fileName)) {
+                list.push(fileName);
+            }
+            filesByTaskKey.set(taskKey, list);
+        }
+        const signature = buildSignatureKey(entry as any);
+        if (signature) {
+            const list = filesBySignature.get(signature) ?? [];
+            if (!list.includes(fileName)) {
+                list.push(fileName);
+            }
+            filesBySignature.set(signature, list);
+        }
+    }
+
+    const availableFilesByNormalizedName = new Map<string, string[]>();
+    const existingOutputFiles = collectExistingGeneratedFiles(getConfigInstance().savePath);
+    for (const fileName of existingOutputFiles) {
+        const normalized = normalizeGeneratedFileName(fileName);
+        const list = availableFilesByNormalizedName.get(normalized) ?? [];
+        if (!list.includes(fileName)) {
+            list.push(fileName);
+        }
+        availableFilesByNormalizedName.set(normalized, list);
+    }
+
+    const pickFirstUnused = (candidates: string[], used: Set<string>): string | null => {
+        for (const candidate of candidates) {
+            const base = path.basename(candidate);
+            if (!base || used.has(base)) {
+                continue;
+            }
+            return base;
+        }
+        return null;
+    };
+
+    const rebuiltEntries: Record<string, any> = {};
+    const usedOutputFileNames = new Set<string>();
+    for (const { document, symbol, fileName } of symbolFilePairsToTest) {
+        const relativeFilePath = normalizeTaskPath(path.relative(workspace, document.uri.fsPath));
+        const oneBasedLine = symbol.range.start.line + 1;
+        const taskKey = buildExperimentalTaskKey(symbol.name, document.uri.fsPath, symbol.range.start.line);
+        const signature = `${relativeFilePath}::${symbol.name}::${oneBasedLine}`;
+        const defaultFileName = path.basename(fileName);
+        const normalizedDefault = normalizeGeneratedFileName(defaultFileName);
+
+        const candidates: string[] = [];
+        candidates.push(...(filesByTaskKey.get(taskKey) ?? []));
+        candidates.push(...(filesBySignature.get(signature) ?? []));
+        candidates.push(...(availableFilesByNormalizedName.get(normalizedDefault) ?? []));
+        candidates.push(defaultFileName);
+
+        let chosenFileName = pickFirstUnused(candidates, usedOutputFileNames);
+        if (!chosenFileName) {
+            const ext = path.extname(defaultFileName);
+            const stem = defaultFileName.slice(0, defaultFileName.length - ext.length);
+            let suffix = 1;
+            do {
+                chosenFileName = `${stem}_r${suffix}${ext}`;
+                suffix += 1;
+            } while (usedOutputFileNames.has(chosenFileName));
+        }
+
+        usedOutputFileNames.add(chosenFileName);
+        rebuiltEntries[chosenFileName] = {
+            project_name: projectName,
+            file_name: relativeFilePath,
+            symbol_name: symbol.name,
+            line_num: oneBasedLine,
+            task_key: taskKey,
+        };
+    }
+
+    await fs.promises.writeFile(newtestFileMapPath, JSON.stringify(rebuiltEntries, null, 2), 'utf8');
+    console.log(
+        `[MAP] Rebuilt test_file_map with ${Object.keys(rebuiltEntries).length} entries ` +
+        `(sources: ${uniqueMapSources.length}, existing output files: ${existingOutputFiles.length}) -> ${newtestFileMapPath}`
+    );
+
+    const mappedFileNames = new Set(Object.keys(rebuiltEntries).map((name) => path.basename(name)));
+    const quarantineRoot = path.join(getConfigInstance().savePath, 'orphaned_unmapped');
+    const quarantineUnmappedGeneratedFiles = async (): Promise<void> => {
+        const stages = ['final', 'initial'];
+        for (const stage of stages) {
+            const stageDir = path.join(getConfigInstance().savePath, stage);
+            if (!fs.existsSync(stageDir)) {
+                continue;
+            }
+            const stageEntries = fs
+                .readdirSync(stageDir)
+                .filter((name) => /(?:_test|Test)\.[^.]+$/.test(name));
+            let moved = 0;
+            for (const entry of stageEntries) {
+                if (mappedFileNames.has(entry)) {
+                    continue;
+                }
+                const sourcePath = path.join(stageDir, entry);
+                try {
+                    if (!fs.statSync(sourcePath).isFile()) {
+                        continue;
+                    }
+                } catch {
+                    continue;
+                }
+
+                const targetDir = path.join(quarantineRoot, stage);
+                await fs.promises.mkdir(targetDir, { recursive: true });
+                const targetPath = path.join(targetDir, entry);
+                try {
+                    await fs.promises.rename(sourcePath, targetPath);
+                } catch {
+                    // cross-device fallback
+                    await fs.promises.copyFile(sourcePath, targetPath);
+                    await fs.promises.unlink(sourcePath);
+                }
+                moved += 1;
+            }
+
+            if (moved > 0) {
+                console.log(
+                    `[MAP] Quarantined ${moved} unmapped generated files from ${stageDir} ` +
+                    `to ${path.join(quarantineRoot, stage)}`
+                );
+            }
+        }
+    };
+    await quarantineUnmappedGeneratedFiles();
+
     const limit = createConcurrencyLimit();
-    const validatedExperimentalMappings = new Map<string, string>();
-    const usedMappingKeys = new Set<string>();
+    const validatedExperimentalOutputMappings = new Map<string, string>();
+    const validatedExperimentalReuseMappings = new Map<string, string>();
+    const usedOutputMappingKeys = new Set<string>();
+    const usedReuseMappingKeys = new Set<string>();
 
     if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
-        const missingMappings: string[] = [];
+        const outputMappingPath = newtestFileMapPath;
+        const reuseMappingPath = testFileMapPath;
+        const missingOutputMappings: string[] = [];
         for (const { document, symbol } of symbolPairsToProcess) {
             const taskKey = buildExperimentalTaskKey(
                 symbol.name,
                 document.uri.fsPath,
                 symbol.range.start.line
             );
-            const mapped = resolveTestFileNameFromTestFileMap({
+            const mappedOutput = resolveTestFileNameFromTestFileMap({
                 dirForReuse,
                 symbolName: symbol.name,
                 sourceFile: document.uri.fsPath,
-                testFileMapPath,
+                testFileMapPath: outputMappingPath,
                 taskKey,
-                usedMappingKeys
+                usedMappingKeys: usedOutputMappingKeys
             });
-            if (!mapped) {
-                missingMappings.push(`${symbol.name} (${document.uri.fsPath}:${symbol.range.start.line + 1})`);
+            if (!mappedOutput) {
+                missingOutputMappings.push(`${symbol.name} (${document.uri.fsPath}:${symbol.range.start.line + 1})`);
                 continue;
             }
-            usedMappingKeys.add(mapped);
-            validatedExperimentalMappings.set(
+            usedOutputMappingKeys.add(mappedOutput);
+            validatedExperimentalOutputMappings.set(
                 taskKey,
-                mapped
+                mappedOutput
             );
+
+            // Optional second-pass mapping for loading cached drafts from dirForReuse.
+            // This can differ from output mapping during resume runs.
+            const mappedReuse = resolveTestFileNameFromTestFileMap({
+                dirForReuse,
+                symbolName: symbol.name,
+                sourceFile: document.uri.fsPath,
+                testFileMapPath: reuseMappingPath,
+                taskKey,
+                usedMappingKeys: usedReuseMappingKeys
+            });
+            if (mappedReuse) {
+                usedReuseMappingKeys.add(mappedReuse);
+                validatedExperimentalReuseMappings.set(taskKey, mappedReuse);
+            }
         }
 
-        if (missingMappings.length > 0) {
-            const preview = missingMappings.slice(0, 20).join('\n- ');
+        if (missingOutputMappings.length > 0) {
+            const preview = missingOutputMappings.slice(0, 20).join('\n- ');
             throw new Error(
-                `[EXPERIMENTAL] Missing test_file_map mappings for ${missingMappings.length}/${symbolPairsToProcess.length} tasks. ` +
+                `[EXPERIMENTAL] Missing output test_file_map mappings for ` +
+                `${missingOutputMappings.length}/${symbolPairsToProcess.length} tasks. ` +
                 `Please ensure all test files are mapped before running reflection.\n- ${preview}`
             );
         }
 
         console.log(
-            `[EXPERIMENTAL] Verified mapping for all ${validatedExperimentalMappings.size} tasks using ${testFileMapPath}`
+            `[EXPERIMENTAL] Verified output mapping for all ` +
+            `${validatedExperimentalOutputMappings.size} tasks using ${outputMappingPath}`
         );
+        if (reuseMappingPath !== outputMappingPath) {
+            console.log(
+                `[EXPERIMENTAL] Reuse mapping source: ${reuseMappingPath} ` +
+                `(resolved ${validatedExperimentalReuseMappings.size}/${symbolPairsToProcess.length} tasks)`
+            );
+        }
     }
 
     // Generate test promises with progress tracking
@@ -616,11 +906,25 @@ export async function runGenerateTestCodeSuite(
                         document.uri.fsPath,
                         symbol.range.start.line
                     );
-                    const mapped = validatedExperimentalMappings.get(taskKey);
-                    if (mapped) {
-                        // Use the cached randomized basename for the new run too (stable naming).
-                        resolvedFileName = path.join(path.dirname(fileName), mapped);
-                        const cachedPath = resolveCachedDraftTestPath(dirForReuse, mapped);
+                    const mappedOutput = validatedExperimentalOutputMappings.get(taskKey);
+                    if (mappedOutput) {
+                        // Keep output filename stable with the active output map (resume-aware).
+                        resolvedFileName = path.join(path.dirname(fileName), mappedOutput);
+
+                        const cacheCandidates = [mappedOutput];
+                        const mappedReuse = validatedExperimentalReuseMappings.get(taskKey);
+                        if (mappedReuse && mappedReuse !== mappedOutput) {
+                            cacheCandidates.push(mappedReuse);
+                        }
+
+                        let cachedPath: string | null = null;
+                        for (const candidate of cacheCandidates) {
+                            cachedPath = resolveCachedDraftTestPath(dirForReuse, candidate);
+                            if (cachedPath) {
+                                break;
+                            }
+                        }
+
                         if (cachedPath) {
                             try {
                                 cachedDraftTestCode = fs.readFileSync(cachedPath, 'utf8');
@@ -629,7 +933,10 @@ export async function runGenerateTestCodeSuite(
                                 console.warn('[EXPERIMENTAL] Failed to read cached draft test (continuing):', e);
                             }
                         } else {
-                            console.warn(`[EXPERIMENTAL] No cached draft test found under dirForReuse: ${dirForReuse} for ${mapped}`);
+                            console.warn(
+                                `[EXPERIMENTAL] No cached draft test found under dirForReuse: ${dirForReuse} ` +
+                                `for candidates: ${cacheCandidates.join(', ')}`
+                            );
                         }
                     } else {
                         throw new Error(
@@ -662,6 +969,14 @@ export async function runGenerateTestCodeSuite(
                     console.log(`#### Test Code: ${result}`);
                     return result;
                 } else {
+                    await continuityManager.markTaskComplete(
+                        symbol.name,
+                        path.relative(workspace, document.uri.fsPath),
+                        symbol.range.start.line + 1,
+                        symbol.range.start.line,
+                        'Generated empty test code.',
+                        false
+                    );
                     console.log(`#### Test Code: ${result}`);
                     return result;
                 }
@@ -672,7 +987,8 @@ export async function runGenerateTestCodeSuite(
                     path.relative(workspace, document.uri.fsPath),
                     symbol.range.start.line + 1,
                     symbol.range.start.line,
-                    error instanceof Error ? error.message : String(error)
+                    error instanceof Error ? error.message : String(error),
+                    false
                 );
                 throw error;
             }
