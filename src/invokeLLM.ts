@@ -21,6 +21,41 @@ try {
 export const TOKENTHRESHOLD = 3000; // Define your token threshold here
 
 export const BASELINE = "naive";
+const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
+
+function envFlagEnabled(value: string | undefined): boolean {
+	return TRUE_VALUES.has((value || '').trim().toLowerCase());
+}
+
+export function isSkipLLMRequested(): boolean {
+	return envFlagEnabled(process.env.LSPRAG_SKIP_LLM) || envFlagEnabled(process.env.TEST_SKIP_LLM);
+}
+
+function getDraftCodeFromPrompt(userPrompt: string): string {
+	const markers = [
+		'### Draft test code with test prefix path coverage requirements',
+		'### Draft test code'
+	];
+	for (const marker of markers) {
+		const markerIndex = userPrompt.indexOf(marker);
+		if (markerIndex < 0) {
+			continue;
+		}
+		const region = userPrompt.slice(markerIndex + marker.length);
+		const match = region.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/);
+		if (match?.[1]) {
+			return match[1].trim();
+		}
+	}
+	return '';
+}
+
+export function isSkipLLMModeEnabled(): boolean {
+	if (!isSkipLLMRequested()) {
+		return false;
+	}
+	return (process.env.TEST_TYPE || '').trim().toLowerCase() === 'config';
+}
 
 export class TokenLimitExceededError extends Error {
 	constructor(message: string) {
@@ -121,6 +156,29 @@ function showErrorMessage(message: string): void {
 	console.error(message);
 }
 
+function logLLMInteraction(prompt: string, response: string): void {
+	try {
+		const logSavePath = getConfigInstance().logSavePath;
+		if (!logSavePath) {
+			return;
+		}
+
+		if (!fs.existsSync(logSavePath)) {
+			fs.mkdirSync(logSavePath, { recursive: true });
+		}
+
+		const logFilePath = path.join(logSavePath, 'llm_logs.jsonl');
+		const logData = {
+			prompt,
+			response,
+			timestamp: new Date().toISOString()
+		};
+		fs.appendFileSync(logFilePath, JSON.stringify(logData) + '\n', 'utf8');
+	} catch (error) {
+		console.error('Failed to log LLM interaction:', error);
+	}
+}
+
 export async function callLocalLLM(promptObj: any, logObj: any): Promise<string> {
 	// const modelName = getModelName(method);
 	const modelName = getModelName();
@@ -153,14 +211,12 @@ export async function callLocalLLM(promptObj: any, logObj: any): Promise<string>
   }
 
 // ... existing code ...
-export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, retryDelay = 2000): Promise<string> {
-	const error = getModelConfigError();
-	if (error) {
-		showErrorMessage(error);
-		console.error('invokeLLM::error', error);
-		return "";
-	}
-
+export async function invokeLLM(
+	promptObj: any,
+	logObj: any = { prompt: '', result: '', tokenUsage: 0, model: '' },
+	maxRetries = 2,
+	retryDelay = 2000
+): Promise<string> {
 	// Validate promptObj structure
 	if (!Array.isArray(promptObj) || promptObj.length < 2) {
 		const errorMsg = 'Invalid promptObj: must be an array with at least 2 elements';
@@ -176,14 +232,23 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 		return "";
 	}
 
-	// console.log('invokeLLM::promptObj', promptObj);
-	console.log('invokeLLM::promptObj_system', promptObj[0].content);
-	console.log('invokeLLM::promptObj_user', promptObj[1].content);
-	const messageTokens = promptObj[1].content.split(/\s+/).length;
-	// console.log("Invoking . . .");
-	// if (messageTokens > TOKENTHRESHOLD) {
-	// 	throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
-	// }
+	if (isSkipLLMModeEnabled()) {
+		const userPrompt = promptObj[1]?.content || '';
+		const draft = getDraftCodeFromPrompt(userPrompt);
+		const syntheticResponse = draft ? `\`\`\`\n${draft}\n\`\`\`` : '```python\npass\n```';
+		logObj.prompt = userPrompt;
+		logObj.result = syntheticResponse;
+		logObj.tokenUsage = '0';
+		logLLMInteraction(userPrompt, syntheticResponse);
+		return syntheticResponse;
+	}
+
+	const error = getModelConfigError();
+	if (error) {
+		showErrorMessage(error);
+		console.error('invokeLLM::error', error);
+		return "";
+	}
 
 	const provider = getConfigInstance().provider;
 	
@@ -206,27 +271,19 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 					throw new Error("Unsupported provider!");
 			}
 			
-			// Log the prompt and response
-			if (fs.existsSync(getConfigInstance().logSavePath) && promptObj[1]?.content) {
-				const logData = {
-					prompt: promptObj[1].content,
-					response: response,
-					timestamp: new Date().toISOString()
-				};
-				const logFilePath = path.join(getConfigInstance().logSavePath, 'llm_logs.json');
-				fs.appendFileSync(logFilePath, JSON.stringify(logData) + '\n');
+			if (promptObj[1]?.content) {
+				logLLMInteraction(promptObj[1].content, response);
 			}
 
 			return response;
 		} catch (error) {
 			lastError = error as Error;
-			console.log(`Attempt ${attempt}/${maxRetries} failed: ${error}`);
+			console.log(`Attempt ${attempt}/${maxRetries} failed: ${lastError.message}`);
 			
 			if (attempt < maxRetries) {
 				// Add exponential backoff with jitter for more robust retrying
 				const jitter = Math.random() * 1000;
 				const delay = retryDelay * Math.pow(2, attempt - 1) + jitter;
-				console.log(`Retrying in ${Math.round(delay / 1000)} seconds...`);
 				await new Promise(resolve => setTimeout(resolve, delay));
 			}
 		}
@@ -265,13 +322,10 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 			model: modelName,
 			messages: promptObj
 		});
-		console.log('invokeLLM::callDeepSeek::response', JSON.stringify(response, null, 2));
 		const result = extractMessageContent(response, 'DeepSeek');
 		const tokenUsage = response.usage?.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result + "<think>" + ((response.choices?.[0]?.message as any)?.reasoning_content || '');
-		// console.log('Generated test code:', result);
-		// console.log('Token usage:', tokenUsage);
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);
@@ -280,18 +334,13 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 }
 
 export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
-	// console.log('invokeLLM::callOpenAi::proxyUrl', getConfigInstance().logAllConfig());
 	const proxy = getConfigInstance().proxyUrl || process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
 	const apiKey = getConfigInstance().openaiApiKey || process.env.OPENAI_API_KEY;
-	console.log('invokeLLM::callOpenAi::proxy', proxy);
-	// console.log('invokeLLM::callOpenAi::apiKey', apiKey);
 	if (!apiKey) {
 		throw new Error('OpenAI API key not configured. Please set it in VS Code settings.');
 	}
 	
-	// const modelName = getModelName(method);
 	const modelName = getModelName();
-	console.log('invokeLLM::callOpenAi::modelName', modelName);
 	if (proxy) {
 		process.env.http_proxy = proxy;
 		process.env.https_proxy = proxy;
@@ -316,8 +365,6 @@ export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
 		const tokenUsage = response.usage?.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
-		console.log('Generated test code:', result);
-		console.log('Token usage:', tokenUsage);
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);
