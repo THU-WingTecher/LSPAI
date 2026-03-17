@@ -252,8 +252,7 @@ export class OpencodeManager {
             // Send prompt
             requestPayload.model = { providerID, modelID };
             requestPayload.parts = [{ type: "text", text: finalPrompt }];
-
-            promptResponse = await client.session.prompt({
+            const promptRequest: any = {
                 path: { 
                     id: sessionId
                 },
@@ -262,7 +261,8 @@ export class OpencodeManager {
                     model: requestPayload.model,
                     parts: requestPayload.parts
                 }
-            });
+            };
+            promptResponse = await client.session.prompt(promptRequest);
             console.log('response', promptResponse);
             const promptStatus = (promptResponse as any)?.response?.status;
             const promptStatusText = (promptResponse as any)?.response?.statusText;
@@ -374,6 +374,10 @@ export class OpencodeManager {
             const durationMs = endTime.getTime() - startTime.getTime();
             
             const errorMsg = error.message || String(error);
+            console.log(
+                `[opencode][prompt-failed] name=${fileName} session=${this.sessionId} ` +
+                `provider=${this.provider} model=${this.model} durationMs=${durationMs} error=${errorMsg}`
+            );
             console.error(`✗ OpenCode error: ${errorMsg}`);
             
             // Provide detailed error information

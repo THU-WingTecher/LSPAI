@@ -20,10 +20,15 @@ export async function runWithRetries(
             return enriched;
         }
 
+        const failureReason = result.error ? ` error="${result.error}"` : '';
+        console.log(`[retry] ${taskLabel} failed attempt ${attempt}/${maxAttempts}.${failureReason}`);
+
         if (attempt < maxAttempts) {
             console.warn(`Retrying ${taskLabel} (attempt ${attempt + 1}/${maxAttempts})`);
+            console.log(`[retry] Retrying ${taskLabel} (attempt ${attempt + 1}/${maxAttempts})`);
         }
     }
 
+    console.log(`[retry] ${taskLabel} exhausted retries (${maxAttempts} attempts).`);
     return lastResult as TestResult;
 }
