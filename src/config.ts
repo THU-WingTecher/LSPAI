@@ -36,6 +36,7 @@ export enum GenerationType {
     ORIGINAL = 'original', // with context, naive context, only template
     LSPRAG = 'lsprag',
     AGENT = 'agent',
+    CFG_FALLBACK = 'cfg_fallback',
     EXPERIMENTAL = 'experimental',
     FASTEST = 'fastest',
     BEST = 'best',

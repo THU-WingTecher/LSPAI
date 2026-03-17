@@ -276,6 +276,28 @@ async function cfgGetContextTermsFromTokens(
 function removeFocalMethodFromContextTerms(contextTerms: ContextTerm[], focalMethodName: string): ContextTerm[] {
     return contextTerms.filter(term => term.name !== focalMethodName);
 }
+
+export async function getContextTermsFromAllTokens(
+    symbol: vscode.DocumentSymbol,
+    tokens: DecodedToken[]
+): Promise<ContextTerm[]> {
+    const needContextTerms = await Promise.all(tokens.map(async token => ({
+        name: token.word,
+        need_definition: !needSkip(token) && await cfgBasedIsDefinitionHelpful(token),
+        need_example: !needSkip(token) && cfgBasedIsReferenceHelpful(token),
+        need_full_definition: isFunctionArg(token),
+        context: "",
+        example: "",
+        token: token,
+    })));
+
+    const filteredTerms = needContextTerms.filter(term => term.need_definition === true || term.need_example === true);
+    let uniqueTokens = removeRedundantTokens(filteredTerms);
+    uniqueTokens = removeFocalMethodFromContextTerms(uniqueTokens, symbol.name);
+    console.log("needContextTerms (fallback) :", uniqueTokens.map(term => [term.name, term.need_definition, term.need_example]));
+    return uniqueTokens;
+}
+
 // 4. Main exported functions delegate to the selected algorithm
 export async function getContextTermsFromTokens(
     document: vscode.TextDocument, 

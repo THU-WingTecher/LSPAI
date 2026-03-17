@@ -2,7 +2,6 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { getAllSymbols, getSymbolFromDocument } from '../../../lsp/symbol';
-import { getContextSelectorInstance } from '../../../agents/contextSelector';
 import { getConfigInstance, Provider, GenerationType, PromptType } from '../../../config';
 import { activate, setPythonExtraPaths } from '../../../lsp/helper';
 import { setWorkspaceFolders } from '../../../helper';
@@ -106,4 +105,3 @@ suite('LSP-Features: Token Finding Test', () => {
     });
     
 });
-
