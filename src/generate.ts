@@ -241,6 +241,9 @@ export async function generateUnitTestForAFunction(
 			for (let attempt = 1; attempt <= maxParseAttempts; attempt++) {
 				try {
 					testCode = await generator.generateTest();
+					if (!testCode || !testCode.trim()) {
+						throw new Error('Generated test code is empty.');
+					}
 					break;
 				} catch (error) {
 					if (!isParseRelatedError(error) || attempt === maxParseAttempts) {
@@ -258,7 +261,10 @@ export async function generateUnitTestForAFunction(
 				languageId
 			);
 
-            const { finalCode, diagnosticReport } = await generator.fixTest(testCode);
+			const { finalCode, diagnosticReport } = await generator.fixTest(testCode);
+			if (!finalCode || !finalCode.trim()) {
+				throw new Error('Final test code is empty.');
+			}
             
             if (!await reportProgressWithCancellation(progress, token, "Finalizing test code...", 10)) {
                 return '';
@@ -282,8 +288,12 @@ export async function generateUnitTestForAFunction(
 
         } catch (error) {
             console.error('Failed to generate unit test:', error);
-            vscode.window.showErrorMessage('Failed to generate unit test!');
-            return '';
+			const errorMessage = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`Failed to generate unit test: ${errorMessage}`);
+			if (inExperiment) {
+				throw (error instanceof Error ? error : new Error(errorMessage));
+			}
+			return '';
         }
     });
 }

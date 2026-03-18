@@ -87,6 +87,7 @@ export async function generateTest(
         );
 
         if (!code) {
+            console.log(`#### Failed extracting code for ${task.symbolName}: ${warnings.join(' | ') || 'empty response content'}`);
             return {
                 taskName: task.symbolName,
                 taskKey,
@@ -115,6 +116,7 @@ export async function generateTest(
 
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
+        console.log(`#### Error generating test for ${task.symbolName}: ${errorMsg}`);
         console.error(`#### Error generating test for ${task.symbolName}:`, errorMsg);
 
         return {

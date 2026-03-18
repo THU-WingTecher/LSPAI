@@ -123,6 +123,91 @@ function collectParseCodeMatches(response: string): RegExpMatchArray[] {
     return Array.from(response.matchAll(regex));
 }
 
+function collectTildeParseCodeMatches(response: string): RegExpMatchArray[] {
+    const regex = /~~~(?:\w+)?\s*([\s\S]*?)\s*~~~/g;
+    return Array.from(response.matchAll(regex));
+}
+
+function isLikelyCodeLine(line: string): boolean {
+    const trimmed = line.trim();
+    if (!trimmed) {
+        return false;
+    }
+
+    const startsWithCodeKeyword = /^(from|import|def|class|if|elif|else|for|while|try|except|finally|with|return|assert|raise|function|const|let|var|interface|type|enum|export|public|private|protected|static|final|package|func|describe|it|test)\b/.test(trimmed);
+    if (startsWithCodeKeyword || /^@\w+/.test(trimmed)) {
+        return true;
+    }
+
+    if (/[{}();]/.test(trimmed)) {
+        return true;
+    }
+
+    // Accept assignment-like lines but avoid prose headers like "Result:"
+    if (trimmed.includes('=') && !/^[A-Za-z0-9_\s-]+:\s*$/.test(trimmed)) {
+        return true;
+    }
+
+    return false;
+}
+
+function looksLikeRawCode(response: string): boolean {
+    const normalized = response.trim();
+    if (!normalized) {
+        return false;
+    }
+
+    const lines = normalized.split('\n').filter(line => line.trim().length > 0);
+    if (lines.length === 0) {
+        return false;
+    }
+
+    const likelyCodeLineCount = lines.filter(isLikelyCodeLine).length;
+    if (likelyCodeLineCount >= 2) {
+        return true;
+    }
+
+    const punctuationCount = (normalized.match(/[{}();]/g) || []).length;
+    const hasIndentation = lines.some(line => /^\s{2,}\S/.test(line));
+    if (likelyCodeLineCount >= 1 && (punctuationCount >= 2 || hasIndentation || lines.length >= 5)) {
+        return true;
+    }
+
+    return false;
+}
+
+function removeLeadingNarrative(response: string): string {
+    const lines = response.split('\n');
+    const firstCodeLineIdx = lines.findIndex(isLikelyCodeLine);
+    if (firstCodeLineIdx > 0 && firstCodeLineIdx <= 8) {
+        return lines.slice(firstCodeLineIdx).join('\n').trim();
+    }
+    return response.trim();
+}
+
+function bestEffortExtractCode(response: string): string | null {
+    const normalized = response.replace(/\r\n/g, '\n').trim();
+    if (!normalized) {
+        return null;
+    }
+
+    const tildeMatches = collectTildeParseCodeMatches(normalized);
+    if (tildeMatches.length > 0) {
+        return tildeMatches[tildeMatches.length - 1][1].trim();
+    }
+
+    const trimmedNarrative = removeLeadingNarrative(normalized);
+    if (looksLikeRawCode(trimmedNarrative)) {
+        return trimmedNarrative;
+    }
+
+    if (looksLikeRawCode(normalized)) {
+        return normalized;
+    }
+
+    return null;
+}
+
 export class ParseCodeRuleMismatchError extends Error {
     constructor() {
         super('LLM output does not match parseCode rule: missing triple-backtick code block.');
@@ -136,6 +221,12 @@ export function parseCode(response: string): string {
     // If a match is found, return the extracted code
     if (matches.length > 0) {
         return matches[matches.length - 1][1].trim();
+    }
+
+    const fallback = bestEffortExtractCode(response);
+    if (fallback) {
+        console.warn('[parseCode] Missing triple-backtick code block; accepted best-effort raw code response.');
+        return fallback;
     }
 
     throw new ParseCodeRuleMismatchError();

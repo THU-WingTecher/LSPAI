@@ -242,7 +242,7 @@ function printUsage() {
     console.log('  --output-name <name>     Output directory name under default path (alias: --experiment-name)');
     console.log('  --parallel <bool>        Use parallel execution (default: true)');
     console.log('  --concurrency <num>      Concurrency level (default: 4, aliases: --parallelCount, --parallel-count)');
-    console.log('  --max-retries <num>      Retry failed tasks up to N times (default: 0)');
+    console.log('  --max-retries <num>      Retry failed tasks up to N times (default: 5)');
     console.log('  --continuous <bool>      Rerun only failed tasks from existing experiment_summary.json (requires --output-dir)');
     console.log('  --focus <name|key>       Focus on a specific taskName or taskKey (comma-separated)');
     console.log('  --prompt-template <mode> Prompt template: cfg or default (default: cfg for claudecode/opencode, default for baseline)');

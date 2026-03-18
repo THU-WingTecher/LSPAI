@@ -2,49 +2,58 @@ import * as vscode from "vscode";
 import { OpenAI } from "openai";
 import { HttpsProxyAgent } from "https-proxy-agent/dist";
 import { Ollama } from 'ollama';
-import { Configuration, getConfigInstance } from "./config";
+import { getConfigInstance } from "./config";
 import * as fs from 'fs';
 import * as path from 'path';
 
-export const TOKENTHRESHOLD = 3000; // Define your token threshold here
-
+export const TOKENTHRESHOLD = 3000;
 export const BASELINE = "naive";
 
 const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const DEFAULT_CLAUDE_MAX_TOKENS = 12000;
 
+type LLMFailureContext = {
+	provider?: string;
+	stage?: string;
+	attempt?: number;
+	maxAttempts?: number;
+	retryable?: boolean;
+};
+
 function envFlagEnabled(value: string | undefined): boolean {
 	return TRUE_VALUES.has((value || '').trim().toLowerCase());
+}
+
+function normalizeToken(rawValue: string | undefined): string | undefined {
+	const value = rawValue?.trim();
+	if (!value) {
+		return undefined;
+	}
+	return value.endsWith(',') ? value.slice(0, -1).trim() : value;
+}
+
+function parsePositiveInteger(rawValue: string | undefined): number | undefined {
+	if (!rawValue) {
+		return undefined;
+	}
+	const parsed = Number.parseInt(rawValue.trim(), 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseNonNegativeInteger(rawValue: string | undefined): number | undefined {
+	if (!rawValue) {
+		return undefined;
+	}
+	const parsed = Number.parseInt(rawValue.trim(), 10);
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 export function isSkipLLMRequested(): boolean {
 	return envFlagEnabled(process.env.LSPRAG_SKIP_LLM) || envFlagEnabled(process.env.TEST_SKIP_LLM);
 }
 
-function getDraftCodeFromPrompt(userPrompt: string): string {
-	const markers = [
-		'### Draft test code with test prefix path coverage requirements',
-		'### Draft test code'
-	];
-	for (const marker of markers) {
-		const markerIndex = userPrompt.indexOf(marker);
-		if (markerIndex < 0) {
-			continue;
-		}
-		const region = userPrompt.slice(markerIndex + marker.length);
-		const match = region.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/);
-		if (match?.[1]) {
-			return match[1].trim();
-		}
-	}
-	return '';
-}
-
 export function isSkipLLMModeEnabled(): boolean {
-	if (!isSkipLLMRequested()) {
-		return false;
-	}
-	return (process.env.TEST_TYPE || '').trim().toLowerCase() === 'config';
+	return isSkipLLMRequested() && (process.env.TEST_TYPE || '').trim().toLowerCase() === 'config';
 }
 
 export class TokenLimitExceededError extends Error {
@@ -54,25 +63,38 @@ export class TokenLimitExceededError extends Error {
 	}
 }
 
-// const OPENAIMODELNAME = "gpt";
-// const OPENAIMODELNAME2 = "o1";
-// const OPENAIMODELNAME3 = "o3";
-// export function isOpenAi(method: string): boolean {
-// 	return method.includes(OPENAIMODELNAME) || method.includes(OPENAIMODELNAME2) || method.includes(OPENAIMODELNAME3);
-// }
-
-// const LLAMAMODELNAME = "llama";
-// export function isLlama(method: string): boolean {
-// 	return method.includes(LLAMAMODELNAME);
-// }
-
-// const DEEPSEEKMODELNAME = "deepseek";
-// export function isDeepSeek(method: string): boolean {
-// 	return method.includes(DEEPSEEKMODELNAME);
-// }
-
 export function getModelName(): string {
 	return getConfigInstance().model.split("_").pop()!;
+}
+
+function getClaudeAuthToken(): string | undefined {
+	return normalizeToken(process.env.ANTHROPIC_AUTH_TOKEN) || normalizeToken(process.env.ANTHROPIC_API_KEY);
+}
+
+function getClaudeBaseUrl(): string {
+	const rawBaseUrl = process.env.ANTHROPIC_BASE_URL?.trim();
+	if (!rawBaseUrl) {
+		return 'https://api.anthropic.com';
+	}
+	return rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+}
+
+function getClaudeMaxTokens(): number {
+	return (
+		parsePositiveInteger(process.env.LSPRAG_CLAUDE_MAX_TOKENS) ??
+		parsePositiveInteger(process.env.ANTHROPIC_MAX_TOKENS) ??
+		DEFAULT_CLAUDE_MAX_TOKENS
+	);
+}
+
+function getInvokeLLMMaxAttempts(defaultValue: number): number {
+	const overridden = parseNonNegativeInteger(process.env.LSPRAG_LLM_MAX_ATTEMPTS);
+	const value = overridden ?? defaultValue;
+	return Math.max(1, value);
+}
+
+function getOpenAiSdkMaxRetries(): number {
+	return parseNonNegativeInteger(process.env.LSPRAG_OPENAI_SDK_MAX_RETRIES) ?? 0;
 }
 
 export function getModelConfigError(): string | undefined {
@@ -102,40 +124,53 @@ export function getModelConfigError(): string | undefined {
 	return undefined;
 }
 
-function normalizeToken(rawValue: string | undefined): string | undefined {
-	const value = rawValue?.trim();
-	if (!value) {
-		return undefined;
+function getDraftCodeFromPrompt(userPrompt: string): string {
+	const markers = [
+		'### Draft test code with test prefix path coverage requirements',
+		'### Draft test code'
+	];
+	for (const marker of markers) {
+		const markerIndex = userPrompt.indexOf(marker);
+		if (markerIndex < 0) {
+			continue;
+		}
+		const region = userPrompt.slice(markerIndex + marker.length);
+		const match = region.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/);
+		if (match?.[1]) {
+			return match[1].trim();
+		}
 	}
-	return value.endsWith(',') ? value.slice(0, -1).trim() : value;
+	return '';
 }
 
-function getClaudeAuthToken(): string | undefined {
-	return normalizeToken(process.env.ANTHROPIC_AUTH_TOKEN) || normalizeToken(process.env.ANTHROPIC_API_KEY);
-}
-
-function getClaudeBaseUrl(): string {
-	const rawBaseUrl = process.env.ANTHROPIC_BASE_URL?.trim();
-	if (!rawBaseUrl) {
-		return 'https://api.anthropic.com';
+function getPromptTextForLogging(promptObj: any): string {
+	if (Array.isArray(promptObj) && typeof promptObj[1]?.content === 'string') {
+		return promptObj[1].content;
 	}
-	return rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
-}
-
-function parsePositiveInteger(rawValue: string | undefined): number | undefined {
-	if (!rawValue) {
-		return undefined;
+	if (typeof promptObj === 'string') {
+		return promptObj;
 	}
-	const parsed = Number.parseInt(rawValue.trim(), 10);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+	try {
+		return JSON.stringify(promptObj);
+	} catch {
+		return String(promptObj ?? '');
+	}
 }
 
-function getClaudeMaxTokens(): number {
-	return (
-		parsePositiveInteger(process.env.LSPRAG_CLAUDE_MAX_TOKENS) ??
-		parsePositiveInteger(process.env.ANTHROPIC_MAX_TOKENS) ??
-		DEFAULT_CLAUDE_MAX_TOKENS
-	);
+function getPromptValidationError(promptObj: any): string | undefined {
+	if (!Array.isArray(promptObj) || promptObj.length < 2) {
+		return 'Invalid promptObj: must be an array with at least 2 elements';
+	}
+	if (!promptObj[0]?.content || !promptObj[1]?.content) {
+		return 'Invalid promptObj: elements must have content property';
+	}
+	return undefined;
+}
+
+function ensureLogDirectory(logSavePath: string): void {
+	if (!fs.existsSync(logSavePath)) {
+		fs.mkdirSync(logSavePath, { recursive: true });
+	}
 }
 
 function logLLMInteraction(prompt: string, response: string): void {
@@ -144,225 +179,212 @@ function logLLMInteraction(prompt: string, response: string): void {
 		if (!logSavePath) {
 			return;
 		}
-
-		// Ensure the log directory exists
-		if (!fs.existsSync(logSavePath)) {
-			fs.mkdirSync(logSavePath, { recursive: true });
-		}
-
+		ensureLogDirectory(logSavePath);
 		const logFilePath = path.join(logSavePath, 'llm_logs');
 		const timestamp = new Date().toISOString();
 		const logEntry = `\n${'='.repeat(80)}\n[${timestamp}]\n${'='.repeat(80)}\n\nPROMPT:\n${prompt}\n\n${'-'.repeat(80)}\n\nRESPONSE:\n${response}\n\n`;
-
 		fs.appendFileSync(logFilePath, logEntry, 'utf8');
 	} catch (error) {
 		console.error('Failed to log LLM interaction:', error);
 	}
 }
 
+function getErrorStatusCode(error: unknown): number | undefined {
+	const rawStatus = (error as any)?.status ?? (error as any)?.statusCode ?? (error as any)?.response?.status;
+	const status = Number(rawStatus);
+	return Number.isFinite(status) ? status : undefined;
+}
+
+function shouldRetryLLMError(error: unknown): boolean {
+	const status = getErrorStatusCode(error);
+	if (status !== undefined) {
+		return status === 408 || status === 409 || status === 429 || status >= 500;
+	}
+
+	const code = String((error as any)?.code || '').trim().toUpperCase();
+	const retryableCodes = new Set([
+		'ECONNRESET',
+		'ECONNABORTED',
+		'ETIMEDOUT',
+		'EAI_AGAIN',
+		'ENOTFOUND',
+		'ECONNREFUSED',
+		'UND_ERR_CONNECT_TIMEOUT',
+		'UND_ERR_HEADERS_TIMEOUT',
+		'UND_ERR_SOCKET'
+	]);
+	if (retryableCodes.has(code)) {
+		return true;
+	}
+
+	const message = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+	const retryableFragments = [
+		'connection error',
+		'timeout',
+		'timed out',
+		'rate limit',
+		'too many requests',
+		'service unavailable',
+		'temporarily unavailable',
+		'gateway timeout',
+		'bad gateway',
+		'internal server error',
+		'network error',
+		'socket hang up',
+		'fetch failed'
+	];
+	return retryableFragments.some(fragment => message.includes(fragment));
+}
+
+function logLLMFailure(prompt: string, error: unknown, context: LLMFailureContext = {}): void {
+	const statusCode = getErrorStatusCode(error);
+	const rawCode = (error as any)?.code;
+	const errorCode = typeof rawCode === 'string' || typeof rawCode === 'number' ? String(rawCode) : undefined;
+	const errorMessage = error instanceof Error ? error.message : String(error);
+	const errorStack = error instanceof Error ? error.stack : undefined;
+
+	const metaParts: string[] = [];
+	if (context.provider) metaParts.push(`provider=${context.provider}`);
+	if (context.stage) metaParts.push(`stage=${context.stage}`);
+	if (Number.isFinite(context.attempt) && Number.isFinite(context.maxAttempts)) {
+		metaParts.push(`attempt=${context.attempt}/${context.maxAttempts}`);
+	}
+	if (context.retryable !== undefined) metaParts.push(`retryable=${context.retryable}`);
+	if (statusCode !== undefined) metaParts.push(`status=${statusCode}`);
+	if (errorCode) metaParts.push(`code=${errorCode}`);
+
+	const responsePayload = [
+		'[LLM_CALL_FAILED]',
+		`META: ${metaParts.length > 0 ? metaParts.join(', ') : 'none'}`,
+		`MESSAGE: ${errorMessage}`,
+		errorStack ? `STACK:\n${errorStack}` : ''
+	]
+		.filter(Boolean)
+		.join('\n');
+
+	logLLMInteraction(prompt, responsePayload);
+}
+
+function applyProxyEnvironment(proxy: string): void {
+	process.env.http_proxy = proxy;
+	process.env.https_proxy = proxy;
+	process.env.HTTP_PROXY = proxy;
+	process.env.HTTPS_PROXY = proxy;
+	process.env.OPENAI_PROXY_URL = proxy;
+}
+
+function createOpenAiClient(apiKey: string, options?: { baseURL?: string; proxy?: string }): OpenAI {
+	const proxy = options?.proxy;
+	if (proxy) {
+		applyProxyEnvironment(proxy);
+	}
+	return new OpenAI({
+		apiKey,
+		maxRetries: getOpenAiSdkMaxRetries(),
+		...(options?.baseURL ? { baseURL: options.baseURL } : {}),
+		...(proxy ? { httpAgent: new HttpsProxyAgent(proxy) } : {})
+	});
+}
+
+function updateLogObj(logObj: any, values: { prompt?: string; tokenUsage?: any; result?: any }): void {
+	if (values.prompt !== undefined) {
+		logObj.prompt = values.prompt;
+	}
+	if (values.tokenUsage !== undefined) {
+		logObj.tokenUsage = values.tokenUsage;
+	}
+	if (values.result !== undefined) {
+		logObj.result = values.result;
+	}
+}
+
 export async function callLocalLLM(promptObj: any, logObj: any): Promise<string> {
-	// const modelName = getModelName(method);
 	const modelName = getModelName();
-	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
+	updateLogObj(logObj, { prompt: promptObj[1]?.content });
 	const ollama = new Ollama({ host: getConfigInstance().localLLMUrl });
+
 	try {
 		const response = await ollama.chat({
 			model: modelName,
 			messages: promptObj,
 			stream: false,
 		});
-		const result = await response;
-		const content = result.message.content;
-		const tokenUsage = result.prompt_eval_count;
-    	logObj.tokenUsage = tokenUsage;
-    	logObj.result = result;
-		// // console.log("Response content:", content);
+		const content = response.message.content;
+		updateLogObj(logObj, {
+			tokenUsage: response.prompt_eval_count,
+			result: response
+		});
 		return content;
 	} catch (error) {
 		console.error("Error sending chat request:", error);
 		throw error;
 	}
-  }
-
-// ... existing code ...
-export async function invokeLLM(promptObj: any, logObj: any = { prompt: '', result: '', tokenUsage: 0, model: '' }, maxRetries = 2, retryDelay = 2000): Promise<string> {
-	// Validate promptObj structure
-	if (!Array.isArray(promptObj) || promptObj.length < 2) {
-		const errorMsg = 'Invalid promptObj: must be an array with at least 2 elements';
-		console.error('invokeLLM::error', errorMsg);
-		vscode.window.showErrorMessage(errorMsg);
-		return "";
-	}
-
-	if (!promptObj[0]?.content || !promptObj[1]?.content) {
-		const errorMsg = 'Invalid promptObj: elements must have content property';
-		console.error('invokeLLM::error', errorMsg);
-		vscode.window.showErrorMessage(errorMsg);
-		return "";
-	}
-
-	if (isSkipLLMModeEnabled()) {
-		const userPrompt = promptObj[1]?.content || '';
-		const draft = getDraftCodeFromPrompt(userPrompt);
-		const syntheticResponse = draft ? `\`\`\`\n${draft}\n\`\`\`` : '```python\npass\n```';
-		logObj.prompt = userPrompt;
-		logObj.result = syntheticResponse;
-		logObj.tokenUsage = '0';
-		logLLMInteraction(userPrompt, syntheticResponse);
-		return syntheticResponse;
-	}
-
-	const error = getModelConfigError();
-	if (error) {
-		vscode.window.showErrorMessage(error);
-		console.error('invokeLLM::error', error);
-		return "";
-	}
-
-	// // console.log('invokeLLM::promptObj', promptObj);
-	// // console.log('invokeLLM::promptObj_system', promptObj[0].content);
-	// console.log('invokeLLM::promptObj_user', promptObj[1].content);
-	const messageTokens = promptObj[1].content.split(/\s+/).length;
-	// // console.log("Invoking . . .");
-	// if (messageTokens > TOKENTHRESHOLD) {
-	// 	throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
-	// }
-
-	const provider = getConfigInstance().provider;
-	
-	let lastError: Error | null = null;
-	for (let attempt = 1; attempt <= maxRetries; attempt++) {
-		try {
-			let response: string;
-			switch (provider) {
-				case 'openai':
-					response = await callOpenAi(promptObj, logObj);
-					break;
-				case 'local':
-					response = await callLocalLLM(promptObj, logObj);
-					break;
-				case 'deepseek':
-					response = await callDeepSeek(promptObj, logObj);
-					break;
-				case 'anthropic':
-					response = await callClaude(promptObj, logObj);
-					break;
-				default:
-					console.error("invokeLLM::provider::Wrong Provider", provider);
-					throw new Error("Unsupported provider!");
-			}
-			
-			// Log the prompt and response
-			if (promptObj[1]?.content) {
-				logLLMInteraction(promptObj[1].content, response);
-			}
-
-			return response;
-		} catch (error) {
-			lastError = error as Error;
-			// console.log(`Attempt ${attempt}/${maxRetries} failed: ${error}`);
-			
-			if (attempt < maxRetries) {
-				// Add exponential backoff with jitter for more robust retrying
-				const jitter = Math.random() * 1000;
-				const delay = retryDelay * Math.pow(2, attempt - 1) + jitter;
-				// console.log(`Retrying in ${Math.round(delay / 1000)} seconds...`);
-				await new Promise(resolve => setTimeout(resolve, delay));
-			}
-		}
-	}
-	
-	// If we've exhausted all retries, throw the last error
-	if (lastError) {
-		vscode.window.showErrorMessage(`Failed after ${maxRetries} attempts: ${lastError.message}`);
-		throw lastError;
-	}
-	
-	return "";
 }
 
 export async function callDeepSeek(promptObj: any, logObj: any): Promise<string> {
-	
-	// const modelName = getModelName(method);
 	const modelName = getModelName();
-	logObj.prompt = promptObj[1]?.content || '';
-	
+	updateLogObj(logObj, { prompt: promptObj[1]?.content || '' });
+
 	const apiKey = getConfigInstance().deepseekApiKey;
-	
 	if (!apiKey) {
 		throw new Error('Deepseek API key not configured. Please set it in VS Code settings.');
 	}
-	
-	const openai = new OpenAI({
-		baseURL: 'https://api.deepseek.com',
-		apiKey: apiKey,
+
+	const openai = createOpenAiClient(apiKey, {
+		baseURL: 'https://api.deepseek.com'
 	});
+
 	try {
 		const response = await openai.chat.completions.create({
 			model: modelName,
 			messages: promptObj
 		});
-		// console.log('invokeLLM::callDeepSeek::response', JSON.stringify(response, null, 2));
 		const result = response.choices[0].message.content!;
-		const tokenUsage = response.usage!.prompt_tokens;
-		logObj.tokenUsage = tokenUsage;
-		logObj.result = result + "<think>" + ((response.choices[0].message as any).reasoning_content || '');;
-		// // console.log('Generated test code:', result);
-		// // console.log('Token usage:', tokenUsage);
+		updateLogObj(logObj, {
+			tokenUsage: response.usage!.prompt_tokens,
+			result: result + "<think>" + ((response.choices[0].message as any).reasoning_content || '')
+		});
 		return result;
-	} catch (e) {
-		console.error('Error generating test code:', e);
-		throw e;
+	} catch (error) {
+		console.error('Error generating test code:', error);
+		throw error;
 	}
 }
 
 export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
-	// // console.log('invokeLLM::callOpenAi::proxyUrl', getConfigInstance().logAllConfig());
 	const proxy = getConfigInstance().proxyUrl;
 	const apiKey = getConfigInstance().openaiApiKey;
-	// console.log('invokeLLM::callOpenAi::proxy', proxy);
-	// // console.log('invokeLLM::callOpenAi::apiKey', apiKey);
 	if (!apiKey) {
 		throw new Error('OpenAI API key not configured. Please set it in VS Code settings.');
 	}
-	
-	// const modelName = getModelName(method);
+
 	const modelName = getModelName();
-	// console.log('invokeLLM::callOpenAi::modelName', modelName);
-	if (proxy) {
-		process.env.http_proxy = proxy;
-		process.env.https_proxy = proxy;
-		process.env.HTTP_PROXY = proxy;
-		process.env.HTTPS_PROXY = proxy;
-		process.env.OPENAI_PROXY_URL = proxy;
-	}
-	
-	logObj.prompt = promptObj[1]?.content || '';
-	const openai = new OpenAI({
-		apiKey: apiKey,
-		...(proxy && { httpAgent: new HttpsProxyAgent(proxy) })
+	updateLogObj(logObj, { prompt: promptObj[1]?.content || '' });
+
+	const openai = createOpenAiClient(apiKey, {
+		proxy: proxy || undefined
 	});
+
 	try {
 		const response = await openai.chat.completions.create({
 			model: modelName,
 			messages: promptObj
 		});
 		const result = response.choices[0].message.content!;
-		const tokenUsage = response.usage!.prompt_tokens;
-		logObj.tokenUsage = tokenUsage;
-		logObj.result = result;
-		// console.log('Generated test code:', result);
-		// console.log('Token usage:', tokenUsage);
+		updateLogObj(logObj, {
+			tokenUsage: response.usage!.prompt_tokens,
+			result
+		});
 		return result;
-	} catch (e) {
-		console.error('Error generating test code:', e);
-		throw e;
+	} catch (error) {
+		console.error('Error generating test code:', error);
+		throw error;
 	}
 }
 
 export async function callClaude(promptObj: any, logObj: any): Promise<string> {
 	const modelName = getModelName();
-	logObj.prompt = promptObj[1]?.content || '';
+	updateLogObj(logObj, { prompt: promptObj[1]?.content || '' });
 
 	const authToken = getClaudeAuthToken();
 	if (!authToken) {
@@ -439,7 +461,107 @@ export async function callClaude(promptObj: any, logObj: any): Promise<string> {
 		throw new Error('Claude response did not contain any text content.');
 	}
 
-	logObj.tokenUsage = data?.usage?.input_tokens ?? 0;
-	logObj.result = data;
+	updateLogObj(logObj, {
+		tokenUsage: data?.usage?.input_tokens ?? 0,
+		result: data
+	});
 	return result;
+}
+
+async function callProvider(provider: string, promptObj: any, logObj: any): Promise<string> {
+	switch (provider) {
+		case 'openai':
+			return callOpenAi(promptObj, logObj);
+		case 'local':
+			return callLocalLLM(promptObj, logObj);
+		case 'deepseek':
+			return callDeepSeek(promptObj, logObj);
+		case 'anthropic':
+			return callClaude(promptObj, logObj);
+		default:
+			throw new Error(`Unsupported provider: ${provider}`);
+	}
+}
+
+function buildSkipLLMResponse(promptObj: any, logObj: any): string {
+	const userPrompt = promptObj[1]?.content || '';
+	const draft = getDraftCodeFromPrompt(userPrompt);
+	const syntheticResponse = draft ? `\`\`\`\n${draft}\n\`\`\`` : '```python\npass\n```';
+	updateLogObj(logObj, {
+		prompt: userPrompt,
+		result: syntheticResponse,
+		tokenUsage: '0'
+	});
+	logLLMInteraction(userPrompt, syntheticResponse);
+	return syntheticResponse;
+}
+
+export async function invokeLLM(
+	promptObj: any,
+	logObj: any = { prompt: '', result: '', tokenUsage: 0, model: '' },
+	maxRetries = 2,
+	retryDelay = 2000
+): Promise<string> {
+	const promptForLogging = getPromptTextForLogging(promptObj);
+
+	const validationError = getPromptValidationError(promptObj);
+	if (validationError) {
+		console.error('invokeLLM::error', validationError);
+		vscode.window.showErrorMessage(validationError);
+		logLLMFailure(promptForLogging, new Error(validationError), { stage: 'validation' });
+		return "";
+	}
+
+	if (isSkipLLMModeEnabled()) {
+		return buildSkipLLMResponse(promptObj, logObj);
+	}
+
+	const configError = getModelConfigError();
+	if (configError) {
+		vscode.window.showErrorMessage(configError);
+		console.error('invokeLLM::error', configError);
+		logLLMFailure(promptForLogging, new Error(configError), { stage: 'config' });
+		return "";
+	}
+
+	const provider = getConfigInstance().provider;
+	const maxAttempts = getInvokeLLMMaxAttempts(maxRetries);
+	let lastError: Error | null = null;
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		try {
+			const response = await callProvider(provider, promptObj, logObj);
+			logLLMInteraction(promptForLogging, response);
+			return response;
+		} catch (error) {
+			lastError = error as Error;
+			const retryable = shouldRetryLLMError(error);
+			logLLMFailure(promptForLogging, error, {
+				provider,
+				stage: 'call',
+				attempt,
+				maxAttempts,
+				retryable
+			});
+
+			if (attempt >= maxAttempts || !retryable) {
+				break;
+			}
+
+			const jitter = Math.random() * 1000;
+			const delay = retryDelay * Math.pow(2, attempt - 1) + jitter;
+			console.warn(
+				`invokeLLM retrying attempt ${attempt + 1}/${maxAttempts} after ${Math.round(delay)}ms:`,
+				lastError.message
+			);
+			await new Promise(resolve => setTimeout(resolve, delay));
+		}
+	}
+
+	if (lastError) {
+		vscode.window.showErrorMessage(`Failed after ${maxAttempts} attempts: ${lastError.message}`);
+		throw lastError;
+	}
+
+	return "";
 }
