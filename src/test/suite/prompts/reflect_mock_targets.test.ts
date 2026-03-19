@@ -200,7 +200,7 @@ def test_decorators():
 			draftTestCode: realDraftTestCode,
 			definitionTreePretty: '(none)',
 			redefinedSymbolsSummary: '(none)',
-			invokedFunctionSignatures: [],
+			invokedFunctionContext: [],
 			mockedObjectDefinitionsSummary
 		});
 		assert.strictEqual(prompt.length, 2);

@@ -89,7 +89,7 @@ export class ExperimentContinuityManager {
     private async writeProgress(progress: ExperimentProgress): Promise<void> {
         const normalizedProgress = this.recalculateProgressCounters(progress);
         normalizedProgress.lastUpdated = new Date().toISOString();
-        console.log(`#### writeProgress: ${normalizedProgress.tasks.length}`);
+        console.log(`#### writeProgress: ${normalizedProgress.completedTasks}`);
         await fs.promises.writeFile(this.progressFilePath, JSON.stringify(normalizedProgress, null, 2));
     }
 

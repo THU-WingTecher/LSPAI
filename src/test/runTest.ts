@@ -55,6 +55,18 @@ function getCliArgValue(names: string[]): string | undefined {
   return undefined;
 }
 
+function getExtensionListTimeoutMs(): number {
+  const raw = process.env.TEST_EXTENSION_LIST_TIMEOUT_MS;
+  if (!raw) {
+    return 120000;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 120000;
+  }
+  return parsed;
+}
+
 // Function to load private configuration strictly from environment variables
 export function loadPrivateConfig(provider?: Provider): PrivateConfig {
   const openaiApiKey = process.env.OPENAI_API_KEY || process.env.TEST_OPENAI_API_KEY;
@@ -124,12 +136,13 @@ async function main() {
       }
     );
     let installedExtensions: any = null;
+    const extensionListTimeoutMs = getExtensionListTimeoutMs();
     try {
       installedExtensions = cp.execSync(
         `${cliPath} ${args.join(' ')} --list-extensions`,
         { 
-          encoding: 'utf-8', 
-          timeout: 5000, 
+          encoding: 'utf-8',
+          timeout: extensionListTimeoutMs,
           stdio: 'pipe',
           env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
         }
@@ -202,6 +215,7 @@ async function main() {
     console.log(`[test-runner] TEST_PARALLEL_COUNT=${parallelCount}`);
     console.log(`[test-runner] TEST_MODEL=${model}`);
     console.log(`[test-runner] TEST_PROVIDER=${provider}`);
+    console.log(`[test-runner] TEST_EXTENSION_LIST_TIMEOUT_MS=${extensionListTimeoutMs}`);
     // Run the extension test
     await runTests({
       // Use the specified `code` executable

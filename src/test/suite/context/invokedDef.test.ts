@@ -26,7 +26,7 @@ suite('Context: invoked definitions', () => {
     await new Promise(resolve => setTimeout(resolve, 2500));
 
     const workflow = new LLMFixWorkflow('', pythonProjectPath, { language: 'python' });
-    const definitions = await workflow.getInvokedFunctionSignatures({
+    const definitions = await workflow.getInvokedFunctionContext({
       symbol_name: 'compute_total',
       source_file: sourceFile
     });
@@ -69,7 +69,7 @@ suite('Context: invoked definitions', () => {
     await new Promise(resolve => setTimeout(resolve, 2500));
 
     const workflow = new LLMFixWorkflow('', pythonProjectPath, { language: 'python' });
-    const definitions = await workflow.getInvokedFunctionSignatures({
+    const definitions = await workflow.getInvokedFunctionContext({
       symbol_name: 'use_symbol_kinds',
       source_file: symbolKindsSourceFile
     });

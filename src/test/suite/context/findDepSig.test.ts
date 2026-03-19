@@ -25,7 +25,7 @@ suite('Context: invoked function signatures', () => {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const workflow = new LLMFixWorkflow('', pythonProjectPath, { language: 'python' });
-    const signatures: any = workflow.getInvokedFunctionSignatures({
+    const signatures: any = workflow.getInvokedFunctionContext({
       symbol_name: 'target_function',
       source_file: sourceFile
     });

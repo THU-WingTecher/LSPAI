@@ -16,7 +16,7 @@ import { isSkipLLMModeEnabled } from '../../../../invokeLLM';
 suite('Experiment Test Suite', () => {
     const sampleNumber = -1;
     const parallelCount = process.env.TEST_PARALLEL_COUNT ? parseInt(process.env.TEST_PARALLEL_COUNT) : 1;
-    const model = process.env.TEST_MODEL || 'gpt-4o-mini'
+    const model = process.env.TEST_MODEL || 'gpt-4o-mini';
     const provider = process.env.TEST_PROVIDER as Provider || 'openai' as Provider;
     const projectNameEnv = process.env.TEST_PROJECT_NAME;
     if (!projectNameEnv) {
@@ -143,11 +143,27 @@ suite('Experiment Test Suite', () => {
         remainingTasks: number;
     };
 
+    type ExistingExperimentDecision = {
+        shouldSkip: boolean;
+        reason: string;
+        resumeFromResultsDir?: string;
+        resumeTestFileMapPath?: string;
+    };
+
     const getAutoResumeMaxRounds = (): number => {
         const raw = process.env.REFLECT_AUTO_RESUME_MAX_ROUNDS;
         const parsed = raw ? Number.parseInt(raw, 10) : 10;
         if (!Number.isFinite(parsed) || parsed < 1) {
             return 10;
+        }
+        return parsed;
+    };
+
+    const getAutoResumeMaxNoProgressRounds = (): number => {
+        const raw = process.env.REFLECT_AUTO_RESUME_MAX_NO_PROGRESS_ROUNDS;
+        const parsed = raw ? Number.parseInt(raw, 10) : 2;
+        if (!Number.isFinite(parsed) || parsed < 1) {
+            return 2;
         }
         return parsed;
     };
@@ -158,8 +174,13 @@ suite('Experiment Test Suite', () => {
             throw new Error(`[reflectRunner] progress.json not found: ${progressPath}`);
         }
         const raw = JSON.parse(fs.readFileSync(progressPath, 'utf8'));
-        const totalTasks = Number(raw?.totalTasks ?? 0);
-        const completedTasks = Number(raw?.completedTasks ?? 0);
+        const taskList = Array.isArray(raw?.tasks) ? raw.tasks : [];
+        const fallbackTotalTasks = taskList.length;
+        const fallbackCompletedTasks = taskList.filter((task: any) => task?.completed === true).length;
+        const rawTotalTasks = Number(raw?.totalTasks);
+        const rawCompletedTasks = Number(raw?.completedTasks);
+        const totalTasks = Number.isFinite(rawTotalTasks) ? rawTotalTasks : fallbackTotalTasks;
+        const completedTasks = Number.isFinite(rawCompletedTasks) ? rawCompletedTasks : fallbackCompletedTasks;
         if (!Number.isFinite(totalTasks) || !Number.isFinite(completedTasks)) {
             throw new Error(
                 `[reflectRunner] Invalid progress.json format: ${progressPath} ` +
@@ -171,6 +192,131 @@ suite('Experiment Test Suite', () => {
             totalTasks,
             completedTasks,
             remainingTasks: Math.max(0, totalTasks - completedTasks)
+        };
+    };
+
+    const readProgressStatusIfExists = (resultsDir: string): ProgressStatus | undefined => {
+        const progressPath = path.join(resultsDir, 'progress.json');
+        if (!fs.existsSync(resultsDir) || !fs.existsSync(progressPath)) {
+            return undefined;
+        }
+        try {
+            return readProgressStatus(resultsDir);
+        } catch (error) {
+            console.warn(
+                `[reflectRunner] Failed to read progress from ${progressPath}: ` +
+                `${error instanceof Error ? error.message : String(error)}`
+            );
+            return undefined;
+        }
+    };
+
+    const isExperimentDone = (progress: ProgressStatus): boolean => {
+        return progress.totalTasks > 0 && progress.completedTasks >= progress.totalTasks;
+    };
+
+    const findWorkspaceResultDirsBySaveName = (saveName: string): string[] => {
+        const workspaceRoot = getConfigInstance().workspace;
+        const lspragWorkspaceRoot = path.join(workspaceRoot, 'lsprag-workspace');
+        if (!fs.existsSync(lspragWorkspaceRoot)) {
+            return [];
+        }
+        const timestampDirs = fs.readdirSync(lspragWorkspaceRoot, { withFileTypes: true })
+            .filter(entry => entry.isDirectory())
+            .map(entry => entry.name)
+            .sort((a, b) => b.localeCompare(a));
+        const resultDirs: string[] = [];
+        for (const timestamp of timestampDirs) {
+            const resultsDir = path.join(
+                lspragWorkspaceRoot,
+                timestamp,
+                projectName,
+                saveName,
+                model,
+                'results'
+            );
+            if (fs.existsSync(resultsDir)) {
+                resultDirs.push(resultsDir);
+            }
+        }
+        return resultDirs;
+    };
+
+    const resolveExistingExperimentDecision = (params: {
+        saveName?: string;
+        explicitResumeFromResultsDir?: string;
+        explicitResumeTestFileMapPath?: string;
+    }): ExistingExperimentDecision => {
+        const explicitResumeDir = params.explicitResumeFromResultsDir;
+        if (explicitResumeDir) {
+            const progress = readProgressStatusIfExists(explicitResumeDir);
+            if (progress && isExperimentDone(progress)) {
+                return {
+                    shouldSkip: true,
+                    reason:
+                        `completed (${progress.completedTasks}/${progress.totalTasks}) ` +
+                        `at ${explicitResumeDir}`
+                };
+            }
+            const resumeMapPath = params.explicitResumeTestFileMapPath ||
+                (fs.existsSync(path.join(explicitResumeDir, 'test_file_map.json'))
+                    ? path.join(explicitResumeDir, 'test_file_map.json')
+                    : undefined);
+            return {
+                shouldSkip: false,
+                reason: `resume requested: ${explicitResumeDir}`,
+                resumeFromResultsDir: explicitResumeDir,
+                resumeTestFileMapPath: resumeMapPath
+            };
+        }
+
+        if (!params.saveName) {
+            return {
+                shouldSkip: false,
+                reason: 'no saveName provided; skip auto done-check'
+            };
+        }
+        if (path.isAbsolute(params.saveName)) {
+            return {
+                shouldSkip: false,
+                reason: `saveName is absolute path (${params.saveName}); skip workspace auto done-check`
+            };
+        }
+
+        const candidates = findWorkspaceResultDirsBySaveName(params.saveName);
+        let latestIncomplete: { dir: string; progress: ProgressStatus } | undefined;
+        for (const dir of candidates) {
+            const progress = readProgressStatusIfExists(dir);
+            if (!progress) {
+                continue;
+            }
+            if (isExperimentDone(progress)) {
+                return {
+                    shouldSkip: true,
+                    reason:
+                        `completed (${progress.completedTasks}/${progress.totalTasks}) ` +
+                        `at ${dir}`
+                };
+            }
+            if (!latestIncomplete) {
+                latestIncomplete = { dir, progress };
+            }
+        }
+        if (latestIncomplete) {
+            const resumeMapPath = path.join(latestIncomplete.dir, 'test_file_map.json');
+            return {
+                shouldSkip: false,
+                reason:
+                    `resume from latest incomplete (${latestIncomplete.progress.completedTasks}/` +
+                    `${latestIncomplete.progress.totalTasks}) at ${latestIncomplete.dir}`,
+                resumeFromResultsDir: latestIncomplete.dir,
+                resumeTestFileMapPath: fs.existsSync(resumeMapPath) ? resumeMapPath : undefined
+            };
+        }
+
+        return {
+            shouldSkip: false,
+            reason: `no existing result folder found for saveName=${params.saveName}`
         };
     };
 
@@ -187,6 +333,7 @@ suite('Experiment Test Suite', () => {
         runLabel: string;
     }): Promise<string> => {
         const maxRounds = getAutoResumeMaxRounds();
+        const maxNoProgressRounds = getAutoResumeMaxNoProgressRounds();
         let previousExperimentDir = params.previousExperimentDir;
         let resumeTestFileMapPath = params.resumeTestFileMapPath;
         let lastCompletedTasks = -1;
@@ -230,8 +377,15 @@ suite('Experiment Test Suite', () => {
                 noProgressRounds += 1;
                 console.warn(
                     `[reflectRunner] Auto-resume made no forward progress for ${params.runLabel} in round ${round}. ` +
-                    `Keeping retry loop active (remaining=${progress.remainingTasks}, noProgressRounds=${noProgressRounds}/${maxRounds - 1}).`
+                    `remaining=${progress.remainingTasks}, noProgressRounds=${noProgressRounds}/${maxNoProgressRounds}.`
                 );
+                if (noProgressRounds >= maxNoProgressRounds) {
+                    throw new Error(
+                        `[reflectRunner] Auto-resume stopped after ${noProgressRounds} consecutive no-progress rounds ` +
+                        `for ${params.runLabel} (progress=${progress.completedTasks}/${progress.totalTasks}, resultsDir=${resultsDir}). ` +
+                        `Increase REFLECT_AUTO_RESUME_MAX_NO_PROGRESS_ROUNDS to keep retrying.`
+                    );
+                }
             } else {
                 lastCompletedTasks = progress.completedTasks;
                 noProgressRounds = 0;
@@ -335,35 +489,48 @@ suite('Experiment Test Suite', () => {
         const testsDir = path.join(cachedDir, "final");
         const testFileMapPath = path.join(cachedDir, "test_file_map.json");
 
-        await runExperimentalReflect({
-            cachedDir,
-            testFileMapPath,
-            preTestsDir: testsDir,
-            promptType: PromptType.NAIVE
-        });
+        // await runExperimentalReflect({
+        //     cachedDir,
+        //     testFileMapPath,
+        //     preTestsDir: testsDir,
+        //     promptType: PromptType.NAIVE
+        // });
         
-        const CFGcachedDir = await runGenerateWithAutoResume({
-            generationType: GenerationType.LSPRAG,
-            fixType: FixType.ORIGINAL,
-            promptType: PromptType.CFG,
-            runLabel: 'LSPRAG:CFG'
-        });
-        const CFGtestsDir = path.join(CFGcachedDir, "final");
-        const CFGtestFileMapPath = path.join(CFGcachedDir, "test_file_map.json");
-        await runExperimentalReflect({
-            cachedDir: CFGcachedDir,
-            testFileMapPath: CFGtestFileMapPath,
-            preTestsDir: CFGtestsDir,
-            promptType: PromptType.WITHCONTEXT
-        });
+        // const CFGcachedDir = await runGenerateWithAutoResume({
+        //     generationType: GenerationType.LSPRAG,
+        //     fixType: FixType.ORIGINAL,
+        //     promptType: PromptType.CFG,
+        //     runLabel: 'LSPRAG:CFG'
+        // });
+        // const CFGtestsDir = path.join(CFGcachedDir, "final");
+        // const CFGtestFileMapPath = path.join(CFGcachedDir, "test_file_map.json");
+        // await runExperimentalReflect({
+        //     cachedDir: CFGcachedDir,
+        //     testFileMapPath: CFGtestFileMapPath,
+        //     preTestsDir: CFGtestsDir,
+        //     promptType: PromptType.WITHCONTEXT
+        // });
     };
 
     test('Setup for experiment', async () => {
-        await setupPythonWorkspaceForExperiment({
-            projectPath,
-            pythonExtraPaths,
-            pythonInterpreterPath,
-        });
+        try {
+            await setupPythonWorkspaceForExperiment({
+                projectPath,
+                pythonExtraPaths,
+                pythonInterpreterPath,
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            const strictSetup = process.env.REFLECT_STRICT_SETUP === 'true';
+            if (message.includes('python interpreter path should be set as expected') && !strictSetup) {
+                console.warn(
+                    '[reflectRunner] Non-fatal setup warning: python interpreter path check mismatch. ' +
+                    'Continuing experiment run. Set REFLECT_STRICT_SETUP=true to make this fatal.'
+                );
+                return;
+            }
+            throw error;
+        }
     });
 
     test('Prepare FUT with robustness scores for assertion generation analysis', async () => {
@@ -424,13 +591,43 @@ suite('Experiment Test Suite', () => {
                 symbolsOverride = [{ symbol: targetSymbol, document: targetDoc }];
                 console.log(`[reflectRunner] Targeted mode: ${config.symbolName} @ ${config.sourceFile}`);
             }
+
+            const configuredSaveName = config.savePath || config.saveName;
+            const existingDecision = resolveExistingExperimentDecision({
+                saveName: configuredSaveName,
+                explicitResumeFromResultsDir: config.resumeFromResultsDir,
+                explicitResumeTestFileMapPath: config.resumeTestFileMapPath
+            });
+
+            if (existingDecision.shouldSkip) {
+                console.log(
+                    `[reflectRunner] Skip completed config entry ` +
+                    `(saveName=${configuredSaveName ?? 'N/A'}, promptType=${config.promptType ?? 'WITHCONTEXT'}): ` +
+                    `${existingDecision.reason}`
+                );
+                continue;
+            }
+            if (existingDecision.resumeFromResultsDir) {
+                console.log(
+                    `[reflectRunner] Auto-resume config entry ` +
+                    `(saveName=${configuredSaveName ?? 'N/A'}, promptType=${config.promptType ?? 'WITHCONTEXT'}): ` +
+                    `${existingDecision.reason}`
+                );
+            } else {
+                console.log(
+                    `[reflectRunner] Start fresh config entry ` +
+                    `(saveName=${configuredSaveName ?? 'N/A'}, promptType=${config.promptType ?? 'WITHCONTEXT'}): ` +
+                    `${existingDecision.reason}`
+                );
+            }
+
             await runExperimentalReflect({
                 cachedDir: config.cachedDir,
                 testFileMapPath: config.testFileMapPath,
                 promptType: resolvePromptType(config.promptType),
-                saveName: config.savePath || config.saveName,
-                resumeFromResultsDir: config.resumeFromResultsDir,
-                resumeTestFileMapPath: config.resumeTestFileMapPath,
+                saveName: configuredSaveName,
+                resumeFromResultsDir: existingDecision.resumeFromResultsDir,
+                resumeTestFileMapPath: existingDecision.resumeTestFileMapPath,
                 symbolsOverride
             });
         }

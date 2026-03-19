@@ -57,7 +57,7 @@ suite('PROMPTS - reflect', () => {
 		const redefinedSymbolsSummary = detection.redefinedSymbols.map(s => s.name).join(', ');
 
 		const workflow = new LLMFixWorkflow(path.join(tmpRoot, 'noop.json'), path.join(tmpRoot, 'wf'), { language: 'python' as any });
-		const invoked = await workflow.getInvokedFunctionSignatures({ source_file: sourceFile, symbol_name: symbol!.name });
+		const invoked = await workflow.getInvokedFunctionContext({ source_file: sourceFile, symbol_name: symbol!.name });
 
 		const prompt = buildAssertionReflectionPrompt({
 			languageId: 'python',
@@ -67,7 +67,7 @@ suite('PROMPTS - reflect', () => {
 			draftTestCode: draft,
 			definitionTreePretty,
 			redefinedSymbolsSummary,
-			invokedFunctionSignatures: invoked
+			invokedFunctionContext: invoked
 		});
 
 		assert.strictEqual(prompt.length, 2);

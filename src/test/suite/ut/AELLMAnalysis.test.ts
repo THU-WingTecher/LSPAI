@@ -21,17 +21,13 @@ suite('EXECUTE - Python', () => {
     // testsDir: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/gpt-5/codes',
     // testFileMapPath: '/LSPRAG/opencode-tests/gpt-5/2025-12-03T14-58-39/test_file_map.json'
     // },
-    // { projectName: "tornado",
-    // testsDir: '/LSPRAG/experiments/data/RA/tornado/lsprag-gpt5/final',
-    // testFileMapPath: '/LSPRAG/experiments/data/RA/tornado/lsprag-gpt5/test_file_map.json'
-    // },
-    // { projectName: "commons-cli",
-    // testsDir: '/LSPRAG/experiments/data/RA/commons-cli/lsprag-gpt5/results/final',
-    // testFileMapPath: '/LSPRAG/experiments/data/RA/commons-cli/lsprag-gpt5/results/test_file_map.json'
-    // },
-    { projectName: "tornado",
-    testsDir: '/LSPRAG/tornado_to_investigate/full_runs/claudecode_raw/claudecode-deepseek-tornado/deepseek-chat/codes',
-    testFileMapPath: '/LSPRAG/tornado_to_investigate/full_runs/claudecode_raw/claudecode-deepseek-tornado/test_file_map.json'
+    { projectName: "black",
+    testsDir: '/LSPRAG/opencode-tests/deepseek-chat/opencode-deepseek-cfg-regen3/deepseek-chat/codes',
+    testFileMapPath: '/LSPRAG/opencode-tests/deepseek-chat/opencode-deepseek-cfg-regen3/test_file_map.json'
+    },
+    { projectName: "black",
+    testsDir: '/LSPRAG/opencode-tests/deepseek-chat/opencode-deepseek-regen2/deepseek-chat/codes',
+    testFileMapPath: '/LSPRAG/opencode-tests/deepseek-chat/opencode-deepseek-regen2/test_file_map.json'
     },
     // { projectName: "black",
     // testsDir: '/LSPRAG/experiments/projects/black/lsprag-workspace/20260121_092818/black/lsprag_withcontext_/deepseek-chat/results/final',

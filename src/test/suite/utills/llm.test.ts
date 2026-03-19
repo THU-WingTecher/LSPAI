@@ -12,11 +12,11 @@ suite('LLM invoke Test Suite', () => {
 
     const projectPath = "/LSPRAG/src/test/fixtures/python";
     const currentConfig = {
-        // model: 'deepseek-coder',
-        // provider: 'deepseek' as Provider,
+        model: 'deepseek-chat',
+        provider: 'deepseek' as Provider,
         workspace: projectPath,
-        model: 'gpt-4o-mini',
-        provider: 'openai' as Provider,
+        // model: 'gpt-4o-mini',
+        // provider: 'openai' as Provider,
     };
     getConfigInstance().updateConfig({
         ...currentConfig

@@ -339,10 +339,273 @@ export class LLMFixWorkflow {
     return null;
   }
 
+  private buildInvokedDefinitionEntryKeyByRange(uri: vscode.Uri, range: vscode.Range): string {
+    return `${uri.toString()}:${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
+  }
+
+  private buildInvokedDefinitionEntryKeyBySymbol(uri: vscode.Uri, symbol: vscode.DocumentSymbol): string {
+    return `${uri.toString()}:${symbol.selectionRange.start.line}:${symbol.selectionRange.start.character}`;
+  }
+
+  private buildSymbolVisitKey(uri: vscode.Uri, symbol: vscode.DocumentSymbol): string {
+    return `${uri.toString()}:${symbol.selectionRange.start.line}:${symbol.selectionRange.start.character}:${symbol.selectionRange.end.line}:${symbol.selectionRange.end.character}`;
+  }
+
+  private shouldTraverseTransitive(symbol: vscode.DocumentSymbol): boolean {
+    const kind = symbol.kind;
+    return (
+      kind === vscode.SymbolKind.Function ||
+      kind === vscode.SymbolKind.Method ||
+      kind === vscode.SymbolKind.Class ||
+      kind === vscode.SymbolKind.Constructor
+    );
+  }
+
+  private async collectInvokedDefinitionEntries(
+    document: vscode.TextDocument,
+    focalSymbol: vscode.DocumentSymbol
+  ): Promise<Array<{
+    key: string;
+    entry: string;
+    defDoc: vscode.TextDocument;
+    defSymbol: vscode.DocumentSymbol | null;
+    symbolName: string;
+    symbolKind: string;
+  }>> {
+    const tokens = await getDecodedTokensFromSymbol(document, focalSymbol);
+    if (!tokens.length) {
+      return [];
+    }
+
+    const tokensWithDefs = await retrieveDefs(document, tokens);
+    const entries: Array<{
+      key: string;
+      entry: string;
+      defDoc: vscode.TextDocument;
+      defSymbol: vscode.DocumentSymbol | null;
+      symbolName: string;
+      symbolKind: string;
+    }> = [];
+    const localUnique = new Set<string>();
+
+    for (const token of tokensWithDefs) {
+      if (!token.definition?.length) {
+        continue;
+      }
+
+      const tokenType = token.type?.toLowerCase();
+      const isCallableToken = tokenType === 'function' || tokenType === 'method';
+      const normalizedTokenName = this.normalizeSymbolName(token.word);
+
+      for (const def of token.definition) {
+        // Skip symbols defined inside the current focal symbol.
+        if (
+          def.uri.toString() === document.uri.toString() &&
+          focalSymbol.range.contains(def.range.start) &&
+          focalSymbol.range.contains(def.range.end)
+        ) {
+          continue;
+        }
+
+        // Keep backward-compatibility with existing behavior for strict "between" checks.
+        if (isBetweenFocalMethod(def.range, focalSymbol)) {
+          continue;
+        }
+
+        if (!isInWorkspace(def.uri.fsPath)) {
+          continue;
+        }
+
+        const defDoc = await vscode.workspace.openTextDocument(def.uri);
+        const rawDefSymbol = await getSymbolByLocation(defDoc, def.range.start);
+
+        if (!rawDefSymbol && tokenType === 'variable') {
+          continue;
+        }
+
+        let defSymbol: vscode.DocumentSymbol | null = rawDefSymbol;
+        let key = this.buildInvokedDefinitionEntryKeyByRange(def.uri, def.range);
+        let symbolNameForEntry = token.word;
+        let symbolKindForEntry = token.type || 'symbol';
+        let definitionText = '';
+
+        if (defSymbol) {
+          if (normalizedTokenName && this.normalizeSymbolName(defSymbol.name) !== normalizedTokenName) {
+            const nested = this.findNestedSymbolByName(defSymbol, token.word);
+            if (nested) {
+              defSymbol = nested;
+            }
+          }
+
+          if (isCallableToken && normalizedTokenName && this.normalizeSymbolName(defSymbol.name) !== normalizedTokenName) {
+            continue;
+          }
+
+          if (
+            def.uri.toString() === document.uri.toString() &&
+            defSymbol.range.contains(focalSymbol.range.start) &&
+            defSymbol.range.contains(focalSymbol.range.end) &&
+            !defSymbol.range.isEqual(focalSymbol.range)
+          ) {
+            continue;
+          }
+
+          key = this.buildInvokedDefinitionEntryKeyBySymbol(def.uri, defSymbol);
+          symbolNameForEntry = defSymbol.name || symbolNameForEntry;
+          symbolKindForEntry = (vscode.SymbolKind[defSymbol.kind] || symbolKindForEntry).toLowerCase();
+
+          if (defSymbol.kind === vscode.SymbolKind.Variable) {
+            continue;
+          }
+
+          if (defSymbol.kind === vscode.SymbolKind.Constant) {
+            // Constant-specific policy: prefer signature-style loading.
+            const hoverResults = await getHover(defDoc, defSymbol, false);
+            definitionText = cleanInvokedSignatureText(extractHoverText(hoverResults)).trim();
+            if (!definitionText) {
+              definitionText = cleanInvokedSignatureText(getSymbolDetail(defDoc, defSymbol)).trim();
+            }
+          } else {
+            // Default policy: prefer full symbol body so prompts receive complete definitions.
+            definitionText = cleanInvokedSignatureText(getSymbolDetail(defDoc, defSymbol, true)).trim();
+          }
+
+          if (!definitionText) {
+            const hoverResults = await getHover(defDoc, defSymbol, false);
+            definitionText = cleanInvokedSignatureText(extractHoverText(hoverResults)).trim();
+          }
+        }
+
+        // Fall back to the full line for variable/constant definitions when symbol lookup is unavailable.
+        if (!definitionText && def.range.start.line < defDoc.lineCount) {
+          definitionText = defDoc.lineAt(def.range.start.line).text.trim();
+        }
+        if (!definitionText) {
+          definitionText = cleanInvokedSignatureText(defDoc.getText(def.range)).trim();
+        }
+        if (!definitionText || localUnique.has(key)) {
+          continue;
+        }
+
+        const location = `${path.basename(def.uri.fsPath)}:${def.range.start.line + 1}`;
+        const entry = [
+          `[${symbolKindForEntry}] ${symbolNameForEntry} (${location})`,
+          definitionText
+        ].join('\n');
+        entries.push({
+          key,
+          entry,
+          defDoc,
+          defSymbol,
+          symbolName: symbolNameForEntry,
+          symbolKind: symbolKindForEntry
+        });
+        localUnique.add(key);
+      }
+    }
+
+    return entries;
+  }
+
+  private extractCallsiteAnchorsFromDraft(draftTestCode: string): Set<string> {
+    const anchors = new Set<string>();
+    const code = (draftTestCode || '').replace(/\r\n/g, '\n');
+    if (!code.trim()) {
+      return anchors;
+    }
+
+    const skip = new Set([
+      'if', 'for', 'while', 'return', 'assert', 'with', 'in', 'not',
+      'self', 'cls', 'patch', 'object', 'mock', 'side_effect', 'return_value',
+      'isinstance', 'len', 'str', 'int', 'float', 'bool', 'tuple', 'list', 'dict', 'set',
+      'max', 'min', 'sum', 'all', 'any', 'sorted', 'range', 'type', 'super',
+      'raises', 'main'
+    ]);
+
+    const addAnchor = (raw: string | undefined) => {
+      const normalized = this.normalizeSymbolName(raw || '');
+      if (!normalized || skip.has(normalized)) {
+        return;
+      }
+      anchors.add(normalized);
+    };
+
+    // General call names: foo(...)
+    for (const match of code.matchAll(/\b([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)) {
+      addAnchor(match[1]);
+    }
+
+    // Attribute calls: obj.foo(...)
+    for (const match of code.matchAll(/\.([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)) {
+      addAnchor(match[1]);
+    }
+
+    // patch target path: "module.Class.method"
+    for (const match of code.matchAll(/patch(?:\.object)?\(\s*["']([^"']+)["']/g)) {
+      const target = (match[1] || '').split('.').filter(Boolean);
+      if (target.length > 0) {
+        addAnchor(target[target.length - 1]);
+      }
+    }
+
+    return anchors;
+  }
+
+  private buildFocalDecisionContext(document: vscode.TextDocument, focalSymbol: vscode.DocumentSymbol): string {
+    const source = document.getText(focalSymbol.range);
+    if (!source.trim()) {
+      return '';
+    }
+    const lines = source.replace(/\r\n/g, '\n').split('\n');
+    const decisionLines = lines
+      .map(line => line.trim())
+      .filter(Boolean)
+      .filter(line => (
+        /^(if|elif|else|return|assert)\b/.test(line) ||
+        /\bsuper\s*\(/.test(line) ||
+        /\.suitable\s*\(/.test(line) ||
+        /\bany\s*\(/.test(line)
+      ));
+    if (!decisionLines.length) {
+      return '';
+    }
+    const location = `${path.basename(document.uri.fsPath)}:${focalSymbol.range.start.line + 1}`;
+    return [
+      `[decision] focal_branch_conditions (${location})`,
+      ...decisionLines.slice(0, 12)
+    ].join('\n');
+  }
+
+  private shouldSeedFromCallsite(
+    symbolName: string,
+    focalSymbolName: string,
+    anchors: Set<string>
+  ): boolean {
+    if (anchors.size === 0) {
+      return true;
+    }
+    const normalized = this.normalizeSymbolName(symbolName);
+    const focalNormalized = this.normalizeSymbolName(focalSymbolName);
+    if (!normalized) {
+      return false;
+    }
+    if (anchors.has(normalized)) {
+      return true;
+    }
+    // Keep focal-name-matching methods (e.g., suitable) so delegation chains stay visible.
+    if (normalized === focalNormalized) {
+      return true;
+    }
+    return false;
+  }
+
   /**
-   * Collect full definitions of symbols referenced by the focal symbol.
+   * Callsite-conditioned transitive retrieval:
+   * - seeds traversal from invoked symbols that match draft-test callsites
+   * - includes focal decision lines (if/super/delegation) to ground branch expectations
+   * - follows transitive calls from selected seeds only
    */
-  async getInvokedFunctionSignatures(testEntry: any): Promise<string[]> {
+  async getInvokedFunctionContextCallsiteConditioned(testEntry: any, maxDepth: number = 2): Promise<string[]> {
     try {
       const symbolName = testEntry.symbol_name || testEntry.symbolName;
       if (!symbolName || !testEntry.source_file) {
@@ -355,118 +618,98 @@ export class LLMFixWorkflow {
         return [];
       }
 
-      const tokens = await getDecodedTokensFromSymbol(document, focalSymbol);
-      if (!tokens.length) {
+      const boundedDepth = Math.max(1, Math.min(maxDepth, 3));
+      const unique = new Map<string, string>();
+      const directEntries = await this.collectInvokedDefinitionEntries(document, focalSymbol);
+      const anchors = this.extractCallsiteAnchorsFromDraft(testEntry.draft_test_code || testEntry.draftTestCode || '');
+
+      const decisionEntry = this.buildFocalDecisionContext(document, focalSymbol);
+      if (decisionEntry) {
+        unique.set('__decision__', decisionEntry);
+      }
+
+      let seedEntries = directEntries.filter(item =>
+        this.shouldSeedFromCallsite(item.symbolName, symbolName, anchors)
+      );
+      if (seedEntries.length === 0) {
+        seedEntries = directEntries;
+      }
+
+      const visitedSymbols = new Set<string>();
+      const queue: Array<{ doc: vscode.TextDocument; symbol: vscode.DocumentSymbol; depth: number }> = [];
+
+      for (const item of seedEntries) {
+        if (!unique.has(item.key)) {
+          unique.set(item.key, item.entry);
+        }
+        if (!item.defSymbol || !this.shouldTraverseTransitive(item.defSymbol)) {
+          continue;
+        }
+        const visitKey = this.buildSymbolVisitKey(item.defDoc.uri, item.defSymbol);
+        if (visitedSymbols.has(visitKey)) {
+          continue;
+        }
+        visitedSymbols.add(visitKey);
+        queue.push({
+          doc: item.defDoc,
+          symbol: item.defSymbol,
+          depth: 1
+        });
+      }
+
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        if (current.depth >= boundedDepth) {
+          continue;
+        }
+        const entries = await this.collectInvokedDefinitionEntries(current.doc, current.symbol);
+        for (const item of entries) {
+          if (!unique.has(item.key)) {
+            unique.set(item.key, item.entry);
+          }
+          if (!item.defSymbol || !this.shouldTraverseTransitive(item.defSymbol)) {
+            continue;
+          }
+          const visitKey = this.buildSymbolVisitKey(item.defDoc.uri, item.defSymbol);
+          if (visitedSymbols.has(visitKey)) {
+            continue;
+          }
+          visitedSymbols.add(visitKey);
+          queue.push({
+            doc: item.defDoc,
+            symbol: item.defSymbol,
+            depth: current.depth + 1
+          });
+        }
+      }
+
+      return Array.from(unique.values());
+    } catch (error) {
+      console.warn('[LLM_FIX] Failed to extract callsite-conditioned transitive context:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Collect full definitions of symbols referenced by the focal symbol.
+   */
+  async getInvokedFunctionContext(testEntry: any): Promise<string[]> {
+    try {
+      const symbolName = testEntry.symbol_name || testEntry.symbolName;
+      if (!symbolName || !testEntry.source_file) {
         return [];
       }
 
-      const tokensWithDefs = await retrieveDefs(document, tokens);
+      const document = await vscode.workspace.openTextDocument(testEntry.source_file);
+      const focalSymbol = await getSymbolFromDocument(document, symbolName);
+      if (!focalSymbol) {
+        return [];
+      }
       const unique = new Map<string, string>();
-
-      for (const token of tokensWithDefs) {
-        if (!token.definition?.length) {
-          continue;
-        }
-
-        for (const def of token.definition) {
-          // Skip symbols defined inside the focal symbol itself.
-          if (
-            def.uri.toString() === document.uri.toString() &&
-            focalSymbol.range.contains(def.range.start) &&
-            focalSymbol.range.contains(def.range.end)
-          ) {
-            continue;
-          }
-
-          // Keep backward-compatibility with existing behavior for strict "between" checks.
-          if (isBetweenFocalMethod(def.range, focalSymbol)) {
-            continue;
-          }
-
-          if (!isInWorkspace(def.uri.fsPath)) {
-            continue;
-          }
-          const defDoc = await vscode.workspace.openTextDocument(def.uri);
-          const rawDefSymbol = await getSymbolByLocation(defDoc, def.range.start);
-
-          let key = `${def.uri.toString()}:${def.range.start.line}:${def.range.start.character}:${def.range.end.line}:${def.range.end.character}`;
-          let symbolNameForEntry = token.word;
-          let symbolKindForEntry = token.type || 'symbol';
-          let definitionText = '';
-
-          if (!rawDefSymbol && token.type?.toLowerCase() === 'variable') {
-            continue;
-          }
-
-          let defSymbol = rawDefSymbol;
-          if (defSymbol) {
-            const normalizedTokenName = this.normalizeSymbolName(token.word);
-            if (normalizedTokenName && this.normalizeSymbolName(defSymbol.name) !== normalizedTokenName) {
-              const nested = this.findNestedSymbolByName(defSymbol, token.word);
-              if (nested) {
-                defSymbol = nested;
-              }
-            }
-
-            const isCallableToken = token.type === 'function' || token.type === 'method';
-            if (isCallableToken && normalizedTokenName && this.normalizeSymbolName(defSymbol.name) !== normalizedTokenName) {
-              continue;
-            }
-
-            if (
-              def.uri.toString() === document.uri.toString() &&
-              defSymbol.range.contains(focalSymbol.range.start) &&
-              defSymbol.range.contains(focalSymbol.range.end) &&
-              !defSymbol.range.isEqual(focalSymbol.range)
-            ) {
-              continue;
-            }
-
-            key = `${def.uri.toString()}:${defSymbol.selectionRange.start.line}:${defSymbol.selectionRange.start.character}`;
-            symbolNameForEntry = defSymbol.name || symbolNameForEntry;
-            symbolKindForEntry = (vscode.SymbolKind[defSymbol.kind] || symbolKindForEntry).toLowerCase();
-
-            if (defSymbol.kind === vscode.SymbolKind.Variable) {
-              continue;
-            }
-
-            if (defSymbol.kind === vscode.SymbolKind.Constant) {
-              // Constant-specific policy: prefer signature-style loading.
-              const hoverResults = await getHover(defDoc, defSymbol, false);
-              definitionText = cleanInvokedSignatureText(extractHoverText(hoverResults)).trim();
-              if (!definitionText) {
-                definitionText = cleanInvokedSignatureText(getSymbolDetail(defDoc, defSymbol)).trim();
-              }
-            } else {
-              // Default policy: prefer full symbol body so prompts receive complete definitions.
-              definitionText = cleanInvokedSignatureText(getSymbolDetail(defDoc, defSymbol, true)).trim();
-            }
-
-            if (!definitionText) {
-              const hoverResults = await getHover(defDoc, defSymbol, false);
-              definitionText = cleanInvokedSignatureText(extractHoverText(hoverResults)).trim();
-            }
-          }
-
-          // Fall back to the full line for variable/constant definitions when symbol lookup is unavailable.
-          if (!definitionText && def.range.start.line < defDoc.lineCount) {
-            definitionText = defDoc.lineAt(def.range.start.line).text.trim();
-          }
-          if (!definitionText) {
-            definitionText = cleanInvokedSignatureText(defDoc.getText(def.range)).trim();
-          }
-          if (!definitionText) {
-            continue;
-          }
-
-          if (!unique.has(key)) {
-            const location = `${path.basename(def.uri.fsPath)}:${def.range.start.line + 1}`;
-            const entry = [
-              `[${symbolKindForEntry}] ${symbolNameForEntry} (${location})`,
-              definitionText
-            ].join('\n');
-            unique.set(key, entry);
-          }
+      const entries = await this.collectInvokedDefinitionEntries(document, focalSymbol);
+      for (const item of entries) {
+        if (!unique.has(item.key)) {
+          unique.set(item.key, item.entry);
         }
       }
 
@@ -477,8 +720,66 @@ export class LLMFixWorkflow {
     }
   }
 
+  /**
+   * Collect full definitions of symbols referenced by the focal symbol and their dependencies.
+   * maxDepth=1 keeps direct behavior, maxDepth=2 includes one transitive hop.
+   */
+  async getInvokedFunctionContextTransitive(testEntry: any, maxDepth: number = 2): Promise<string[]> {
+    try {
+      const symbolName = testEntry.symbol_name || testEntry.symbolName;
+      if (!symbolName || !testEntry.source_file) {
+        return [];
+      }
+
+      const document = await vscode.workspace.openTextDocument(testEntry.source_file);
+      const focalSymbol = await getSymbolFromDocument(document, symbolName);
+      if (!focalSymbol) {
+        return [];
+      }
+
+      const boundedDepth = Math.max(1, Math.min(maxDepth, 3));
+      const unique = new Map<string, string>();
+      const visitedSymbols = new Set<string>();
+      const queue: Array<{ doc: vscode.TextDocument; symbol: vscode.DocumentSymbol; depth: number }> = [
+        { doc: document, symbol: focalSymbol, depth: 1 }
+      ];
+      visitedSymbols.add(this.buildSymbolVisitKey(document.uri, focalSymbol));
+
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const entries = await this.collectInvokedDefinitionEntries(current.doc, current.symbol);
+
+        for (const item of entries) {
+          if (!unique.has(item.key)) {
+            unique.set(item.key, item.entry);
+          }
+
+          if (!item.defSymbol || current.depth >= boundedDepth || !this.shouldTraverseTransitive(item.defSymbol)) {
+            continue;
+          }
+
+          const visitKey = this.buildSymbolVisitKey(item.defDoc.uri, item.defSymbol);
+          if (visitedSymbols.has(visitKey)) {
+            continue;
+          }
+          visitedSymbols.add(visitKey);
+          queue.push({
+            doc: item.defDoc,
+            symbol: item.defSymbol,
+            depth: current.depth + 1
+          });
+        }
+      }
+
+      return Array.from(unique.values());
+    } catch (error) {
+      console.warn(`[LLM_FIX] Failed to extract transitive invoked function signatures:`, error);
+      return [];
+    }
+  }
+
   private async extractContextForDefaultValueMismatch(testEntry: any): Promise<string[]> {
-    return this.getInvokedFunctionSignatures(testEntry);
+    return this.getInvokedFunctionContextTransitive(testEntry, 2);
   }
 
   async extractContextForSentinelRedefinitionMismatch(testEntry: any): Promise<string[]> {

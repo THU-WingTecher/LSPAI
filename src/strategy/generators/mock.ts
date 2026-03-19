@@ -80,6 +80,12 @@ type MockedDefinitionSummaryEntry = {
 	definition: ResolvedMockDefinition | null;
 };
 
+type CoLocatedLineCandidate = {
+	word: string;
+	startChar: number;
+	source: 'semantic' | 'lexical';
+};
+
 type PythonAssignment = {
 	lhs: string;
 	rhsExpr: string;
@@ -108,6 +114,48 @@ const MOCK_CONSTRUCTOR_APIS = new Set([
 	'noncallablemagicmock'
 ]);
 const LOOKUP_KEYWORD_BLOCK = new Set(['True', 'False', 'None', 'null', 'undefined']);
+const PYTHON_KEYWORD_BLOCK = new Set([
+	'and',
+	'as',
+	'assert',
+	'async',
+	'await',
+	'break',
+	'case',
+	'class',
+	'continue',
+	'def',
+	'del',
+	'elif',
+	'else',
+	'except',
+	'finally',
+	'for',
+	'from',
+	'global',
+	'if',
+	'import',
+	'in',
+	'is',
+	'lambda',
+	'match',
+	'nonlocal',
+	'not',
+	'or',
+	'pass',
+	'raise',
+	'return',
+	'try',
+	'while',
+	'with',
+	'yield'
+]);
+const MAX_COLOCATED_LOOKUP_CANDIDATES = 6;
+const PYTHON_PATH_RESOLVE_CACHE_MAX = 256;
+const PYTHON_PATH_RESOLVE_CACHE = new Map<string, ResolvedMockDefinition[]>();
+const PYTHON_MODULE_URI_CACHE = new Map<string, vscode.Uri[]>();
+const ENABLE_COLOCATED_AFTER_LSP =
+	(process.env.LSPRAG_MOCK_ENABLE_COLOCATED_AFTER_LSP || '').toLowerCase() === 'true';
 
 const PY_TRAILING_COMMENT_RE = /\s+#.*$/;
 const PY_FROM_IMPORT_RE = /^from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+(.+)$/;
@@ -1096,6 +1144,141 @@ function withExtraNote(defs: ResolvedMockDefinition[], note: string): ResolvedMo
 	return defs.map(def => ({ ...def, notes: Array.from(new Set([...(def.notes || []), note])) }));
 }
 
+function cloneResolvedDefinitions(defs: ResolvedMockDefinition[]): ResolvedMockDefinition[] {
+	return defs.map(def => ({
+		...def,
+		notes: [...(def.notes || [])]
+	}));
+}
+
+function makePythonPathResolveCacheKey(dottedPath: string, anchorFilePath?: string): string {
+	const anchorDir = anchorFilePath ? path.dirname(path.resolve(anchorFilePath)) : '';
+	return `${anchorDir}::${dottedPath}`;
+}
+
+function getCachedPythonPathResolution(dottedPath: string, anchorFilePath?: string): ResolvedMockDefinition[] | null {
+	const key = makePythonPathResolveCacheKey(dottedPath, anchorFilePath);
+	const cached = PYTHON_PATH_RESOLVE_CACHE.get(key);
+	return cached ? cloneResolvedDefinitions(cached) : null;
+}
+
+function setCachedPythonPathResolution(
+	dottedPath: string,
+	anchorFilePath: string | undefined,
+	defs: ResolvedMockDefinition[]
+): void {
+	const key = makePythonPathResolveCacheKey(dottedPath, anchorFilePath);
+	if (PYTHON_PATH_RESOLVE_CACHE.size >= PYTHON_PATH_RESOLVE_CACHE_MAX && !PYTHON_PATH_RESOLVE_CACHE.has(key)) {
+		const oldest = PYTHON_PATH_RESOLVE_CACHE.keys().next().value as string | undefined;
+		if (oldest) {
+			PYTHON_PATH_RESOLVE_CACHE.delete(oldest);
+		}
+	}
+	PYTHON_PATH_RESOLVE_CACHE.set(key, cloneResolvedDefinitions(defs));
+}
+
+function makePythonModuleUriCacheKey(modulePath: string, anchorFilePath?: string): string {
+	const anchorDir = anchorFilePath ? path.dirname(path.resolve(anchorFilePath)) : '';
+	return `${anchorDir}::${modulePath}`;
+}
+
+function getCachedPythonModuleUris(modulePath: string, anchorFilePath?: string): vscode.Uri[] | null {
+	const key = makePythonModuleUriCacheKey(modulePath, anchorFilePath);
+	const cached = PYTHON_MODULE_URI_CACHE.get(key);
+	return cached ? [...cached] : null;
+}
+
+function setCachedPythonModuleUris(modulePath: string, anchorFilePath: string | undefined, uris: vscode.Uri[]): void {
+	const key = makePythonModuleUriCacheKey(modulePath, anchorFilePath);
+	if (PYTHON_MODULE_URI_CACHE.size >= PYTHON_PATH_RESOLVE_CACHE_MAX && !PYTHON_MODULE_URI_CACHE.has(key)) {
+		const oldest = PYTHON_MODULE_URI_CACHE.keys().next().value as string | undefined;
+		if (oldest) {
+			PYTHON_MODULE_URI_CACHE.delete(oldest);
+		}
+	}
+	PYTHON_MODULE_URI_CACHE.set(key, [...uris]);
+}
+
+function hasNonLookupResolvedDefinition(defs: ResolvedMockDefinition[], lookupTokens: Set<string>): boolean {
+	return defs.some(def => !lookupTokens.has(def.name));
+}
+
+function shouldAttemptDataFlowForLookup(bindings: PythonMockBindings, token: string): boolean {
+	return bindings.assignmentHistory.has(token) || bindings.importBindings.has(token);
+}
+
+function dedupeLocations(locations: vscode.Location[]): vscode.Location[] {
+	const seen = new Set<string>();
+	const out: vscode.Location[] = [];
+	for (const location of locations) {
+		const key = `${location.uri.toString()}@${location.range.start.line}:${location.range.start.character}:${location.range.end.line}:${location.range.end.character}`;
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		out.push(location);
+	}
+	return out;
+}
+
+function mergeCoLocatedLineCandidates(
+	lineTokens: DecodedToken[],
+	lexicalCandidates: Array<{ word: string; startChar: number }>
+): CoLocatedLineCandidate[] {
+	const merged = new Map<string, CoLocatedLineCandidate>();
+	for (const token of lineTokens) {
+		const key = `${token.word}:${token.startChar}`;
+		if (!merged.has(key)) {
+			merged.set(key, { word: token.word, startChar: token.startChar, source: 'semantic' });
+		}
+	}
+	for (const lex of lexicalCandidates) {
+		const key = `${lex.word}:${lex.startChar}`;
+		if (!merged.has(key)) {
+			merged.set(key, { word: lex.word, startChar: lex.startChar, source: 'lexical' });
+		}
+	}
+	return Array.from(merged.values());
+}
+
+function isCoLocatedCandidateWord(word: string, lookupToken: string): boolean {
+	if (word === lookupToken) {
+		return false;
+	}
+	if (!PY_SIMPLE_IDENTIFIER_RE.test(word)) {
+		return false;
+	}
+	if (LOOKUP_KEYWORD_BLOCK.has(word)) {
+		return false;
+	}
+	if (PYTHON_KEYWORD_BLOCK.has(word.toLowerCase())) {
+		return false;
+	}
+	return true;
+}
+
+function prioritizeCoLocatedCandidates(
+	candidates: CoLocatedLineCandidate[],
+	lookupToken: string,
+	lineText: string
+): CoLocatedLineCandidate[] {
+	const lookupStart = Math.max(0, lineText.indexOf(lookupToken));
+	return candidates
+		.filter(candidate => isCoLocatedCandidateWord(candidate.word, lookupToken))
+		.sort((a, b) => {
+			if (a.source !== b.source) {
+				return a.source === 'semantic' ? -1 : 1;
+			}
+			const aDist = Math.abs(a.startChar - lookupStart);
+			const bDist = Math.abs(b.startChar - lookupStart);
+			if (aDist !== bDist) {
+				return aDist - bDist;
+			}
+			return a.startChar - b.startChar;
+		})
+		.slice(0, MAX_COLOCATED_LOOKUP_CANDIDATES);
+}
+
 function dedupeResolvedDefinitions(defs: ResolvedMockDefinition[]): ResolvedMockDefinition[] {
 	const out = new Map<string, ResolvedMockDefinition>();
 	for (const def of defs) {
@@ -1130,6 +1313,28 @@ function hasFlowOrPathNote(def: ResolvedMockDefinition): boolean {
 function definitionPathFromLoc(loc: string): string {
 	const at = loc.indexOf('@');
 	return at >= 0 ? loc.slice(0, at) : loc;
+}
+
+function isPythonStdlibPath(filePath: string): boolean {
+	const normalized = filePath.replace(/\\/g, '/').toLowerCase();
+	if (normalized.includes('typeshed-fallback/stdlib/')) {
+		return true;
+	}
+	const isLibPythonPath =
+		/\/lib\/python\d+(?:\.\d+)?\//.test(normalized)
+		|| /\/lib64\/python\d+(?:\.\d+)?\//.test(normalized)
+		|| /\/lib\/pypy\d+(?:\.\d+)?\//.test(normalized);
+	if (!isLibPythonPath) {
+		return false;
+	}
+	if (normalized.includes('/site-packages/') || normalized.includes('/dist-packages/')) {
+		return false;
+	}
+	return true;
+}
+
+function filterOutPythonStdlibDefinitions(defs: ResolvedMockDefinition[]): ResolvedMockDefinition[] {
+	return defs.filter(def => !isPythonStdlibPath(definitionPathFromLoc(def.loc)));
 }
 
 function preferUnderlyingMockObjectDefinitions(
@@ -1362,7 +1567,7 @@ async function resolveViaCoLocatedTokens(
 		lookupCharacter: lookupPos.character + 1
 	});
 
-	const defs = await VscodeRequestManager.definitions(testDoc.uri, lookupPos);
+	const defs = dedupeLocations(await VscodeRequestManager.definitions(testDoc.uri, lookupPos));
 	logMockResolve('co-located resolver lookup definitions', {
 		lookupToken: lookup.token,
 		definitionCount: defs.length
@@ -1374,65 +1579,58 @@ async function resolveViaCoLocatedTokens(
 	const resolved: ResolvedMockDefinition[] = [];
 	for (const def of defs) {
 		try {
-			const defDoc = await vscode.workspace.openTextDocument(def.uri);
-			const parentSymbol = await getSymbolByLocation(defDoc, def.range.start);
-			if (!parentSymbol) {
-				logMockResolve('co-located resolver: parent symbol not found', {
-					lookupToken: lookup.token,
-					definitionPath: def.uri.fsPath,
-					defLine: def.range.start.line + 1
-				});
+			if (def.uri.scheme !== 'file') {
 				continue;
 			}
+			const defDoc = await vscode.workspace.openTextDocument(def.uri);
+			const definitionPath = toWorkspaceRelativePath(def.uri.fsPath);
+			const shouldUseSymbolAnchoring = !path.isAbsolute(definitionPath);
+			let parentSymbol: vscode.DocumentSymbol | null = null;
+			let anchorLine = def.range.start.line;
+			let lineTokens: DecodedToken[] = [];
 
-			const symbolTokens = await getDecodedTokensFromSymbol(defDoc, parentSymbol);
-			const anchors = symbolTokens.filter(t => t.word === lookup.token);
-			const anchor = pickNearestAnchorToken(anchors, def.range.start.line);
-			const anchorLine = anchor ? anchor.line : def.range.start.line;
-			let lineTokens = symbolTokens.filter(t => t.line === anchorLine);
+			if (shouldUseSymbolAnchoring) {
+				parentSymbol = await getSymbolByLocation(defDoc, def.range.start);
+				if (!parentSymbol) {
+					logMockResolve('co-located resolver: parent symbol not found', {
+						lookupToken: lookup.token,
+						definitionPath: def.uri.fsPath,
+						defLine: def.range.start.line + 1
+					});
+				} else {
+					const symbolTokens = await getDecodedTokensFromSymbol(defDoc, parentSymbol);
+					const anchors = symbolTokens.filter(t => t.word === lookup.token);
+					const anchor = pickNearestAnchorToken(anchors, def.range.start.line);
+					anchorLine = anchor ? anchor.line : def.range.start.line;
+					lineTokens = symbolTokens.filter(t => t.line === anchorLine);
+				}
+			}
+
 			if (lineTokens.length === 0) {
 				lineTokens = await getDecodedTokensFromLine(defDoc, anchorLine);
 				logMockResolve('co-located resolver: fallback to line tokens', {
 					lookupToken: lookup.token,
-					definitionPath: toWorkspaceRelativePath(def.uri.fsPath),
+					definitionPath,
 					anchorLine: anchorLine + 1,
 					lineTokenWords: lineTokens.map(t => t.word)
 				});
 			}
 			const lineText = defDoc.lineAt(anchorLine).text;
 			const lexicalCandidates = extractIdentifierPositionsFromLine(lineText);
-			type LineCandidate = { word: string; startChar: number; source: 'semantic' | 'lexical' };
-			const mergedCandidates = new Map<string, LineCandidate>();
-			for (const t of lineTokens) {
-				const key = `${t.word}:${t.startChar}`;
-				if (!mergedCandidates.has(key)) {
-					mergedCandidates.set(key, { word: t.word, startChar: t.startChar, source: 'semantic' });
-				}
-			}
-			for (const lex of lexicalCandidates) {
-				const key = `${lex.word}:${lex.startChar}`;
-				if (!mergedCandidates.has(key)) {
-					mergedCandidates.set(key, { word: lex.word, startChar: lex.startChar, source: 'lexical' });
-				}
-			}
-			const candidates = Array.from(mergedCandidates.values());
+			const candidates = mergeCoLocatedLineCandidates(lineTokens, lexicalCandidates);
+			const prioritizedCandidates = prioritizeCoLocatedCandidates(candidates, lookup.token, lineText);
 			logMockResolve('co-located resolver: line token scan', {
 				lookupToken: lookup.token,
-				definitionPath: toWorkspaceRelativePath(def.uri.fsPath),
-				parentSymbol: parentSymbol.name,
+				definitionPath,
+				parentSymbol: parentSymbol ? parentSymbol.name : '(line-fallback)',
 				anchorLine: anchorLine + 1,
 				lineTokenWords: lineTokens.map(t => t.word),
-				lexicalTokenWords: lexicalCandidates.map(t => t.word)
+				lexicalTokenWords: lexicalCandidates.map(t => t.word),
+				candidateCount: candidates.length,
+				selectedCandidates: prioritizedCandidates.map(c => `${c.word}:${c.startChar}:${c.source}`)
 			});
 
-			for (const candidate of candidates) {
-				if (candidate.word === lookup.token) {
-					continue;
-				}
-				if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(candidate.word)) {
-					continue;
-				}
-
+			for (const candidate of prioritizedCandidates) {
 				const pos = new vscode.Position(anchorLine, candidate.startChar);
 				const tokenDefs = await VscodeRequestManager.definitions(defDoc.uri, pos);
 				if (!tokenDefs || tokenDefs.length === 0) {
@@ -1479,6 +1677,11 @@ function collectAncestorDirs(startPath: string, maxDepth = 24): string[] {
 }
 
 async function findPythonModuleCandidateUris(modulePath: string, anchorFilePath?: string): Promise<vscode.Uri[]> {
+	const cached = getCachedPythonModuleUris(modulePath, anchorFilePath);
+	if (cached) {
+		return cached;
+	}
+
 	const folders = vscode.workspace.workspaceFolders || [];
 	const moduleRel = modulePath.replace(/\./g, '/');
 	const uris: vscode.Uri[] = [];
@@ -1516,10 +1719,33 @@ async function findPythonModuleCandidateUris(modulePath: string, anchorFilePath?
 		}
 	}
 	if (uris.length > 0) {
+		setCachedPythonModuleUris(modulePath, anchorFilePath, uris);
 		return uris;
 	}
 
 	if (!folders.length) {
+		setCachedPythonModuleUris(modulePath, anchorFilePath, uris);
+		return uris;
+	}
+
+	const topLevelModule = moduleRel.split('/')[0];
+	let topLevelExistsInWorkspace = false;
+	for (const folder of folders) {
+		const root = folder.uri.fsPath;
+		try {
+			if (
+				fs.existsSync(path.join(root, `${topLevelModule}.py`))
+				|| fs.existsSync(path.join(root, topLevelModule))
+			) {
+				topLevelExistsInWorkspace = true;
+				break;
+			}
+		} catch {
+			// best effort
+		}
+	}
+	if (!topLevelExistsInWorkspace) {
+		setCachedPythonModuleUris(modulePath, anchorFilePath, uris);
 		return uris;
 	}
 
@@ -1549,10 +1775,16 @@ async function findPythonModuleCandidateUris(modulePath: string, anchorFilePath?
 		}
 	}
 
+	setCachedPythonModuleUris(modulePath, anchorFilePath, uris);
 	return uris;
 }
 
 async function resolveDefinitionFromPythonPath(dottedPath: string, anchorFilePath?: string): Promise<ResolvedMockDefinition[]> {
+	const cached = getCachedPythonPathResolution(dottedPath, anchorFilePath);
+	if (cached) {
+		return cached;
+	}
+
 	const parts = dottedPath.split('.').filter(Boolean);
 	if (parts.length === 0) {
 		return [];
@@ -1611,12 +1843,15 @@ async function resolveDefinitionFromPythonPath(dottedPath: string, anchorFilePat
 			}
 		}
 		if (resolved.length > 0) {
-			return dedupeResolvedDefinitions(resolved);
+			const deduped = dedupeResolvedDefinitions(resolved);
+			setCachedPythonPathResolution(dottedPath, anchorFilePath, deduped);
+			return deduped;
 		}
 	}
 
 	const moduleUris = await findPythonModuleCandidateUris(dottedPath, anchorFilePath);
 	if (!moduleUris.length) {
+		setCachedPythonPathResolution(dottedPath, anchorFilePath, []);
 		return [];
 	}
 	const moduleName = parts[parts.length - 1] || dottedPath;
@@ -1631,7 +1866,9 @@ async function resolveDefinitionFromPythonPath(dottedPath: string, anchorFilePat
 			resolved.push(def);
 		}
 	}
-	return dedupeResolvedDefinitions(resolved);
+	const deduped = dedupeResolvedDefinitions(resolved);
+	setCachedPythonPathResolution(dottedPath, anchorFilePath, deduped);
+	return deduped;
 }
 
 async function resolveAssignmentHeadViaLsp(
@@ -1785,11 +2022,13 @@ async function resolveMockTargetDefinitions(
 	});
 	if (target.targetKind === 'stringTarget') {
 		const fromPath = await resolveDefinitionFromPythonPath(target.targetText, testDoc.uri.fsPath);
+		const filteredPath = filterOutPythonStdlibDefinitions(fromPath);
 		logMockResolve('string target resolution', {
 			targetText: target.targetText,
-			resolvedCount: fromPath.length
+			resolvedCount: filteredPath.length,
+			rawResolvedCount: fromPath.length
 		});
-		return fromPath.length > 0 ? withExtraNote(fromPath, `mock target string \`${target.targetText}\``) : [];
+		return filteredPath.length > 0 ? withExtraNote(filteredPath, `mock target string \`${target.targetText}\``) : [];
 	}
 
 	const lastLookup = extractLookupToken(target.targetText);
@@ -1809,60 +2048,112 @@ async function resolveMockTargetDefinitions(
 		targetText: target.targetText,
 		lookupCandidates: lookupCandidates.map(v => ({ token: v.token, relativeOffset: v.relativeOffset }))
 	});
+	const lookupTokens = new Set(lookupCandidates.map(c => c.token));
 
-	const lspResolved: ResolvedMockDefinition[] = [];
+	const lspResolvedRaw: ResolvedMockDefinition[] = [];
 	for (const lookup of lookupCandidates) {
 		const defs = await resolveViaLspDefinition(testDoc, draftCode, target, lookup);
-		lspResolved.push(...defs);
+		lspResolvedRaw.push(...defs);
 	}
+	const lspResolved = filterOutPythonStdlibDefinitions(lspResolvedRaw);
 	logMockResolve('LSP resolved count', {
 		targetText: target.targetText,
-		count: lspResolved.length
+		count: lspResolved.length,
+		rawCount: lspResolvedRaw.length
 	});
 	const combinedResolved: ResolvedMockDefinition[] = [...lspResolved];
 
-	const coLocatedResolved: ResolvedMockDefinition[] = [];
-	for (const lookup of lookupCandidates) {
-		const defs = await resolveViaCoLocatedTokens(testDoc, draftCode, target, lookup);
-		coLocatedResolved.push(...defs);
+	const coLocatedResolvedRaw: ResolvedMockDefinition[] = [];
+	const shouldRunCoLocated =
+		lspResolved.length === 0
+		|| (ENABLE_COLOCATED_AFTER_LSP && !hasNonLookupResolvedDefinition(lspResolved, lookupTokens));
+	if (shouldRunCoLocated) {
+		for (const lookup of lookupCandidates) {
+			const defs = await resolveViaCoLocatedTokens(testDoc, draftCode, target, lookup);
+			coLocatedResolvedRaw.push(...defs);
+		}
+	} else {
+		logMockResolve('co-located resolver skipped', {
+			targetText: target.targetText,
+			reason: ENABLE_COLOCATED_AFTER_LSP
+				? 'lsp already produced non-lookup definition'
+				: 'disabled after any lsp resolution'
+		});
 	}
+	const coLocatedResolved = filterOutPythonStdlibDefinitions(coLocatedResolvedRaw);
 	if (coLocatedResolved.length > 0) {
 		combinedResolved.push(...coLocatedResolved);
 	}
 	logMockResolve('co-located resolved count', {
 		targetText: target.targetText,
-		count: coLocatedResolved.length
+		count: coLocatedResolved.length,
+		rawCount: coLocatedResolvedRaw.length
 	});
 
 	const expressionPathCandidate = target.targetText.trim();
-	if (/^[A-Za-z_][A-Za-z0-9_.]*$/.test(expressionPathCandidate) && expressionPathCandidate.includes('.')) {
+	const canAttemptExpressionPath =
+		/^[A-Za-z_][A-Za-z0-9_.]*$/.test(expressionPathCandidate)
+		&& expressionPathCandidate.includes('.');
+	const shouldRunExpressionPath =
+		canAttemptExpressionPath
+		&& (combinedResolved.length === 0 || !hasNonLookupResolvedDefinition(combinedResolved, lookupTokens));
+	if (shouldRunExpressionPath) {
 		const fromExprPath = await resolveDefinitionFromPythonPath(expressionPathCandidate, testDoc.uri.fsPath);
-		if (fromExprPath.length > 0) {
-			combinedResolved.push(...withExtraNote(fromExprPath, `resolved from expression path \`${expressionPathCandidate}\``));
+		const filteredExprPath = filterOutPythonStdlibDefinitions(fromExprPath);
+		if (filteredExprPath.length > 0) {
+			combinedResolved.push(...withExtraNote(filteredExprPath, `resolved from expression path \`${expressionPathCandidate}\``));
 		}
 		logMockResolve('expression-path resolved count', {
 			targetText: target.targetText,
 			expressionPathCandidate,
-			count: fromExprPath.length
+			count: filteredExprPath.length,
+			rawCount: fromExprPath.length
+		});
+	} else if (canAttemptExpressionPath) {
+		logMockResolve('expression-path resolution skipped', {
+			targetText: target.targetText,
+			expressionPathCandidate,
+			reason: 'already resolved to non-lookup definition'
 		});
 	}
 
-	const dataFlowResolved: ResolvedMockDefinition[] = [];
-	for (const lookup of lookupCandidates) {
-		const defs = await resolveViaAssignmentDataFlow(testDoc, bindings, lookup.token, target.line);
-		dataFlowResolved.push(...defs);
+	const dataFlowResolvedRaw: ResolvedMockDefinition[] = [];
+	const shouldRunDataFlow = combinedResolved.length === 0 || !hasNonLookupResolvedDefinition(combinedResolved, lookupTokens);
+	if (shouldRunDataFlow) {
+		const attemptedLookupTokens: string[] = [];
+		for (const lookup of lookupCandidates) {
+			if (!shouldAttemptDataFlowForLookup(bindings, lookup.token)) {
+				continue;
+			}
+			attemptedLookupTokens.push(lookup.token);
+			const defs = await resolveViaAssignmentDataFlow(testDoc, bindings, lookup.token, target.line);
+			dataFlowResolvedRaw.push(...defs);
+		}
+		if (!attemptedLookupTokens.length) {
+			logMockResolve('data-flow resolver skipped', {
+				targetText: target.targetText,
+				reason: 'no assignment or import bindings for lookup tokens',
+				lookupTokens: lookupCandidates.map(c => c.token)
+			});
+		}
+	} else {
+		logMockResolve('data-flow resolver skipped', {
+			targetText: target.targetText,
+			reason: 'already resolved to non-lookup definition'
+		});
 	}
+	const dataFlowResolved = filterOutPythonStdlibDefinitions(dataFlowResolvedRaw);
 	if (dataFlowResolved.length > 0) {
 		combinedResolved.push(...dataFlowResolved);
 	}
 	logMockResolve('data-flow resolved count', {
 		targetText: target.targetText,
-		count: dataFlowResolved.length
+		count: dataFlowResolved.length,
+		rawCount: dataFlowResolvedRaw.length
 	});
 
 	if (combinedResolved.length > 0) {
 		const deduped = dedupeResolvedDefinitions(combinedResolved);
-		const lookupTokens = new Set(lookupCandidates.map(c => c.token));
 		const preferred = preferUnderlyingMockObjectDefinitions(deduped, lookupTokens, toWorkspaceRelativePath(testDoc.uri.fsPath));
 		logMockResolve('resolveMockTargetDefinitions done', {
 			targetText: target.targetText,

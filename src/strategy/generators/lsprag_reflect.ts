@@ -200,13 +200,176 @@ function hasDetectedContent(input?: string): boolean {
 	return !!value && value.toLowerCase() !== '(none detected)';
 }
 
-function formatInvokedFunctionSignatures(signatures: string[]): string {
+function formatInvokedFunctionContext(signatures: string[]): string {
 	if (!signatures.length) {
 		return '(none detected)';
 	}
-	return signatures.map((s, i) => `${i + 1}. ${s.trim()}`).join('\n');
+	return signatures
+		.map((s, i) => `${i + 1}. ${s.trim().replace(/\n/g, '\n   ')}`)
+		.join('\n');
 }
- 
+
+function countApproxTokens(text: string): number {
+	return (text || '').split(/\s+/).filter(Boolean).length;
+}
+
+function truncateTextByApproxTokens(input: string, maxTokens: number): string {
+	if (!input || maxTokens <= 0) {
+		return '';
+	}
+
+	const matches = Array.from(input.matchAll(/\S+\s*/g));
+	if (matches.length <= maxTokens) {
+		return input;
+	}
+
+	const cutoff = matches[maxTokens - 1];
+	const endIndex = typeof cutoff.index === 'number' ? cutoff.index + cutoff[0].length : input.length;
+	return input.slice(0, endIndex).trimEnd() + '\n...';
+}
+
+function getInvokedEntryPriority(entry: string): number {
+	const normalized = (entry || '').toLowerCase();
+	const header = normalized.split('\n')[0] || '';
+	let score = 0;
+
+	if (header.startsWith('[decision]')) {
+		return 1000;
+	}
+	if (header.startsWith('[method]') || header.startsWith('[function]') || header.startsWith('[constructor]')) {
+		score += 400;
+	} else if (header.startsWith('[class]')) {
+		score += 250;
+	} else if (header.startsWith('[constant]')) {
+		score += 100;
+	}
+
+	if (/\bsuper\s*\(|\.suitable\s*\(/.test(normalized)) {
+		score += 80;
+	}
+	if (/(^|\n)\s*(if|elif|else|else if|match|case|switch|catch|except)\b/m.test(normalized)) {
+		score += 60;
+	}
+	if (/(^|\n)\s*return\b/m.test(normalized)) {
+		score += 20;
+	}
+	if (/(^|\n)\s*assert\b/m.test(normalized)) {
+		score += 10;
+	}
+
+	return score;
+}
+
+export function compactInvokedFunctionContext(
+	entries: string[],
+	options: {
+		maxEntries?: number;
+		maxEntryLines?: number;
+		maxEntryChars?: number;
+		maxTotalChars?: number;
+		maxTotalTokens?: number;
+	} = {}
+): string[] {
+	const maxEntries = options.maxEntries ?? Number.MAX_SAFE_INTEGER;
+	const maxEntryLines = options.maxEntryLines ?? 120;
+	const maxEntryChars = options.maxEntryChars ?? 32000;
+	const maxTotalChars = options.maxTotalChars ?? 120000;
+	const maxTotalTokens = options.maxTotalTokens ?? 8000;
+	const compacted: string[] = [];
+	const seen = new Set<string>();
+	let totalChars = 0;
+	let totalTokens = 0;
+
+	const rankedEntries = entries
+		.map((entry, index) => ({
+			entry,
+			index,
+			priority: getInvokedEntryPriority(entry),
+			tokenCount: countApproxTokens(entry)
+		}))
+		.sort((a, b) => (
+			b.priority - a.priority ||
+			a.tokenCount - b.tokenCount ||
+			a.index - b.index
+		));
+
+	for (const rankedEntry of rankedEntries) {
+		const compact = compactInvokedEntry(rankedEntry.entry, maxEntryLines, maxEntryChars);
+		if (!compact || seen.has(compact)) {
+			continue;
+		}
+		if (compacted.length >= maxEntries) {
+			break;
+		}
+
+		const compactTokenCount = countApproxTokens(compact);
+		if (totalChars + compact.length > maxTotalChars || totalTokens + compactTokenCount > maxTotalTokens) {
+			const remainingCharBudget = maxTotalChars - totalChars;
+			const remainingTokenBudget = maxTotalTokens - totalTokens;
+			if (compacted.length === 0 && remainingCharBudget > 0 && remainingTokenBudget > 0) {
+				const truncatedByChars = truncateText(compact, remainingCharBudget);
+				const truncated = truncateTextByApproxTokens(truncatedByChars, remainingTokenBudget);
+				if (truncated) {
+					compacted.push(truncated);
+				}
+			}
+			break;
+		}
+
+		compacted.push(compact);
+		seen.add(compact);
+		totalChars += compact.length;
+		totalTokens += compactTokenCount;
+	}
+
+	return compacted;
+}
+
+function compactInvokedEntry(entry: string, maxLines: number, maxChars: number): string {
+	const normalized = (entry || '').replace(/\r\n/g, '\n').trim();
+	if (!normalized) {
+		return '';
+	}
+
+	const lines = normalized.split('\n');
+	const nonEmptyLineCount = lines.filter((line) => line.trim().length > 0).length;
+	// Keep full invoked definition when it is already small enough.
+	if (nonEmptyLineCount <= maxLines && normalized.length <= maxChars) {
+		return normalized;
+	}
+
+	const header = lines[0]?.trim() || '';
+	const body = lines.slice(1).map((line) => line.trim()).filter(Boolean);
+	const signalRegex = /(^@classmethod\b|^def\s+\w+|super\s*\(|\.suitable\s*\(|^assert\b|^return\b)/;
+	const signalLines = body.filter((line) => signalRegex.test(line)).slice(0, 6);
+	const fallbackLines = signalLines.length > 0 ? signalLines : body.slice(0, 3);
+	const compact = [header, ...fallbackLines].filter(Boolean).join('\n');
+	return truncateLines(compact, maxLines, maxChars);
+}
+
+export function shouldUseCallsiteConditionedInvokedContext(focalMethodSource: string): boolean {
+	const normalizedLines = (focalMethodSource || '')
+		.replace(/\r\n/g, '\n')
+		.split('\n')
+		.map((line) => line.trim().replace(/^[\]\[\)\}\{;]+/, '').trim())
+		.filter(Boolean)
+		.filter((line) => !line.startsWith('#') && !line.startsWith('//') && !line.startsWith('*') && !line.startsWith('/*'));
+
+	if (normalizedLines.length === 0) {
+		return false;
+	}
+
+	if (normalizedLines.some((line) => /\bsuper\s*\(|\.suitable\s*\(/.test(line))) {
+		return true;
+	}
+
+	return normalizedLines.some((line) => /^(if|elif|else|else\s+if|match|case|switch|catch|except)\b/.test(line));
+}
+
+function getInvokedContextTokenBudget(): number {
+	return Math.max(2048, Math.min(8000, Math.floor(getConfigInstance().maxTokens * 0.5)));
+}
+
 function formatRedefinedSymbolsSummary(redefined: RedefinedSymbol[]): string {
 	if (!redefined.length) {
 		return '(none detected)';
@@ -244,14 +407,13 @@ export function naiveReflectionPrompt(params: {
 	draftTestCode: string;
 	definitionTreePretty: string;
 	redefinedSymbolsSummary: string;
-	invokedFunctionSignatures: string[];
+	invokedFunctionContext: string[];
 	mockedObjectDefinitionsSummary?: string;
 }): ChatMessage[] {
 	const system = [
 		'You are an expert unit test engineer.',
 		'You will be given a draft unit test generated for a focal method.',
 		'Your task is to improve assertion correctness and reduce false-positive assertions.',
-		"You should wrap the final test code wrap in a triple-backtick code block.",
 		// '',
 		// 'Critical rules:',
 		// '- Use the provided focal method source as the ONLY ground-truth about behavior.',
@@ -262,7 +424,7 @@ export function naiveReflectionPrompt(params: {
 		// '- Prefer assertions that are directly implied by the focal method behavior and inputs/outputs.',
 		// '- Return ONLY the final complete test code wrapped in a single triple-backtick code block.'
 	].join('\n');
- 
+
 	const user = [
 		`Language: ${params.languageId}`,
 		`Source file: ${params.sourceFile}`,
@@ -276,7 +438,7 @@ export function naiveReflectionPrompt(params: {
 		'### Draft test code',
 		'```',
 		params.draftTestCode,
-		'```',
+		'```'
 		// '',
 		// '### Definition tree (from the focal symbol)',
 		// params.definitionTreePretty || '(unavailable)',
@@ -285,12 +447,12 @@ export function naiveReflectionPrompt(params: {
 		// params.redefinedSymbolsSummary || '(unavailable)',
 		// '',
 		// '### Invoked function signatures (functions called by the focal symbol)',
-		// formatInvokedFunctionSignatures(params.invokedFunctionSignatures)
+		// formatInvokedFunctionContext(params.invokedFunctionContext)
 		// '',
 		// '### Definitions of objects used in mock-related calls',
 		// params.mockedObjectDefinitionsSummary || '(none detected)'
 	].join('\n');
- 
+
 	return [
 		{ role: 'system', content: system },
 		{ role: 'user', content: user }
@@ -305,7 +467,7 @@ export function buildAssertionReflectionPrompt(params: {
 	draftTestCode: string;
 	definitionTreePretty: string;
 	redefinedSymbolsSummary?: string;
-	invokedFunctionSignatures: string[];
+	invokedFunctionContext: string[];
 	mockedObjectDefinitionsSummary?: string;
 }): ChatMessage[] {
 	const system = [
@@ -366,7 +528,7 @@ export function buildAssertionReflectionPrompt(params: {
 	userSections.push(
 		'',
 		'### Invoked symbol definitions',
-		formatInvokedFunctionSignatures(params.invokedFunctionSignatures)
+		formatInvokedFunctionContext(params.invokedFunctionContext)
 	);
 
 	const user = userSections.join('\n');
@@ -569,13 +731,28 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 			console.warn('[LSPRAG_REFLECT] Redefined-assertion detection failed (continuing):', e);
 		}
  
-		let invokedFunctionSignatures: string[] = [];
+		let invokedFunctionContext: string[] = [];
 		try {
 			const wfOutDir = path.join(tmpRoot, 'llm-fix-workflow');
 			const workflow = new LLMFixWorkflow(path.join(tmpRoot, 'noop.json'), wfOutDir, { language: this.languageId as any });
-			invokedFunctionSignatures = await workflow.getInvokedFunctionSignatures({
-				source_file: sourceFile,
-				symbol_name: symbolName
+			const shouldUseCallsiteConditioned = shouldUseCallsiteConditionedInvokedContext(focalMethodSource);
+			const invokedContextTokenBudget = getInvokedContextTokenBudget();
+			invokedFunctionContext = shouldUseCallsiteConditioned
+				? await workflow.getInvokedFunctionContextCallsiteConditioned({
+					source_file: sourceFile,
+					symbol_name: symbolName,
+					draft_test_code: initial
+				}, 2)
+				: await workflow.getInvokedFunctionContext({
+					source_file: sourceFile,
+					symbol_name: symbolName
+				});
+			invokedFunctionContext = compactInvokedFunctionContext(invokedFunctionContext, {
+				maxEntries: 128,
+				maxEntryLines: shouldUseCallsiteConditioned ? 160 : 120,
+				maxEntryChars: shouldUseCallsiteConditioned ? 48000 : 32000,
+				maxTotalChars: shouldUseCallsiteConditioned ? 160000 : 120000,
+				maxTotalTokens: invokedContextTokenBudget
 			});
 		} catch (e) {
 			console.warn('[LSPRAG_REFLECT] Invoked function signature extraction failed (continuing):', e);
@@ -609,7 +786,7 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 					draftTestCode: initial,
 					definitionTreePretty,
 					redefinedSymbolsSummary,
-					invokedFunctionSignatures,
+					invokedFunctionContext,
 					mockedObjectDefinitionsSummary
 				});
 		} else {
@@ -621,7 +798,7 @@ export class LSPRAGReflectTestGenerator extends LSPRAGTestGenerator {
 					draftTestCode: initial,
 					definitionTreePretty,
 					redefinedSymbolsSummary,
-					invokedFunctionSignatures,
+					invokedFunctionContext,
 					mockedObjectDefinitionsSummary
 				});
 		}
