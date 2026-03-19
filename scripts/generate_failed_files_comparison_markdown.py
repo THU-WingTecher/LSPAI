@@ -23,11 +23,31 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 
 TARGET_FILE = "assertion_analysis_summary.json"
-DEFAULT_DEEPSEEK_DIR = Path("experiments/data/result/deepseek")
-DEFAULT_GPT_DIR = Path("experiments/data/result/gpt-5")
-DEFAULT_HAIKU_DIR = Path("experiments/data/result/haiku")
+DEFAULT_DEEPSEEK_BASELINE_DIR = Path("experiments/data/result/deepseek")
+DEFAULT_GPT_BASELINE_DIR = Path("experiments/data/result/gpt-5")
+DEFAULT_HAIKU_BASELINE_DIR = Path("experiments/data/result/haiku")
+
+DEFAULT_DEEPSEEK_DIR = Path("experiments/data/result2/deepseek")
+DEFAULT_GPT_DIR = Path("experiments/data/result2/gpt-5")
+DEFAULT_HAIKU_DIR = Path("experiments/data/result2/haiku")
+
+DEFAULT_DEEPSEEK_EXTRA_DIRS = [
+    Path("experiments/data/result3/deepseek"),
+    Path("experiments/data/restult3/deepseek"),
+]
+DEFAULT_GPT_EXTRA_DIRS = [
+    Path("experiments/data/result3/gpt5"),
+    Path("experiments/data/result3/gpt-5"),
+    Path("experiments/data/restult3/gpt5"),
+    Path("experiments/data/restult3/gpt-5"),
+]
+DEFAULT_HAIKU_EXTRA_DIRS = [
+    Path("experiments/data/result3/haiku"),
+    Path("experiments/data/restult3/haiku"),
+]
 DEFAULT_PROJECT_ORDER = ["black", "tornado", "thefuck", "youtube-dl", "sanic"]
 MODEL_ORDER = ["DS", "GPT", "HK"]
+BASELINE_METHODS = {"claudecode_original", "opencode_original", "lsprag_original"}
 
 PROJECT_DISPLAY = {
     "black": "black",
@@ -53,10 +73,13 @@ ROW_ORDER: List[Tuple[str, str]] = [
     ("opencode_original", "**opencode (baseline)**"),
     ("opencode_naive", "+ naive reflect (`opencode_naive`)"),
     ("opencode_cfg_vars", "**+ CORASSERT** (`opencode_cfg_vars`)"),
-    ("lsprag_original", "**lsprag (baseline)** (`lsprag_withcontext`)"),
-    ("lsprag_naive", "+ naive reflect (`experimental_naive`)"),
-    ("lsprag_withcontext", "**+ CORASSERT** (`experimental_withcontext`)"),
+    ("lsprag_original", "**lsprag (baseline)** (`lsprag_withcontext` or `lsprag`)"),
+    ("lsprag_naive", "+ naive reflect (`experimental_naive` or `*-naive-vars-*`)"),
+    ("lsprag_withcontext", "**+ CORASSERT** (`experimental_withcontext` or `*-cfg-vars-*`)"),
 ]
+NON_BASELINE_METHODS = {
+    method_key for method_key, _ in ROW_ORDER if method_key not in BASELINE_METHODS
+}
 
 BASELINE_BY_METHOD = {
     "claudecode_naive": "claudecode_original",
@@ -113,22 +136,88 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         )
     )
     parser.add_argument(
+        "--deepseek-baseline-dir",
+        type=Path,
+        default=DEFAULT_DEEPSEEK_BASELINE_DIR,
+        help=(
+            "Root path for DeepSeek baseline runs "
+            f"(default: {DEFAULT_DEEPSEEK_BASELINE_DIR})."
+        ),
+    )
+    parser.add_argument(
+        "--gpt-baseline-dir",
+        type=Path,
+        default=DEFAULT_GPT_BASELINE_DIR,
+        help=(
+            "Root path for GPT baseline runs "
+            f"(default: {DEFAULT_GPT_BASELINE_DIR})."
+        ),
+    )
+    parser.add_argument(
+        "--haiku-baseline-dir",
+        type=Path,
+        default=DEFAULT_HAIKU_BASELINE_DIR,
+        help=(
+            "Root path for Haiku baseline runs "
+            f"(default: {DEFAULT_HAIKU_BASELINE_DIR})."
+        ),
+    )
+    parser.add_argument(
         "--deepseek-dir",
         type=Path,
         default=DEFAULT_DEEPSEEK_DIR,
-        help=f"Root path for DeepSeek runs (default: {DEFAULT_DEEPSEEK_DIR}).",
+        help=(
+            "Primary root path for DeepSeek non-baseline runs "
+            f"(default: {DEFAULT_DEEPSEEK_DIR})."
+        ),
     )
     parser.add_argument(
         "--gpt-dir",
         type=Path,
         default=DEFAULT_GPT_DIR,
-        help=f"Root path for GPT runs (default: {DEFAULT_GPT_DIR}).",
+        help=(
+            "Primary root path for GPT non-baseline runs "
+            f"(default: {DEFAULT_GPT_DIR})."
+        ),
     )
     parser.add_argument(
         "--haiku-dir",
         type=Path,
         default=DEFAULT_HAIKU_DIR,
-        help=f"Root path for Haiku runs (default: {DEFAULT_HAIKU_DIR}).",
+        help=(
+            "Primary root path for Haiku non-baseline runs "
+            f"(default: {DEFAULT_HAIKU_DIR})."
+        ),
+    )
+    parser.add_argument(
+        "--deepseek-extra-dirs",
+        nargs="*",
+        type=Path,
+        default=DEFAULT_DEEPSEEK_EXTRA_DIRS,
+        help=(
+            "Additional DeepSeek non-baseline roots (searched with --deepseek-dir). "
+            f"Default: {' '.join(str(path) for path in DEFAULT_DEEPSEEK_EXTRA_DIRS)}"
+        ),
+    )
+    parser.add_argument(
+        "--gpt-extra-dirs",
+        nargs="*",
+        type=Path,
+        default=DEFAULT_GPT_EXTRA_DIRS,
+        help=(
+            "Additional GPT non-baseline roots (searched with --gpt-dir). "
+            f"Default: {' '.join(str(path) for path in DEFAULT_GPT_EXTRA_DIRS)}"
+        ),
+    )
+    parser.add_argument(
+        "--haiku-extra-dirs",
+        nargs="*",
+        type=Path,
+        default=DEFAULT_HAIKU_EXTRA_DIRS,
+        help=(
+            "Additional Haiku non-baseline roots (searched with --haiku-dir). "
+            f"Default: {' '.join(str(path) for path in DEFAULT_HAIKU_EXTRA_DIRS)}"
+        ),
     )
     parser.add_argument(
         "--projects",
@@ -177,13 +266,25 @@ def normalize_text(path: Path) -> str:
 
 def detect_method(rel_path: Path) -> Optional[str]:
     text = normalize_text(rel_path)
+    raw_path = str(rel_path).lower()
 
     if "lsprag" in text:
+        # Legacy naming used by earlier lsprag runs.
         if "experimental_withcontext" in text:
             return "lsprag_withcontext"
         if "experimental_naive" in text:
             return "lsprag_naive"
         if "lsprag_withcontext" in text:
+            return "lsprag_original"
+
+        # New naming, e.g. lsprag-<project>-cfg-vars-<model> / ...-naive-vars-...
+        if "cfg_vars" in text:
+            return "lsprag_withcontext"
+        if "naive_vars" in text or re.search(r"(^|[_/])naive($|[_/])", text):
+            return "lsprag_naive"
+
+        # Baseline runs directly under .../<project>/lsprag/... without variant markers.
+        if "/lsprag/" in raw_path:
             return "lsprag_original"
         return None
 
@@ -232,13 +333,17 @@ def collect_model_cells(
     model_code: str,
     base_dir: Path,
     projects: List[str],
+    include_methods: Optional[set[str]] = None,
+    warn_missing: bool = True,
 ) -> Dict[Tuple[str, str, str], Cell]:
     cells: Dict[Tuple[str, str, str], Cell] = {}
     if not base_dir.exists():
-        print(f"Note: {model_code} directory not found: {base_dir}", file=sys.stderr)
+        if warn_missing:
+            print(f"Note: {model_code} directory not found: {base_dir}", file=sys.stderr)
         return cells
     if not base_dir.is_dir():
-        print(f"Note: {model_code} path is not a directory: {base_dir}", file=sys.stderr)
+        if warn_missing:
+            print(f"Note: {model_code} path is not a directory: {base_dir}", file=sys.stderr)
         return cells
 
     allowed_projects = {project.lower() for project in projects}
@@ -254,6 +359,8 @@ def collect_model_cells(
 
         method = detect_method(rel)
         if method is None:
+            continue
+        if include_methods is not None and method not in include_methods:
             continue
 
         percent = extract_failed_files_percent(json_path)
@@ -272,6 +379,16 @@ def collect_model_cells(
             cells[key] = candidate
 
     return cells
+
+
+def merge_cells(
+    target: Dict[Tuple[str, str, str], Cell],
+    source: Dict[Tuple[str, str, str], Cell],
+) -> None:
+    for key, candidate in source.items():
+        current = target.get(key)
+        if current is None or (candidate.mtime, candidate.rel_path) > (current.mtime, current.rel_path):
+            target[key] = candidate
 
 
 def project_display_name(project: str) -> str:
@@ -629,14 +746,59 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     projects = [project.lower() for project in args.projects]
 
     all_cells: Dict[Tuple[str, str, str], Cell] = {}
-    model_roots = [
-        ("DS", args.deepseek_dir.resolve()),
-        ("GPT", args.gpt_dir.resolve()),
-        ("HK", args.haiku_dir.resolve()),
+    model_sources = [
+        (
+            "DS",
+            args.deepseek_baseline_dir.resolve(),
+            args.deepseek_dir.resolve(),
+            [path.resolve() for path in args.deepseek_extra_dirs],
+        ),
+        (
+            "GPT",
+            args.gpt_baseline_dir.resolve(),
+            args.gpt_dir.resolve(),
+            [path.resolve() for path in args.gpt_extra_dirs],
+        ),
+        (
+            "HK",
+            args.haiku_baseline_dir.resolve(),
+            args.haiku_dir.resolve(),
+            [path.resolve() for path in args.haiku_extra_dirs],
+        ),
     ]
-    for model_code, root in model_roots:
-        model_cells = collect_model_cells(model_code=model_code, base_dir=root, projects=projects)
-        all_cells.update(model_cells)
+    for model_code, baseline_root, primary_non_baseline_root, extra_non_baseline_roots in model_sources:
+        baseline_cells = collect_model_cells(
+            model_code=model_code,
+            base_dir=baseline_root,
+            projects=projects,
+            include_methods=BASELINE_METHODS,
+            warn_missing=True,
+        )
+        merge_cells(all_cells, baseline_cells)
+
+        primary_cells = collect_model_cells(
+            model_code=model_code,
+            base_dir=primary_non_baseline_root,
+            projects=projects,
+            include_methods=NON_BASELINE_METHODS,
+            warn_missing=True,
+        )
+        merge_cells(all_cells, primary_cells)
+
+        seen_nonbaseline_roots: set[str] = {str(primary_non_baseline_root)}
+        for root in extra_non_baseline_roots:
+            key = str(root)
+            if key in seen_nonbaseline_roots:
+                continue
+            seen_nonbaseline_roots.add(key)
+            extra_cells = collect_model_cells(
+                model_code=model_code,
+                base_dir=root,
+                projects=projects,
+                include_methods=NON_BASELINE_METHODS,
+                warn_missing=False,
+            )
+            merge_cells(all_cells, extra_cells)
 
     markdown = build_markdown(projects=projects, cells=all_cells, digits=args.digits)
     latex = render_latex_table(projects=projects, cells=all_cells, digits=args.digits)
