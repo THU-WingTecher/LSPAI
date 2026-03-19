@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/tornado/claudecode/claudecode-tornado-cfg/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/tornado/claudecode/claudecode-tornado-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-tornado-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/tornado/claudecode/claudecode-tornado/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/tornado/claudecode/claudecode-tornado/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-tornado-naive-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/tornado/opencode/opencode-tornado-cfg/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/tornado/opencode/opencode-tornado-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-tornado-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/tornado/opencode/opencode-tornado/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/tornado/opencode/opencode-tornado/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-tornado-naive-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/tornado/lsprag/lsprag_cfg/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/tornado/lsprag/lsprag_cfg/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-tornado-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/tornado/lsprag/lsprag_withcontext/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/tornado/lsprag/lsprag_withcontext/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-tornado-naive-vars-haiku"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/sanic/claudecode/raw/claudecode-deepseek-sanic-cfg/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/sanic/claudecode/raw/claudecode-deepseek-sanic-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-sanic-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/sanic/claudecode/raw/claudecode-deepseek-sanic/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/sanic/claudecode/raw/claudecode-deepseek-sanic/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-sanic-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/sanic/opencode/raw/opencode-deepseek-sanic-cfg/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/sanic/opencode/raw/opencode-deepseek-sanic-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-sanic-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/sanic/opencode/raw/opencode-deepseek-sanic/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/sanic/opencode/raw/opencode-deepseek-sanic/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-sanic-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/sanic/lsprag/lsprag_cfg/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/sanic/lsprag/lsprag_cfg/deepseek-chat/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-sanic-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/sanic/lsprag/lsprag_withcontext/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/sanic/lsprag/lsprag_withcontext/deepseek-chat/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-sanic-naive-vars-deepseek"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/claudecode/raw/claudecode-deepseek-black-cfg/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/claudecode/raw/claudecode-deepseek-black-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-black-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/claudecode/raw/claudecode-deepseek-black/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/claudecode/raw/claudecode-deepseek-black/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-black-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/opencode/raw/opencode-deepseek-black-cfg/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/opencode/raw/opencode-deepseek-black-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-black-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/opencode/raw/opencode-deepseek-black/deepseek-chat/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/opencode/raw/opencode-deepseek-black/deepseek-chat/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-black-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/lsprag/reflect/lsprag_cfg/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/lsprag/reflect/lsprag_cfg/deepseek-chat/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-black-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/lsprag/reflect/lsprag_withcontext/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/lsprag/reflect/lsprag_withcontext/deepseek-chat/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-black-naive-vars-deepseek"
+  }
+]

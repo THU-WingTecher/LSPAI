@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/claudecode/claudecode-deepseek-youtube-dl-cfg/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/claudecode/claudecode-deepseek-youtube-dl-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-youtube-dl-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/claudecode/claudecode-deepseek-youtube-dl/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/claudecode/claudecode-deepseek-youtube-dl/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-youtube-dl-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/opencode/opencode-deepseek-youtube-dl-cfg/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/opencode/opencode-deepseek-youtube-dl-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-youtube-dl-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/opencode/opencode-deepseek-youtube-dl/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/opencode/opencode-deepseek-youtube-dl/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-youtube-dl-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/lsprag/lsprag_cfg/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/lsprag/lsprag_cfg/deepseek-chat/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-youtube-dl-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/lsprag/lsprag_withcontext/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/youtube-dl/lsprag/lsprag_withcontext/deepseek-chat/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-youtube-dl-naive-vars-deepseek"
+  }
+]

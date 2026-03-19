@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/thefuck/claudecode/raw/claudecode-deepseek-thefuck-cfg_raw/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/thefuck/claudecode/raw/claudecode-deepseek-thefuck-cfg_raw/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-thefuck-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/thefuck/claudecode/raw/claudecode-deepseek-thefuck_baseline/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/thefuck/claudecode/raw/claudecode-deepseek-thefuck_baseline/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-thefuck-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/thefuck/opencode/raw/opencode-deepseek-thefuck-cfg_raw/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/thefuck/opencode/raw/opencode-deepseek-thefuck-cfg_raw/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-thefuck-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/thefuck/opencode/raw/opencode-deepseek-thefuck/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/thefuck/opencode/raw/opencode-deepseek-thefuck/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-thefuck-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/thefuck/lsprag/lsprag_cfg/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/thefuck/lsprag/lsprag_cfg/deepseek-chat/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-thefuck-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/thefuck/lsprag/lsprag_withcontext/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/thefuck/lsprag/lsprag_withcontext/deepseek-chat/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-thefuck-naive-vars-deepseek"
+  }
+]

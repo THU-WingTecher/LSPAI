@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/tornado/claudecode/claudecode-tornado-cfg/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/tornado/claudecode/claudecode-tornado-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-tornado-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/tornado/claudecode/claudecode-tornado/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/tornado/claudecode/claudecode-tornado/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-tornado-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/tornado/opencode/opencode-tornado-cfg/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/tornado/opencode/opencode-tornado-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-tornado-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/tornado/opencode/opencode-tornado/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/tornado/opencode/opencode-tornado/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-tornado-naive-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/tornado/lsprag/lsprag_cfg/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/tornado/lsprag/lsprag_cfg/deepseek-chat/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-tornado-cfg-vars-deepseek"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/tornado/lsprag/lsprag_withcontext/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/tornado/lsprag/lsprag_withcontext/deepseek-chat/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-tornado-naive-vars-deepseek"
+  }
+]

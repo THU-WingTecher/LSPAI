@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/sanic/claudecode/claudecode-sanic-cfg/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/sanic/claudecode/claudecode-sanic-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-sanic-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/sanic/claudecode/claudecode-sanic/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/sanic/claudecode/claudecode-sanic/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-sanic-naive-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/sanic/opencode/opencode-sanic-cfg/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/sanic/opencode/opencode-sanic-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-sanic-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/sanic/opencode/opencode-sanic/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/sanic/opencode/opencode-sanic/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-sanic-naive-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/sanic/lsprag/lsprag_cfg/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/sanic/lsprag/lsprag_cfg/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-sanic-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/sanic/lsprag/lsprag_withcontext/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/sanic/lsprag/lsprag_withcontext/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-sanic-naive-vars-haiku"
+  }
+]

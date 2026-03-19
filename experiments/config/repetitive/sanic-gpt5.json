@@ -1,0 +1,26 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/sanic/opencode/raw/opencode-gpt5-sanic-cfg/gpt-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/sanic/opencode/raw/opencode-gpt5-sanic-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-sanic-cfg-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/sanic/opencode/raw/opencode-gpt5-sanic/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/sanic/opencode/raw/opencode-gpt5-sanic/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-sanic-naive-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/sanic/lsprag/lsprag_cfg/gpt-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/sanic/lsprag/lsprag_cfg/gpt-5/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-sanic-cfg-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/sanic/lsprag/lsprag_withcontext/gpt-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/sanic/lsprag/lsprag_withcontext/gpt-5/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-sanic-naive-vars-gpt5"
+  }
+]

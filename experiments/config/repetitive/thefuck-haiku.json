@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/thefuck/claudecode/claudecode-haiku-thefuck-cfg/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/thefuck/claudecode/claudecode-haiku-thefuck-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-thefuck-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/thefuck/claudecode/claudecode-haiku-thefuck/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/thefuck/claudecode/claudecode-haiku-thefuck/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-thefuck-naive-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/thefuck/opencode/opencode-haiku-thefuck-cfg/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/thefuck/opencode/opencode-haiku-thefuck-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-thefuck-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/thefuck/opencode/opencode-haiku-thefuck/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/thefuck/opencode/opencode-haiku-thefuck/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-thefuck-naive-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/thefuck/lsprag/lsprag_cfg/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/thefuck/lsprag/lsprag_cfg/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-thefuck-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/thefuck/lsprag/lsprag_withcontext/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/thefuck/lsprag/lsprag_withcontext/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-thefuck-naive-vars-haiku"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/youtube-dl/opencode/raw/opencode-gpt5-youtube-dl-cfg/gpt-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/youtube-dl/opencode/raw/opencode-gpt5-youtube-dl-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-youtube-dl-cfg-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/youtube-dl/opencode/raw/opencode-gpt5-youtube-dl/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/youtube-dl/opencode/raw/opencode-gpt5-youtube-dl/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-youtube-dl-naive-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/youtube-dl/lsprag/lsprag_cfg/gpt-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/youtube-dl/lsprag/lsprag_cfg/gpt-5/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-youtube-dl-cfg-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/youtube-dl/lsprag/lsprag_withcontext/gpt-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/youtube-dl/lsprag/lsprag_withcontext/gpt-5/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-youtube-dl-naive-vars-gpt5"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/youtube-dl/claudecode/claudecode-youtube-dl-cfg/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/youtube-dl/claudecode/claudecode-youtube-dl-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-youtube-dl-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/youtube-dl/claudecode/claudecode-youtube-dl/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/youtube-dl/claudecode/claudecode-youtube-dl/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "claudecode-youtube-dl-naive-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/youtube-dl/opencode/opencode-youtube-dl-cfg/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/youtube-dl/opencode/opencode-youtube-dl-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-youtube-dl-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/youtube-dl/opencode/opencode-youtube-dl/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/youtube-dl/opencode/opencode-youtube-dl/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-youtube-dl-naive-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/youtube-dl/lsprag/lsprag_cfg/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/youtube-dl/lsprag/lsprag_cfg/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-youtube-dl-cfg-vars-haiku"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/youtube-dl/lsprag/lsprag_withcontext/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/youtube-dl/lsprag/lsprag_withcontext/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-youtube-dl-naive-vars-haiku"
+  }
+]

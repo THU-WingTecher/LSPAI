@@ -1,0 +1,26 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/thefuck/opencode/raw/opencode-gpt5-thefuck-cfg/gpt-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/thefuck/opencode/raw/opencode-gpt5-thefuck-cfg/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-thefuck-cfg-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/thefuck/opencode/raw/opencode-gpt5-thefuck/gpt-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/thefuck/opencode/raw/opencode-gpt5-thefuck/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "opencode-thefuck-naive-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/thefuck/lsprag/lsprag_cfg/gpt-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/thefuck/lsprag/lsprag_cfg/gpt-5/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-thefuck-cfg-vars-gpt5"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/gpt-5/thefuck/lsprag/lsprag_withcontext/gpt-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/gpt-5/thefuck/lsprag/lsprag_withcontext/gpt-5/results/test_file_map.json",
+    "promptType": "NAIVE",
+    "saveName": "lsprag-thefuck-naive-vars-gpt5"
+  }
+]
