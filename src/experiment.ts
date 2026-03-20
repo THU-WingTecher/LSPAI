@@ -825,10 +825,10 @@ export async function runGenerateTestCodeSuite(
     const validatedExperimentalReuseMappings = new Map<string, string>();
     const usedOutputMappingKeys = new Set<string>();
     const usedReuseMappingKeys = new Set<string>();
+    const outputMappingPath = newtestFileMapPath;
+    const reuseMappingPath = testFileMapPath || outputMappingPath;
 
     if (dirForReuse && testFileMapPath && generationType === GenerationType.EXPERIMENTAL) {
-        const outputMappingPath = newtestFileMapPath;
-        const reuseMappingPath = testFileMapPath;
         const missingOutputMappings: string[] = [];
         for (const { document, symbol } of symbolPairsToProcess) {
             const taskKey = buildExperimentalTaskKey(
@@ -911,15 +911,34 @@ export async function runGenerateTestCodeSuite(
                         // Keep output filename stable with the active output map (resume-aware).
                         resolvedFileName = path.join(path.dirname(fileName), mappedOutput);
 
-                        const cacheCandidates = [mappedOutput];
+                        const cacheCandidates: Array<{ fileName: string; mapPath: string }> = [
+                            { fileName: mappedOutput, mapPath: outputMappingPath }
+                        ];
                         const mappedReuse = validatedExperimentalReuseMappings.get(taskKey);
                         if (mappedReuse && mappedReuse !== mappedOutput) {
-                            cacheCandidates.push(mappedReuse);
+                            cacheCandidates.push({ fileName: mappedReuse, mapPath: reuseMappingPath });
                         }
+
+                        const allCandidateMapPaths = Array.from(
+                            new Set(
+                                [
+                                    outputMappingPath,
+                                    reuseMappingPath,
+                                    ...cacheCandidates.map((candidate) => candidate.mapPath)
+                                ].filter((candidatePath): candidatePath is string => !!candidatePath)
+                            )
+                        );
 
                         let cachedPath: string | null = null;
                         for (const candidate of cacheCandidates) {
-                            cachedPath = resolveCachedDraftTestPath(dirForReuse, candidate);
+                            const orderedMapPaths = [
+                                candidate.mapPath,
+                                ...allCandidateMapPaths.filter((p) => p !== candidate.mapPath)
+                            ];
+                            cachedPath = resolveCachedDraftTestPath(dirForReuse, candidate.fileName, {
+                                taskKey,
+                                testFileMapPaths: orderedMapPaths
+                            });
                             if (cachedPath) {
                                 break;
                             }
@@ -935,7 +954,8 @@ export async function runGenerateTestCodeSuite(
                         } else {
                             console.warn(
                                 `[EXPERIMENTAL] No cached draft test found under dirForReuse: ${dirForReuse} ` +
-                                `for candidates: ${cacheCandidates.join(', ')}`
+                                `for candidates: ${cacheCandidates.map((c) => c.fileName).join(', ')} ` +
+                                `(taskKey=${taskKey}, mapPaths=${allCandidateMapPaths.join(', ')})`
                             );
                         }
                     } else {

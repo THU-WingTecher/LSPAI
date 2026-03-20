@@ -55,6 +55,35 @@ function normalizePathLike(p: string): string {
 	return (p || '').replace(/\\/g, '/');
 }
 
+function normalizeTaskKey(value?: string): string {
+	return normalizePathLike(value || '').replace(/^\.\//, '');
+}
+
+type ParsedTaskKey = {
+	relPath: string;
+	symbol: string;
+	line?: number;
+	dup?: string;
+};
+
+function parseTaskKey(taskKey?: string): ParsedTaskKey | null {
+	const normalized = normalizeTaskKey(taskKey);
+	if (!normalized) {
+		return null;
+	}
+	const parts = normalized.split('::');
+	if (parts.length < 3) {
+		return null;
+	}
+	const line = Number.parseInt(parts[2] || '', 10);
+	return {
+		relPath: parts[0] || '',
+		symbol: parts[1] || '',
+		line: Number.isFinite(line) ? line : undefined,
+		dup: parts.length > 3 ? parts.slice(3).join('::') : ''
+	};
+}
+
 export function resolveTestFileNameFromTestFileMap(params: {
 	dirForReuse: string;
 	symbolName: string;
@@ -85,8 +114,6 @@ export function resolveTestFileNameFromTestFileMap(params: {
 		return null;
 	}
 
-	const normalizeTaskKey = (value?: string): string =>
-		normalizePathLike(value || '').replace(/^\.\//, '');
 	const requestedTaskKey = normalizeTaskKey(params.taskKey);
 	const sourceMatchedKeys: string[] = [];
 	const symbolMatchedKeys: string[] = [];
@@ -120,6 +147,52 @@ export function resolveTestFileNameFromTestFileMap(params: {
 		if (exact) {
 			return exact;
 		}
+
+		// Relaxed task-key match across runs with different path prefixes
+		// (e.g. "experiments/projects/sanic/sanic/headers.py" vs "sanic/headers.py").
+		const requestedParsed = parseTaskKey(requestedTaskKey);
+		if (requestedParsed && requestedParsed.symbol && Number.isFinite(requestedParsed.line)) {
+			const relaxed = candidateKeys.filter((key) => {
+				if (params.usedMappingKeys?.has(key)) {
+					return false;
+				}
+				const entry = obj[key];
+				if (!entry || typeof entry !== 'object') {
+					return false;
+				}
+				const entryTaskKey = normalizeTaskKey(entry?.task_key || entry?.taskKey);
+				const entryParsed = parseTaskKey(entryTaskKey);
+				const entryRelPath = normalizePathLike(entry?.file_name || entryParsed?.relPath || '');
+				const entrySymbol = entry?.symbol_name || entryParsed?.symbol || '';
+				const entryLineRaw = entryParsed?.line ?? Number(entry?.line_num ?? entry?.location);
+				const entryLine = Number.isFinite(entryLineRaw) ? Number(entryLineRaw) : undefined;
+
+				if (entrySymbol !== requestedParsed.symbol) {
+					return false;
+				}
+				if (!Number.isFinite(entryLine) || entryLine !== requestedParsed.line) {
+					return false;
+				}
+				const pathCompatible =
+					(!!requestedParsed.relPath && !!entryRelPath &&
+						(requestedParsed.relPath.endsWith(entryRelPath) || entryRelPath.endsWith(requestedParsed.relPath))) ||
+					(!!sourceNorm && !!entryRelPath && sourceNorm.endsWith(entryRelPath));
+				if (!pathCompatible) {
+					return false;
+				}
+				if (requestedParsed.dup) {
+					return (entryParsed?.dup || '') === requestedParsed.dup;
+				}
+				return true;
+			});
+			if (relaxed.length === 1) {
+				return relaxed[0];
+			}
+			if (relaxed.length > 1) {
+				return null;
+			}
+		}
+
 		const candidatesWithTaskKey = candidateKeys.filter((key) => {
 			const entry = obj[key];
 			const entryTaskKey = normalizeTaskKey(entry?.task_key || entry?.taskKey);
@@ -141,7 +214,105 @@ export function resolveTestFileNameFromTestFileMap(params: {
 	return firstUnused ?? candidateKeys[0];
 }
 
-export function resolveCachedDraftTestPath(cachedDir: string, fileName: string): string | null {
+function resolveExistingInCandidateDirs(candidateDirs: string[], fileName: string): string | null {
+	for (const dir of candidateDirs) {
+		try {
+			const p = path.join(dir, fileName);
+			if (fs.existsSync(p) && fs.statSync(p).isFile()) {
+				return p;
+			}
+			const base = path.basename(fileName);
+			if (base !== fileName) {
+				const pBase = path.join(dir, base);
+				if (fs.existsSync(pBase) && fs.statSync(pBase).isFile()) {
+					return pBase;
+				}
+			}
+		} catch {
+			// ignore
+		}
+	}
+	return null;
+}
+
+function normalizeDraftFileNameForFallback(name: string): string {
+	return path
+		.basename(name || '')
+		.replace(/_(\d{4})(?=(?:_test\.[^.]+$|Test\.[^.]+$|\.[^.]+$))/, '_####');
+}
+
+function getMapMatchingKeys(params: {
+	mapObject: Record<string, TestFileMapEntry>;
+	fileName: string;
+	taskKey?: string;
+}): string[] {
+	const keys = Object.keys(params.mapObject);
+	const fileBase = path.basename(params.fileName);
+	const normalizedTarget = normalizeDraftFileNameForFallback(params.fileName);
+	const requestedTaskKey = normalizeTaskKey(params.taskKey);
+	const requestedParsed = parseTaskKey(requestedTaskKey);
+
+	const keyExact = keys.filter((k) => path.basename(k) === fileBase);
+	if (keyExact.length > 0) {
+		return keyExact;
+	}
+
+	if (requestedTaskKey) {
+		const exactTask = keys.filter((k) => {
+			const entry = params.mapObject[k];
+			const entryTaskKey = normalizeTaskKey(entry?.task_key || entry?.taskKey);
+			return entryTaskKey === requestedTaskKey;
+		});
+		if (exactTask.length > 0) {
+			return exactTask;
+		}
+
+		if (requestedParsed && requestedParsed.symbol && Number.isFinite(requestedParsed.line)) {
+			const relaxedTask = keys.filter((k) => {
+				const entry = params.mapObject[k];
+				if (!entry || typeof entry !== 'object') {
+					return false;
+				}
+				const entryTaskKey = normalizeTaskKey(entry?.task_key || entry?.taskKey);
+				const entryParsed = parseTaskKey(entryTaskKey);
+				const entryRelPath = normalizePathLike(entry?.file_name || entryParsed?.relPath || '');
+				const entrySymbol = entry?.symbol_name || entryParsed?.symbol || '';
+				const entryLineRaw = entryParsed?.line ?? Number(entry?.line_num ?? entry?.location);
+				const entryLine = Number.isFinite(entryLineRaw) ? Number(entryLineRaw) : undefined;
+
+				if (entrySymbol !== requestedParsed.symbol) {
+					return false;
+				}
+				if (!Number.isFinite(entryLine) || entryLine !== requestedParsed.line) {
+					return false;
+				}
+				if (!requestedParsed.relPath || !entryRelPath) {
+					return false;
+				}
+				const pathCompatible =
+					requestedParsed.relPath.endsWith(entryRelPath) || entryRelPath.endsWith(requestedParsed.relPath);
+				if (!pathCompatible) {
+					return false;
+				}
+				if (requestedParsed.dup) {
+					return (entryParsed?.dup || '') === requestedParsed.dup;
+				}
+				return true;
+			});
+			if (relaxedTask.length > 0) {
+				return relaxedTask;
+			}
+		}
+	}
+
+	return keys.filter((k) => normalizeDraftFileNameForFallback(k) === normalizedTarget);
+}
+
+export function resolveCachedDraftTestPath(
+	cachedDir: string,
+	fileName: string,
+	options?: { taskKey?: string; testFileMapPaths?: string[] }
+): string | null {
 	if (!cachedDir || !fileName) {
 		return null;
 	}
@@ -163,16 +334,79 @@ export function resolveCachedDraftTestPath(cachedDir: string, fileName: string):
 		path.join(root, 'final')
 	]));
 
-	for (const dir of candidateDirs) {
+	// 1) Exact path resolution first.
+	const exact = resolveExistingInCandidateDirs(candidateDirs, fileName);
+	if (exact) {
+		return exact;
+	}
+
+	// 2) Map-scoped resolution (exact key -> task_key -> normalized key),
+	//    scoped per provided test_file_map sources.
+	const mapPaths = Array.from(
+		new Set((options?.testFileMapPaths || []).filter((p): p is string => typeof p === 'string' && p.length > 0))
+	);
+	for (const mapPath of mapPaths) {
 		try {
-			const p = path.join(dir, fileName);
-			if (fs.existsSync(p) && fs.statSync(p).isFile()) {
-				return p;
+			if (!fs.existsSync(mapPath) || !fs.statSync(mapPath).isFile()) {
+				continue;
+			}
+			const raw = fs.readFileSync(mapPath, 'utf8');
+			const obj = JSON.parse(raw) as Record<string, TestFileMapEntry>;
+			if (!obj || typeof obj !== 'object') {
+				continue;
+			}
+			const matchingKeys = getMapMatchingKeys({
+				mapObject: obj,
+				fileName,
+				taskKey: options?.taskKey
+			});
+			if (matchingKeys.length === 0) {
+				continue;
+			}
+
+			const existingMatches = Array.from(
+				new Set(
+					matchingKeys
+						.map((k) => resolveExistingInCandidateDirs(candidateDirs, k))
+						.filter((p): p is string => !!p)
+				)
+			);
+			if (existingMatches.length === 1) {
+				return existingMatches[0];
+			}
+			if (existingMatches.length > 1) {
+				// Keep deterministic behavior for ambiguous map-scoped matches.
+				return existingMatches.sort()[0];
 			}
 		} catch {
 			// ignore
 		}
 	}
+
+	// 3) Generic normalized fallback (drop 4-digit segment).
+	const fallbackKey = normalizeDraftFileNameForFallback(fileName);
+	const genericMatches: string[] = [];
+	for (const dir of candidateDirs) {
+		try {
+			if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) {
+				continue;
+			}
+			const matchesInDir = fs
+				.readdirSync(dir, { withFileTypes: true })
+				.filter((entry) => entry.isFile())
+				.map((entry) => entry.name)
+				.filter((name) => normalizeDraftFileNameForFallback(name) === fallbackKey);
+			genericMatches.push(...matchesInDir.map((m) => path.join(dir, m)));
+		} catch {
+			// ignore
+		}
+	}
+
+	const uniqueGeneric = Array.from(new Set(genericMatches));
+	if (uniqueGeneric.length === 1) {
+		return uniqueGeneric[0];
+	}
+
 	return null;
 }
 
