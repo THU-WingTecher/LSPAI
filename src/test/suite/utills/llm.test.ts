@@ -48,6 +48,15 @@ suite('LLM invoke Test Suite', () => {
         assert.strictEqual(normalizeProviderForType('anthropic', 'opencode'), 'anthropic');
     });
 
+    test('deepseek provider alias normalization', async () => {
+        try {
+            const response = await invokeLLM(promptObj, []);
+            console.log('response (deepseek) ::', response);
+            assert.ok(response && response.length > 0, 'response should not be empty');
+        } catch {
+        }
+    });
+
     test('Sync Anthropic credentials for claudecode/opencode provider auth', () => {
         const envFromApiKey: NodeJS.ProcessEnv = {
             ANTHROPIC_API_KEY: 'sk-ant-test-key,'

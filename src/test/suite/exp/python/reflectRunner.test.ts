@@ -489,27 +489,27 @@ suite('Experiment Test Suite', () => {
         const testsDir = path.join(cachedDir, "final");
         const testFileMapPath = path.join(cachedDir, "test_file_map.json");
 
-        // await runExperimentalReflect({
-        //     cachedDir,
-        //     testFileMapPath,
-        //     preTestsDir: testsDir,
-        //     promptType: PromptType.NAIVE
-        // });
+        await runExperimentalReflect({
+            cachedDir,
+            testFileMapPath,
+            preTestsDir: testsDir,
+            promptType: PromptType.NAIVE
+        });
         
-        // const CFGcachedDir = await runGenerateWithAutoResume({
-        //     generationType: GenerationType.LSPRAG,
-        //     fixType: FixType.ORIGINAL,
-        //     promptType: PromptType.CFG,
-        //     runLabel: 'LSPRAG:CFG'
-        // });
-        // const CFGtestsDir = path.join(CFGcachedDir, "final");
-        // const CFGtestFileMapPath = path.join(CFGcachedDir, "test_file_map.json");
-        // await runExperimentalReflect({
-        //     cachedDir: CFGcachedDir,
-        //     testFileMapPath: CFGtestFileMapPath,
-        //     preTestsDir: CFGtestsDir,
-        //     promptType: PromptType.WITHCONTEXT
-        // });
+        const CFGcachedDir = await runGenerateWithAutoResume({
+            generationType: GenerationType.LSPRAG,
+            fixType: FixType.ORIGINAL,
+            promptType: PromptType.CFG,
+            runLabel: 'LSPRAG:CFG'
+        });
+        const CFGtestsDir = path.join(CFGcachedDir, "final");
+        const CFGtestFileMapPath = path.join(CFGcachedDir, "test_file_map.json");
+        await runExperimentalReflect({
+            cachedDir: CFGcachedDir,
+            testFileMapPath: CFGtestFileMapPath,
+            preTestsDir: CFGtestsDir,
+            promptType: PromptType.WITHCONTEXT
+        });
     };
 
     test('Setup for experiment', async () => {
@@ -599,14 +599,14 @@ suite('Experiment Test Suite', () => {
                 explicitResumeTestFileMapPath: config.resumeTestFileMapPath
             });
 
-            if (existingDecision.shouldSkip) {
-                console.log(
-                    `[reflectRunner] Skip completed config entry ` +
-                    `(saveName=${configuredSaveName ?? 'N/A'}, promptType=${config.promptType ?? 'WITHCONTEXT'}): ` +
-                    `${existingDecision.reason}`
-                );
-                continue;
-            }
+            // if (existingDecision.shouldSkip) {
+            //     console.log(
+            //         `[reflectRunner] Skip completed config entry ` +
+            //         `(saveName=${configuredSaveName ?? 'N/A'}, promptType=${config.promptType ?? 'WITHCONTEXT'}): ` +
+            //         `${existingDecision.reason}`
+            //     );
+            //     continue;
+            // }
             if (existingDecision.resumeFromResultsDir) {
                 console.log(
                     `[reflectRunner] Auto-resume config entry ` +

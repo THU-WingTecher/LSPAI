@@ -1,0 +1,20 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/opencode/raw/opencode-deepseek-black/deepseek-chat/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/opencode/raw/opencode-deepseek-black/deepseek-chat/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-black-deepseek-only-vars"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/claudecode/raw/claudecode-deepseek-black/deepseek-chat/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/claudecode/raw/claudecode-deepseek-black/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-black-deepseek-only-vars"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/deepseek/black/lsprag/reflect/lsprag_withcontext/deepseek-chat/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/deepseek/black/lsprag/reflect/lsprag_withcontext/deepseek-chat/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-black-deepseek-only-vars"
+  }
+]

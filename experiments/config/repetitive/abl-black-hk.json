@@ -1,0 +1,20 @@
+[
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/black/opencode/opencode-black/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/black/opencode/opencode-black/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "opencode-black-haiku-only-vars"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/black/claudecode/claudecode-black/claude-haiku-4-5/codes",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/black/claudecode/claudecode-black/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "claudecode-black-haiku-only-vars"
+  },
+  {
+    "cachedDir": "/LSPRAG/experiments/data/result/haiku/black/lsprag/lsprag_withcontext/claude-haiku-4-5/results/final",
+    "testFileMapPath": "/LSPRAG/experiments/data/result/haiku/black/lsprag/lsprag_withcontext/claude-haiku-4-5/results/test_file_map.json",
+    "promptType": "WITHCONTEXT",
+    "saveName": "lsprag-black-haiku-only-vars"
+  }
+]
