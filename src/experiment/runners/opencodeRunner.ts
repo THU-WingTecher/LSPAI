@@ -52,6 +52,18 @@ function makeFetchWithAuth(authHeader: string | undefined): typeof fetch | undef
     };
 }
 
+function ensureLspToolEnvironment(): void {
+    const shouldEnable = process.env.OPENCODE_ENABLE_LSP_TOOL !== '0' && process.env.OPENCODE_ENABLE_LSP_TOOL !== 'false';
+    if (!shouldEnable) {
+        return;
+    }
+
+    if (!process.env.OPENCODE_EXPERIMENTAL_LSP_TOOL && !process.env.OPENCODE_EXPERIMENTAL) {
+        process.env.OPENCODE_EXPERIMENTAL_LSP_TOOL = 'true';
+        console.log('[opencode:lsp] Enabled OPENCODE_EXPERIMENTAL_LSP_TOOL=true');
+    }
+}
+
 async function ensureProviderAuth(sharedClient: any, providerID: string, directory?: string): Promise<void> {
     const normalizedProviderID = normalizeOpencodeProviderID(providerID);
     if (normalizedProviderID === 'anthropic') {
@@ -114,6 +126,7 @@ export async function runOpencodeExperiment(
     options: ExperimentOptions = {}
 ): Promise<ExperimentResult> {
     const startTime = Date.now();
+    ensureLspToolEnvironment();
 
     console.log('=== OpenCode Unit Test Generation Experiment ===\n');
     console.log('Configuration:');

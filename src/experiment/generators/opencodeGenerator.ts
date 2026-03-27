@@ -14,6 +14,22 @@ import { FileNameParams } from '../core/types';
 import { buildTaskKey, formatTaskLabel } from '../utils/taskKey';
 import { runWithRetries } from '../utils/retry';
 
+function shouldRequireLspToolUsage(): boolean {
+    const flag = process.env.OPENCODE_REQUIRE_LSP_TOOL;
+    return flag !== '0' && flag !== 'false';
+}
+
+function buildLspToolInstruction(task: Task): string {
+    const filePath = task.relativeDocumentPath.replace(/\\/g, '/');
+    return [
+        'LSP_TOOL_REQUIREMENT:',
+        `1. Before writing tests, inspect "${filePath}" with an LSP-related tool.`,
+        '2. Prefer these custom tools when available: lsprag_lsp_document_symbols, lsprag_lsp_symbol_source, lsprag_lsp_diagnostics.',
+        '3. If custom tools are unavailable, use the built-in "lsp" tool for document symbols, definition, references, or hover.',
+        `4. Focus on symbol "${task.symbolName}" and use tool output as context for tests.`
+    ].join('\n');
+}
+
 /**
  * Generate a single unit test using OpenCode
  */
@@ -65,9 +81,12 @@ export async function generateTest(
         console.log(`   Language: ${languageId}`);
 
         const systemPrompt = generateSystemPrompt();
-        const prompt = promptTemplate === 'cfg'
+        const basePrompt = promptTemplate === 'cfg'
             ? await buildTestPromptWithCFG(task, languageId, model)
             : buildTestPrompt(task, languageId);
+        const prompt = shouldRequireLspToolUsage()
+            ? `${buildLspToolInstruction(task)}\n\n${basePrompt}`
+            : basePrompt;
         const fullPrompt = systemPrompt + "\n\n" + prompt;
         console.log(`   Prompt body length: ${prompt.length} chars`);
         console.log(`   Full prompt length: ${fullPrompt.length} chars`);

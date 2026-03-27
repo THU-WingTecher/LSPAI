@@ -14,6 +14,57 @@ import {
 
 const MAX_OPENCODE_PROMPT_LENGTH = 30000;
 
+type DetectedToolCall = {
+    tool: string;
+    status?: string;
+};
+
+function collectToolCalls(value: any, out: DetectedToolCall[]): void {
+    if (!value) {
+        return;
+    }
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            collectToolCalls(item, out);
+        }
+        return;
+    }
+    if (typeof value !== 'object') {
+        return;
+    }
+
+    const candidateType = value.type;
+    const candidateTool = value.tool;
+    if (candidateType === 'tool' && typeof candidateTool === 'string' && candidateTool.length > 0) {
+        out.push({
+            tool: candidateTool,
+            status: typeof value.state?.status === 'string' ? value.state.status : undefined
+        });
+    }
+
+    for (const nested of Object.values(value)) {
+        collectToolCalls(nested, out);
+    }
+}
+
+function extractToolCalls(payload: any): DetectedToolCall[] {
+    const calls: DetectedToolCall[] = [];
+    collectToolCalls(payload, calls);
+    const seen = new Set<string>();
+    return calls.filter(call => {
+        const key = `${call.tool}|${call.status ?? ''}`;
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
+}
+
+function isLspRelatedToolName(toolName: string): boolean {
+    return toolName === 'lsp' || toolName.startsWith('lsprag_lsp_');
+}
+
 /**
  * Configuration for OpenCode Manager
  */
@@ -361,6 +412,19 @@ export class OpencodeManager {
                 timestamp: timestamp,
                 model: this.model
             };
+
+            const toolCalls = extractToolCalls(sessionMessagesResponse);
+            if (toolCalls.length > 0) {
+                console.log(`   Tool calls: ${toolCalls.map(call => `${call.tool}${call.status ? `(${call.status})` : ''}`).join(', ')}`);
+            }
+            const lspToolCalls = toolCalls.filter(call => isLspRelatedToolName(call.tool));
+            if (lspToolCalls.length > 0) {
+                console.log(`   LSP tool calls: ${lspToolCalls.map(call => call.tool).join(', ')}`);
+            } else {
+                console.warn('   No LSP-related tool call detected in session messages.');
+            }
+            (logEntry as any).toolCalls = toolCalls;
+            (logEntry as any).lspToolCalls = lspToolCalls;
 
             fs.writeFileSync(outputFile, JSON.stringify(logEntry, null, 2));
 

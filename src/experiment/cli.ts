@@ -53,6 +53,7 @@ interface CLIArgs {
     maxRetries?: number;
     continuous?: boolean;
     focusTask?: string;
+    enableLspTool?: boolean;
     logLevel?: string;
     verbose?: boolean;
 }
@@ -200,6 +201,10 @@ function parseArgs(): CLIArgs {
         printUsage();
         process.exit(1);
     }
+    const enableLspToolRaw = parsed['enable-lsp-tool'] ?? parsed['lsp-tool'];
+    const enableLspTool = enableLspToolRaw === undefined
+        ? true
+        : !(String(enableLspToolRaw).toLowerCase() === 'false' || String(enableLspToolRaw) === '0');
 
     return {
         type: parsed.type as ExperimentType,
@@ -216,6 +221,7 @@ function parseArgs(): CLIArgs {
         maxRetries: parseInt(parsed['max-retries'] || '5'),
         continuous: parsed['continuous'] === 'true' || parsed['continuous'] === true,
         focusTask: parsed['focus'] || parsed['focus-task'],
+        enableLspTool,
         logLevel: parsed['log-level'] || 'info',
         verbose: parsed['verbose'] === 'true' || parsed['verbose'] === true
     };
@@ -245,6 +251,7 @@ function printUsage() {
     console.log('  --max-retries <num>      Retry failed tasks up to N times (default: 5)');
     console.log('  --continuous <bool>      Rerun only failed tasks from existing experiment_summary.json (requires --output-dir)');
     console.log('  --focus <name|key>       Focus on a specific taskName or taskKey (comma-separated)');
+    console.log('  --enable-lsp-tool <bool> Enable opencode LSP tool integration (default: true, alias: --lsp-tool)');
     console.log('  --prompt-template <mode> Prompt template: cfg or default (default: cfg for claudecode/opencode, default for baseline)');
     console.log('  --task-limit <num>       Limit number of tasks to run (e.g., 1 to run a single task)');
     console.log('  --log-level <level>      Log level: debug, info, warn, error (default: info)');
@@ -388,6 +395,7 @@ async function main() {
     if (args.parallel) {
         console.log(`  Concurrency: ${args.concurrency}`);
     }
+    console.log(`  Enable LSP Tool: ${args.enableLspTool}`);
     console.log(`  Max Retries: ${args.maxRetries}`);
     console.log(`  Continuous: ${args.continuous}`);
     if (args.focusTask) {
@@ -411,9 +419,17 @@ async function main() {
             outputDir: args.outputDir || '',
             parallel: args.parallel,
             concurrency: args.concurrency,
+            enableLspTool: args.enableLspTool,
             sessionId,
             experimentId
         });
+
+        if (args.type === 'opencode' && args.enableLspTool !== false) {
+            if (!process.env.OPENCODE_EXPERIMENTAL_LSP_TOOL && !process.env.OPENCODE_EXPERIMENTAL) {
+                process.env.OPENCODE_EXPERIMENTAL_LSP_TOOL = 'true';
+                console.log('[opencode:lsp] OPENCODE_EXPERIMENTAL_LSP_TOOL=true');
+            }
+        }
 
         const runExperiment = async (continuousOverride?: boolean) => {
             const options = {
