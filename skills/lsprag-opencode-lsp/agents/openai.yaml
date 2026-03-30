@@ -1,0 +1,6 @@
+interface:
+  display_name: "LSPRAG OpenCode LSP"
+  short_description: "Wire OpenCode to LSPRAG LSP tools"
+  default_prompt: "Use $lsprag-opencode-lsp to set up and verify OpenCode LSP tooling in this repo."
+policy:
+  allow_implicit_invocation: true
