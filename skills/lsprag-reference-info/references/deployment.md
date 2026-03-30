@@ -1,28 +1,29 @@
 # Deployment Guide (Agent Community)
 
-This module exposes a portable `getReferenceInfo` in `src/lsp/referenceCore.ts`. The only runtime requirement is that you supply a `ReferenceProvider` implementation for your environment (VS Code, custom LSP client, MCP server, etc.).
+This module exposes a portable `getReferenceInfo` in `src/lsp/referenceCore.ts`. It runs anywhere as long as you provide a `ReferenceProvider` that talks to your LSP client or MCP server.
 
-## Skill Packaging (agentskills-style)
+## Install the Skill
 
-If you package this as an agent skill, follow the common skill layout:
+Pick your agent and install the skill folder:
 
-```
-skills/lsprag-reference-info/
-├── SKILL.md
-├── agents/openai.yaml
-└── references/
-    ├── deployment.md
-    └── testing-plan.md
-```
+1. Copy or symlink `skills/lsprag-reference-info/` into your agent’s skills directory.
+2. Restart your agent.
 
-Install locations used by popular agents (mirroring the community skill layout):
+Common install locations (community convention):
 
 - Claude Code: `~/.claude/skills/`
 - Gemini: `~/.gemini/skills/`
 - Codex: `~/.codex/skills/`
 - OpenCode: `~/.config/opencode/skill/`
 
-## Minimal Node Integration
+Example for Codex:
+
+```bash
+mkdir -p ~/.codex/skills
+ln -s /absolute/path/to/skills/lsprag-reference-info ~/.codex/skills/lsprag-reference-info
+```
+
+## Use from Code (Minimal Node Integration)
 
 1. Import the portable function:
 
@@ -30,7 +31,7 @@ Install locations used by popular agents (mirroring the community skill layout):
 import { getReferenceInfo, ReferenceProvider } from "./src/lsp/referenceCore";
 ```
 
-2. Provide a `ReferenceProvider` that delegates to your LSP client:
+2. Provide a `ReferenceProvider` backed by your LSP client:
 
 ```ts
 const provider: ReferenceProvider = {
@@ -40,18 +41,15 @@ const provider: ReferenceProvider = {
 };
 ```
 
-3. Call:
+3. Call the function:
 
 ```ts
 const info = await getReferenceInfo(document, range, provider, { refWindow: 60 });
 ```
 
-## MCP Packaging (optional)
+## Use from MCP (Optional)
 
-If you expose this as an MCP server, follow the standard `mcpServers` configuration flow:
-
-1. Build a small MCP server binary (Node or Go) that wraps `getReferenceInfo`.
-2. Add an MCP config entry pointing to the binary:
+Wrap `getReferenceInfo` in a small MCP server and register it in your agent config:
 
 ```json
 {
@@ -64,7 +62,7 @@ If you expose this as an MCP server, follow the standard `mcpServers` configurat
 }
 ```
 
-3. Restart your agent, then verify the tools are listed.
+Restart your agent, then confirm the tools show up.
 
 ## References
 

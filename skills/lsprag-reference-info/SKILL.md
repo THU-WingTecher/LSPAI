@@ -7,6 +7,10 @@ description: Use when exporting LSPRAG reference analysis (getReferenceInfo) as 
 
 This skill packages the portable `getReferenceInfo` implementation so it can run outside VS Code.
 
+## Install + Use
+
+- See `skills/lsprag-reference-info/references/deployment.md` for step-by-step install and usage.
+
 ## Core Module
 
 - Portable API: `src/lsp/referenceCore.ts`
