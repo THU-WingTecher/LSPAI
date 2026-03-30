@@ -1,0 +1,6 @@
+interface:
+  display_name: "LSPRAG Reference Info"
+  short_description: "Portable getReferenceInfo module"
+  default_prompt: "Use $lsprag-reference-info to export and wire getReferenceInfo in a non-VSCode environment."
+policy:
+  allow_implicit_invocation: true

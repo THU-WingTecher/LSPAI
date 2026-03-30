@@ -4,6 +4,15 @@ import { getAllSymbols, getShortestSymbol } from './symbol';
 import { getDecodedTokensFromSymbol } from './token';
 import { DecodedToken } from './types';
 import { VscodeRequestManager } from './vscodeRequestManager';
+import {
+    getReferenceInfo as getReferenceInfoCore,
+    ReferenceDocument,
+    ReferenceLocation,
+    ReferencePosition,
+    ReferenceRange,
+    ReferenceProvider,
+    ReferenceSymbol
+} from './referenceCore';
 
 /**
  * Determines if a file is a test file based on its path and content
@@ -52,28 +61,85 @@ export async function getReferenceInfo(
     refWindow: number = 60, 
     skipTestCode: boolean = false
 ): Promise<string> {
-    const targetToken = document.getText(range);
-    const start = range.start;
-    const end = range.end;
-    
-    console.log(`[getReferenceInfo] Starting reference search for token "${targetToken}" at position ${start.line}:${start.character}`);
-    
-    const references = await findReferences(document, start);
-    if (!references || references.length === 0) {
-        console.log('[getReferenceInfo] No references found');
-        return '';
-    }
-    
-    const referenceCodes = await processReferences(document, references, {
-        targetToken,
-        start,
-        end,
-        refWindow,
-        skipTestCode
-    });
-    
-    console.log(`[getReferenceInfo] Processed ${referenceCodes.length} valid reference codes`);
-    return referenceCodes.join('\n');
+    const provider = buildVscodeReferenceProvider();
+    return getReferenceInfoCore(
+        toCoreDocument(document),
+        toCoreRange(range),
+        provider,
+        { refWindow, skipTestCode }
+    );
+}
+
+function toCorePosition(position: vscode.Position): ReferencePosition {
+    return { line: position.line, character: position.character };
+}
+
+function toCoreRange(range: vscode.Range): ReferenceRange {
+    return { start: toCorePosition(range.start), end: toCorePosition(range.end) };
+}
+
+function toVscodePosition(position: ReferencePosition): vscode.Position {
+    return new vscode.Position(position.line, position.character);
+}
+
+function toVscodeRange(range: ReferenceRange): vscode.Range {
+    return new vscode.Range(toVscodePosition(range.start), toVscodePosition(range.end));
+}
+
+function toCoreLocation(location: vscode.Location): ReferenceLocation {
+    return { uri: location.uri.toString(), range: toCoreRange(location.range) };
+}
+
+function toCoreSymbol(symbol: vscode.DocumentSymbol): ReferenceSymbol {
+    return {
+        name: symbol.name,
+        range: toCoreRange(symbol.range),
+        selectionRange: toCoreRange(symbol.selectionRange),
+        children: symbol.children?.map(child => toCoreSymbol(child))
+    };
+}
+
+function toCoreDocument(document: vscode.TextDocument): ReferenceDocument {
+    return {
+        uri: document.uri.toString(),
+        languageId: document.languageId,
+        getText: (range?: ReferenceRange) => {
+            if (!range) {
+                return document.getText();
+            }
+            return document.getText(toVscodeRange(range));
+        }
+    };
+}
+
+function buildVscodeReferenceProvider(): ReferenceProvider {
+    return {
+        getReferences: async (document: ReferenceDocument, position: ReferencePosition): Promise<ReferenceLocation[]> => {
+            const uri = vscode.Uri.parse(document.uri);
+            const vscodePosition = new vscode.Position(position.line, position.character);
+            const references = await VscodeRequestManager.references(uri, vscodePosition);
+            return references.map(toCoreLocation);
+        },
+        openDocument: async (uri: string): Promise<ReferenceDocument> => {
+            const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(uri));
+            return toCoreDocument(doc);
+        },
+        getSymbols: async (uri: string): Promise<ReferenceSymbol[]> => {
+            const symbols = await getAllSymbols(vscode.Uri.parse(uri));
+            return symbols.map(symbol => toCoreSymbol(symbol));
+        },
+        isTestFile: (uri: string, _document: ReferenceDocument): boolean => {
+            const normalized = uri.toLowerCase();
+            return (
+                normalized.includes('/test/') ||
+                normalized.includes('/tests/') ||
+                normalized.includes('/spec/') ||
+                normalized.includes('/__tests__/') ||
+                Boolean(normalized.match(/\.(test|spec)\.(js|ts|jsx|tsx)$/))
+            );
+        },
+        log: (message: string) => console.log(message)
+    };
 }
 
 interface ReferenceProcessingOptions {
