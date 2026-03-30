@@ -124,38 +124,54 @@ async function main() {
     // Add after installation
   // Skip listing extensions in WSL to avoid prompt that causes hanging
 
-    // Use cp.spawn / cp.exec for custom setup
-	// const installExtensions = ['ms-python.python', 'oracle.oracle-java', 'golang.go'];
-    cp.spawnSync(
-      cliPath,
-		[...args, '--install-extension', 'ms-python.python', '--install-extension', 'redhat.java', '--install-extension', 'golang.go', '--install-extension', 'ms-vscode.cpptools'],
-		{
-        encoding: 'utf-8',
-        stdio: 'inherit',
-        env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
-      }
-    );
+    const skipExtensionInstall = process.env.LSPRAG_SKIP_EXTENSION_INSTALL === '1';
     let installedExtensions: any = null;
     const extensionListTimeoutMs = getExtensionListTimeoutMs();
-    try {
-      installedExtensions = cp.execSync(
-        `${cliPath} ${args.join(' ')} --list-extensions`,
-        { 
+    if (!skipExtensionInstall) {
+      // Use cp.spawn / cp.exec for custom setup
+      // const installExtensions = ['ms-python.python', 'oracle.oracle-java', 'golang.go'];
+      cp.spawnSync(
+        cliPath,
+        [
+          ...args,
+          '--install-extension',
+          'ms-python.python',
+          '--install-extension',
+          'redhat.java',
+          '--install-extension',
+          'golang.go',
+          '--install-extension',
+          'ms-vscode.cpptools'
+        ],
+        {
           encoding: 'utf-8',
-          timeout: extensionListTimeoutMs,
-          stdio: 'pipe',
+          stdio: 'inherit',
           env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
         }
       );
-      console.log('installedExtensions', installedExtensions);
-    } catch (err: any) {
-      // Ignore errors when listing extensions (common in WSL environments)
-      console.log('Skipping extension list check');
-    }
+      try {
+        installedExtensions = cp.execSync(
+          `${cliPath} ${args.join(' ')} --list-extensions`,
+          {
+            encoding: 'utf-8',
+            timeout: extensionListTimeoutMs,
+            stdio: 'pipe',
+            env: { ...process.env, DONT_PROMPT_WSL_INSTALL: '1' }
+          }
+        );
+        console.log('installedExtensions', installedExtensions);
+      } catch (err: any) {
+        // Ignore errors when listing extensions (common in WSL environments)
+        console.log('Skipping extension list check');
+      }
 
-    if (installedExtensions === null) {
-       console.error("Failed to install extensions, please review the issue on Github");
-       process.exit(1);
+      if (installedExtensions === null) {
+        console.error('Failed to install extensions, please review the issue on Github');
+        process.exit(1);
+      }
+    } else {
+      installedExtensions = 'skipped';
+      console.log('[test-runner] Skipping extension install/list (LSPRAG_SKIP_EXTENSION_INSTALL=1)');
     }
     
     const model =

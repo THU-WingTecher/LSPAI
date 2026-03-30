@@ -180,9 +180,135 @@ export async function getDecodedTokensFromRange(document: vscode.TextDocument, s
 
 export async function getDecodedTokensFromSymbol(document: vscode.TextDocument, functionSymbol: vscode.DocumentSymbol): Promise<DecodedToken[]> {
     const allTokens = await extractRangeTokensFromAllTokens(document, functionSymbol.range.start, functionSymbol.range.end);
+    const inferredTokens = extractCallTokensFromRange(document, functionSymbol.range);
+    const mergedTokens = mergeTokensById(allTokens, inferredTokens);
     // exclude the functionsymbol itself :
-    const filteredTokens = allTokens.filter(token => token.word !== functionSymbol.name);
+    const filteredTokens = mergedTokens.filter(token => token.word !== functionSymbol.name);
     return filteredTokens;
+}
+
+function mergeTokensById(primary: DecodedToken[], secondary: DecodedToken[]): DecodedToken[] {
+    const tokenMap = new Map<string, DecodedToken>();
+    for (const token of primary) {
+        tokenMap.set(token.id, token);
+    }
+    for (const token of secondary) {
+        if (!tokenMap.has(token.id)) {
+            tokenMap.set(token.id, token);
+        }
+    }
+    return Array.from(tokenMap.values());
+}
+
+function getCallTokenKeywords(languageId: string | undefined): Set<string> {
+    const common = [
+        "if",
+        "else",
+        "elif",
+        "for",
+        "while",
+        "do",
+        "switch",
+        "case",
+        "break",
+        "continue",
+        "return",
+        "new",
+        "class",
+        "struct",
+        "interface",
+        "enum",
+        "package",
+        "import",
+        "from",
+        "try",
+        "catch",
+        "finally",
+        "throw",
+        "throws",
+        "def",
+        "func",
+        "function",
+        "public",
+        "private",
+        "protected",
+        "static",
+        "const",
+        "var",
+        "let",
+        "val",
+        "in",
+        "is",
+        "and",
+        "or",
+        "not",
+        "with",
+        "lambda",
+    ];
+    const languageSpecific: Record<string, string[]> = {
+        python: ["yield", "await", "async", "assert", "raise"],
+        java: ["synchronized", "extends", "implements", "super", "this"],
+        go: ["go", "defer", "select", "range"],
+        javascript: ["await", "async", "typeof", "instanceof"],
+        typescript: ["await", "async", "typeof", "instanceof", "as"],
+    };
+    const keywords = new Set(common);
+    if (languageId && languageSpecific[languageId]) {
+        for (const kw of languageSpecific[languageId]) {
+            keywords.add(kw);
+        }
+    }
+    return keywords;
+}
+
+function extractCallTokensFromRange(document: vscode.TextDocument, range: vscode.Range): DecodedToken[] {
+    const tokens: DecodedToken[] = [];
+    const keywords = getCallTokenKeywords(document.languageId);
+    const startLine = range.start.line;
+    const endLine = range.end.line;
+
+    for (let line = startLine; line <= endLine; line++) {
+        const lineText = document.lineAt(line).text;
+        let sliceStart = 0;
+        let sliceEnd = lineText.length;
+        if (line === startLine) {
+            sliceStart = range.start.character;
+        }
+        if (line === endLine) {
+            sliceEnd = Math.min(sliceEnd, range.end.character);
+        }
+        if (sliceEnd <= sliceStart) {
+            continue;
+        }
+
+        const segment = lineText.slice(sliceStart, sliceEnd);
+        const regex = /([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(segment)) !== null) {
+            const word = match[1];
+            if (keywords.has(word)) {
+                continue;
+            }
+            const startChar = sliceStart + match.index;
+            const length = word.length;
+            tokens.push({
+                id: `${line}:${startChar}`,
+                word,
+                line,
+                startChar,
+                length,
+                type: "function",
+                modifiers: [],
+                definition: [],
+                context: "",
+                document,
+                defSymbol: null,
+                defSymbolRange: null,
+            });
+        }
+    }
+
+    return tokens;
 }
 
 export async function getDecodedTokensFromLine(document: vscode.TextDocument, lineNumber: number): Promise<DecodedToken[]> {

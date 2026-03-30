@@ -81,8 +81,10 @@ export class VscodeRequestManager {
       await new Promise(r => setTimeout(r, delayMs));
     }
   
-    // Cache the result
-    VscodeRequestManager.cache.documentSymbols.set(uriString, symbols);
+    // Cache only when we have symbols to avoid pinning empty results
+    if (symbols.length > 0) {
+      VscodeRequestManager.cache.documentSymbols.set(uriString, symbols);
+    }
     return symbols;
   }
   // static async documentSymbols(uri: vscode.Uri): Promise<vscode.DocumentSymbol[]> {
