@@ -25,7 +25,7 @@
   <p><strong>This project is active. If you encounter any errors or have suggestions, feel free to open an issue!</strong></p>
 </div>
 
-> We have developed **lsprag-skills** for agents usage. Checkout [here](!https://github.com/Gwihwan-Go/lsprag-skills)
+> We have developed **lsprag-skills** for agents usage. Check [here](https://github.com/Gwihwan-Go/lsprag-skills)
 
 ## Overview
 
