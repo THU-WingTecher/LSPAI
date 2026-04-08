@@ -25,6 +25,8 @@
   <p><strong>This project is active. If you encounter any errors or have suggestions, feel free to open an issue!</strong></p>
 </div>
 
+> We have developed **lsprag-skills** for agents usage. Checkout [here](!https://github.com/Gwihwan-Go/lsprag-skills)
+
 ## Overview
 
 LSPRAG (Language Server Protocol-based AI Generation) is a cutting-edge VS Code extension that leverages Language Server Protocol (LSP) integration and Large Language Models (LLMs) to automatically generate high-quality unit tests in real-time. By combining semantic code analysis with AI-powered generation, LSPRAG delivers contextually accurate and comprehensive test suites across multiple programming languages.
