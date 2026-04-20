@@ -1,16 +1,16 @@
 import * as vscode from 'vscode';
-import { generateUnitTestForSelectedRange } from './generate';
 import { Configuration, getConfigInstance } from './config';
-import { invokeLLM } from './invokeLLM';
 import { getAllSymbols } from './lsp/symbol';
 import { getDecodedTokensFromSymbol } from './lsp/token';
+import { runLLMHealthcheck } from './llmHealthcheck';
+import { GenerateUnitTestCommandOptions, runGenerateUnitTestCommand } from './commands/generateUnitTestCommand';
+import { getCurrentSettingsLines } from './currentSettings';
 
 export async function activate(context: vscode.ExtensionContext) {
-
 	try {
 		const workspace = vscode.workspace.workspaceFolders;
 
-		if (!Configuration.isTestingEnvironment() && workspace && workspace.length > 0) {	
+		if (!Configuration.isTestingEnvironment() && workspace && workspace.length > 0) {
 			console.log(`Workspace: ${workspace[0].uri.fsPath}`);
 			getConfigInstance().updateConfig({
 				workspace: workspace[0].uri.fsPath
@@ -19,38 +19,45 @@ export async function activate(context: vscode.ExtensionContext) {
 			console.log(`No workspace found`);
 		}
 
-
 		const testLLMDisposable = vscode.commands.registerCommand('extension.testLLM', async () => {
-			const promptObj = [
-				{
-					role: 'system',
-					content: 'You are a helpful assistant.'
-				},
-				{
-					role: 'user',
-					content: 'What is the capital of the moon?'
-				}
-			];
-			const modelName = getConfigInstance().model;
-			vscode.window.showInformationMessage(`Testing ${modelName} invoked LLM.`);
-			const response = await invokeLLM(promptObj, []);
-			if (response) {
-				vscode.window.showInformationMessage('Successfully invoked LLM.',
+			const config = getConfigInstance();
+			const modelName = config.model;
+			const provider = config.provider;
+			const timeoutSeconds = Math.round(config.timeoutMs / 1000);
+			console.log(`testLLM command started. provider=${provider}, model=${modelName}, timeout=${timeoutSeconds}s`);
+			try {
+				await vscode.window.withProgress(
 					{
-						modal: true
+						location: vscode.ProgressLocation.Notification,
+						title: `Testing ${provider}/${modelName}`,
+						cancellable: false
+					},
+					async (progress) => {
+						progress.report({
+							message: `Waiting for LLM response (timeout: ${timeoutSeconds}s)`
+						});
+						const result = await runLLMHealthcheck();
+						vscode.window.showInformationMessage(
+							`Successfully invoked LLM: ${result.response}`,
+							{
+								modal: true
+							}
+						);
 					}
 				);
-			} else {
-				vscode.window.showErrorMessage('Failed to invoke LLM.',
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				console.error('testLLM command failed:', error);
+				vscode.window.showErrorMessage(`Test LLM failed: ${errorMessage}`,
 					{
 						modal: true
 					}
 				);
 			}
 		});
-		
+
 		context.subscriptions.push(testLLMDisposable);
-		
+
 		const testLSPDisposable = vscode.commands.registerCommand('extension.testLSP', async () => {
 			const editor = vscode.window.activeTextEditor;
 			if (!editor) {
@@ -75,8 +82,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 				// Test 2: Token Extraction
 				vscode.window.showInformationMessage('Testing token extraction...');
-				const firstFunctionSymbol = symbols.find(s => 
-					s.kind === vscode.SymbolKind.Function || 
+				const firstFunctionSymbol = symbols.find(s =>
+					s.kind === vscode.SymbolKind.Function ||
 					s.kind === vscode.SymbolKind.Method
 				);
 
@@ -89,7 +96,6 @@ export async function activate(context: vscode.ExtensionContext) {
 				console.log(`Extracted ${tokens.length} tokens from symbol: ${firstFunctionSymbol.name}`);
 				console.log('Tokens:', tokens.map(t => t.word));
 
-				// Show success message with results
 				const message = `LSP Test Success!\nSymbols: ${symbols.length}\nTokens from "${firstFunctionSymbol.name}": ${tokens.length}`;
 				vscode.window.showInformationMessage(message,
 					{
@@ -106,42 +112,29 @@ export async function activate(context: vscode.ExtensionContext) {
 				);
 			}
 		});
-		
+
 		context.subscriptions.push(testLSPDisposable);
-		const disposable = vscode.commands.registerCommand('extension.generateUnitTest', async () => {
-			const editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				vscode.window.showErrorMessage('Please open a file and select a function to generate unit test.');
-				return;
-			}
 
-			const testCode = await generateUnitTestForSelectedRange(editor.document, editor.selection.active);
-
+		const disposable = vscode.commands.registerCommand('extension.generateUnitTest', async (options?: GenerateUnitTestCommandOptions) => {
+			return runGenerateUnitTestCommand(options);
 		});
-		
+
 		context.subscriptions.push(disposable);
-		
+
 		const showSettingsDisposable = vscode.commands.registerCommand('LSPRAG.showSettings', () => {
-			const settings = [
-				`Model: ${getConfigInstance().model}`,
-				`Provider: ${getConfigInstance().provider}`,
-				`Max Rounds: ${getConfigInstance().maxRound}`,
-				`Experiment Probability: ${getConfigInstance().expProb}`,
-				`Save Path: ${getConfigInstance().savePath}`,
-				`Timeout: ${getConfigInstance().timeoutMs}`
-			];
-			
+			const settings = getCurrentSettingsLines();
+
 			vscode.window.showInformationMessage('Current Settings:', {
 				detail: settings.join('\n'),
 				modal: true
 			});
 		});
-		context.subscriptions.push(showSettingsDisposable);
 
+		context.subscriptions.push(showSettingsDisposable);
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 		console.error('Failed to activate LSPRAG extension:', error);
-		vscode.window.showErrorMessage(`LSPRAG activation failed: ${errorMessage}`, 
+		vscode.window.showErrorMessage(`LSPRAG activation failed: ${errorMessage}`,
 			{
 				modal: true
 			}

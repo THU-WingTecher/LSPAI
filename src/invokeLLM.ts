@@ -1,4 +1,3 @@
-import * as vscode from "vscode";
 import { OpenAI } from "openai";
 import { HttpsProxyAgent } from "https-proxy-agent/dist";
 import { Ollama } from 'ollama';
@@ -6,9 +5,57 @@ import { Configuration, getConfigInstance } from "./config";
 import * as fs from 'fs';
 import * as path from 'path';
 
+type VSCodeLike = {
+	window?: {
+		showErrorMessage(message: string): void;
+	};
+};
+
+let vscodeApi: VSCodeLike | null = null;
+try {
+	vscodeApi = require('vscode') as VSCodeLike;
+} catch (error) {
+	vscodeApi = null;
+}
+
 export const TOKENTHRESHOLD = 3000; // Define your token threshold here
 
 export const BASELINE = "naive";
+const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
+
+function envFlagEnabled(value: string | undefined): boolean {
+	return TRUE_VALUES.has((value || '').trim().toLowerCase());
+}
+
+export function isSkipLLMRequested(): boolean {
+	return envFlagEnabled(process.env.LSPRAG_SKIP_LLM) || envFlagEnabled(process.env.TEST_SKIP_LLM);
+}
+
+function getDraftCodeFromPrompt(userPrompt: string): string {
+	const markers = [
+		'### Draft test code with test prefix path coverage requirements',
+		'### Draft test code'
+	];
+	for (const marker of markers) {
+		const markerIndex = userPrompt.indexOf(marker);
+		if (markerIndex < 0) {
+			continue;
+		}
+		const region = userPrompt.slice(markerIndex + marker.length);
+		const match = region.match(/```(?:\w+)?\s*([\s\S]*?)\s*```/);
+		if (match?.[1]) {
+			return match[1].trim();
+		}
+	}
+	return '';
+}
+
+export function isSkipLLMModeEnabled(): boolean {
+	if (!isSkipLLMRequested()) {
+		return false;
+	}
+	return (process.env.TEST_TYPE || '').trim().toLowerCase() === 'config';
+}
 
 export class TokenLimitExceededError extends Error {
 	constructor(message: string) {
@@ -38,6 +85,46 @@ export function getModelName(): string {
 	return getConfigInstance().model.split("_").pop()!;
 }
 
+function getConfiguredBaseUrl(provider: 'openai' | 'deepseek'): string {
+	const customBaseUrl = getConfigInstance().baseUrl?.trim() || process.env.LSPRAG_BASE_URL?.trim();
+	if (customBaseUrl) {
+		return customBaseUrl;
+	}
+	return provider === 'deepseek' ? 'https://api.deepseek.com' : 'https://api.openai.com/v1';
+}
+
+function getRequestTimeoutMs(): number {
+	return getConfigInstance().timeoutMs;
+}
+
+function createTimeoutError(provider: string, timeoutMs: number): Error {
+	return new Error(`${provider} request timed out after ${Math.round(timeoutMs / 1000)}s`);
+}
+
+async function withTimeout<T>(promise: Promise<T>, provider: string, timeoutMs = getRequestTimeoutMs()): Promise<T> {
+	let timeoutHandle: NodeJS.Timeout | undefined;
+	const timeoutPromise = new Promise<never>((_, reject) => {
+		timeoutHandle = setTimeout(() => reject(createTimeoutError(provider, timeoutMs)), timeoutMs);
+	});
+
+	try {
+		return await Promise.race([promise, timeoutPromise]);
+	} finally {
+		if (timeoutHandle) {
+			clearTimeout(timeoutHandle);
+		}
+	}
+}
+
+function extractMessageContent(response: any, provider: string): string {
+	const firstChoice = response?.choices?.[0];
+	const content = firstChoice?.message?.content;
+	if (typeof content !== 'string' || content.length === 0) {
+		throw new Error(`${provider} returned an unexpected response: missing choices[0].message.content`);
+	}
+	return content;
+}
+
 export function getModelConfigError(): string | undefined {
 	const provider = getConfigInstance().provider;
 	switch (provider) {
@@ -47,7 +134,7 @@ export function getModelConfigError(): string | undefined {
 			}
 			break;
 		case 'local':
-			if (!getConfigInstance().localLLMUrl) {
+			if (!getConfigInstance().localLLMUrl && !process.env.LOCAL_LLM_URL) {
 				return 'Local LLM URL is not configured. Please set LSPRAG.localLLMUrl in settings.';
 			}
 			break;
@@ -60,17 +147,56 @@ export function getModelConfigError(): string | undefined {
 	return undefined;
 }
 
+function showErrorMessage(message: string): void {
+	if (vscodeApi?.window?.showErrorMessage) {
+		vscodeApi.window.showErrorMessage(message);
+		return;
+	}
+
+	console.error(message);
+}
+
+function logLLMInteraction(prompt: string, response: string): void {
+	try {
+		const logSavePath = getConfigInstance().logSavePath;
+		if (!logSavePath) {
+			return;
+		}
+
+		if (!fs.existsSync(logSavePath)) {
+			fs.mkdirSync(logSavePath, { recursive: true });
+		}
+
+		const logFilePath = path.join(logSavePath, 'llm_logs.jsonl');
+		const logData = {
+			prompt,
+			response,
+			timestamp: new Date().toISOString()
+		};
+		fs.appendFileSync(logFilePath, JSON.stringify(logData) + '\n', 'utf8');
+	} catch (error) {
+		console.error('Failed to log LLM interaction:', error);
+	}
+}
+
 export async function callLocalLLM(promptObj: any, logObj: any): Promise<string> {
 	// const modelName = getModelName(method);
 	const modelName = getModelName();
 	logObj.prompt = promptObj[1]?.content; // Adjusted to ensure promptObj[1] exists
-	const ollama = new Ollama({ host: getConfigInstance().localLLMUrl });
+	const localLLMUrl = getConfigInstance().localLLMUrl || process.env.LOCAL_LLM_URL;
+	if (!localLLMUrl) {
+		throw new Error('Local LLM URL not configured. Please set LSPRAG.localLLMUrl in settings or LOCAL_LLM_URL in the environment.');
+	}
+	const ollama = new Ollama({ host: localLLMUrl });
 	try {
-		const response = await ollama.chat({
-			model: modelName,
-			messages: promptObj,
-			stream: false,
-		});
+		const response = await withTimeout(
+			ollama.chat({
+				model: modelName,
+				messages: promptObj,
+				stream: false,
+			}) as Promise<any>,
+			'Local LLM'
+		);
 		const result = await response;
 		const content = result.message.content;
 		const tokenUsage = result.prompt_eval_count;
@@ -85,37 +211,44 @@ export async function callLocalLLM(promptObj: any, logObj: any): Promise<string>
   }
 
 // ... existing code ...
-export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, retryDelay = 2000): Promise<string> {
-	const error = getModelConfigError();
-	if (error) {
-		vscode.window.showErrorMessage(error);
-		console.error('invokeLLM::error', error);
-		return "";
-	}
-
+export async function invokeLLM(
+	promptObj: any,
+	logObj: any = { prompt: '', result: '', tokenUsage: 0, model: '' },
+	maxRetries = 2,
+	retryDelay = 2000
+): Promise<string> {
 	// Validate promptObj structure
 	if (!Array.isArray(promptObj) || promptObj.length < 2) {
 		const errorMsg = 'Invalid promptObj: must be an array with at least 2 elements';
 		console.error('invokeLLM::error', errorMsg);
-		vscode.window.showErrorMessage(errorMsg);
+		showErrorMessage(errorMsg);
 		return "";
 	}
 
 	if (!promptObj[0]?.content || !promptObj[1]?.content) {
 		const errorMsg = 'Invalid promptObj: elements must have content property';
 		console.error('invokeLLM::error', errorMsg);
-		vscode.window.showErrorMessage(errorMsg);
+		showErrorMessage(errorMsg);
 		return "";
 	}
 
-	// console.log('invokeLLM::promptObj', promptObj);
-	console.log('invokeLLM::promptObj_system', promptObj[0].content);
-	console.log('invokeLLM::promptObj_user', promptObj[1].content);
-	const messageTokens = promptObj[1].content.split(/\s+/).length;
-	// console.log("Invoking . . .");
-	// if (messageTokens > TOKENTHRESHOLD) {
-	// 	throw new TokenLimitExceededError(`Prompt exceeds token limit of ${TOKENTHRESHOLD} tokens.`);
-	// }
+	if (isSkipLLMModeEnabled()) {
+		const userPrompt = promptObj[1]?.content || '';
+		const draft = getDraftCodeFromPrompt(userPrompt);
+		const syntheticResponse = draft ? `\`\`\`\n${draft}\n\`\`\`` : '```python\npass\n```';
+		logObj.prompt = userPrompt;
+		logObj.result = syntheticResponse;
+		logObj.tokenUsage = '0';
+		logLLMInteraction(userPrompt, syntheticResponse);
+		return syntheticResponse;
+	}
+
+	const error = getModelConfigError();
+	if (error) {
+		showErrorMessage(error);
+		console.error('invokeLLM::error', error);
+		return "";
+	}
 
 	const provider = getConfigInstance().provider;
 	
@@ -138,27 +271,19 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 					throw new Error("Unsupported provider!");
 			}
 			
-			// Log the prompt and response
-			if (fs.existsSync(getConfigInstance().logSavePath) && promptObj[1]?.content) {
-				const logData = {
-					prompt: promptObj[1].content,
-					response: response,
-					timestamp: new Date().toISOString()
-				};
-				const logFilePath = path.join(getConfigInstance().logSavePath, 'llm_logs.json');
-				fs.appendFileSync(logFilePath, JSON.stringify(logData) + '\n');
+			if (promptObj[1]?.content) {
+				logLLMInteraction(promptObj[1].content, response);
 			}
 
 			return response;
 		} catch (error) {
 			lastError = error as Error;
-			console.log(`Attempt ${attempt}/${maxRetries} failed: ${error}`);
+			console.log(`Attempt ${attempt}/${maxRetries} failed: ${lastError.message}`);
 			
 			if (attempt < maxRetries) {
 				// Add exponential backoff with jitter for more robust retrying
 				const jitter = Math.random() * 1000;
 				const delay = retryDelay * Math.pow(2, attempt - 1) + jitter;
-				console.log(`Retrying in ${Math.round(delay / 1000)} seconds...`);
 				await new Promise(resolve => setTimeout(resolve, delay));
 			}
 		}
@@ -166,7 +291,7 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 	
 	// If we've exhausted all retries, throw the last error
 	if (lastError) {
-		vscode.window.showErrorMessage(`Failed after ${maxRetries} attempts: ${lastError.message}`);
+		showErrorMessage(`Failed after ${maxRetries} attempts: ${lastError.message}`);
 		throw lastError;
 	}
 	
@@ -179,28 +304,28 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 	const modelName = getModelName();
 	logObj.prompt = promptObj[1]?.content || '';
 	
-	const apiKey = getConfigInstance().deepseekApiKey;
+	const proxy = getConfigInstance().proxyUrl || process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
+	const apiKey = getConfigInstance().deepseekApiKey || process.env.DEEPSEEK_API_KEY;
 	
 	if (!apiKey) {
 		throw new Error('Deepseek API key not configured. Please set it in VS Code settings.');
 	}
 	
 	const openai = new OpenAI({
-		baseURL: 'https://api.deepseek.com',
+		baseURL: getConfiguredBaseUrl('deepseek'),
 		apiKey: apiKey,
+		timeout: getRequestTimeoutMs(),
+		...(proxy && { httpAgent: new HttpsProxyAgent(proxy) })
 	});
 	try {
 		const response = await openai.chat.completions.create({
 			model: modelName,
 			messages: promptObj
 		});
-		console.log('invokeLLM::callDeepSeek::response', JSON.stringify(response, null, 2));
-		const result = response.choices[0].message.content!;
-		const tokenUsage = response.usage!.prompt_tokens;
+		const result = extractMessageContent(response, 'DeepSeek');
+		const tokenUsage = response.usage?.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
-		logObj.result = result + "<think>" + ((response.choices[0].message as any).reasoning_content || '');;
-		// console.log('Generated test code:', result);
-		// console.log('Token usage:', tokenUsage);
+		logObj.result = result + "<think>" + ((response.choices?.[0]?.message as any)?.reasoning_content || '');
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);
@@ -209,18 +334,13 @@ export async function callDeepSeek(promptObj: any, logObj: any): Promise<string>
 }
 
 export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
-	// console.log('invokeLLM::callOpenAi::proxyUrl', getConfigInstance().logAllConfig());
-	const proxy = getConfigInstance().proxyUrl;
-	const apiKey = getConfigInstance().openaiApiKey;
-	console.log('invokeLLM::callOpenAi::proxy', proxy);
-	// console.log('invokeLLM::callOpenAi::apiKey', apiKey);
+	const proxy = getConfigInstance().proxyUrl || process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
+	const apiKey = getConfigInstance().openaiApiKey || process.env.OPENAI_API_KEY;
 	if (!apiKey) {
 		throw new Error('OpenAI API key not configured. Please set it in VS Code settings.');
 	}
 	
-	// const modelName = getModelName(method);
 	const modelName = getModelName();
-	console.log('invokeLLM::callOpenAi::modelName', modelName);
 	if (proxy) {
 		process.env.http_proxy = proxy;
 		process.env.https_proxy = proxy;
@@ -231,7 +351,9 @@ export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
 	
 	logObj.prompt = promptObj[1]?.content || '';
 	const openai = new OpenAI({
+		baseURL: getConfiguredBaseUrl('openai'),
 		apiKey: apiKey,
+		timeout: getRequestTimeoutMs(),
 		...(proxy && { httpAgent: new HttpsProxyAgent(proxy) })
 	});
 	try {
@@ -239,12 +361,10 @@ export async function callOpenAi(promptObj: any, logObj: any): Promise<string> {
 			model: modelName,
 			messages: promptObj
 		});
-		const result = response.choices[0].message.content!;
-		const tokenUsage = response.usage!.prompt_tokens;
+		const result = extractMessageContent(response, 'OpenAI');
+		const tokenUsage = response.usage?.prompt_tokens;
 		logObj.tokenUsage = tokenUsage;
 		logObj.result = result;
-		console.log('Generated test code:', result);
-		console.log('Token usage:', tokenUsage);
 		return result;
 	} catch (e) {
 		console.error('Error generating test code:', e);
