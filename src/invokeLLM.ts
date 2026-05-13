@@ -46,7 +46,7 @@ export function getModelConfigError(): string | undefined {
 				return 'OpenAI API key is not configured. Please set LSPRAG.openaiApiKey in settings.';
 			}
 			break;
-		case 'local':
+		case 'ollama':
 			if (!getConfigInstance().localLLMUrl) {
 				return 'Local LLM URL is not configured. Please set LSPRAG.localLLMUrl in settings.';
 			}
@@ -127,7 +127,7 @@ export async function invokeLLM(promptObj: any, logObj: any, maxRetries = 2, ret
 				case 'openai':
 					response = await callOpenAi(promptObj, logObj);
 					break;
-				case 'local':
+				case 'ollama':
 					response = await callLocalLLM(promptObj, logObj);
 					break;
 				case 'deepseek':
