@@ -141,6 +141,28 @@ export async function getHover(document: vscode.TextDocument, symbol: vscode.Doc
 }
 }
 
+export function extractHoverText(hover: vscode.Hover | undefined): string | null {
+    if (!hover) {
+        return null;
+    }
+
+    const parts = hover.contents.map(content => {
+        if (typeof content === 'string') {
+            return content;
+        }
+        if (content instanceof vscode.MarkdownString) {
+            return content.value;
+        }
+        return content.value;
+    }).filter(text => text && text.trim().length > 0);
+
+    if (parts.length === 0) {
+        return null;
+    }
+
+    return parts.join('\n').trim();
+}
+
 export function removeComments(code: string): string {
     const commentRegex = [
         /\/\/[^\n]*\n/g,

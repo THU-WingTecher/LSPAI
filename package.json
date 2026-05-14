@@ -110,6 +110,7 @@
             "original",
             "agent",
             "cfg",
+            "cfg_fallback",
             "experimental",
             "fastest",
             "best"

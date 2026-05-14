@@ -7,6 +7,7 @@ import { SymPromptTestGenerator } from './symPrompt';
 import { NaiveTestGenerator } from './naive';
 import { CFGTestGenerator } from './cfg';
 import { LSPRAGTestGenerator } from './lsprag';
+import { CFGFallbackTestGenerator } from './cfgFallback';
 
 // Factory to create the appropriate generator
 export function createTestGenerator(
@@ -30,6 +31,8 @@ export function createTestGenerator(
 			return new AgentTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
 		case GenerationType.CFG:
 			return new CFGTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
+		case GenerationType.CFG_FALLBACK:
+			return new CFGFallbackTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
 		case GenerationType.LSPRAG:
 			return new LSPRAGTestGenerator(document, functionSymbol, languageId, fileName, logger, progress, token, srcPath);
 		default:

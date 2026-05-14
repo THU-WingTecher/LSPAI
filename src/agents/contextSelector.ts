@@ -7,7 +7,7 @@ import { getDecodedTokensFromSymbol, countUniqueDefinitions, getTokensFromStr } 
 import { DecodedToken } from '../lsp/types';
 import { retrieveDef, isBetweenFocalMethod, isInWorkspace } from '../lsp/definition';
 import { getReferenceInfo } from '../lsp/reference';
-import { formatToJSON, extractArrayFromJSON } from '../lsp/utils';
+import { formatToJSON, extractArrayFromJSON, extractHoverText, getHover } from '../lsp/utils';
 import { getSymbolDetail } from '../lsp/symbol';
 import { getSymbolByLocation } from '../lsp/symbol';
 import { ContextSelectorConfig, findTemplateFile } from '../prompts/promptBuilder';
@@ -636,9 +636,9 @@ export class ContextSelector {
             return false;
         }
 
-        if (token.type === 'variable' || token.type === 'property') {
+        if (this.isVariableLikeToken(token)) {
             console.log(`[addDefinitionToTerm] Processing ${token.type} definition for: ${term.name}`);
-            return this.addVariableDefinition(term, token, defSymbolDoc);
+            return await this.addVariableDefinition(term, token, defSymbolDoc);
         } else {
             console.log(`[addDefinitionToTerm] Processing method definition for: ${term.name}`);
             return this.addMethodDefinition(term, token, defSymbolDoc, functionSymbol);
@@ -669,11 +669,32 @@ export class ContextSelector {
             .join('\n');
     }
 
-    private addVariableDefinition(
+    private isVariableLikeToken(token: DecodedToken): boolean {
+        return ['variable', 'property', 'constant', 'member', 'global'].includes(token.type);
+    }
+
+    private async getHoverContextForToken(
+        token: DecodedToken,
+        defSymbolDoc: vscode.TextDocument
+    ): Promise<string | null> {
+        if (!token.definition[0].range) {
+            return null;
+        }
+
+        const defSymbol = token.defSymbol ?? await getSymbolByLocation(defSymbolDoc, token.definition[0].range.start);
+        if (!defSymbol) {
+            return null;
+        }
+
+        const hoverResults = await getHover(defSymbolDoc, defSymbol);
+        return extractHoverText(hoverResults);
+    }
+
+    private async addVariableDefinition(
         term: ContextTerm,
         token: DecodedToken,
         defSymbolDoc: vscode.TextDocument
-    ): boolean {
+    ): Promise<boolean> {
         console.log(`[addVariableDefinition] Starting for: ${term.name}`);
         const targetLine = defSymbolDoc.lineAt(token.definition[0].range!.start.line).text.trim();
         if (this.document.getText(this.targetSymbol.range).includes(targetLine)) {
@@ -689,10 +710,22 @@ export class ContextSelector {
         for (let i = startLine; i <= endLine; i++) {
             contextLines.push(defSymbolDoc.lineAt(i).text.trim());
         }
-        term.context = this.addLineNumbers(contextLines.join('\n'), startLine + 1);
+        const variableContext = contextLines.join('\n').trim();
+        if (variableContext.length > 0) {
+            term.context = this.addLineNumbers(variableContext, startLine + 1);
+            console.log(`[addVariableDefinition] Successfully added definition for: ${term.name}`);
+            return true;
+        }
+
+        const hoverText = await this.getHoverContextForToken(token, defSymbolDoc);
+        if (hoverText) {
+            term.context = this.addLineNumbers(hoverText, token.definition[0].range!.start.line + 1);
+            console.log(`[addVariableDefinition] Successfully added hover definition for: ${term.name}`);
+            return true;
+        }
         
-        console.log(`[addVariableDefinition] Successfully added definition for: ${term.name}`);
-        return true;
+        console.log(`[addVariableDefinition] Failed to add definition for: ${term.name}`);
+        return false;
     }
 
     private async addMethodDefinition(

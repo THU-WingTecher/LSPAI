@@ -191,7 +191,6 @@ export function isBetweenFocalMethod(
     );
 }
 
-
 /** Normalize a URI string or filesystem path into an absolute fsPath. */
 function toFsPathNormalized(input: string): string | null {
   if (!input) return null;
@@ -223,11 +222,20 @@ export function isInWorkspace(uriOrPath: string): boolean {
     .map(f => toFsPathNormalized(f.uri.fsPath))
     .filter(Boolean) as string[];
 
-  // Prefix match under workspace root
-  return roots.some(root => target.startsWith(ensureTrailingSep(root)));
+  const configuredWorkspace = toFsPathNormalized(getConfigInstance().workspace);
+  if (configuredWorkspace && !roots.includes(configuredWorkspace)) {
+    roots.push(configuredWorkspace);
+  }
+
+  if (roots.length === 0) {
+    return false;
+  }
+
+  return roots.some(root => {
+    const normalizedRoot = ensureTrailingSep(root);
+    return target === root || target.startsWith(normalizedRoot);
+  });
 }
-
-
 export async function classifyTokenByUri(document: vscode.TextDocument, DefUseMap: DecodedToken[], parentSymbol: vscode.DocumentSymbol | null = null): Promise<Map<string, DecodedToken[]>> {
     // Get all definitions from DefUseMap, but we retreive the method and definition together
     // Define the structure for ParentDefinition
