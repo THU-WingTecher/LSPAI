@@ -118,7 +118,7 @@ export type ProjectName = keyof typeof SRC_PATHS;
 const SEED = 12345; // Fixed seed for reproducibility
 let seededRandom: () => number;
 
-export type Provider = 'openai' | 'local' | 'deepseek';
+export type Provider = 'openai' | 'ollama' | 'deepseek';
 
 // Function to load private configuration
 
@@ -350,7 +350,7 @@ export class Configuration {
     }
 
     private adjustTimeout(): void {
-        if (this.provider === 'local' || this.provider === 'deepseek') {
+        if (this.provider === 'ollama' || this.provider === 'deepseek') {
             this.config.timeoutMs *= 2;
         }
     }
